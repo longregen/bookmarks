@@ -727,3 +727,37 @@ loadBookmarks();
 
 // Refresh bookmarks every 5 seconds
 setInterval(loadBookmarks, 5000);
+
+// Expose test helpers for e2e tests
+declare global {
+  interface Window {
+    __testHelpers?: {
+      getBookmarkStatus: () => Promise<any>;
+    };
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.__testHelpers = {
+    async getBookmarkStatus() {
+      const bookmarks = await db.bookmarks.toArray();
+      const markdown = await db.markdown.toArray();
+
+      return {
+        bookmarks: bookmarks.map(b => ({
+          id: b.id,
+          title: b.title,
+          status: b.status,
+          errorMessage: b.errorMessage,
+          url: b.url,
+        })),
+        markdown: markdown.map(m => ({
+          bookmarkId: m.bookmarkId,
+          contentLength: m.content.length,
+          contentPreview: m.content.slice(0, 200),
+        })),
+        markdownCount: markdown.length,
+      };
+    },
+  };
+}
