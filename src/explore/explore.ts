@@ -1,6 +1,7 @@
 import { db, Bookmark, QuestionAnswer } from '../db/schema';
 import { generateEmbeddings } from '../lib/api';
 import { findTopK } from '../lib/similarity';
+import { exportSingleBookmark, exportAllBookmarks, downloadExport } from '../lib/export';
 
 // Constants
 const RESULTS_PER_PAGE = 10;
@@ -27,6 +28,8 @@ const searchCount = document.getElementById('searchCount') as HTMLSpanElement;
 const closeDetailBtn = document.getElementById('closeDetailBtn') as HTMLButtonElement;
 const deleteBtn = document.getElementById('deleteBtn') as HTMLButtonElement;
 const retryBtn = document.getElementById('retryBtn') as HTMLButtonElement;
+const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
+const exportAllBtn = document.getElementById('exportAllBtn') as HTMLButtonElement;
 
 let currentBookmarkId: string | null = null;
 
@@ -101,7 +104,10 @@ function createBookmarkCard(bookmark: Bookmark): HTMLElement {
         <div class="bookmark-title">${escapeHtml(bookmark.title)}</div>
         <a href="${escapeHtml(bookmark.url)}" class="bookmark-url">${escapeHtml(bookmark.url)}</a>
       </div>
-      <span class="status-badge ${statusClass}">${statusText}</span>
+      <div class="bookmark-header-actions">
+        <button class="btn btn-small btn-export" title="Export bookmark">Export</button>
+        <span class="status-badge ${statusClass}">${statusText}</span>
+      </div>
     </div>
     <div class="bookmark-meta">
       <span>${timeAgo}</span>
@@ -113,6 +119,12 @@ function createBookmarkCard(bookmark: Bookmark): HTMLElement {
   const link = card.querySelector('.bookmark-url');
   if (link) {
     link.addEventListener('click', (e) => e.stopPropagation());
+  }
+
+  // Add event listener for per-item export button
+  const exportButton = card.querySelector('.btn-export');
+  if (exportButton) {
+    exportButton.addEventListener('click', (e) => exportBookmarkById(bookmark.id, e));
   }
 
   return card;
@@ -217,6 +229,68 @@ async function retryCurrentBookmark() {
   } catch (error) {
     console.error('Error retrying bookmark:', error);
     alert('Failed to retry bookmark');
+  }
+}
+
+// Export functionality
+async function exportCurrentBookmark() {
+  if (!currentBookmarkId) return;
+
+  try {
+    exportBtn.disabled = true;
+    exportBtn.textContent = 'Exporting...';
+
+    const exportData = await exportSingleBookmark(currentBookmarkId);
+    downloadExport(exportData);
+  } catch (error) {
+    console.error('Error exporting bookmark:', error);
+    alert('Failed to export bookmark');
+  } finally {
+    exportBtn.disabled = false;
+    exportBtn.textContent = 'Export';
+  }
+}
+
+async function exportBookmarkById(bookmarkId: string, event: Event) {
+  event.stopPropagation(); // Prevent card click from opening detail view
+
+  const button = event.currentTarget as HTMLButtonElement;
+  const originalText = button.textContent;
+
+  try {
+    button.disabled = true;
+    button.textContent = '...';
+
+    const exportData = await exportSingleBookmark(bookmarkId);
+    downloadExport(exportData);
+  } catch (error) {
+    console.error('Error exporting bookmark:', error);
+    alert('Failed to export bookmark');
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
+async function handleExportAll() {
+  try {
+    exportAllBtn.disabled = true;
+    exportAllBtn.textContent = 'Exporting...';
+
+    const exportData = await exportAllBookmarks();
+
+    if (exportData.bookmarkCount === 0) {
+      alert('No bookmarks to export');
+      return;
+    }
+
+    downloadExport(exportData);
+  } catch (error) {
+    console.error('Error exporting all bookmarks:', error);
+    alert('Failed to export bookmarks');
+  } finally {
+    exportAllBtn.disabled = false;
+    exportAllBtn.textContent = 'Export All';
   }
 }
 
@@ -514,6 +588,8 @@ function createSearchResultCard(
 closeDetailBtn.addEventListener('click', closeDetail);
 deleteBtn.addEventListener('click', deleteCurrentBookmark);
 retryBtn.addEventListener('click', retryCurrentBookmark);
+exportBtn.addEventListener('click', exportCurrentBookmark);
+exportAllBtn.addEventListener('click', handleExportAll);
 settingsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
 searchBtn.addEventListener('click', performSearch);
 
