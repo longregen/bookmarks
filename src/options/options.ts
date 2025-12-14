@@ -2,6 +2,7 @@ import { getSettings, saveSetting } from '../lib/settings';
 
 const form = document.getElementById('settingsForm') as HTMLFormElement;
 const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
+const backBtn = document.getElementById('backBtn') as HTMLButtonElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
 
 const apiBaseUrlInput = document.getElementById('apiBaseUrl') as HTMLInputElement;
@@ -101,6 +102,11 @@ testBtn.addEventListener('click', async () => {
     testBtn.disabled = false;
     testBtn.textContent = 'Test Connection';
   }
+});
+
+// Navigate back to explore page
+backBtn.addEventListener('click', () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL('src/explore/explore.html') });
 });
 
 // Load settings on page load
