@@ -74,25 +74,39 @@ async function launchBrowser(): Promise<Browser> {
     console.log('Setting up Firefox profile with extension...');
     await setupFirefoxProfile(USER_DATA_DIR, EXTENSION_PATH);
 
+    console.log('Launching Firefox with Puppeteer...');
     const browser = await puppeteer.launch({
       product: 'firefox',
       executablePath: BROWSER_PATH,
-      headless: false, // Extensions require headed mode
+      headless: false,
       args: [
         '-profile',
         USER_DATA_DIR,
+        '--remote-debugging-port=0',
       ],
       extraPrefsFirefox: {
         // Enable extensions
         'xpinstall.signatures.required': false,
         'extensions.autoDisableScopes': 0,
+        'extensions.enabledScopes': 15,
+        // Enable remote debugging
         'devtools.chrome.enabled': true,
         'devtools.debugger.remote-enabled': true,
+        'devtools.debugger.prompt-connection': false,
+        'remote.enabled': true,
+        'remote.force-local': true,
       },
+      // Increase timeout for Firefox startup
+      timeout: 60000,
+      // Enable protocol debugging output
+      dumpio: false,
+      // Use pipe instead of websocket for more reliable connection
+      pipe: true,
     });
 
+    console.log('Firefox launched successfully');
     // Wait for extension to initialize
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise(resolve => setTimeout(resolve, 5000));
 
     return browser;
   } else {
