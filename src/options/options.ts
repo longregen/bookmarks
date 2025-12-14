@@ -1,5 +1,8 @@
 import { getSettings, saveSetting } from '../lib/settings';
 import { exportAllBookmarks, downloadExport, readImportFile, importBookmarks } from '../lib/export';
+import { validateUrls } from '../lib/bulk-import';
+import { getRecentJobs, type Job } from '../lib/jobs';
+import { db, JobType, JobStatus } from '../db/schema';
 
 const form = document.getElementById('settingsForm') as HTMLFormElement;
 const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
@@ -169,7 +172,7 @@ importBtn.addEventListener('click', async () => {
     importBtn.textContent = 'Importing...';
 
     const exportData = await readImportFile(selectedFile);
-    const result = await importBookmarks(exportData);
+    const result = await importBookmarks(exportData, selectedFile.name);
 
     // Show result
     let message = `Imported ${result.imported} bookmark(s)`;
@@ -207,5 +210,376 @@ importBtn.addEventListener('click', async () => {
   }
 });
 
+// Bulk Import elements
+const bulkUrlsInput = document.getElementById('bulkUrlsInput') as HTMLTextAreaElement;
+const urlValidationFeedback = document.getElementById('urlValidationFeedback') as HTMLDivElement;
+const startBulkImportBtn = document.getElementById('startBulkImport') as HTMLButtonElement;
+const cancelBulkImportBtn = document.getElementById('cancelBulkImport') as HTMLButtonElement;
+const bulkImportProgress = document.getElementById('bulkImportProgress') as HTMLDivElement;
+const bulkImportProgressBar = document.getElementById('bulkImportProgressBar') as HTMLDivElement;
+const bulkImportStatus = document.getElementById('bulkImportStatus') as HTMLSpanElement;
+
+// Jobs Dashboard elements
+const jobTypeFilter = document.getElementById('jobTypeFilter') as HTMLSelectElement;
+const jobStatusFilter = document.getElementById('jobStatusFilter') as HTMLSelectElement;
+const refreshJobsBtn = document.getElementById('refreshJobsBtn') as HTMLButtonElement;
+const jobsList = document.getElementById('jobsList') as HTMLDivElement;
+
+let currentBulkImportJobId: string | null = null;
+let bulkImportPollingInterval: number | null = null;
+let jobsPollingInterval: number | null = null;
+
+// Bulk import URL validation (debounced)
+let validationTimeout: number | null = null;
+bulkUrlsInput.addEventListener('input', () => {
+  if (validationTimeout) {
+    clearTimeout(validationTimeout);
+  }
+
+  validationTimeout = window.setTimeout(() => {
+    const urlsText = bulkUrlsInput.value.trim();
+
+    if (!urlsText) {
+      urlValidationFeedback.classList.remove('show');
+      startBulkImportBtn.disabled = true;
+      return;
+    }
+
+    const validation = validateUrls(urlsText);
+
+    if (validation.validUrls.length === 0) {
+      urlValidationFeedback.className = 'validation-feedback show invalid';
+      urlValidationFeedback.textContent = 'No valid URLs found';
+      startBulkImportBtn.disabled = true;
+      return;
+    }
+
+    // Show validation feedback
+    let feedbackClass = 'validation-feedback show valid';
+    let feedbackText = `${validation.validUrls.length} valid URL(s)`;
+
+    if (validation.invalidUrls.length > 0) {
+      feedbackClass = 'validation-feedback show warning';
+      feedbackText += `, ${validation.invalidUrls.length} invalid URL(s)`;
+    }
+
+    if (validation.duplicates.length > 0) {
+      feedbackClass = 'validation-feedback show warning';
+      feedbackText += `, ${validation.duplicates.length} duplicate(s)`;
+    }
+
+    urlValidationFeedback.className = feedbackClass;
+    urlValidationFeedback.textContent = feedbackText;
+    startBulkImportBtn.disabled = false;
+  }, 500);
+});
+
+// Start bulk import
+startBulkImportBtn.addEventListener('click', async () => {
+  const urlsText = bulkUrlsInput.value.trim();
+  if (!urlsText) return;
+
+  const validation = validateUrls(urlsText);
+  if (validation.validUrls.length === 0) {
+    showStatus('No valid URLs to import', 'error');
+    return;
+  }
+
+  try {
+    startBulkImportBtn.disabled = true;
+    cancelBulkImportBtn.style.display = 'inline-block';
+    bulkImportProgress.classList.remove('hidden');
+    bulkImportProgressBar.style.width = '0%';
+    bulkImportStatus.textContent = 'Starting import...';
+
+    // Send message to background script to start bulk import
+    const response = await chrome.runtime.sendMessage({
+      type: 'START_BULK_IMPORT',
+      urls: validation.validUrls,
+    });
+
+    if (!response.success) {
+      throw new Error(response.error || 'Failed to start bulk import');
+    }
+
+    currentBulkImportJobId = response.jobId;
+
+    // Start polling for progress
+    bulkImportPollingInterval = window.setInterval(async () => {
+      if (!currentBulkImportJobId) return;
+
+      const jobResponse = await chrome.runtime.sendMessage({
+        type: 'GET_JOB_STATUS',
+        jobId: currentBulkImportJobId,
+      });
+
+      if (jobResponse.success && jobResponse.job) {
+        const job = jobResponse.job;
+
+        // Update progress bar
+        bulkImportProgressBar.style.width = `${job.progress}%`;
+
+        // Update status text
+        const successCount = job.metadata.successCount || 0;
+        const failureCount = job.metadata.failureCount || 0;
+        const totalUrls = job.metadata.totalUrls || 0;
+        bulkImportStatus.textContent = `Imported ${successCount} of ${totalUrls} URLs (${failureCount} failed)`;
+
+        // Check if completed
+        if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
+          if (bulkImportPollingInterval) {
+            clearInterval(bulkImportPollingInterval);
+            bulkImportPollingInterval = null;
+          }
+
+          currentBulkImportJobId = null;
+          startBulkImportBtn.disabled = false;
+          cancelBulkImportBtn.style.display = 'none';
+
+          if (job.status === 'completed') {
+            showStatus(`Bulk import completed! Imported ${successCount} URLs (${failureCount} failed)`, 'success');
+            bulkUrlsInput.value = '';
+            urlValidationFeedback.classList.remove('show');
+          } else if (job.status === 'failed') {
+            showStatus('Bulk import failed: ' + (job.metadata.errorMessage || 'Unknown error'), 'error');
+          } else {
+            showStatus('Bulk import cancelled', 'error');
+          }
+
+          // Refresh jobs list
+          loadJobs();
+        }
+      }
+    }, 1000);
+
+    showStatus(`Started importing ${validation.validUrls.length} URLs`, 'success');
+  } catch (error) {
+    console.error('Error starting bulk import:', error);
+    showStatus('Failed to start bulk import: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
+    startBulkImportBtn.disabled = false;
+    cancelBulkImportBtn.style.display = 'none';
+    bulkImportProgress.classList.add('hidden');
+
+    if (bulkImportPollingInterval) {
+      clearInterval(bulkImportPollingInterval);
+      bulkImportPollingInterval = null;
+    }
+  }
+});
+
+// Cancel bulk import
+cancelBulkImportBtn.addEventListener('click', async () => {
+  if (currentBulkImportJobId && bulkImportPollingInterval) {
+    clearInterval(bulkImportPollingInterval);
+    bulkImportPollingInterval = null;
+    currentBulkImportJobId = null;
+    startBulkImportBtn.disabled = false;
+    cancelBulkImportBtn.style.display = 'none';
+    showStatus('Bulk import cancelled', 'error');
+  }
+});
+
+// Jobs Dashboard functions
+async function loadJobs() {
+  try {
+    jobsList.innerHTML = '<div class="loading">Loading jobs...</div>';
+
+    // Get recent jobs from database
+    const jobs = await getRecentJobs({ limit: 100 });
+
+    // Apply filters
+    const typeFilter = jobTypeFilter.value;
+    const statusFilter = jobStatusFilter.value;
+
+    let filteredJobs = jobs;
+
+    if (typeFilter) {
+      filteredJobs = filteredJobs.filter(job => job.type === typeFilter);
+    }
+
+    if (statusFilter) {
+      filteredJobs = filteredJobs.filter(job => job.status === statusFilter);
+    }
+
+    if (filteredJobs.length === 0) {
+      jobsList.innerHTML = '<div class="empty">No jobs found</div>';
+      return;
+    }
+
+    // Render jobs
+    jobsList.innerHTML = filteredJobs.map(job => renderJobItem(job)).join('');
+
+    // Add click handlers for expandable details
+    const jobItems = jobsList.querySelectorAll('.job-item');
+    jobItems.forEach(item => {
+      item.addEventListener('click', () => {
+        item.classList.toggle('expanded');
+      });
+    });
+  } catch (error) {
+    console.error('Error loading jobs:', error);
+    jobsList.innerHTML = '<div class="empty">Error loading jobs</div>';
+  }
+}
+
+function renderJobItem(job: Job): string {
+  const typeLabel = formatJobType(job.type);
+  const statusClass = job.status.toLowerCase();
+  const statusLabel = job.status.replace('_', ' ').toUpperCase();
+  const timestamp = formatTimestamp(job.createdAt);
+  const metadata = formatMetadata(job);
+
+  return `
+    <div class="job-item" data-job-id="${job.id}">
+      <div class="job-header">
+        <div class="job-info">
+          <div class="job-type">${typeLabel}</div>
+          <div class="job-timestamp">${timestamp}</div>
+        </div>
+        <div class="job-status-badge ${statusClass}">${statusLabel}</div>
+      </div>
+
+      ${job.progress > 0 && job.status === JobStatus.IN_PROGRESS ? `
+        <div class="job-progress">
+          <div class="job-progress-bar">
+            <div class="job-progress-fill" style="width: ${job.progress}%"></div>
+          </div>
+          <div class="job-progress-text">${job.progress}%</div>
+        </div>
+      ` : ''}
+
+      ${job.currentStep ? `
+        <div class="job-step">${job.currentStep}</div>
+      ` : ''}
+
+      <div class="job-metadata">
+        ${metadata}
+      </div>
+
+      ${job.status === JobStatus.FAILED && job.metadata.errorMessage ? `
+        <div class="job-error">
+          <strong>Error:</strong> ${job.metadata.errorMessage}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function formatJobType(type: JobType): string {
+  const labels: Record<JobType, string> = {
+    [JobType.MANUAL_ADD]: 'Manual Add',
+    [JobType.MARKDOWN_GENERATION]: 'Markdown Generation',
+    [JobType.QA_GENERATION]: 'Q&A Generation',
+    [JobType.FILE_IMPORT]: 'File Import',
+    [JobType.BULK_URL_IMPORT]: 'Bulk URL Import',
+    [JobType.URL_FETCH]: 'URL Fetch',
+  };
+  return labels[type] || type;
+}
+
+function formatTimestamp(date: Date): string {
+  const now = new Date();
+  const diff = now.getTime() - new Date(date).getTime();
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 60) return 'Just now';
+  if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+  if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+  if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
+  return new Date(date).toLocaleDateString();
+}
+
+function formatMetadata(job: Job): string {
+  const items: string[] = [];
+
+  // Common metadata
+  if (job.metadata.url) {
+    items.push(`<div class="job-metadata-item"><strong>URL:</strong> ${job.metadata.url}</div>`);
+  }
+
+  if (job.metadata.title) {
+    items.push(`<div class="job-metadata-item"><strong>Title:</strong> ${job.metadata.title}</div>`);
+  }
+
+  // Type-specific metadata
+  if (job.type === JobType.MARKDOWN_GENERATION) {
+    if (job.metadata.characterCount) {
+      items.push(`<div class="job-metadata-item"><strong>Characters:</strong> ${job.metadata.characterCount.toLocaleString()}</div>`);
+    }
+    if (job.metadata.wordCount) {
+      items.push(`<div class="job-metadata-item"><strong>Words:</strong> ${job.metadata.wordCount.toLocaleString()}</div>`);
+    }
+  }
+
+  if (job.type === JobType.QA_GENERATION) {
+    if (job.metadata.pairsGenerated) {
+      items.push(`<div class="job-metadata-item"><strong>Q&A Pairs:</strong> ${job.metadata.pairsGenerated}</div>`);
+    }
+  }
+
+  if (job.type === JobType.FILE_IMPORT) {
+    if (job.metadata.fileName) {
+      items.push(`<div class="job-metadata-item"><strong>File:</strong> ${job.metadata.fileName}</div>`);
+    }
+    if (job.metadata.importedCount !== undefined) {
+      items.push(`<div class="job-metadata-item"><strong>Imported:</strong> ${job.metadata.importedCount}</div>`);
+    }
+    if (job.metadata.skippedCount !== undefined) {
+      items.push(`<div class="job-metadata-item"><strong>Skipped:</strong> ${job.metadata.skippedCount}</div>`);
+    }
+  }
+
+  if (job.type === JobType.BULK_URL_IMPORT) {
+    if (job.metadata.totalUrls) {
+      items.push(`<div class="job-metadata-item"><strong>Total URLs:</strong> ${job.metadata.totalUrls}</div>`);
+    }
+    if (job.metadata.successCount !== undefined) {
+      items.push(`<div class="job-metadata-item"><strong>Success:</strong> ${job.metadata.successCount}</div>`);
+    }
+    if (job.metadata.failureCount !== undefined) {
+      items.push(`<div class="job-metadata-item"><strong>Failed:</strong> ${job.metadata.failureCount}</div>`);
+    }
+  }
+
+  return items.join('') || '<div class="job-metadata-item">No additional information</div>';
+}
+
+// Jobs filter handlers
+jobTypeFilter.addEventListener('change', loadJobs);
+jobStatusFilter.addEventListener('change', loadJobs);
+refreshJobsBtn.addEventListener('click', loadJobs);
+
+// Start polling for jobs updates
+function startJobsPolling() {
+  if (jobsPollingInterval) {
+    clearInterval(jobsPollingInterval);
+  }
+
+  jobsPollingInterval = window.setInterval(() => {
+    // Only auto-refresh if there are active jobs
+    const hasActiveJobs = document.querySelectorAll('.job-status-badge.in_progress').length > 0;
+    if (hasActiveJobs) {
+      loadJobs();
+    }
+  }, 2000);
+}
+
+// Stop polling when leaving the page
+window.addEventListener('beforeunload', () => {
+  if (bulkImportPollingInterval) {
+    clearInterval(bulkImportPollingInterval);
+  }
+  if (jobsPollingInterval) {
+    clearInterval(jobsPollingInterval);
+  }
+});
+
 // Load settings on page load
 loadSettings();
+
+// Load jobs on page load
+loadJobs();
+startJobsPolling();
