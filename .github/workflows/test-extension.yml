@@ -141,6 +141,8 @@ jobs:
   test-e2e-chrome:
     needs: build
     runs-on: ubuntu-latest
+    env:
+      HAS_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -169,7 +171,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y xvfb
 
       - name: Run E2E tests with API
-        if: ${{ secrets.OPENAI_API_KEY != '' }}
+        if: env.HAS_API_KEY == 'true'
         env:
           BROWSER_TYPE: chrome
           BROWSER_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
@@ -178,5 +180,5 @@ jobs:
         run: xvfb-run --auto-servernum npx tsx tests/e2e.test.ts
 
       - name: Skip E2E tests (no API key)
-        if: ${{ secrets.OPENAI_API_KEY == '' }}
+        if: env.HAS_API_KEY != 'true'
         run: echo "Skipping E2E tests - OPENAI_API_KEY secret not configured"
