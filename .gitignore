@@ -1,5 +1,7 @@
 node_modules/
 dist/
+dist-chrome/
+dist-firefox/
 .DS_Store
 *.log
 .vite/

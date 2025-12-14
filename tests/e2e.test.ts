@@ -3,7 +3,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const EXTENSION_PATH = path.resolve(__dirname, '../dist');
+const EXTENSION_PATH = process.env.EXTENSION_PATH
+  ? path.resolve(process.cwd(), process.env.EXTENSION_PATH)
+  : path.resolve(__dirname, '../dist-chrome');
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const BROWSER_PATH = process.env.BROWSER_PATH;

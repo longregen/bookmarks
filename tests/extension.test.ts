@@ -3,7 +3,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const EXTENSION_PATH = path.resolve(__dirname, '../dist');
+const EXTENSION_PATH = process.env.EXTENSION_PATH
+  ? path.resolve(process.cwd(), process.env.EXTENSION_PATH)
+  : path.resolve(__dirname, '../dist-chrome');
 
 const BROWSER_TYPE = process.env.BROWSER_TYPE || 'chrome';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
@@ -283,7 +285,7 @@ async function testFirefoxExtension(): Promise<void> {
   // like Chrome does. Firefox testing is handled via web-ext in the CI workflow.
 
   console.log('  Firefox extension testing is done via web-ext lint in CI.');
-  console.log('  For manual testing, run: npx web-ext run -s dist');
+  console.log('  For manual testing, run: npx web-ext run -s dist-firefox');
   console.log('');
 
   await runTest('Firefox test placeholder (web-ext handles actual testing)', async () => {
