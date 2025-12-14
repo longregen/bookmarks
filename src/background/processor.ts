@@ -11,11 +11,20 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
     });
 
     // Step 1: Extract markdown from HTML
-    console.log(`Extracting markdown for: ${bookmark.title}`);
+    console.log(`[Processor] Extracting markdown for: ${bookmark.title}`, {
+      url: bookmark.url,
+      htmlLength: bookmark.html?.length ?? 0,
+      htmlPreview: bookmark.html?.slice(0, 200) ?? '',
+    });
     const extracted = extractMarkdown(bookmark.html, bookmark.url);
 
     // Save markdown to database
     const markdownId = crypto.randomUUID();
+    console.log(`[Processor] Saving markdown to database`, {
+      bookmarkId: bookmark.id,
+      contentLength: extracted.content?.length ?? 0,
+      contentPreview: extracted.content?.slice(0, 200) ?? '',
+    });
     await db.markdown.add({
       id: markdownId,
       bookmarkId: bookmark.id,

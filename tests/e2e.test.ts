@@ -4,6 +4,15 @@ import fs from 'fs';
 import os from 'os';
 import { fileURLToPath } from 'url';
 
+// Type declaration for test helpers exposed by the explore page
+declare global {
+  interface Window {
+    __testHelpers?: {
+      getBookmarkStatus: () => Promise<any>;
+    };
+  }
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const EXTENSION_PATH = process.env.EXTENSION_PATH
   ? path.resolve(process.cwd(), process.env.EXTENSION_PATH)
@@ -353,7 +362,185 @@ async function main(): Promise<void> {
       await page.close();
     });
 
-    // Test 6: Test search functionality
+    // Test 6: Verify readability content extraction
+    await runTest('Readability extracts content correctly', async () => {
+      // Create a simple test page with clear article content
+      const testPage = await browser!.newPage();
+
+      const testContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Understanding Machine Learning Fundamentals</title>
+  <meta name="author" content="Jane Smith">
+</head>
+<body>
+  <article>
+    <header>
+      <h1>Understanding Machine Learning Fundamentals</h1>
+      <p class="byline">By Jane Smith</p>
+      <time datetime="2024-01-15">January 15, 2024</time>
+    </header>
+
+    <p>Machine learning is a subset of artificial intelligence that enables computers to learn from data without being explicitly programmed. This revolutionary approach has transformed how we solve complex problems in various domains.</p>
+
+    <p>The fundamental principle behind machine learning is pattern recognition. Algorithms analyze training data to identify patterns and make predictions on new, unseen data. This capability has opened up new possibilities in data analysis and automation.</p>
+
+    <h2>Core Concepts</h2>
+
+    <p>At its core, machine learning relies on statistical methods and computational algorithms. The process involves feeding data to algorithms that can identify patterns and relationships within the data. These patterns are then used to make predictions or decisions without being explicitly programmed for specific tasks.</p>
+
+    <p>Machine learning models improve their performance through experience. As they process more data, they refine their internal parameters to make better predictions. This iterative learning process is what distinguishes machine learning from traditional programming approaches.</p>
+
+    <h2>Types of Learning</h2>
+
+    <p>There are three main categories of machine learning approaches, each suited for different types of problems and data scenarios.</p>
+
+    <p>Supervised learning uses labeled data, where the algorithm learns from examples that include both input and desired output. This approach is commonly used for classification and regression tasks.</p>
+
+    <p>Unsupervised learning finds hidden patterns in unlabeled data, discovering structure without explicit guidance. Clustering and dimensionality reduction are common applications of this approach.</p>
+
+    <p>Reinforcement learning learns through trial and error, receiving rewards or penalties based on actions taken. This approach has proven particularly effective in game playing and robotics.</p>
+
+    <h2>Real-world Applications</h2>
+
+    <p>Machine learning powers recommendation systems that suggest products, movies, or content based on user preferences and behavior patterns. These systems analyze vast amounts of user interaction data to provide personalized experiences.</p>
+
+    <p>In finance, machine learning algorithms detect fraud by identifying unusual patterns in transaction data. These systems can process millions of transactions in real-time, flagging suspicious activities for further investigation.</p>
+
+    <p>Medical diagnosis has been revolutionized by machine learning, with algorithms analyzing medical images, patient records, and genetic data to assist doctors in identifying diseases and recommending treatments.</p>
+
+    <p>Autonomous vehicles rely heavily on machine learning for perception, decision-making, and control. These systems process data from sensors and cameras to navigate safely through complex environments.</p>
+
+    <p>Natural language processing systems use machine learning to understand and generate human language, enabling applications like virtual assistants, machine translation, and sentiment analysis.</p>
+  </article>
+</body>
+</html>`;
+
+      await testPage.setContent(testContent, { waitUntil: 'domcontentloaded' });
+
+      // Get the page HTML
+      const pageData = await testPage.evaluate(() => {
+        return {
+          html: document.documentElement.outerHTML,
+          title: document.title,
+        };
+      });
+
+      // Use a realistic article URL for Readability compatibility
+      // Avoid generic domains like example.com that Readability might filter
+      pageData.url = 'https://techblog.example.org/2024/01/understanding-machine-learning-fundamentals';
+
+      // Close the test page before opening popup
+      await testPage.close();
+
+      // Send bookmark data to service worker via the extension's message system
+      // We'll use the explore page to access the database and extension APIs
+      const explorePage = await browser!.newPage();
+      await explorePage.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await explorePage.waitForSelector('#bookmarkList', { timeout: 5000 });
+
+      // Inject the bookmark via the service worker
+      const saveResult = await explorePage.evaluate(async (data) => {
+        // Send message to service worker to save the bookmark
+        return new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            { type: 'SAVE_BOOKMARK', data },
+            (response) => resolve(response)
+          );
+        });
+      }, pageData);
+
+      if (!saveResult || !(saveResult as any).success) {
+        throw new Error('Failed to save bookmark: ' + JSON.stringify(saveResult));
+      }
+
+      console.log('  Bookmark saved, waiting for processing...');
+
+      // Wait for bookmark to be processed (up to 90 seconds)
+      const maxWait = 90000;
+      const startTime = Date.now();
+      let processed = false;
+
+      while (Date.now() - startTime < maxWait) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        await explorePage.reload({ waitUntil: 'domcontentloaded' });
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        const bookmarkStatus = await explorePage.evaluate(async () => {
+          // Use the exposed test helper to access the database
+          if (!window.__testHelpers) {
+            throw new Error('Test helpers not available on window object');
+          }
+          return await window.__testHelpers.getBookmarkStatus();
+        });
+
+        console.log('  Status check:', JSON.stringify(bookmarkStatus, null, 2));
+
+        const testBookmark = bookmarkStatus.bookmarks.find(
+          (b: any) => b.title === 'Understanding Machine Learning Fundamentals'
+        );
+
+        if (testBookmark) {
+          if (testBookmark.status === 'complete') {
+            processed = true;
+
+            // Find the markdown for this specific bookmark
+            const bookmarkMarkdown = bookmarkStatus.markdown.find(
+              (m: any) => m.bookmarkId === testBookmark.id
+            );
+
+            if (!bookmarkMarkdown) {
+              throw new Error('Bookmark processed but no markdown entry found in database');
+            }
+
+            console.log(`  Markdown content length: ${bookmarkMarkdown.contentLength}`);
+            console.log(`  Markdown preview: ${bookmarkMarkdown.contentPreview}`);
+
+            if (bookmarkMarkdown.contentLength === 0) {
+              throw new Error(
+                'Readability extracted empty content. This indicates an issue with content extraction.\n' +
+                `Bookmark URL: ${testBookmark.url}\n` +
+                'The HTML structure may not be compatible with Readability, or the URL format may be causing issues.'
+              );
+            }
+
+            const markdown = bookmarkMarkdown.contentPreview;
+
+            // Check for key content that should be extracted by Readability
+            const expectedPhrases = [
+              'Machine learning',
+              'artificial intelligence',
+              'pattern recognition',
+            ];
+
+            const missingPhrases = expectedPhrases.filter(phrase =>
+              !markdown.toLowerCase().includes(phrase.toLowerCase())
+            );
+
+            if (missingPhrases.length > 0) {
+              throw new Error(
+                `Extracted content is missing expected phrases: ${missingPhrases.join(', ')}\n` +
+                `Markdown content preview (200 chars): ${markdown}`
+              );
+            }
+
+            console.log('  ✓ Content extracted successfully with all expected phrases');
+            break;
+          } else if (testBookmark.status === 'error') {
+            throw new Error(`Bookmark processing failed: ${testBookmark.errorMessage}`);
+          }
+        }
+      }
+
+      if (!processed) {
+        throw new Error('Bookmark did not complete processing within timeout period');
+      }
+
+      await explorePage.close();
+    });
+
+    // Test 7: Test search functionality
     await runTest('Search for bookmarks', async () => {
       const page = await browser!.newPage();
       await page.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
@@ -391,7 +578,7 @@ async function main(): Promise<void> {
       await page.close();
     });
 
-    // Test 7: View switching
+    // Test 8: View switching
     await runTest('View switching between list and search', async () => {
       const page = await browser!.newPage();
       await page.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
@@ -419,7 +606,7 @@ async function main(): Promise<void> {
       await page.close();
     });
 
-    // Test 8: Popup stats display
+    // Test 9: Popup stats display
     await runTest('Popup displays stats correctly', async () => {
       const page = await browser!.newPage();
       await page.goto(`chrome-extension://${extensionId}/src/popup/popup.html`);
