@@ -1,8 +1,12 @@
-import { db, Bookmark } from '../db/schema';
+import { db, Bookmark, JobType, JobStatus } from '../db/schema';
 import { extractMarkdown } from '../lib/extract';
 import { generateQAPairs, generateEmbeddings } from '../lib/api';
+import { createJob, updateJob, completeJob, failJob } from '../lib/jobs';
 
 export async function processBookmark(bookmark: Bookmark): Promise<void> {
+  let markdownJobId: string | undefined;
+  let qaJobId: string | undefined;
+
   try {
     // Update status to 'processing'
     await db.bookmarks.update(bookmark.id, {
@@ -16,7 +20,18 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
       htmlLength: bookmark.html?.length ?? 0,
       htmlPreview: bookmark.html?.slice(0, 200) ?? '',
     });
+
+    // Create MARKDOWN_GENERATION job
+    const markdownJob = await createJob({
+      type: JobType.MARKDOWN_GENERATION,
+      status: JobStatus.IN_PROGRESS,
+      bookmarkId: bookmark.id,
+    });
+    markdownJobId = markdownJob.id;
+
+    const markdownStartTime = Date.now();
     const extracted = extractMarkdown(bookmark.html, bookmark.url);
+    const extractionTimeMs = Date.now() - markdownStartTime;
 
     // Save markdown to database
     const markdownId = crypto.randomUUID();
@@ -33,13 +48,39 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
       updatedAt: new Date(),
     });
 
+    // Complete markdown job
+    const wordCount = extracted.content.split(/\s+/).length;
+    await completeJob(markdownJobId, {
+      characterCount: extracted.content.length,
+      wordCount,
+      extractionTimeMs,
+    });
+
     // Step 2: Generate Q&A pairs
     console.log(`Generating Q&A pairs for: ${bookmark.title}`);
+
+    // Create QA_GENERATION job
+    const qaJob = await createJob({
+      type: JobType.QA_GENERATION,
+      status: JobStatus.IN_PROGRESS,
+      bookmarkId: bookmark.id,
+      currentStep: 'Generating questions and answers...',
+    });
+    qaJobId = qaJob.id;
+
+    const qaStartTime = Date.now();
     const qaPairs = await generateQAPairs(extracted.content);
 
     if (qaPairs.length === 0) {
       console.warn(`No Q&A pairs generated for: ${bookmark.title}`);
-      // Mark as complete even with no Q&A pairs
+
+      // Complete QA job with zero pairs
+      await completeJob(qaJobId, {
+        pairsGenerated: 0,
+        apiTimeMs: Date.now() - qaStartTime,
+      });
+
+      // Mark bookmark as complete even with no Q&A pairs
       await db.bookmarks.update(bookmark.id, {
         status: 'complete',
         updatedAt: new Date(),
@@ -48,6 +89,10 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
     }
 
     // Step 3: Generate embeddings for Q&A pairs
+    await updateJob(qaJobId, {
+      currentStep: 'Generating embeddings...',
+      progress: 33,
+    });
     if (__DEBUG_EMBEDDINGS__) {
       console.log(`[Processor] Generating embeddings for ${qaPairs.length} Q&A pairs`);
     }
@@ -68,11 +113,19 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
     }
 
     // Batch embedding generation
+    const embeddingStartTime = Date.now();
     const [questionEmbeddings, answerEmbeddings, combinedEmbeddings] = await Promise.all([
       generateEmbeddings(questions),
       generateEmbeddings(answers),
       generateEmbeddings(combined),
     ]);
+    const embeddingTimeMs = Date.now() - embeddingStartTime;
+
+    // Update progress
+    await updateJob(qaJobId, {
+      currentStep: 'Saving Q&A pairs...',
+      progress: 66,
+    });
 
     if (__DEBUG_EMBEDDINGS__) {
       console.log('[Processor] Received embeddings from API', {
@@ -151,6 +204,14 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
       });
     }
 
+    // Complete QA job
+    const totalApiTimeMs = Date.now() - qaStartTime;
+    await completeJob(qaJobId, {
+      pairsGenerated: qaPairs.length,
+      apiTimeMs: totalApiTimeMs,
+      embeddingTimeMs,
+    });
+
     // Mark as complete
     await db.bookmarks.update(bookmark.id, {
       status: 'complete',
@@ -160,6 +221,23 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
     console.log(`Successfully processed bookmark: ${bookmark.title}`);
   } catch (error) {
     console.error(`Error processing bookmark ${bookmark.id}:`, error);
+
+    // Mark jobs as failed if they were created
+    if (markdownJobId) {
+      try {
+        await failJob(markdownJobId, error instanceof Error ? error : String(error));
+      } catch (e) {
+        console.error('Failed to mark markdown job as failed:', e);
+      }
+    }
+
+    if (qaJobId) {
+      try {
+        await failJob(qaJobId, error instanceof Error ? error : String(error));
+      } catch (e) {
+        console.error('Failed to mark QA job as failed:', e);
+      }
+    }
 
     // Mark as error with stack trace for debugging
     await db.bookmarks.update(bookmark.id, {

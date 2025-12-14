@@ -9,6 +9,9 @@ A browser extension for Chrome and Firefox that captures web pages as bookmarks,
 - **Q&A generation** — LLM generates question-answer pairs for each bookmark
 - **Embedding-based search** — Semantically search your bookmarks
 - **Configurable API** — Use your own OpenAI-compatible endpoint
+- **Bulk URL import** — Import multiple bookmarks at once from a list of URLs
+- **Jobs tracking system** — Monitor processing jobs for all bookmarks and imports
+- **Import/Export** — Backup and restore your bookmarks as JSON files
 
 ## Installation
 
@@ -96,6 +99,44 @@ You can use local LLM servers that are OpenAI-compatible (like LM Studio, Ollama
 4. Results are ranked by semantic similarity
 5. Click any result to view the full bookmark details
 
+### Bulk Importing URLs
+
+1. Click the extension icon and select "Settings"
+2. Scroll to the "Bulk Import URLs" section
+3. Paste a list of URLs (one per line) into the text area
+4. The extension will validate URLs in real-time
+5. Click "Import URLs" to start the bulk import
+6. Monitor progress in the progress bar
+7. Imported bookmarks will be automatically processed
+
+### Managing Jobs
+
+1. Open Settings and scroll to the "Jobs Dashboard" section
+2. View all processing jobs with their status:
+   - **Pending**: Waiting to start
+   - **In Progress**: Currently running
+   - **Completed**: Successfully finished
+   - **Failed**: Encountered an error
+   - **Cancelled**: Manually stopped
+3. Filter jobs by type or status using the dropdown filters
+4. Click on any job to expand and view detailed metadata
+5. Jobs automatically refresh every 2 seconds when active
+
+### Import/Export Bookmarks
+
+**Export:**
+1. Open Settings
+2. Scroll to "Import / Export" section
+3. Click "Export All Bookmarks"
+4. A JSON file will be downloaded with all your bookmarks
+
+**Import:**
+1. Open Settings
+2. Click "Choose File to Import"
+3. Select a previously exported JSON file
+4. Click "Import"
+5. Duplicate URLs will be skipped automatically
+
 ## How It Works
 
 ### Processing Pipeline
@@ -126,26 +167,35 @@ When you search:
 
 ```
 bookmark-rag-extension/
-├── manifest.json           # Extension manifest
+├── manifest.chrome.json    # Chrome extension manifest
+├── manifest.firefox.json   # Firefox extension manifest
 ├── package.json           # Dependencies
 ├── tsconfig.json          # TypeScript config
-├── vite.config.ts         # Vite build config
+├── vite.config.*.ts       # Vite build configs
 ├── src/
 │   ├── db/
-│   │   └── schema.ts      # Dexie database schema
+│   │   └── schema.ts      # Dexie database schema (with jobs table)
 │   ├── lib/
 │   │   ├── api.ts         # API client
 │   │   ├── extract.ts     # Content extraction
 │   │   ├── settings.ts    # Settings management
-│   │   └── similarity.ts  # Similarity search
+│   │   ├── similarity.ts  # Similarity search
+│   │   ├── jobs.ts        # Job management functions
+│   │   ├── bulk-import.ts # Bulk URL import logic
+│   │   ├── browser-fetch.ts # Browser-agnostic fetch wrapper
+│   │   └── export.ts      # Import/Export functionality
 │   ├── background/
-│   │   ├── service-worker.ts
+│   │   ├── service-worker.ts # Main background script
 │   │   ├── queue.ts       # Processing queue
-│   │   └── processor.ts   # Bookmark processor
+│   │   ├── processor.ts   # Bookmark processor (with job tracking)
+│   │   └── fetcher.ts     # Bulk URL fetcher
+│   ├── offscreen/         # Chrome offscreen document for fetching
+│   │   ├── offscreen.html
+│   │   └── offscreen.ts
 │   ├── content/
 │   │   └── capture.ts     # Page capture
 │   ├── popup/             # Extension popup
-│   ├── options/           # Settings page
+│   ├── options/           # Settings page (with jobs dashboard & bulk import)
 │   └── explore/           # Bookmark browser
 └── public/
     └── icons/             # Extension icons
@@ -164,15 +214,23 @@ Then load the `dist` folder in your browser as described above.
 ### Building for Production
 
 ```bash
+# Build both Chrome and Firefox versions
 npm run build
+
+# Or build individually
+npm run build:chrome  # Output: dist-chrome/
+npm run build:firefox # Output: dist-firefox/
 ```
 
 ## Privacy & Data Storage
 
 - All bookmarks are stored **locally** in your browser's IndexedDB
+- Jobs metadata is also stored locally for tracking purposes
 - Only the extracted Markdown content is sent to your configured API
+- Bulk URL imports fetch pages directly (no proxy servers)
 - No data is sent to any third-party servers (except your configured LLM API)
 - You control which API endpoint is used
+- Export your data anytime as JSON files for backup or migration
 
 ## Troubleshooting
 
@@ -196,6 +254,19 @@ npm run build
 - Check API base URL format (should end with `/v1`)
 - Ensure you have API credits available
 - Check rate limits on your API
+
+### Bulk import issues
+- Ensure URLs are valid and accessible
+- Check that URLs start with `http://` or `https://`
+- Invalid URLs will be shown in validation feedback
+- Failed fetches are tracked in the jobs dashboard
+- Large imports (>100 URLs) may take several minutes
+
+### Jobs not updating
+- Jobs dashboard auto-refreshes every 2 seconds when active
+- Click "Refresh" to manually update the jobs list
+- Check browser console for errors
+- Completed jobs older than 30 days are automatically cleaned up
 
 ## License
 

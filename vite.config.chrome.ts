@@ -13,6 +13,7 @@ export default defineConfig({
         popup: 'src/popup/popup.html',
         options: 'src/options/options.html',
         explore: 'src/explore/explore.html',
+        offscreen: 'src/offscreen/offscreen.html',
       },
     },
   },
