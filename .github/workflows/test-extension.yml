@@ -59,12 +59,15 @@ jobs:
           chrome-version: stable
         id: setup-chrome
 
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
       - name: Run Chrome extension tests
         env:
           BROWSER_TYPE: chrome
           BROWSER_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: npx tsx tests/extension.test.ts
+        run: xvfb-run --auto-servernum npx tsx tests/extension.test.ts
 
   test-firefox:
     needs: build
@@ -93,8 +96,10 @@ jobs:
           firefox-version: latest
         id: setup-firefox
 
-      - name: Install web-ext
-        run: npm install -g web-ext
+      - name: Install xvfb and web-ext
+        run: |
+          sudo apt-get update && sudo apt-get install -y xvfb
+          npm install -g web-ext
 
       - name: Lint extension for Firefox
         run: web-ext lint -s dist --ignore-files "*.map"
@@ -105,7 +110,7 @@ jobs:
           BROWSER_TYPE: firefox
           BROWSER_PATH: ${{ steps.setup-firefox.outputs.firefox-path }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: npx tsx tests/extension.test.ts
+        run: xvfb-run --auto-servernum npx tsx tests/extension.test.ts
 
       - name: Build Firefox extension package
         run: |
@@ -140,16 +145,17 @@ jobs:
           chrome-version: stable
         id: setup-chrome
 
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
       - name: Run E2E tests with API
-        if: ${{ env.OPENAI_API_KEY != '' }}
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
         env:
           BROWSER_TYPE: chrome
           BROWSER_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: npx tsx tests/e2e.test.ts
+        run: xvfb-run --auto-servernum npx tsx tests/e2e.test.ts
 
       - name: Skip E2E tests (no API key)
-        if: ${{ env.OPENAI_API_KEY == '' }}
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        if: ${{ secrets.OPENAI_API_KEY == '' }}
         run: echo "Skipping E2E tests - OPENAI_API_KEY secret not configured"
