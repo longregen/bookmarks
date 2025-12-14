@@ -79,10 +79,11 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
   } catch (error) {
     console.error(`Error processing bookmark ${bookmark.id}:`, error);
 
-    // Mark as error
+    // Mark as error with stack trace for debugging
     await db.bookmarks.update(bookmark.id, {
       status: 'error',
       errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
       updatedAt: new Date(),
     });
 

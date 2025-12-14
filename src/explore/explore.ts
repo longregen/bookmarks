@@ -94,7 +94,7 @@ function createBookmarkCard(bookmark: Bookmark): HTMLElement {
     <div class="bookmark-meta">
       <span>${timeAgo}</span>
     </div>
-    ${bookmark.errorMessage ? `<div class="error-message">${escapeHtml(bookmark.errorMessage)}</div>` : ''}
+    ${bookmark.errorMessage ? `<div class="error-message">${escapeHtml(bookmark.errorMessage)}${bookmark.errorStack ? `<pre class="error-stack">${escapeHtml(bookmark.errorStack)}</pre>` : ''}</div>` : ''}
   `;
 
   // Add event listener to stop propagation on link clicks (CSP-compliant)
@@ -193,6 +193,7 @@ async function retryCurrentBookmark() {
     await db.bookmarks.update(currentBookmarkId, {
       status: 'pending',
       errorMessage: undefined,
+      errorStack: undefined,
       updatedAt: new Date(),
     });
 

@@ -77,6 +77,7 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
         html,
         status: 'pending',
         errorMessage: undefined,
+        errorStack: undefined,
         updatedAt: now,
       });
 

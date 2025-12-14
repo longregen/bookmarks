@@ -7,6 +7,7 @@ export interface Bookmark {
   html: string;                // full document.documentElement.outerHTML
   status: 'pending' | 'processing' | 'complete' | 'error';
   errorMessage?: string;
+  errorStack?: string;         // Stack trace for debugging
   createdAt: Date;
   updatedAt: Date;
 }
