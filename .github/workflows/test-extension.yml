@@ -1,0 +1,186 @@
+name: Test Browser Extension
+
+on:
+  push:
+    branches: ['*']
+  pull_request:
+    branches: ['main']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Chrome extension
+        run: npm run build:chrome
+
+      - name: Build Firefox extension
+        run: npm run build:firefox
+
+      - name: Upload Chrome build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-chrome
+          path: dist-chrome/
+          retention-days: 1
+
+      - name: Upload Firefox build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-firefox
+          path: dist-firefox/
+          retention-days: 1
+
+  test-chrome:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download Chrome build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: extension-chrome
+          path: dist-chrome/
+
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+        id: setup-chrome
+
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Run Chrome extension tests
+        env:
+          BROWSER_TYPE: chrome
+          BROWSER_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          EXTENSION_PATH: dist-chrome
+        run: xvfb-run --auto-servernum npx tsx tests/extension.test.ts
+
+  test-firefox:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download Firefox build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: extension-firefox
+          path: dist-firefox/
+
+      - name: Install Firefox
+        uses: browser-actions/setup-firefox@v1
+        with:
+          firefox-version: latest
+        id: setup-firefox
+
+      - name: Install xvfb and web-ext
+        run: |
+          sudo apt-get update && sudo apt-get install -y xvfb
+          npm install -g web-ext
+
+      - name: Lint extension for Firefox
+        # web-ext lint exits with non-zero on errors (fails the build)
+        # Warnings are displayed but don't fail the build - this is expected behavior
+        # as some warnings (like UNSAFE_VAR_ASSIGNMENT for properly-escaped innerHTML) are acceptable
+        run: web-ext lint -s dist-firefox --ignore-files "*.map"
+
+      - name: Run Firefox extension tests
+        env:
+          BROWSER_TYPE: firefox
+          BROWSER_PATH: ${{ steps.setup-firefox.outputs.firefox-path }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          EXTENSION_PATH: dist-firefox
+        run: xvfb-run --auto-servernum npx tsx tests/extension.test.ts
+
+      - name: Build Firefox extension package
+        run: |
+          cd dist-firefox
+          web-ext build --overwrite-dest
+          ls -la web-ext-artifacts/ || echo "No artifacts created"
+
+      - name: Upload Firefox package
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-extension-xpi
+          path: dist-firefox/web-ext-artifacts/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  test-e2e-chrome:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      HAS_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download Chrome build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: extension-chrome
+          path: dist-chrome/
+
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+        id: setup-chrome
+
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Run E2E tests with API
+        if: env.HAS_API_KEY == 'true'
+        env:
+          BROWSER_TYPE: chrome
+          BROWSER_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          EXTENSION_PATH: dist-chrome
+        run: xvfb-run --auto-servernum npx tsx tests/e2e.test.ts
+
+      - name: Skip E2E tests (no API key)
+        if: env.HAS_API_KEY != 'true'
+        run: echo "Skipping E2E tests - OPENAI_API_KEY secret not configured"

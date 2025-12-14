@@ -76,7 +76,7 @@ async function loadBookmarks() {
 function createBookmarkCard(bookmark: Bookmark): HTMLElement {
   const card = document.createElement('div');
   card.className = 'bookmark-card';
-  card.onclick = () => showBookmarkDetail(bookmark.id);
+  card.addEventListener('click', () => showBookmarkDetail(bookmark.id));
 
   const statusClass = `status-${bookmark.status}`;
   const statusText = bookmark.status.charAt(0).toUpperCase() + bookmark.status.slice(1);
@@ -87,7 +87,7 @@ function createBookmarkCard(bookmark: Bookmark): HTMLElement {
     <div class="bookmark-header">
       <div>
         <div class="bookmark-title">${escapeHtml(bookmark.title)}</div>
-        <a href="${escapeHtml(bookmark.url)}" class="bookmark-url" onclick="event.stopPropagation()">${escapeHtml(bookmark.url)}</a>
+        <a href="${escapeHtml(bookmark.url)}" class="bookmark-url">${escapeHtml(bookmark.url)}</a>
       </div>
       <span class="status-badge ${statusClass}">${statusText}</span>
     </div>
@@ -96,6 +96,12 @@ function createBookmarkCard(bookmark: Bookmark): HTMLElement {
     </div>
     ${bookmark.errorMessage ? `<div class="error-message">${escapeHtml(bookmark.errorMessage)}</div>` : ''}
   `;
+
+  // Add event listener to stop propagation on link clicks (CSP-compliant)
+  const link = card.querySelector('.bookmark-url');
+  if (link) {
+    link.addEventListener('click', (e) => e.stopPropagation());
+  }
 
   return card;
 }
@@ -280,7 +286,7 @@ function createSearchResultCard(
 ): HTMLElement {
   const card = document.createElement('div');
   card.className = 'search-result-card';
-  card.onclick = () => showBookmarkDetail(bookmark.id);
+  card.addEventListener('click', () => showBookmarkDetail(bookmark.id));
 
   const bestScore = Math.max(...qaResults.map(r => r.score));
   const topQA = qaResults[0].qa;
@@ -288,12 +294,18 @@ function createSearchResultCard(
   card.innerHTML = `
     <span class="similarity-score">${(bestScore * 100).toFixed(0)}% match</span>
     <div class="bookmark-title">${escapeHtml(bookmark.title)}</div>
-    <a href="${escapeHtml(bookmark.url)}" class="bookmark-url" onclick="event.stopPropagation()">${escapeHtml(bookmark.url)}</a>
+    <a href="${escapeHtml(bookmark.url)}" class="bookmark-url">${escapeHtml(bookmark.url)}</a>
     <div class="qa-pair">
       <div class="qa-question">${escapeHtml(topQA.question)}</div>
       <div class="qa-answer">${escapeHtml(topQA.answer)}</div>
     </div>
   `;
+
+  // Add event listener to stop propagation on link clicks (CSP-compliant)
+  const link = card.querySelector('.bookmark-url');
+  if (link) {
+    link.addEventListener('click', (e) => e.stopPropagation());
+  }
 
   return card;
 }
