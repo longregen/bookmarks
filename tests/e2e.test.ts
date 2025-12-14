@@ -3,18 +3,20 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { fileURLToPath } from 'url';
+import { setupFirefoxProfile } from './firefox-setup.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const BROWSER_TYPE = process.env.BROWSER_TYPE || 'chrome';
 const EXTENSION_PATH = process.env.EXTENSION_PATH
   ? path.resolve(process.cwd(), process.env.EXTENSION_PATH)
-  : path.resolve(__dirname, '../dist-chrome');
+  : path.resolve(__dirname, BROWSER_TYPE === 'firefox' ? '../dist-firefox' : '../dist-chrome');
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const BROWSER_PATH = process.env.BROWSER_PATH;
 
-// Create a temporary user data directory for Chrome
+// Create a temporary user data directory for the browser
 // This is required for extension loading in CI environments
-const USER_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'chrome-e2e-profile-'));
+const USER_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), `${BROWSER_TYPE}-e2e-profile-`));
 
 // Cleanup function for user data directory
 function cleanupUserDataDir() {
@@ -62,61 +64,100 @@ async function launchBrowser(): Promise<Browser> {
     throw new Error(`Extension manifest not found: ${manifestPath}`);
   }
 
+  console.log(`Browser type: ${BROWSER_TYPE}`);
   console.log(`Extension path: ${EXTENSION_PATH}`);
   console.log(`User data dir: ${USER_DATA_DIR}`);
   console.log(`Browser path: ${BROWSER_PATH}`);
 
-  return puppeteer.launch({
-    executablePath: BROWSER_PATH,
-    headless: false, // Extensions require headed mode
-    args: [
-      `--user-data-dir=${USER_DATA_DIR}`,
-      `--disable-extensions-except=${EXTENSION_PATH}`,
-      `--load-extension=${EXTENSION_PATH}`,
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--disable-background-timer-throttling',
-      '--disable-backgrounding-occluded-windows',
-      '--disable-renderer-backgrounding',
-    ],
-  });
+  if (BROWSER_TYPE === 'firefox') {
+    // Pre-install extension to Firefox profile
+    console.log('Setting up Firefox profile with extension...');
+    await setupFirefoxProfile(USER_DATA_DIR, EXTENSION_PATH);
+
+    const browser = await puppeteer.launch({
+      product: 'firefox',
+      executablePath: BROWSER_PATH,
+      headless: false, // Extensions require headed mode
+      args: [
+        '-profile',
+        USER_DATA_DIR,
+      ],
+      extraPrefsFirefox: {
+        // Enable extensions
+        'xpinstall.signatures.required': false,
+        'extensions.autoDisableScopes': 0,
+        'devtools.chrome.enabled': true,
+        'devtools.debugger.remote-enabled': true,
+      },
+    });
+
+    // Wait for extension to initialize
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    return browser;
+  } else {
+    // Chrome/Chromium
+    return puppeteer.launch({
+      executablePath: BROWSER_PATH,
+      headless: false, // Extensions require headed mode
+      args: [
+        `--user-data-dir=${USER_DATA_DIR}`,
+        `--disable-extensions-except=${EXTENSION_PATH}`,
+        `--load-extension=${EXTENSION_PATH}`,
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+      ],
+    });
+  }
 }
 
 async function getExtensionId(browser: Browser): Promise<string> {
   // Try to find extension ID using waitForTarget which properly waits for targets to appear
   // This is more robust than a fixed sleep, especially in CI environments
   const EXTENSION_TIMEOUT = 30000; // 30 seconds timeout
+  const extensionProtocol = BROWSER_TYPE === 'firefox' ? 'moz-extension://' : 'chrome-extension://';
+  const extensionRegex = BROWSER_TYPE === 'firefox'
+    ? /moz-extension:\/\/([^/]+)/
+    : /chrome-extension:\/\/([^/]+)/;
 
   try {
-    // First, try to find the service worker target
+    // First, try to find the service worker target (Chrome) or background script (Firefox)
     const serviceWorkerTarget = await browser.waitForTarget(
-      target => target.type() === 'service_worker' && target.url().includes('chrome-extension://'),
+      target => {
+        const targetType = target.type();
+        const url = target.url();
+        return (targetType === 'service_worker' || targetType === 'background_page') &&
+               url.includes(extensionProtocol);
+      },
       { timeout: EXTENSION_TIMEOUT }
     );
 
     const url = serviceWorkerTarget.url();
-    const match = url.match(/chrome-extension:\/\/([^/]+)/);
+    const match = url.match(extensionRegex);
 
     if (match) {
       return match[1];
     }
   } catch {
-    console.log('Service worker target not found, trying fallback methods...');
+    console.log('Service worker/background target not found, trying fallback methods...');
   }
 
-  // Fallback: Look for any chrome-extension:// target (page, background page, etc.)
+  // Fallback: Look for any extension:// target (page, background page, etc.)
   try {
     const extensionTarget = await browser.waitForTarget(
-      target => target.url().includes('chrome-extension://'),
+      target => target.url().includes(extensionProtocol),
       { timeout: 10000 }
     );
 
     const url = extensionTarget.url();
-    const match = url.match(/chrome-extension:\/\/([^/]+)/);
+    const match = url.match(extensionRegex);
 
     if (match) {
       return match[1];
@@ -130,21 +171,26 @@ async function getExtensionId(browser: Browser): Promise<string> {
   console.log('Available targets:', targets.map(t => ({ type: t.type(), url: t.url() })));
 
   const extensionTarget = targets.find(target =>
-    target.url().includes('chrome-extension://')
+    target.url().includes(extensionProtocol)
   );
 
   if (!extensionTarget) {
-    throw new Error('Extension not found. No chrome-extension:// targets available.');
+    throw new Error(`Extension not found. No ${extensionProtocol} targets available.`);
   }
 
   const url = extensionTarget.url();
-  const match = url.match(/chrome-extension:\/\/([^/]+)/);
+  const match = url.match(extensionRegex);
 
   if (!match) {
     throw new Error('Could not extract extension ID from URL: ' + url);
   }
 
   return match[1];
+}
+
+function getExtensionUrl(extensionId: string, path: string): string {
+  const protocol = BROWSER_TYPE === 'firefox' ? 'moz-extension' : 'chrome-extension';
+  return `${protocol}://${extensionId}${path}`;
 }
 
 async function runTest(name: string, fn: () => Promise<void>): Promise<void> {
@@ -178,7 +224,7 @@ async function main(): Promise<void> {
     // Test 1: Configure API settings
     await runTest('Configure API settings', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/options/options.html`);
+      await page.goto(getExtensionUrl(extensionId, '/src/options/options.html'));
 
       await page.waitForSelector('#apiKey', { timeout: 5000 });
 
@@ -206,7 +252,7 @@ async function main(): Promise<void> {
     // Test 2: Test API connection
     await runTest('Test API connection', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/options/options.html`);
+      await page.goto(getExtensionUrl(extensionId, '/src/options/options.html'));
 
       await page.waitForSelector('#testBtn', { timeout: 5000 });
 
@@ -238,7 +284,7 @@ async function main(): Promise<void> {
     await runTest('Save bookmark via content script simulation', async () => {
       // Open explore page to interact with database
       const explorePage = await browser!.newPage();
-      await explorePage.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await explorePage.goto(getExtensionUrl(extensionId, '/src/explore/explore.html'));
 
       // Wait for page to load
       await explorePage.waitForSelector('#bookmarkList', { timeout: 5000 });
@@ -263,7 +309,7 @@ async function main(): Promise<void> {
 
       // Send the message from an extension page context (popup) where chrome API is available
       const popupPage = await browser!.newPage();
-      await popupPage.goto(`chrome-extension://${extensionId}/src/popup/popup.html`);
+      await popupPage.goto(getExtensionUrl(extensionId, '/src/popup/popup.html'));
 
       // Wait for popup to load
       await popupPage.waitForSelector('#saveBtn', { timeout: 5000 });
@@ -341,7 +387,7 @@ async function main(): Promise<void> {
     // Test 4: Verify bookmark appears in list
     await runTest('Bookmark appears in explore list', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await page.goto(getExtensionUrl(extensionId, '/src/explore/explore.html'));
 
       await page.waitForSelector('#bookmarkList', { timeout: 5000 });
 
@@ -365,7 +411,7 @@ async function main(): Promise<void> {
     // Test 5: Wait for bookmark processing (if bookmark exists)
     await runTest('Wait for bookmark processing', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await page.goto(getExtensionUrl(extensionId, '/src/explore/explore.html'));
 
       await page.waitForSelector('#bookmarkList', { timeout: 5000 });
 
@@ -410,7 +456,7 @@ async function main(): Promise<void> {
     // Test 6: Test search functionality
     await runTest('Search for bookmarks', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await page.goto(getExtensionUrl(extensionId, '/src/explore/explore.html'));
 
       await page.waitForSelector('#searchInput', { timeout: 5000 });
 
@@ -448,7 +494,7 @@ async function main(): Promise<void> {
     // Test 7: View switching
     await runTest('View switching between list and search', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await page.goto(getExtensionUrl(extensionId, '/src/explore/explore.html'));
 
       await page.waitForSelector('#listViewBtn', { timeout: 5000 });
 
@@ -476,7 +522,7 @@ async function main(): Promise<void> {
     // Test 8: Popup stats display
     await runTest('Popup displays stats correctly', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/popup/popup.html`);
+      await page.goto(getExtensionUrl(extensionId, '/src/popup/popup.html'));
 
       await page.waitForSelector('#totalCount', { timeout: 5000 });
 
@@ -500,7 +546,7 @@ async function main(): Promise<void> {
     // Test 9: Bulk URL Import
     await runTest('Bulk URL import creates jobs and bookmarks', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/options/options.html`);
+      await page.goto(getExtensionUrl(extensionId, '/src/options/options.html'));
 
       await page.waitForSelector('#bulkUrlsInput', { timeout: 5000 });
 
@@ -545,7 +591,7 @@ async function main(): Promise<void> {
     // Test 10: Jobs Dashboard displays jobs
     await runTest('Jobs dashboard displays and filters jobs', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/options/options.html`);
+      await page.goto(getExtensionUrl(extensionId, '/src/options/options.html'));
 
       // Scroll to jobs section
       await page.waitForSelector('#jobsList', { timeout: 5000 });
@@ -582,7 +628,7 @@ async function main(): Promise<void> {
     // Test 11: Jobs filtering works
     await runTest('Jobs can be filtered by type and status', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/options/options.html`);
+      await page.goto(getExtensionUrl(extensionId, '/src/options/options.html'));
 
       await page.waitForSelector('#jobTypeFilter', { timeout: 5000 });
       await page.waitForSelector('#jobStatusFilter', { timeout: 5000 });
@@ -609,7 +655,7 @@ async function main(): Promise<void> {
     // Test 12: Export/Import functionality
     await runTest('Export bookmarks creates download', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/options/options.html`);
+      await page.goto(getExtensionUrl(extensionId, '/src/options/options.html'));
 
       await page.waitForSelector('#exportBtn', { timeout: 5000 });
 
@@ -637,7 +683,7 @@ async function main(): Promise<void> {
     // Test 13: Import file input exists
     await runTest('Import file input is available', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/options/options.html`);
+      await page.goto(getExtensionUrl(extensionId, '/src/options/options.html'));
 
       await page.waitForSelector('#importFile', { timeout: 5000 });
       await page.waitForSelector('#importBtn', { timeout: 5000 });
@@ -655,7 +701,7 @@ async function main(): Promise<void> {
     // Test 14: Bulk import validation
     await runTest('Bulk import validates URLs correctly', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/options/options.html`);
+      await page.goto(getExtensionUrl(extensionId, '/src/options/options.html'));
 
       await page.waitForSelector('#bulkUrlsInput', { timeout: 5000 });
 
@@ -687,7 +733,7 @@ async function main(): Promise<void> {
     // Test 15: Jobs auto-refresh
     await runTest('Jobs list can auto-refresh', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/options/options.html`);
+      await page.goto(getExtensionUrl(extensionId, '/src/options/options.html'));
 
       await page.waitForSelector('#jobsList', { timeout: 5000 });
 
