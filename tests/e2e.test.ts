@@ -62,7 +62,12 @@ interface TestResult {
 
 const results: TestResult[] = [];
 
-async function launchBrowser(): Promise<Browser> {
+interface LaunchResult {
+  browser: Browser;
+  firefoxExtensionId?: string;
+}
+
+async function launchBrowser(): Promise<LaunchResult> {
   // Verify extension path exists
   if (!fs.existsSync(EXTENSION_PATH)) {
     throw new Error(`Extension path does not exist: ${EXTENSION_PATH}`);
@@ -79,32 +84,37 @@ async function launchBrowser(): Promise<Browser> {
   console.log(`Browser path: ${BROWSER_PATH}`);
 
   if (BROWSER_TYPE === 'firefox') {
-    // Pre-install extension to Firefox profile
+    // Pre-install extension to Firefox profile and get extension ID
     console.log('Setting up Firefox profile with extension...');
-    await setupFirefoxProfile(USER_DATA_DIR, EXTENSION_PATH);
+    const firefoxExtensionId = await setupFirefoxProfile(USER_DATA_DIR, EXTENSION_PATH);
 
     console.log('Launching Firefox with Puppeteer...');
-    // Puppeteer 24.x uses WebDriver BiDi for Firefox
-    // Note: pipe is Chrome-only and must not be used with Firefox
+    // Use CDP protocol for Firefox as it has better extension support
+    // WebDriver BiDi doesn't properly expose extension targets
     const browser = await puppeteer.launch({
       browser: 'firefox',
       executablePath: BROWSER_PATH,
       headless: false,
-      // Use WebDriver BiDi protocol for Firefox (required for Puppeteer 24.x)
-      protocol: 'webDriverBiDi',
+      // Use CDP protocol for better extension support (BiDi doesn't expose extensions well)
+      protocol: 'cdp',
       args: [
         '-profile',
         USER_DATA_DIR,
         '-no-remote',
+        // Enable remote debugging for CDP
+        '--remote-debugging-port=0',
       ],
       extraPrefsFirefox: {
         // Enable extensions
         'xpinstall.signatures.required': false,
         'extensions.autoDisableScopes': 0,
         'extensions.enabledScopes': 15,
-        // Enable remote debugging via BiDi
+        // Enable remote debugging
         'remote.enabled': true,
         'remote.force-local': true,
+        'devtools.chrome.enabled': true,
+        'devtools.debugger.remote-enabled': true,
+        'devtools.debugger.prompt-connection': false,
         // Disable first-run prompts
         'browser.shell.checkDefaultBrowser': false,
         'browser.startup.homepage_override.mstone': 'ignore',
@@ -120,10 +130,10 @@ async function launchBrowser(): Promise<Browser> {
     // Wait for extension to initialize
     await new Promise(resolve => setTimeout(resolve, 5000));
 
-    return browser;
+    return { browser, firefoxExtensionId };
   } else {
     // Chrome/Chromium
-    return puppeteer.launch({
+    const browser = await puppeteer.launch({
       executablePath: BROWSER_PATH,
       headless: false, // Extensions require headed mode
       args: [
@@ -141,6 +151,7 @@ async function launchBrowser(): Promise<Browser> {
         '--disable-renderer-backgrounding',
       ],
     });
+    return { browser };
   }
 }
 
@@ -243,9 +254,38 @@ async function main(): Promise<void> {
   let extensionId: string = '';
 
   try {
-    browser = await launchBrowser();
-    extensionId = await getExtensionId(browser);
-    console.log(`\nExtension ID: ${extensionId}\n`);
+    const launchResult = await launchBrowser();
+    browser = launchResult.browser;
+
+    // For Firefox, we know the extension ID from the manifest (set during profile setup)
+    // For Chrome, we need to detect it dynamically from targets
+    if (BROWSER_TYPE === 'firefox' && launchResult.firefoxExtensionId) {
+      // Firefox with WebDriver BiDi doesn't expose extension targets the same way
+      // We use the known extension ID and need to find the internal moz-extension UUID
+      console.log(`\nFirefox extension manifest ID: ${launchResult.firefoxExtensionId}`);
+      console.log('Waiting for Firefox extension to initialize...');
+
+      // Give the extension more time to load
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // Try to find the moz-extension UUID by looking at targets
+      try {
+        extensionId = await getExtensionId(browser);
+        console.log(`Firefox extension UUID: ${extensionId}\n`);
+      } catch {
+        // If we can't find the extension via targets, Firefox E2E tests won't work
+        // This is a known limitation of Puppeteer's Firefox/BiDi support
+        console.log('\nWarning: Could not detect Firefox extension via targets.');
+        console.log('Firefox E2E tests require extension to be loaded.');
+        console.log('Listing available targets for debugging:');
+        const targets = browser.targets();
+        targets.forEach(t => console.log(`  - ${t.type()}: ${t.url()}`));
+        throw new Error('Firefox extension not loaded. This may be a Puppeteer/BiDi limitation.');
+      }
+    } else {
+      extensionId = await getExtensionId(browser);
+      console.log(`\nExtension ID: ${extensionId}\n`);
+    }
 
     // Test 1: Configure API settings
     await runTest('Configure API settings', async () => {
