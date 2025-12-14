@@ -1,5 +1,6 @@
 import { beforeAll, afterAll } from 'vitest';
 import Dexie from 'dexie';
+import 'fake-indexeddb/auto';
 
 // Mock Chrome API for unit tests
 global.chrome = {
@@ -9,16 +10,7 @@ global.chrome = {
   },
 } as any;
 
-// Mock crypto.randomUUID
-global.crypto = {
-  randomUUID: () => {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
-  },
-} as any;
+// crypto.randomUUID is available natively in jsdom, no need to mock
 
 // Set up Dexie for in-memory testing
 beforeAll(() => {

@@ -1,11 +1,77 @@
 /**
  * Offscreen document for Chrome extension
- * Handles URL fetching since service workers can't use fetch in Chrome MV3
+ * Handles URL fetching and DOM parsing since service workers can't use DOMParser in Chrome MV3
  */
 
 import { fetchWithTimeout } from '../lib/browser-fetch';
+import { Readability } from '@mozilla/readability';
+import TurndownService from 'turndown';
 
 console.log('Offscreen document loaded');
+
+const turndown = new TurndownService({
+  headingStyle: 'atx',
+  codeBlockStyle: 'fenced',
+});
+
+export interface ExtractedContent {
+  title: string;
+  content: string;      // Markdown
+  excerpt: string;
+  byline: string | null;
+}
+
+/**
+ * Extract markdown content from HTML using native DOMParser
+ * This runs in the offscreen document where DOMParser is available
+ */
+function extractMarkdownInOffscreen(html: string, url: string): ExtractedContent {
+  console.log('[Offscreen] Extracting markdown', {
+    url,
+    htmlLength: html.length,
+  });
+
+  // Use native DOMParser (available in offscreen document)
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  // Set the base URL for relative link resolution
+  const base = doc.createElement('base');
+  base.href = url;
+  doc.head.insertBefore(base, doc.head.firstChild);
+
+  // Run Readability
+  const reader = new Readability(doc);
+  const article = reader.parse();
+
+  if (!article) {
+    console.error('[Offscreen] Readability returned null', {
+      url,
+      htmlLength: html.length,
+    });
+    throw new Error('Readability could not parse the page');
+  }
+
+  console.log('[Offscreen] Readability result', {
+    title: article.title,
+    contentLength: article.content?.length ?? 0,
+  });
+
+  // Convert HTML content to Markdown using native DOMParser
+  const contentDoc = parser.parseFromString(article.content ?? '', 'text/html');
+  const markdown = turndown.turndown(contentDoc.body);
+
+  console.log('[Offscreen] Markdown conversion complete', {
+    markdownLength: markdown.length,
+  });
+
+  return {
+    title: article.title ?? '',
+    content: markdown,
+    excerpt: article.excerpt ?? '',
+    byline: article.byline ?? null,
+  };
+}
 
 // Handle messages from service worker
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -22,6 +88,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           error: error instanceof Error ? error.message : String(error),
         });
       });
+
+    return true; // Keep message channel open for async response
+  }
+
+  if (message.type === 'EXTRACT_CONTENT') {
+    const { html, url } = message;
+
+    try {
+      const result = extractMarkdownInOffscreen(html, url);
+      sendResponse({ success: true, result });
+    } catch (error) {
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     return true; // Keep message channel open for async response
   }
