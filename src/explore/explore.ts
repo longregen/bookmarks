@@ -30,6 +30,7 @@ const deleteBtn = document.getElementById('deleteBtn') as HTMLButtonElement;
 const retryBtn = document.getElementById('retryBtn') as HTMLButtonElement;
 const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
 const exportAllBtn = document.getElementById('exportAllBtn') as HTMLButtonElement;
+const debugHtmlBtn = document.getElementById('debugHtmlBtn') as HTMLButtonElement;
 
 let currentBookmarkId: string | null = null;
 
@@ -229,6 +230,86 @@ async function retryCurrentBookmark() {
   } catch (error) {
     console.error('Error retrying bookmark:', error);
     alert('Failed to retry bookmark');
+  }
+}
+
+async function debugCurrentBookmarkHtml() {
+  if (!currentBookmarkId) return;
+
+  try {
+    const bookmark = await db.bookmarks.get(currentBookmarkId);
+    if (!bookmark) {
+      alert('Bookmark not found');
+      return;
+    }
+
+    // Show the raw HTML in a modal-style overlay
+    const debugOverlay = document.createElement('div');
+    debugOverlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    `;
+
+    const debugContent = document.createElement('div');
+    debugContent.style.cssText = `
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      max-width: 90%;
+      max-height: 90%;
+      overflow: auto;
+      position: relative;
+    `;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕ Close';
+    closeBtn.className = 'btn btn-secondary';
+    closeBtn.style.cssText = `
+      position: sticky;
+      top: 0;
+      margin-bottom: 10px;
+    `;
+    closeBtn.addEventListener('click', () => debugOverlay.remove());
+
+    const htmlInfo = document.createElement('div');
+    htmlInfo.style.cssText = 'margin-bottom: 10px; font-weight: bold;';
+    htmlInfo.innerHTML = `
+      <div>Raw HTML Length: ${bookmark.html.length} characters</div>
+      <div>Status: ${bookmark.status}</div>
+      ${bookmark.errorMessage ? `<div style="color: red;">Error: ${escapeHtml(bookmark.errorMessage)}</div>` : ''}
+    `;
+
+    const htmlDisplay = document.createElement('pre');
+    htmlDisplay.style.cssText = `
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      background: #f5f5f5;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 70vh;
+      overflow: auto;
+    `;
+    htmlDisplay.textContent = bookmark.html || '(empty)';
+
+    debugContent.appendChild(closeBtn);
+    debugContent.appendChild(htmlInfo);
+    debugContent.appendChild(htmlDisplay);
+    debugOverlay.appendChild(debugContent);
+    document.body.appendChild(debugOverlay);
+  } catch (error) {
+    console.error('Error debugging HTML:', error);
+    alert('Failed to load HTML for debugging');
   }
 }
 
@@ -590,6 +671,7 @@ deleteBtn.addEventListener('click', deleteCurrentBookmark);
 retryBtn.addEventListener('click', retryCurrentBookmark);
 exportBtn.addEventListener('click', exportCurrentBookmark);
 exportAllBtn.addEventListener('click', handleExportAll);
+debugHtmlBtn.addEventListener('click', debugCurrentBookmarkHtml);
 settingsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
 searchBtn.addEventListener('click', performSearch);
 
