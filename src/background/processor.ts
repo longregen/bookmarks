@@ -39,20 +39,24 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
     }
 
     // Step 3: Generate embeddings for Q&A pairs
-    console.log(`[Processor] Generating embeddings for ${qaPairs.length} Q&A pairs`);
+    if (__DEBUG_EMBEDDINGS__) {
+      console.log(`[Processor] Generating embeddings for ${qaPairs.length} Q&A pairs`);
+    }
 
     // Prepare texts for embedding
     const questions = qaPairs.map(qa => qa.question);
     const answers = qaPairs.map(qa => qa.answer);
     const combined = qaPairs.map(qa => `Q: ${qa.question}\nA: ${qa.answer}`);
 
-    console.log('[Processor] Prepared texts for embedding', {
-      questionCount: questions.length,
-      answerCount: answers.length,
-      combinedCount: combined.length,
-      sampleQuestion: questions[0]?.slice(0, 100),
-      sampleAnswer: answers[0]?.slice(0, 100),
-    });
+    if (__DEBUG_EMBEDDINGS__) {
+      console.log('[Processor] Prepared texts for embedding', {
+        questionCount: questions.length,
+        answerCount: answers.length,
+        combinedCount: combined.length,
+        sampleQuestion: questions[0]?.slice(0, 100),
+        sampleAnswer: answers[0]?.slice(0, 100),
+      });
+    }
 
     // Batch embedding generation
     const [questionEmbeddings, answerEmbeddings, combinedEmbeddings] = await Promise.all([
@@ -61,65 +65,69 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
       generateEmbeddings(combined),
     ]);
 
-    console.log('[Processor] Received embeddings from API', {
-      questionEmbeddings: {
-        count: questionEmbeddings.length,
-        dimensions: questionEmbeddings.map(e => e?.length ?? 'undefined'),
-        hasUndefined: questionEmbeddings.some(e => !e),
-      },
-      answerEmbeddings: {
-        count: answerEmbeddings.length,
-        dimensions: answerEmbeddings.map(e => e?.length ?? 'undefined'),
-        hasUndefined: answerEmbeddings.some(e => !e),
-      },
-      combinedEmbeddings: {
-        count: combinedEmbeddings.length,
-        dimensions: combinedEmbeddings.map(e => e?.length ?? 'undefined'),
-        hasUndefined: combinedEmbeddings.some(e => !e),
-      },
-    });
-
-    // Validate embedding dimensions are consistent
-    const allDimensions = [
-      ...questionEmbeddings.map(e => e?.length),
-      ...answerEmbeddings.map(e => e?.length),
-      ...combinedEmbeddings.map(e => e?.length),
-    ].filter(d => d !== undefined);
-    const uniqueDimensions = [...new Set(allDimensions)];
-
-    if (uniqueDimensions.length > 1) {
-      console.error('[Processor] WARNING: Inconsistent embedding dimensions detected!', {
-        uniqueDimensions,
-        expected: 'All embeddings should have the same dimension',
+    if (__DEBUG_EMBEDDINGS__) {
+      console.log('[Processor] Received embeddings from API', {
+        questionEmbeddings: {
+          count: questionEmbeddings.length,
+          dimensions: questionEmbeddings.map(e => e?.length ?? 'undefined'),
+          hasUndefined: questionEmbeddings.some(e => !e),
+        },
+        answerEmbeddings: {
+          count: answerEmbeddings.length,
+          dimensions: answerEmbeddings.map(e => e?.length ?? 'undefined'),
+          hasUndefined: answerEmbeddings.some(e => !e),
+        },
+        combinedEmbeddings: {
+          count: combinedEmbeddings.length,
+          dimensions: combinedEmbeddings.map(e => e?.length ?? 'undefined'),
+          hasUndefined: combinedEmbeddings.some(e => !e),
+        },
       });
-    } else {
-      console.log('[Processor] Embedding dimensions are consistent:', uniqueDimensions[0]);
+
+      // Validate embedding dimensions are consistent
+      const allDimensions = [
+        ...questionEmbeddings.map(e => e?.length),
+        ...answerEmbeddings.map(e => e?.length),
+        ...combinedEmbeddings.map(e => e?.length),
+      ].filter(d => d !== undefined);
+      const uniqueDimensions = [...new Set(allDimensions)];
+
+      if (uniqueDimensions.length > 1) {
+        console.error('[Processor] WARNING: Inconsistent embedding dimensions detected!', {
+          uniqueDimensions,
+          expected: 'All embeddings should have the same dimension',
+        });
+      } else {
+        console.log('[Processor] Embedding dimensions are consistent:', uniqueDimensions[0]);
+      }
     }
 
     // Step 4: Save Q&A pairs with embeddings
     for (let i = 0; i < qaPairs.length; i++) {
       const qa = qaPairs[i];
 
-      // Debug: Log each Q&A pair being saved
-      console.log(`[Processor] Saving Q&A pair ${i + 1}/${qaPairs.length}`, {
-        questionLength: qa.question.length,
-        answerLength: qa.answer.length,
-        embeddingQuestion: {
-          exists: !!questionEmbeddings[i],
-          dimension: questionEmbeddings[i]?.length,
-          isArray: Array.isArray(questionEmbeddings[i]),
-        },
-        embeddingAnswer: {
-          exists: !!answerEmbeddings[i],
-          dimension: answerEmbeddings[i]?.length,
-          isArray: Array.isArray(answerEmbeddings[i]),
-        },
-        embeddingBoth: {
-          exists: !!combinedEmbeddings[i],
-          dimension: combinedEmbeddings[i]?.length,
-          isArray: Array.isArray(combinedEmbeddings[i]),
-        },
-      });
+      if (__DEBUG_EMBEDDINGS__) {
+        // Debug: Log each Q&A pair being saved
+        console.log(`[Processor] Saving Q&A pair ${i + 1}/${qaPairs.length}`, {
+          questionLength: qa.question.length,
+          answerLength: qa.answer.length,
+          embeddingQuestion: {
+            exists: !!questionEmbeddings[i],
+            dimension: questionEmbeddings[i]?.length,
+            isArray: Array.isArray(questionEmbeddings[i]),
+          },
+          embeddingAnswer: {
+            exists: !!answerEmbeddings[i],
+            dimension: answerEmbeddings[i]?.length,
+            isArray: Array.isArray(answerEmbeddings[i]),
+          },
+          embeddingBoth: {
+            exists: !!combinedEmbeddings[i],
+            dimension: combinedEmbeddings[i]?.length,
+            isArray: Array.isArray(combinedEmbeddings[i]),
+          },
+        });
+      }
 
       await db.questionsAnswers.add({
         id: crypto.randomUUID(),

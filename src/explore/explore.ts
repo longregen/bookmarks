@@ -212,7 +212,9 @@ async function retryCurrentBookmark() {
 async function performSearch() {
   const query = searchInput.value.trim();
 
-  console.log('[Search] Starting search', { query, queryLength: query.length });
+  if (__DEBUG_EMBEDDINGS__) {
+    console.log('[Search] Starting search', { query, queryLength: query.length });
+  }
 
   if (!query) {
     searchResults.innerHTML = '<div class="empty-state">Enter a search query to find bookmarks</div>';
@@ -224,18 +226,24 @@ async function performSearch() {
     searchBtn.textContent = 'Searching...';
 
     // Generate embedding for the query
-    console.log('[Search] Generating query embedding...');
+    if (__DEBUG_EMBEDDINGS__) {
+      console.log('[Search] Generating query embedding...');
+    }
     const [queryEmbedding] = await generateEmbeddings([query]);
 
-    console.log('[Search] Query embedding received', {
-      exists: !!queryEmbedding,
-      isArray: Array.isArray(queryEmbedding),
-      dimension: queryEmbedding?.length,
-      sample: queryEmbedding?.slice(0, 5),
-    });
+    if (__DEBUG_EMBEDDINGS__) {
+      console.log('[Search] Query embedding received', {
+        exists: !!queryEmbedding,
+        isArray: Array.isArray(queryEmbedding),
+        dimension: queryEmbedding?.length,
+        sample: queryEmbedding?.slice(0, 5),
+      });
+    }
 
     if (!queryEmbedding || !Array.isArray(queryEmbedding) || queryEmbedding.length === 0) {
-      console.error('[Search] Invalid query embedding received!');
+      if (__DEBUG_EMBEDDINGS__) {
+        console.error('[Search] Invalid query embedding received!');
+      }
       searchResults.innerHTML = '<div class="error-message">Failed to generate query embedding</div>';
       return;
     }
@@ -243,32 +251,18 @@ async function performSearch() {
     // Load all Q&A pairs with embeddings
     const allQAs = await db.questionsAnswers.toArray();
 
-    console.log('[Search] Loaded Q&A pairs from database', {
-      totalCount: allQAs.length,
-      withQuestionEmbedding: allQAs.filter(qa => Array.isArray(qa.embeddingQuestion) && qa.embeddingQuestion.length > 0).length,
-      withBothEmbedding: allQAs.filter(qa => Array.isArray(qa.embeddingBoth) && qa.embeddingBoth.length > 0).length,
-    });
+    if (__DEBUG_EMBEDDINGS__) {
+      console.log('[Search] Loaded Q&A pairs from database', {
+        totalCount: allQAs.length,
+        withQuestionEmbedding: allQAs.filter(qa => Array.isArray(qa.embeddingQuestion) && qa.embeddingQuestion.length > 0).length,
+        withBothEmbedding: allQAs.filter(qa => Array.isArray(qa.embeddingBoth) && qa.embeddingBoth.length > 0).length,
+      });
+    }
 
     if (allQAs.length === 0) {
       searchResults.innerHTML = '<div class="empty-state">No processed bookmarks to search yet</div>';
       return;
     }
-
-    // Debug: Analyze embedding dimensions in database
-    const embeddingDimensions = new Map<number, number>();
-    allQAs.forEach(qa => {
-      [qa.embeddingQuestion, qa.embeddingBoth, qa.embeddingAnswer].forEach(emb => {
-        if (Array.isArray(emb) && emb.length > 0) {
-          embeddingDimensions.set(emb.length, (embeddingDimensions.get(emb.length) || 0) + 1);
-        }
-      });
-    });
-
-    console.log('[Search] Embedding dimensions found in database', {
-      queryDimension: queryEmbedding.length,
-      storedDimensions: Object.fromEntries(embeddingDimensions),
-      dimensionMismatch: !embeddingDimensions.has(queryEmbedding.length),
-    });
 
     // Find top K similar Q&A pairs using both question and combined embeddings
     // Filter out items with missing or invalid embeddings
@@ -277,59 +271,83 @@ async function performSearch() {
       { item: qa, embedding: qa.embeddingBoth, type: 'both' },
     ]);
 
-    console.log('[Search] Created items for comparison', {
-      totalItems: allItems.length,
-      itemsWithValidEmbedding: allItems.filter(i => Array.isArray(i.embedding) && i.embedding.length > 0).length,
-    });
-
     // Detailed filtering with debugging
-    const filterResults = {
+    const filterResults = __DEBUG_EMBEDDINGS__ ? {
       total: allItems.length,
       notArray: 0,
       emptyArray: 0,
       dimensionMismatch: 0,
       valid: 0,
-    };
+    } : null;
 
     const items = allItems.filter(({ embedding }) => {
       if (!Array.isArray(embedding)) {
-        filterResults.notArray++;
+        if (filterResults) filterResults.notArray++;
         return false;
       }
       if (embedding.length === 0) {
-        filterResults.emptyArray++;
+        if (filterResults) filterResults.emptyArray++;
         return false;
       }
       if (embedding.length !== queryEmbedding.length) {
-        filterResults.dimensionMismatch++;
+        if (filterResults) filterResults.dimensionMismatch++;
         return false;
       }
-      filterResults.valid++;
+      if (filterResults) filterResults.valid++;
       return true;
     });
 
-    console.log('[Search] Filter results', {
-      ...filterResults,
-      queryDimension: queryEmbedding.length,
-    });
+    if (__DEBUG_EMBEDDINGS__) {
+      // Debug: Analyze embedding dimensions in database
+      const embeddingDimensions = new Map<number, number>();
+      allQAs.forEach(qa => {
+        [qa.embeddingQuestion, qa.embeddingBoth, qa.embeddingAnswer].forEach(emb => {
+          if (Array.isArray(emb) && emb.length > 0) {
+            embeddingDimensions.set(emb.length, (embeddingDimensions.get(emb.length) || 0) + 1);
+          }
+        });
+      });
+
+      console.log('[Search] Embedding dimensions found in database', {
+        queryDimension: queryEmbedding.length,
+        storedDimensions: Object.fromEntries(embeddingDimensions),
+        dimensionMismatch: !embeddingDimensions.has(queryEmbedding.length),
+      });
+
+      console.log('[Search] Created items for comparison', {
+        totalItems: allItems.length,
+        itemsWithValidEmbedding: allItems.filter(i => Array.isArray(i.embedding) && i.embedding.length > 0).length,
+      });
+
+      console.log('[Search] Filter results', {
+        ...filterResults,
+        queryDimension: queryEmbedding.length,
+      });
+    }
 
     if (items.length === 0) {
-      console.error('[Search] No valid items after filtering!', filterResults);
+      if (__DEBUG_EMBEDDINGS__) {
+        console.error('[Search] No valid items after filtering!', filterResults);
+      }
       searchResults.innerHTML = '<div class="empty-state">No valid embeddings found. Try reprocessing your bookmarks.</div>';
       return;
     }
 
-    console.log('[Search] Running similarity search on', items.length, 'items');
+    if (__DEBUG_EMBEDDINGS__) {
+      console.log('[Search] Running similarity search on', items.length, 'items');
+    }
     const topResults = findTopK(queryEmbedding, items, 20);
 
-    console.log('[Search] Top results from findTopK', {
-      resultCount: topResults.length,
-      scores: topResults.map(r => r.score.toFixed(4)),
-      scoreRange: topResults.length > 0 ? {
-        min: Math.min(...topResults.map(r => r.score)).toFixed(4),
-        max: Math.max(...topResults.map(r => r.score)).toFixed(4),
-      } : null,
-    });
+    if (__DEBUG_EMBEDDINGS__) {
+      console.log('[Search] Top results from findTopK', {
+        resultCount: topResults.length,
+        scores: topResults.map(r => r.score.toFixed(4)),
+        scoreRange: topResults.length > 0 ? {
+          min: Math.min(...topResults.map(r => r.score)).toFixed(4),
+          max: Math.max(...topResults.map(r => r.score)).toFixed(4),
+        } : null,
+      });
+    }
 
     // Group by bookmark and get unique bookmarks
     const bookmarkMap = new Map<string, { qa: QuestionAnswer; score: number }[]>();
@@ -348,14 +366,18 @@ async function performSearch() {
       bookmarkMap.get(bookmarkId)!.push({ qa: result.item, score: result.score });
     }
 
-    console.log('[Search] Results after 0.5 threshold filter', {
-      filteredOut: filteredByThreshold,
-      uniqueBookmarks: bookmarkMap.size,
-      totalMatches: [...bookmarkMap.values()].reduce((sum, arr) => sum + arr.length, 0),
-    });
+    if (__DEBUG_EMBEDDINGS__) {
+      console.log('[Search] Results after 0.5 threshold filter', {
+        filteredOut: filteredByThreshold,
+        uniqueBookmarks: bookmarkMap.size,
+        totalMatches: [...bookmarkMap.values()].reduce((sum, arr) => sum + arr.length, 0),
+      });
+    }
 
     if (bookmarkMap.size === 0) {
-      console.log('[Search] No results above threshold');
+      if (__DEBUG_EMBEDDINGS__) {
+        console.log('[Search] No results above threshold');
+      }
       searchResults.innerHTML = '<div class="empty-state">No results found</div>';
       searchCount.textContent = '0';
       return;
@@ -373,9 +395,11 @@ async function performSearch() {
       searchResults.appendChild(card);
     }
 
-    console.log('[Search] Search completed successfully', {
-      resultsDisplayed: bookmarkMap.size,
-    });
+    if (__DEBUG_EMBEDDINGS__) {
+      console.log('[Search] Search completed successfully', {
+        resultsDisplayed: bookmarkMap.size,
+      });
+    }
 
     switchView('search');
   } catch (error) {
