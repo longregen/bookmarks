@@ -63,19 +63,19 @@ jobs:
           name: extension-chrome
           path: dist-chrome/
 
-      - name: Install Chrome
-        uses: browser-actions/setup-chrome@v1
-        with:
-          chrome-version: stable
-        id: setup-chrome
-
-      - name: Install xvfb
-        run: sudo apt-get update && sudo apt-get install -y xvfb
+      # Use Chromium instead of Google Chrome because Google Chrome blocks
+      # the --load-extension and --disable-extensions-except flags for security.
+      # Chromium (the open-source base) allows these flags for testing.
+      - name: Install Chromium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser xvfb
+          chromium-browser --version
 
       - name: Run Chrome extension tests
         env:
           BROWSER_TYPE: chrome
-          BROWSER_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+          BROWSER_PATH: /usr/bin/chromium-browser
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EXTENSION_PATH: dist-chrome
         run: xvfb-run --auto-servernum npx tsx tests/extension.test.ts
@@ -163,20 +163,18 @@ jobs:
           name: extension-chrome
           path: dist-chrome/
 
-      - name: Install Chrome
-        uses: browser-actions/setup-chrome@v1
-        with:
-          chrome-version: stable
-        id: setup-chrome
-
-      - name: Install xvfb
-        run: sudo apt-get update && sudo apt-get install -y xvfb
+      # Use Chromium instead of Google Chrome because Google Chrome blocks
+      # the --load-extension and --disable-extensions-except flags for security.
+      - name: Install Chromium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser xvfb
 
       - name: Run E2E tests with API
         if: env.HAS_API_KEY == 'true'
         env:
           BROWSER_TYPE: chrome
-          BROWSER_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+          BROWSER_PATH: /usr/bin/chromium-browser
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EXTENSION_PATH: dist-chrome
         run: xvfb-run --auto-servernum npx tsx tests/e2e.test.ts

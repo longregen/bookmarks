@@ -1,5 +1,7 @@
 import puppeteer, { Browser, Page } from 'puppeteer-core';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -9,6 +11,26 @@ const EXTENSION_PATH = process.env.EXTENSION_PATH
 
 const BROWSER_TYPE = process.env.BROWSER_TYPE || 'chrome';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+
+// Create a temporary user data directory for Chrome
+// This is required for extension loading in CI environments
+const USER_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'chrome-test-profile-'));
+
+// Cleanup function for user data directory
+function cleanupUserDataDir() {
+  try {
+    if (fs.existsSync(USER_DATA_DIR)) {
+      fs.rmSync(USER_DATA_DIR, { recursive: true, force: true });
+    }
+  } catch {
+    // Ignore cleanup errors
+  }
+}
+
+// Ensure cleanup on exit
+process.on('exit', cleanupUserDataDir);
+process.on('SIGINT', () => { cleanupUserDataDir(); process.exit(1); });
+process.on('SIGTERM', () => { cleanupUserDataDir(); process.exit(1); });
 
 interface TestResult {
   name: string;
@@ -26,17 +48,39 @@ async function launchBrowser(): Promise<Browser> {
     throw new Error('BROWSER_PATH environment variable is required');
   }
 
-  // Chrome
+  // Verify extension path exists
+  if (!fs.existsSync(EXTENSION_PATH)) {
+    throw new Error(`Extension path does not exist: ${EXTENSION_PATH}`);
+  }
+
+  const manifestPath = path.join(EXTENSION_PATH, 'manifest.json');
+  if (!fs.existsSync(manifestPath)) {
+    throw new Error(`Extension manifest not found: ${manifestPath}`);
+  }
+
+  console.log(`Extension path: ${EXTENSION_PATH}`);
+  console.log(`User data dir: ${USER_DATA_DIR}`);
+  console.log(`Browser path: ${executablePath}`);
+  console.log(`Extension contents: ${fs.readdirSync(EXTENSION_PATH).join(', ')}`);
+
+  // Chromium/Chrome - using a user data directory is required for extension loading in CI
+  // Note: Google Chrome blocks --load-extension flag, so we must use Chromium
   return puppeteer.launch({
     executablePath,
-    headless: false, // Extensions require headed mode in Chrome
+    headless: false, // Extensions require headed mode
     args: [
+      `--user-data-dir=${USER_DATA_DIR}`,
       `--disable-extensions-except=${EXTENSION_PATH}`,
       `--load-extension=${EXTENSION_PATH}`,
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
     ],
   });
 }
