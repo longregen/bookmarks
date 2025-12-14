@@ -2,6 +2,9 @@ import { db, Bookmark, QuestionAnswer } from '../db/schema';
 import { generateEmbeddings } from '../lib/api';
 import { findTopK } from '../lib/similarity';
 
+// Constants
+const RESULTS_PER_PAGE = 10;
+
 // UI Elements
 const searchInput = document.getElementById('searchInput') as HTMLInputElement;
 const searchBtn = document.getElementById('searchBtn') as HTMLButtonElement;
@@ -26,6 +29,15 @@ const deleteBtn = document.getElementById('deleteBtn') as HTMLButtonElement;
 const retryBtn = document.getElementById('retryBtn') as HTMLButtonElement;
 
 let currentBookmarkId: string | null = null;
+
+// Search state for pagination
+interface SearchResult {
+  bookmarkId: string;
+  bookmark: Bookmark;
+  qaResults: { qa: QuestionAnswer; score: number }[];
+}
+let currentSearchResults: SearchResult[] = [];
+let displayedResultsCount = 0;
 
 // View switching
 listViewBtn.addEventListener('click', () => {
@@ -212,6 +224,10 @@ async function retryCurrentBookmark() {
 async function performSearch() {
   const query = searchInput.value.trim();
 
+  if (__DEBUG_EMBEDDINGS__) {
+    console.log('[Search] Starting search', { query, queryLength: query.length });
+  }
+
   if (!query) {
     searchResults.innerHTML = '<div class="empty-state">Enter a search query to find bookmarks</div>';
     return;
@@ -221,11 +237,43 @@ async function performSearch() {
     searchBtn.disabled = true;
     searchBtn.textContent = 'Searching...';
 
+    // Reset pagination state
+    currentSearchResults = [];
+    displayedResultsCount = 0;
+
     // Generate embedding for the query
+    if (__DEBUG_EMBEDDINGS__) {
+      console.log('[Search] Generating query embedding...');
+    }
     const [queryEmbedding] = await generateEmbeddings([query]);
+
+    if (__DEBUG_EMBEDDINGS__) {
+      console.log('[Search] Query embedding received', {
+        exists: !!queryEmbedding,
+        isArray: Array.isArray(queryEmbedding),
+        dimension: queryEmbedding?.length,
+        sample: queryEmbedding?.slice(0, 5),
+      });
+    }
+
+    if (!queryEmbedding || !Array.isArray(queryEmbedding) || queryEmbedding.length === 0) {
+      if (__DEBUG_EMBEDDINGS__) {
+        console.error('[Search] Invalid query embedding received!');
+      }
+      searchResults.innerHTML = '<div class="error-message">Failed to generate query embedding</div>';
+      return;
+    }
 
     // Load all Q&A pairs with embeddings
     const allQAs = await db.questionsAnswers.toArray();
+
+    if (__DEBUG_EMBEDDINGS__) {
+      console.log('[Search] Loaded Q&A pairs from database', {
+        totalCount: allQAs.length,
+        withQuestionEmbedding: allQAs.filter(qa => Array.isArray(qa.embeddingQuestion) && qa.embeddingQuestion.length > 0).length,
+        withBothEmbedding: allQAs.filter(qa => Array.isArray(qa.embeddingBoth) && qa.embeddingBoth.length > 0).length,
+      });
+    }
 
     if (allQAs.length === 0) {
       searchResults.innerHTML = '<div class="empty-state">No processed bookmarks to search yet</div>';
@@ -233,19 +281,95 @@ async function performSearch() {
     }
 
     // Find top K similar Q&A pairs using both question and combined embeddings
-    const items = allQAs.flatMap(qa => [
-      { item: qa, embedding: qa.embeddingQuestion },
-      { item: qa, embedding: qa.embeddingBoth },
+    // Filter out items with missing or invalid embeddings
+    const allItems = allQAs.flatMap(qa => [
+      { item: qa, embedding: qa.embeddingQuestion, type: 'question' },
+      { item: qa, embedding: qa.embeddingBoth, type: 'both' },
     ]);
 
-    const topResults = findTopK(queryEmbedding, items, 20);
+    // Detailed filtering with debugging
+    const filterResults = __DEBUG_EMBEDDINGS__ ? {
+      total: allItems.length,
+      notArray: 0,
+      emptyArray: 0,
+      dimensionMismatch: 0,
+      valid: 0,
+    } : null;
 
-    // Group by bookmark and get unique bookmarks
+    const items = allItems.filter(({ embedding }) => {
+      if (!Array.isArray(embedding)) {
+        if (filterResults) filterResults.notArray++;
+        return false;
+      }
+      if (embedding.length === 0) {
+        if (filterResults) filterResults.emptyArray++;
+        return false;
+      }
+      if (embedding.length !== queryEmbedding.length) {
+        if (filterResults) filterResults.dimensionMismatch++;
+        return false;
+      }
+      if (filterResults) filterResults.valid++;
+      return true;
+    });
+
+    if (__DEBUG_EMBEDDINGS__) {
+      // Debug: Analyze embedding dimensions in database
+      const embeddingDimensions = new Map<number, number>();
+      allQAs.forEach(qa => {
+        [qa.embeddingQuestion, qa.embeddingBoth, qa.embeddingAnswer].forEach(emb => {
+          if (Array.isArray(emb) && emb.length > 0) {
+            embeddingDimensions.set(emb.length, (embeddingDimensions.get(emb.length) || 0) + 1);
+          }
+        });
+      });
+
+      console.log('[Search] Embedding dimensions found in database', {
+        queryDimension: queryEmbedding.length,
+        storedDimensions: Object.fromEntries(embeddingDimensions),
+        dimensionMismatch: !embeddingDimensions.has(queryEmbedding.length),
+      });
+
+      console.log('[Search] Created items for comparison', {
+        totalItems: allItems.length,
+        itemsWithValidEmbedding: allItems.filter(i => Array.isArray(i.embedding) && i.embedding.length > 0).length,
+      });
+
+      console.log('[Search] Filter results', {
+        ...filterResults,
+        queryDimension: queryEmbedding.length,
+      });
+    }
+
+    if (items.length === 0) {
+      if (__DEBUG_EMBEDDINGS__) {
+        console.error('[Search] No valid items after filtering!', filterResults);
+      }
+      searchResults.innerHTML = '<div class="empty-state">No valid embeddings found. Try reprocessing your bookmarks.</div>';
+      return;
+    }
+
+    if (__DEBUG_EMBEDDINGS__) {
+      console.log('[Search] Running similarity search on', items.length, 'items');
+    }
+    // Get more results to allow pagination (up to 100 unique bookmarks worth)
+    const topResults = findTopK(queryEmbedding, items, 200);
+
+    if (__DEBUG_EMBEDDINGS__) {
+      console.log('[Search] Top results from findTopK', {
+        resultCount: topResults.length,
+        scores: topResults.map(r => r.score.toFixed(4)),
+        scoreRange: topResults.length > 0 ? {
+          min: Math.min(...topResults.map(r => r.score)).toFixed(4),
+          max: Math.max(...topResults.map(r => r.score)).toFixed(4),
+        } : null,
+      });
+    }
+
+    // Group by bookmark and get unique bookmarks (no threshold filtering)
     const bookmarkMap = new Map<string, { qa: QuestionAnswer; score: number }[]>();
 
     for (const result of topResults) {
-      if (result.score < 0.5) continue; // Skip low similarity results
-
       const bookmarkId = result.item.bookmarkId;
       if (!bookmarkMap.has(bookmarkId)) {
         bookmarkMap.set(bookmarkId, []);
@@ -253,31 +377,106 @@ async function performSearch() {
       bookmarkMap.get(bookmarkId)!.push({ qa: result.item, score: result.score });
     }
 
+    if (__DEBUG_EMBEDDINGS__) {
+      console.log('[Search] Grouped results by bookmark', {
+        uniqueBookmarks: bookmarkMap.size,
+        totalMatches: [...bookmarkMap.values()].reduce((sum, arr) => sum + arr.length, 0),
+      });
+    }
+
     if (bookmarkMap.size === 0) {
+      if (__DEBUG_EMBEDDINGS__) {
+        console.log('[Search] No results found');
+      }
       searchResults.innerHTML = '<div class="empty-state">No results found</div>';
       searchCount.textContent = '0';
       return;
     }
 
-    searchResults.innerHTML = '';
-    searchCount.textContent = bookmarkMap.size.toString();
+    // Build sorted results array for pagination
+    // Sort by best score per bookmark
+    const sortedEntries = [...bookmarkMap.entries()].sort((a, b) => {
+      const maxScoreA = Math.max(...a[1].map(r => r.score));
+      const maxScoreB = Math.max(...b[1].map(r => r.score));
+      return maxScoreB - maxScoreA;
+    });
 
-    // Display results
-    for (const [bookmarkId, qaResults] of bookmarkMap.entries()) {
+    // Fetch bookmark data and build results array
+    for (const [bookmarkId, qaResults] of sortedEntries) {
       const bookmark = await db.bookmarks.get(bookmarkId);
       if (!bookmark) continue;
 
-      const card = createSearchResultCard(bookmark, qaResults);
-      searchResults.appendChild(card);
+      currentSearchResults.push({
+        bookmarkId,
+        bookmark,
+        qaResults,
+      });
+    }
+
+    searchCount.textContent = currentSearchResults.length.toString();
+
+    // Render initial results
+    renderSearchResults();
+
+    if (__DEBUG_EMBEDDINGS__) {
+      console.log('[Search] Search completed successfully', {
+        totalResults: currentSearchResults.length,
+        displayedResults: displayedResultsCount,
+      });
     }
 
     switchView('search');
   } catch (error) {
-    console.error('Error performing search:', error);
+    console.error('[Search] Error performing search:', error);
     searchResults.innerHTML = `<div class="error-message">Search failed: ${error instanceof Error ? error.message : 'Unknown error'}</div>`;
   } finally {
     searchBtn.disabled = false;
     searchBtn.textContent = 'Search';
+  }
+}
+
+// Render search results with pagination
+function renderSearchResults() {
+  const startIndex = displayedResultsCount;
+  const endIndex = Math.min(startIndex + RESULTS_PER_PAGE, currentSearchResults.length);
+
+  // If this is the first render, clear the container
+  if (startIndex === 0) {
+    searchResults.innerHTML = '';
+  } else {
+    // Remove existing "Load more" button if present
+    const existingLoadMore = searchResults.querySelector('.load-more-container');
+    if (existingLoadMore) {
+      existingLoadMore.remove();
+    }
+  }
+
+  // Add result cards
+  for (let i = startIndex; i < endIndex; i++) {
+    const result = currentSearchResults[i];
+    const card = createSearchResultCard(result.bookmark, result.qaResults);
+    searchResults.appendChild(card);
+  }
+
+  displayedResultsCount = endIndex;
+
+  // Add "Load more" button if there are more results
+  if (displayedResultsCount < currentSearchResults.length) {
+    const remaining = currentSearchResults.length - displayedResultsCount;
+    const loadMoreContainer = document.createElement('div');
+    loadMoreContainer.className = 'load-more-container';
+    loadMoreContainer.innerHTML = `
+      <button class="btn btn-secondary load-more-btn">
+        Load more (${remaining} remaining)
+      </button>
+    `;
+
+    const loadMoreBtn = loadMoreContainer.querySelector('.load-more-btn') as HTMLButtonElement;
+    loadMoreBtn.addEventListener('click', () => {
+      renderSearchResults();
+    });
+
+    searchResults.appendChild(loadMoreContainer);
   }
 }
 

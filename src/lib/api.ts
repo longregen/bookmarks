@@ -62,6 +62,15 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   const settings = await getSettings();
 
+  if (__DEBUG_EMBEDDINGS__) {
+    console.log('[Embeddings API] Starting embedding generation', {
+      inputCount: texts.length,
+      inputLengths: texts.map(t => t.length),
+      model: settings.embeddingModel,
+      apiBaseUrl: settings.apiBaseUrl,
+    });
+  }
+
   if (!settings.apiKey) {
     throw new Error('API key not configured.');
   }
@@ -80,12 +89,50 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
 
   if (!response.ok) {
     const error = await response.text();
+    if (__DEBUG_EMBEDDINGS__) {
+      console.error('[Embeddings API] API error response', {
+        status: response.status,
+        error,
+      });
+    }
     throw new Error(`Embeddings API error: ${response.status} - ${error}`);
   }
 
   const data = await response.json();
 
+  if (__DEBUG_EMBEDDINGS__) {
+    console.log('[Embeddings API] Raw API response', {
+      hasData: !!data.data,
+      dataLength: data.data?.length,
+      model: data.model,
+      usage: data.usage,
+    });
+  }
+
   // Sort by index to ensure correct order
   const sorted = data.data.sort((a: any, b: any) => a.index - b.index);
-  return sorted.map((item: any) => item.embedding);
+  const embeddings = sorted.map((item: any) => item.embedding);
+
+  if (__DEBUG_EMBEDDINGS__) {
+    // Debug: Validate embeddings
+    console.log('[Embeddings API] Extracted embeddings', {
+      count: embeddings.length,
+      dimensions: embeddings.map((e: number[] | undefined) => e?.length ?? 'undefined'),
+      allSameDimension: embeddings.every((e: number[] | undefined) => e?.length === embeddings[0]?.length),
+      firstEmbeddingSample: embeddings[0]?.slice(0, 5),
+    });
+
+    // Validate each embedding
+    embeddings.forEach((embedding: number[] | undefined, index: number) => {
+      if (!embedding) {
+        console.error(`[Embeddings API] Embedding at index ${index} is undefined`);
+      } else if (!Array.isArray(embedding)) {
+        console.error(`[Embeddings API] Embedding at index ${index} is not an array:`, typeof embedding);
+      } else if (embedding.length === 0) {
+        console.error(`[Embeddings API] Embedding at index ${index} is empty`);
+      }
+    });
+  }
+
+  return embeddings;
 }
