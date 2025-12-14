@@ -7,6 +7,7 @@ export interface ExportedBookmark {
   id: string;
   url: string;
   title: string;
+  html: string;
   status: Bookmark['status'];
   createdAt: string;
   updatedAt: string;
@@ -69,7 +70,7 @@ export async function exportAllBookmarks(): Promise<BookmarkExport> {
 }
 
 /**
- * Format a bookmark for export (strips embeddings and HTML to reduce file size)
+ * Format a bookmark for export (strips embeddings to reduce file size)
  */
 function formatBookmarkForExport(
   bookmark: Bookmark,
@@ -80,6 +81,7 @@ function formatBookmarkForExport(
     id: bookmark.id,
     url: bookmark.url,
     title: bookmark.title,
+    html: bookmark.html,
     status: bookmark.status,
     createdAt: bookmark.createdAt.toISOString(),
     updatedAt: bookmark.updatedAt.toISOString(),
@@ -184,15 +186,20 @@ export async function importBookmarks(data: BookmarkExport): Promise<ImportResul
       const now = new Date();
       const bookmarkId = crypto.randomUUID();
 
-      // Create the bookmark record
-      // Note: We don't have the original HTML, so imported bookmarks
-      // will have their markdown but can't be reprocessed
+      // Determine status: if we have HTML, can reprocess; otherwise use exported status
+      const hasHtml = exportedBookmark.html && exportedBookmark.html.length > 0;
+      let status: Bookmark['status'] = exportedBookmark.status;
+      // If no HTML and no markdown, mark as pending (though won't be processable)
+      if (!hasHtml && !exportedBookmark.markdown) {
+        status = 'pending';
+      }
+
       const bookmark: Bookmark = {
         id: bookmarkId,
         url: exportedBookmark.url,
         title: exportedBookmark.title,
-        html: '', // No HTML available from export
-        status: exportedBookmark.markdown ? 'complete' : 'pending',
+        html: exportedBookmark.html || '',
+        status,
         createdAt: exportedBookmark.createdAt ? new Date(exportedBookmark.createdAt) : now,
         updatedAt: now,
       };
