@@ -45,37 +45,61 @@ async function launchBrowser(): Promise<Browser> {
 }
 
 async function getExtensionId(browser: Browser): Promise<string> {
-  // Wait for the service worker to be registered
-  await new Promise(resolve => setTimeout(resolve, 3000));
+  // Try to find extension ID using waitForTarget which properly waits for targets to appear
+  // This is more robust than a fixed sleep, especially in CI environments
+  const EXTENSION_TIMEOUT = 30000; // 30 seconds timeout
 
+  try {
+    // First, try to find the service worker target
+    const serviceWorkerTarget = await browser.waitForTarget(
+      target => target.type() === 'service_worker' && target.url().includes('chrome-extension://'),
+      { timeout: EXTENSION_TIMEOUT }
+    );
+
+    const url = serviceWorkerTarget.url();
+    const match = url.match(/chrome-extension:\/\/([^/]+)/);
+
+    if (match) {
+      return match[1];
+    }
+  } catch {
+    console.log('Service worker target not found, trying fallback methods...');
+  }
+
+  // Fallback: Look for any chrome-extension:// target (page, background page, etc.)
+  try {
+    const extensionTarget = await browser.waitForTarget(
+      target => target.url().includes('chrome-extension://'),
+      { timeout: 10000 }
+    );
+
+    const url = extensionTarget.url();
+    const match = url.match(/chrome-extension:\/\/([^/]+)/);
+
+    if (match) {
+      return match[1];
+    }
+  } catch {
+    // Continue to final fallback
+  }
+
+  // Final fallback: Check all existing targets
   const targets = browser.targets();
+  console.log('Available targets:', targets.map(t => ({ type: t.type(), url: t.url() })));
+
   const extensionTarget = targets.find(target =>
-    target.type() === 'service_worker' && target.url().includes('chrome-extension://')
+    target.url().includes('chrome-extension://')
   );
 
   if (!extensionTarget) {
-    // Try waiting more and checking again
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    const retryTargets = browser.targets();
-    const retryExtTarget = retryTargets.find(target =>
-      target.type() === 'service_worker' && target.url().includes('chrome-extension://')
-    );
-
-    if (!retryExtTarget) {
-      throw new Error('Extension service worker not found');
-    }
-
-    const url = retryExtTarget.url();
-    const match = url.match(/chrome-extension:\/\/([^/]+)/);
-    if (!match) throw new Error('Could not extract extension ID');
-    return match[1];
+    throw new Error('Extension not found. No chrome-extension:// targets available.');
   }
 
   const url = extensionTarget.url();
   const match = url.match(/chrome-extension:\/\/([^/]+)/);
 
   if (!match) {
-    throw new Error('Could not extract extension ID');
+    throw new Error('Could not extract extension ID from URL: ' + url);
   }
 
   return match[1];
