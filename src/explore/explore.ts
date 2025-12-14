@@ -233,10 +233,20 @@ async function performSearch() {
     }
 
     // Find top K similar Q&A pairs using both question and combined embeddings
+    // Filter out items with missing or invalid embeddings
     const items = allQAs.flatMap(qa => [
       { item: qa, embedding: qa.embeddingQuestion },
       { item: qa, embedding: qa.embeddingBoth },
-    ]);
+    ]).filter(({ embedding }) =>
+      Array.isArray(embedding) &&
+      embedding.length > 0 &&
+      embedding.length === queryEmbedding.length
+    );
+
+    if (items.length === 0) {
+      searchResults.innerHTML = '<div class="empty-state">No valid embeddings found. Try reprocessing your bookmarks.</div>';
+      return;
+    }
 
     const topResults = findTopK(queryEmbedding, items, 20);
 
