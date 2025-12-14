@@ -124,10 +124,26 @@ npm run test
 ```
 
 ### Run E2E Tests
+
+#### Chrome E2E Tests
 ```bash
-# Requires OPENAI_API_KEY and BROWSER_PATH environment variables
+BROWSER_TYPE=chrome \
+BROWSER_PATH=/path/to/chrome \
+EXTENSION_PATH=dist-chrome \
+OPENAI_API_KEY=your-key \
 npm run test:e2e
 ```
+
+#### Firefox E2E Tests
+```bash
+BROWSER_TYPE=firefox \
+BROWSER_PATH=/path/to/firefox \
+EXTENSION_PATH=dist-firefox \
+OPENAI_API_KEY=your-key \
+npm run test:e2e
+```
+
+⚠️ **Firefox E2E Limitations**: Puppeteer's Firefox support is experimental. See "Firefox E2E Test Status" section below for details.
 
 ### Run All Tests
 ```bash
@@ -226,6 +242,64 @@ Tests are run in GitHub Actions:
 - Integration tests run on pull requests
 - E2E tests run on main branch merges
 - Coverage reports uploaded to artifacts
+
+## Firefox E2E Test Status
+
+The e2e test suite has been extended to support both Chrome and Firefox browsers. However, there are important limitations with Firefox support:
+
+### Current Status
+
+- ✅ **Chrome E2E tests** - Work reliably in all environments
+- ⚠️ **Firefox E2E tests** - Infrastructure configured but experimental
+- ✅ **Firefox extension tests** (non-e2e) - Work using web-ext
+
+### Technical Details
+
+The Firefox e2e implementation includes:
+- **firefox-setup.ts**: Helper module to pre-install Firefox extensions in test profiles
+- **Browser detection**: Automatic protocol switching (`moz-extension://` vs `chrome-extension://`)
+- **Profile setup**: Extensions are copied to Firefox profile before launch
+
+### Known Limitations
+
+⚠️ **Puppeteer's Firefox support has significant issues:**
+
+1. **Connection Timeout**: Puppeteer may timeout waiting for WebSocket/pipe connections to Firefox
+2. **Experimental Status**: Firefox support in Puppeteer is marked as experimental
+3. **CI Environment**: More reliable locally than in CI/CD pipelines
+
+### CI Workflow Behavior
+
+The GitHub Actions workflow handles Firefox e2e tests with:
+- `continue-on-error: true` - Prevents CI failures
+- Clear messaging about experimental status
+- Fallback messages if tests fail
+
+### Recommended Alternatives
+
+For production-grade Firefox e2e testing, consider:
+
+1. **Playwright** - Superior cross-browser support including Firefox
+   ```bash
+   npm install -D @playwright/test
+   ```
+
+2. **web-ext run** - Official Firefox extension testing tool
+   ```bash
+   web-ext run --source-dir dist-firefox
+   ```
+
+3. **Selenium WebDriver** - Mature testing framework
+   ```bash
+   npm install -D selenium-webdriver geckodriver
+   ```
+
+### Future Improvements
+
+Potential paths forward:
+- Migrate to Playwright for better Firefox support
+- Create separate Firefox e2e tests using web-ext
+- Focus on Chrome e2e + Firefox unit/integration tests
 
 ## Troubleshooting
 
