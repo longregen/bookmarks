@@ -32,7 +32,10 @@ export function extractMarkdown(html: string, url: string): ExtractedContent {
   }
 
   // Convert HTML content to Markdown
-  const markdown = turndown.turndown(article.content);
+  // Parse article.content with linkedom first so Turndown doesn't use browser DOMParser
+  // (which fails in service workers with "document is not defined")
+  const { document: contentDoc } = parseHTML(article.content);
+  const markdown = turndown.turndown(contentDoc.body);
 
   return {
     title: article.title,
