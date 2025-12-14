@@ -1,4 +1,5 @@
-import { db, Bookmark, Markdown, QuestionAnswer } from '../db/schema';
+import { db, Bookmark, Markdown, QuestionAnswer, JobType, JobStatus } from '../db/schema';
+import { createJob, updateJob, completeJob, failJob } from './jobs';
 
 // Export format version for future compatibility
 const EXPORT_VERSION = 1;
@@ -15,6 +16,9 @@ export interface ExportedBookmark {
   questionsAnswers: Array<{
     question: string;
     answer: string;
+    embeddingQuestion?: number[];
+    embeddingAnswer?: number[];
+    embeddingBoth?: number[];
   }>;
 }
 
@@ -70,7 +74,7 @@ export async function exportAllBookmarks(): Promise<BookmarkExport> {
 }
 
 /**
- * Format a bookmark for export (strips embeddings to reduce file size)
+ * Format a bookmark for export (includes embeddings for full backup)
  */
 function formatBookmarkForExport(
   bookmark: Bookmark,
@@ -89,6 +93,9 @@ function formatBookmarkForExport(
     questionsAnswers: qaPairs.map(qa => ({
       question: qa.question,
       answer: qa.answer,
+      embeddingQuestion: qa.embeddingQuestion,
+      embeddingAnswer: qa.embeddingAnswer,
+      embeddingBoth: qa.embeddingBoth,
     })),
   };
 }
@@ -163,7 +170,7 @@ export function validateImportData(data: unknown): data is BookmarkExport {
  * Import bookmarks from export data
  * Skips bookmarks that already exist (by URL)
  */
-export async function importBookmarks(data: BookmarkExport): Promise<ImportResult> {
+export async function importBookmarks(data: BookmarkExport, fileName?: string): Promise<ImportResult> {
   const result: ImportResult = {
     success: true,
     imported: 0,
@@ -171,69 +178,131 @@ export async function importBookmarks(data: BookmarkExport): Promise<ImportResul
     errors: [],
   };
 
-  // Get existing URLs to avoid duplicates
-  const existingBookmarks = await db.bookmarks.toArray();
-  const existingUrls = new Set(existingBookmarks.map(b => b.url));
+  // Create FILE_IMPORT job
+  const job = await createJob({
+    type: JobType.FILE_IMPORT,
+    status: JobStatus.IN_PROGRESS,
+    progress: 0,
+    metadata: {
+      fileName: fileName || 'bookmarks-export.json',
+      totalBookmarks: data.bookmarks.length,
+      importedCount: 0,
+      skippedCount: 0,
+      errorCount: 0,
+      errors: [],
+    },
+  });
 
-  for (const exportedBookmark of data.bookmarks) {
-    try {
-      // Skip if URL already exists
-      if (existingUrls.has(exportedBookmark.url)) {
-        result.skipped++;
-        continue;
-      }
+  try {
+    // Get existing URLs to avoid duplicates
+    const existingBookmarks = await db.bookmarks.toArray();
+    const existingUrls = new Set(existingBookmarks.map(b => b.url));
 
-      const now = new Date();
-      const bookmarkId = crypto.randomUUID();
+    for (let i = 0; i < data.bookmarks.length; i++) {
+      const exportedBookmark = data.bookmarks[i];
 
-      // Determine status: if we have HTML, can reprocess; otherwise use exported status
-      const hasHtml = exportedBookmark.html && exportedBookmark.html.length > 0;
-      let status: Bookmark['status'] = exportedBookmark.status;
-      // If no HTML and no markdown, mark as pending (though won't be processable)
-      if (!hasHtml && !exportedBookmark.markdown) {
-        status = 'pending';
-      }
+      try {
+        // Skip if URL already exists
+        if (existingUrls.has(exportedBookmark.url)) {
+          result.skipped++;
+          continue;
+        }
 
-      const bookmark: Bookmark = {
-        id: bookmarkId,
-        url: exportedBookmark.url,
-        title: exportedBookmark.title,
-        html: exportedBookmark.html || '',
-        status,
-        createdAt: exportedBookmark.createdAt ? new Date(exportedBookmark.createdAt) : now,
-        updatedAt: now,
-      };
+        const now = new Date();
+        const bookmarkId = crypto.randomUUID();
 
-      await db.bookmarks.add(bookmark);
+        // Determine status: if we have HTML, can reprocess; otherwise use exported status
+        const hasHtml = exportedBookmark.html && exportedBookmark.html.length > 0;
+        let status: Bookmark['status'] = exportedBookmark.status;
+        // If no HTML and no markdown, mark as pending (though won't be processable)
+        if (!hasHtml && !exportedBookmark.markdown) {
+          status = 'pending';
+        }
 
-      // Add markdown if available
-      if (exportedBookmark.markdown) {
-        const markdown: Markdown = {
-          id: crypto.randomUUID(),
-          bookmarkId,
-          content: exportedBookmark.markdown,
-          createdAt: now,
+        const bookmark: Bookmark = {
+          id: bookmarkId,
+          url: exportedBookmark.url,
+          title: exportedBookmark.title,
+          html: exportedBookmark.html || '',
+          status,
+          createdAt: exportedBookmark.createdAt ? new Date(exportedBookmark.createdAt) : now,
           updatedAt: now,
         };
-        await db.markdown.add(markdown);
+
+        await db.bookmarks.add(bookmark);
+
+        // Add markdown if available
+        if (exportedBookmark.markdown) {
+          const markdown: Markdown = {
+            id: crypto.randomUUID(),
+            bookmarkId,
+            content: exportedBookmark.markdown,
+            createdAt: now,
+            updatedAt: now,
+          };
+          await db.markdown.add(markdown);
+        }
+
+        // Add Q&A pairs with embeddings if available
+        if (exportedBookmark.questionsAnswers && exportedBookmark.questionsAnswers.length > 0) {
+          for (const qa of exportedBookmark.questionsAnswers) {
+            // Only import if we have embeddings (otherwise they won't be searchable)
+            if (qa.embeddingQuestion && qa.embeddingAnswer && qa.embeddingBoth) {
+              const questionAnswer: QuestionAnswer = {
+                id: crypto.randomUUID(),
+                bookmarkId,
+                question: qa.question,
+                answer: qa.answer,
+                embeddingQuestion: qa.embeddingQuestion,
+                embeddingAnswer: qa.embeddingAnswer,
+                embeddingBoth: qa.embeddingBoth,
+                createdAt: now,
+                updatedAt: now,
+              };
+              await db.questionsAnswers.add(questionAnswer);
+            }
+          }
+        }
+
+        result.imported++;
+        existingUrls.add(exportedBookmark.url); // Track to avoid duplicates within import
+
+        // Update job progress
+        const progress = Math.round(((i + 1) / data.bookmarks.length) * 100);
+        await updateJob(job.id, {
+          progress,
+          metadata: {
+            importedCount: result.imported,
+            skippedCount: result.skipped,
+            errorCount: result.errors.length,
+          },
+        });
+      } catch (error) {
+        const errorMsg = `Failed to import "${exportedBookmark.title}": ${error instanceof Error ? error.message : 'Unknown error'}`;
+        result.errors.push(errorMsg);
       }
-
-      // Note: Q&A pairs are imported without embeddings
-      // They would need to be regenerated for semantic search
-      // For now, we skip importing Q&A pairs since they're not searchable without embeddings
-
-      result.imported++;
-      existingUrls.add(exportedBookmark.url); // Track to avoid duplicates within import
-    } catch (error) {
-      result.errors.push(`Failed to import "${exportedBookmark.title}": ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  }
 
-  if (result.errors.length > 0) {
-    result.success = result.imported > 0; // Partial success if some imported
-  }
+    if (result.errors.length > 0) {
+      result.success = result.imported > 0; // Partial success if some imported
+    }
 
-  return result;
+    // Complete job
+    await completeJob(job.id, {
+      fileName: fileName || 'bookmarks-export.json',
+      totalBookmarks: data.bookmarks.length,
+      importedCount: result.imported,
+      skippedCount: result.skipped,
+      errorCount: result.errors.length,
+      errors: result.errors.slice(0, 10).map(err => ({ url: '', error: err })), // Limit to 10 errors
+    });
+
+    return result;
+  } catch (error) {
+    // Mark job as failed
+    await failJob(job.id, error instanceof Error ? error : String(error));
+    throw error;
+  }
 }
 
 /**

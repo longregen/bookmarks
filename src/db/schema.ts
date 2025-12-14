@@ -39,11 +39,89 @@ export interface Settings {
   updatedAt: Date;
 }
 
+export enum JobType {
+  MANUAL_ADD = 'manual_add',
+  MARKDOWN_GENERATION = 'markdown_generation',
+  QA_GENERATION = 'qa_generation',
+  FILE_IMPORT = 'file_import',
+  BULK_URL_IMPORT = 'bulk_url_import',
+  URL_FETCH = 'url_fetch'
+}
+
+export enum JobStatus {
+  PENDING = 'pending',
+  IN_PROGRESS = 'in_progress',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+  CANCELLED = 'cancelled'
+}
+
+export interface Job {
+  id: string;                    // UUID
+  type: JobType;
+  status: JobStatus;
+  parentJobId?: string;          // For hierarchical jobs (e.g., bulk import -> individual fetches)
+  bookmarkId?: string;           // Associated bookmark (if applicable)
+
+  // Progress tracking
+  progress: number;              // 0-100
+  currentStep?: string;          // Human-readable current step
+  totalSteps?: number;           // For multi-step operations
+  completedSteps?: number;       // Completed steps count
+
+  // Metadata (flexible JSON)
+  metadata: {
+    // For MARKDOWN_GENERATION
+    characterCount?: number;
+    wordCount?: number;
+    extractionTimeMs?: number;
+
+    // For QA_GENERATION
+    pairsGenerated?: number;
+    truncatedChars?: number;
+    apiTimeMs?: number;
+    embeddingTimeMs?: number;
+
+    // For FILE_IMPORT
+    fileName?: string;
+    totalBookmarks?: number;
+    importedCount?: number;
+    skippedCount?: number;
+    errorCount?: number;
+    errors?: Array<{ url: string; error: string }>;
+
+    // For BULK_URL_IMPORT
+    totalUrls?: number;
+    successCount?: number;
+    failureCount?: number;
+
+    // For URL_FETCH
+    url?: string;
+    fetchTimeMs?: number;
+    htmlSize?: number;
+
+    // For MANUAL_ADD
+    title?: string;
+    captureTimeMs?: number;
+    source?: string;
+
+    // Common
+    errorMessage?: string;
+    errorStack?: string;
+    retryCount?: number;
+  };
+
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt?: Date;
+}
+
 export class BookmarkDatabase extends Dexie {
   bookmarks!: Table<Bookmark>;
   markdown!: Table<Markdown>;
   questionsAnswers!: Table<QuestionAnswer>;
   settings!: Table<Settings>;
+  jobs!: Table<Job>;
 
   constructor() {
     super('BookmarkRAG');
@@ -53,6 +131,18 @@ export class BookmarkDatabase extends Dexie {
       markdown: 'id, bookmarkId, createdAt, updatedAt',
       questionsAnswers: 'id, bookmarkId, createdAt, updatedAt',
       settings: 'key, createdAt, updatedAt',
+    });
+
+    // Version 2: Add jobs table
+    this.version(2).stores({
+      bookmarks: 'id, url, status, createdAt, updatedAt',
+      markdown: 'id, bookmarkId, createdAt, updatedAt',
+      questionsAnswers: 'id, bookmarkId, createdAt, updatedAt',
+      settings: 'key, createdAt, updatedAt',
+      jobs: 'id, bookmarkId, parentJobId, status, type, createdAt, updatedAt, [parentJobId+status], [bookmarkId+type]',
+    }).upgrade(async (tx) => {
+      console.log('Upgraded database to version 2 with jobs table');
+      // No data migration needed - starting fresh with jobs
     });
   }
 }

@@ -67,7 +67,7 @@ async function launchBrowser(): Promise<Browser> {
   // Note: Google Chrome blocks --load-extension flag, so we must use Chromium
   return puppeteer.launch({
     executablePath,
-    headless: false, // Extensions require headed mode
+    headless: 'shell', // Use new headless mode that supports extensions (Chrome 112+)
     args: [
       `--user-data-dir=${USER_DATA_DIR}`,
       `--disable-extensions-except=${EXTENSION_PATH}`,
@@ -223,9 +223,11 @@ async function testChromeExtension(): Promise<void> {
 
       await page.waitForSelector('#apiKey', { timeout: 5000 });
 
-      // Clear and set API key
-      await page.click('#apiKey', { clickCount: 3 });
-      await page.type('#apiKey', OPENAI_API_KEY);
+      // Set all API settings directly
+      await page.$eval('#apiBaseUrl', (el: HTMLInputElement) => el.value = 'https://api.openai.com/v1');
+      await page.$eval('#apiKey', (el: HTMLInputElement, key: string) => el.value = key, OPENAI_API_KEY);
+      await page.$eval('#chatModel', (el: HTMLInputElement) => el.value = 'gpt-4o-mini');
+      await page.$eval('#embeddingModel', (el: HTMLInputElement) => el.value = 'text-embedding-3-small');
 
       // Save settings
       await page.click('[type="submit"]');
@@ -241,36 +243,81 @@ async function testChromeExtension(): Promise<void> {
 
     // Test 5: Save a bookmark
     await runTest('Save a bookmark from test page', async () => {
-      // Create a test page
-      const testPage = await browser!.newPage();
-      await testPage.setContent(`
+      // Get initial bookmark count
+      const popupPage = await browser!.newPage();
+      await popupPage.goto(`chrome-extension://${extensionId}/src/popup/popup.html`);
+      await popupPage.waitForSelector('#totalCount', { timeout: 5000 });
+      const initialCountText = await popupPage.$eval('#totalCount', el => el.textContent);
+      const initialCount = parseInt(initialCountText || '0', 10);
+      await popupPage.close();
+
+      // Send SAVE_BOOKMARK message from a page context
+      const testUrl = 'https://example.com/test-article';
+      const testTitle = 'Test Article About AI';
+      const testHtml = `
         <!DOCTYPE html>
         <html>
-        <head><title>Test Bookmark Page</title></head>
+        <head><title>${testTitle}</title></head>
         <body>
           <h1>Test Article</h1>
           <article>
             <p>This is a test article about artificial intelligence and machine learning.</p>
             <p>It contains important information about neural networks and deep learning.</p>
-            <p>The future of AI is bright with many applications in various fields.</p>
           </article>
         </body>
         </html>
-      `);
+      `;
 
-      // Open popup in a new tab
-      const popupPage = await browser!.newPage();
-      await popupPage.goto(`chrome-extension://${extensionId}/src/popup/popup.html`);
+      const savePage = await browser!.newPage();
+      await savePage.goto(`chrome-extension://${extensionId}/src/popup/popup.html`);
 
-      // Note: Can't actually save from popup since it needs the active tab context
-      // This test verifies the popup UI is functional
-      await popupPage.waitForSelector('#saveBtn', { timeout: 5000 });
+      const result = await savePage.evaluate(async (url, title, html) => {
+        return new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            { type: 'SAVE_BOOKMARK', data: { url, title, html } },
+            (response) => resolve(response)
+          );
+        });
+      }, testUrl, testTitle, testHtml);
 
-      // Verify stats are displayed
-      await popupPage.waitForSelector('#totalCount', { timeout: 5000 });
+      await savePage.close();
 
-      await testPage.close();
-      await popupPage.close();
+      // Verify the save was successful
+      if (!(result as any).success) {
+        throw new Error(`Failed to save bookmark: ${(result as any).error || 'Unknown error'}`);
+      }
+
+      // Verify bookmark was saved by checking updated count
+      const verifyPage = await browser!.newPage();
+      await verifyPage.goto(`chrome-extension://${extensionId}/src/popup/popup.html`);
+      await verifyPage.waitForSelector('#totalCount', { timeout: 5000 });
+
+      // Wait a bit for stats to update
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const newCountText = await verifyPage.$eval('#totalCount', el => el.textContent);
+      const newCount = parseInt(newCountText || '0', 10);
+
+      if (newCount !== initialCount + 1) {
+        throw new Error(`Expected count to increase by 1 (from ${initialCount} to ${initialCount + 1}), but got ${newCount}`);
+      }
+
+      // Verify bookmark appears in explore page
+      await verifyPage.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await verifyPage.waitForSelector('#bookmarkList', { timeout: 5000 });
+
+      // Wait for bookmarks to load
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const bookmarkTitles = await verifyPage.$$eval('.bookmark-card .bookmark-title',
+        elements => elements.map(el => el.textContent?.trim())
+      );
+
+      if (!bookmarkTitles.includes(testTitle)) {
+        throw new Error(`Saved bookmark "${testTitle}" not found in bookmark list. Found: ${bookmarkTitles.join(', ')}`);
+      }
+
+      await verifyPage.close();
     });
 
     // Test 6: Test connection with API key
@@ -285,9 +332,9 @@ async function testChromeExtension(): Promise<void> {
 
       await page.waitForSelector('#apiKey', { timeout: 5000 });
 
-      // Set API key
-      await page.click('#apiKey', { clickCount: 3 });
-      await page.type('#apiKey', OPENAI_API_KEY);
+      // Set API settings directly
+      await page.$eval('#apiBaseUrl', (el: HTMLInputElement) => el.value = 'https://api.openai.com/v1');
+      await page.$eval('#apiKey', (el: HTMLInputElement, key: string) => el.value = key, OPENAI_API_KEY);
 
       // Click test button
       await page.click('#testBtn');

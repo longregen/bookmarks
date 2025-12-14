@@ -86,6 +86,39 @@
       </form>
 
       <div class="data-section">
+        <h2>Bulk Import URLs</h2>
+        <p class="section-description">
+          Import multiple bookmarks at once by pasting a list of URLs (one per line).
+        </p>
+
+        <div class="bulk-import-container">
+          <textarea
+            id="bulkUrlsInput"
+            rows="10"
+            placeholder="https://example.com/article1&#10;https://example.com/article2&#10;https://github.com/user/repo"
+          ></textarea>
+
+          <div id="urlValidationFeedback" class="validation-feedback"></div>
+
+          <div class="button-group">
+            <button type="button" id="startBulkImport" class="btn btn-primary" disabled>
+              Import URLs
+            </button>
+            <button type="button" id="cancelBulkImport" class="btn btn-secondary" style="display:none;">
+              Cancel
+            </button>
+          </div>
+
+          <div id="bulkImportProgress" class="bulk-import-progress hidden">
+            <div class="progress-bar-container">
+              <div id="bulkImportProgressBar" class="progress-bar"></div>
+            </div>
+            <span id="bulkImportStatus" class="progress-status">Processing...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="data-section">
         <h2>Import / Export</h2>
         <p class="section-description">
           Backup your bookmarks or transfer them between browsers.
@@ -115,6 +148,44 @@
         </div>
 
         <div id="importStatus" class="import-status hidden"></div>
+      </div>
+
+      <div class="data-section">
+        <h2>Jobs Dashboard</h2>
+        <p class="section-description">
+          Monitor processing jobs for your bookmarks and bulk imports.
+        </p>
+
+        <div class="jobs-controls">
+          <div class="jobs-filters">
+            <select id="jobTypeFilter" class="filter-select">
+              <option value="">All Types</option>
+              <option value="manual_add">Manual Add</option>
+              <option value="markdown_generation">Markdown Generation</option>
+              <option value="qa_generation">Q&A Generation</option>
+              <option value="file_import">File Import</option>
+              <option value="bulk_url_import">Bulk URL Import</option>
+              <option value="url_fetch">URL Fetch</option>
+            </select>
+
+            <select id="jobStatusFilter" class="filter-select">
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+
+          <button type="button" id="refreshJobsBtn" class="btn btn-secondary">
+            Refresh
+          </button>
+        </div>
+
+        <div id="jobsList" class="jobs-list">
+          <div class="loading">Loading jobs...</div>
+        </div>
       </div>
 
       <div class="info-section">
