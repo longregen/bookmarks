@@ -2,6 +2,9 @@ import { db, Bookmark, QuestionAnswer } from '../db/schema';
 import { generateEmbeddings } from '../lib/api';
 import { findTopK } from '../lib/similarity';
 
+// Constants
+const RESULTS_PER_PAGE = 10;
+
 // UI Elements
 const searchInput = document.getElementById('searchInput') as HTMLInputElement;
 const searchBtn = document.getElementById('searchBtn') as HTMLButtonElement;
@@ -26,6 +29,15 @@ const deleteBtn = document.getElementById('deleteBtn') as HTMLButtonElement;
 const retryBtn = document.getElementById('retryBtn') as HTMLButtonElement;
 
 let currentBookmarkId: string | null = null;
+
+// Search state for pagination
+interface SearchResult {
+  bookmarkId: string;
+  bookmark: Bookmark;
+  qaResults: { qa: QuestionAnswer; score: number }[];
+}
+let currentSearchResults: SearchResult[] = [];
+let displayedResultsCount = 0;
 
 // View switching
 listViewBtn.addEventListener('click', () => {
@@ -225,6 +237,10 @@ async function performSearch() {
     searchBtn.disabled = true;
     searchBtn.textContent = 'Searching...';
 
+    // Reset pagination state
+    currentSearchResults = [];
+    displayedResultsCount = 0;
+
     // Generate embedding for the query
     if (__DEBUG_EMBEDDINGS__) {
       console.log('[Search] Generating query embedding...');
@@ -336,7 +352,8 @@ async function performSearch() {
     if (__DEBUG_EMBEDDINGS__) {
       console.log('[Search] Running similarity search on', items.length, 'items');
     }
-    const topResults = findTopK(queryEmbedding, items, 20);
+    // Get more results to allow pagination (up to 100 unique bookmarks worth)
+    const topResults = findTopK(queryEmbedding, items, 200);
 
     if (__DEBUG_EMBEDDINGS__) {
       console.log('[Search] Top results from findTopK', {
@@ -349,16 +366,10 @@ async function performSearch() {
       });
     }
 
-    // Group by bookmark and get unique bookmarks
+    // Group by bookmark and get unique bookmarks (no threshold filtering)
     const bookmarkMap = new Map<string, { qa: QuestionAnswer; score: number }[]>();
 
-    let filteredByThreshold = 0;
     for (const result of topResults) {
-      if (result.score < 0.5) {
-        filteredByThreshold++;
-        continue; // Skip low similarity results
-      }
-
       const bookmarkId = result.item.bookmarkId;
       if (!bookmarkMap.has(bookmarkId)) {
         bookmarkMap.set(bookmarkId, []);
@@ -367,8 +378,7 @@ async function performSearch() {
     }
 
     if (__DEBUG_EMBEDDINGS__) {
-      console.log('[Search] Results after 0.5 threshold filter', {
-        filteredOut: filteredByThreshold,
+      console.log('[Search] Grouped results by bookmark', {
         uniqueBookmarks: bookmarkMap.size,
         totalMatches: [...bookmarkMap.values()].reduce((sum, arr) => sum + arr.length, 0),
       });
@@ -376,28 +386,42 @@ async function performSearch() {
 
     if (bookmarkMap.size === 0) {
       if (__DEBUG_EMBEDDINGS__) {
-        console.log('[Search] No results above threshold');
+        console.log('[Search] No results found');
       }
       searchResults.innerHTML = '<div class="empty-state">No results found</div>';
       searchCount.textContent = '0';
       return;
     }
 
-    searchResults.innerHTML = '';
-    searchCount.textContent = bookmarkMap.size.toString();
+    // Build sorted results array for pagination
+    // Sort by best score per bookmark
+    const sortedEntries = [...bookmarkMap.entries()].sort((a, b) => {
+      const maxScoreA = Math.max(...a[1].map(r => r.score));
+      const maxScoreB = Math.max(...b[1].map(r => r.score));
+      return maxScoreB - maxScoreA;
+    });
 
-    // Display results
-    for (const [bookmarkId, qaResults] of bookmarkMap.entries()) {
+    // Fetch bookmark data and build results array
+    for (const [bookmarkId, qaResults] of sortedEntries) {
       const bookmark = await db.bookmarks.get(bookmarkId);
       if (!bookmark) continue;
 
-      const card = createSearchResultCard(bookmark, qaResults);
-      searchResults.appendChild(card);
+      currentSearchResults.push({
+        bookmarkId,
+        bookmark,
+        qaResults,
+      });
     }
+
+    searchCount.textContent = currentSearchResults.length.toString();
+
+    // Render initial results
+    renderSearchResults();
 
     if (__DEBUG_EMBEDDINGS__) {
       console.log('[Search] Search completed successfully', {
-        resultsDisplayed: bookmarkMap.size,
+        totalResults: currentSearchResults.length,
+        displayedResults: displayedResultsCount,
       });
     }
 
@@ -408,6 +432,51 @@ async function performSearch() {
   } finally {
     searchBtn.disabled = false;
     searchBtn.textContent = 'Search';
+  }
+}
+
+// Render search results with pagination
+function renderSearchResults() {
+  const startIndex = displayedResultsCount;
+  const endIndex = Math.min(startIndex + RESULTS_PER_PAGE, currentSearchResults.length);
+
+  // If this is the first render, clear the container
+  if (startIndex === 0) {
+    searchResults.innerHTML = '';
+  } else {
+    // Remove existing "Load more" button if present
+    const existingLoadMore = searchResults.querySelector('.load-more-container');
+    if (existingLoadMore) {
+      existingLoadMore.remove();
+    }
+  }
+
+  // Add result cards
+  for (let i = startIndex; i < endIndex; i++) {
+    const result = currentSearchResults[i];
+    const card = createSearchResultCard(result.bookmark, result.qaResults);
+    searchResults.appendChild(card);
+  }
+
+  displayedResultsCount = endIndex;
+
+  // Add "Load more" button if there are more results
+  if (displayedResultsCount < currentSearchResults.length) {
+    const remaining = currentSearchResults.length - displayedResultsCount;
+    const loadMoreContainer = document.createElement('div');
+    loadMoreContainer.className = 'load-more-container';
+    loadMoreContainer.innerHTML = `
+      <button class="btn btn-secondary load-more-btn">
+        Load more (${remaining} remaining)
+      </button>
+    `;
+
+    const loadMoreBtn = loadMoreContainer.querySelector('.load-more-btn') as HTMLButtonElement;
+    loadMoreBtn.addEventListener('click', () => {
+      renderSearchResults();
+    });
+
+    searchResults.appendChild(loadMoreContainer);
   }
 }
 

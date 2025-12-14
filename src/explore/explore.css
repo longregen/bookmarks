@@ -438,3 +438,13 @@ h2 {
   max-height: 150px;
   overflow-y: auto;
 }
+
+.load-more-container {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+}
+
+.load-more-btn {
+  min-width: 200px;
+}
