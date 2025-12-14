@@ -305,9 +305,29 @@ async function main(): Promise<void> {
       // Check if example.com appears in any bookmark card
       const hasExampleBookmark = await explorePage.evaluate(() => {
         const cards = document.querySelectorAll('.bookmark-card');
-        return Array.from(cards).some(card =>
-          card.textContent?.includes('example.com')
-        );
+        return Array.from(cards).some(card => {
+          // Prefer anchor links, fall back to searching for valid URLs in text
+          const link = card.querySelector('a[href]');
+          if (link) {
+            try {
+              const url = new URL(link.href);
+              return url.hostname === "example.com";
+            } catch (e) {
+              return false;
+            }
+          }
+          // Optionally, try to find a URL in the plain text (basic regex)
+          const urlMatch = card.textContent?.match(/https?:\/\/[^\s"']+/);
+          if (urlMatch) {
+            try {
+              const url = new URL(urlMatch[0]);
+              return url.hostname === "example.com";
+            } catch (e) {
+              return false;
+            }
+          }
+          return false;
+        });
       });
 
       if (!hasExampleBookmark) {
