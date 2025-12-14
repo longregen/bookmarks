@@ -69,8 +69,11 @@ export function validateUrls(urlsText: string): ValidationResult {
 export function validateSingleUrl(url: string): UrlValidation {
   const original = url;
 
+  // Normalize for scheme checks
+  const trimmedLower = url.trim().toLowerCase();
+
   // Reject dangerous URL schemes
-  if (url.startsWith('javascript:')) {
+  if (trimmedLower.startsWith('javascript:')) {
     return {
       original,
       normalized: '',
@@ -79,7 +82,7 @@ export function validateSingleUrl(url: string): UrlValidation {
     };
   }
 
-  if (url.startsWith('data:')) {
+  if (trimmedLower.startsWith('data:')) {
     return {
       original,
       normalized: '',
@@ -88,10 +91,19 @@ export function validateSingleUrl(url: string): UrlValidation {
     };
   }
 
-  if (url.startsWith('file:')) {
+  if (trimmedLower.startsWith('vbscript:')) {
     return {
       original,
       normalized: '',
+      error: 'VBScript URLs are not allowed',
+    };
+  }
+
+  if (trimmedLower.startsWith('file:')) {
+    return {
+      original,
+      normalized: '',
+      isValid: false,
       isValid: false,
       error: 'File URLs are not allowed',
     };
