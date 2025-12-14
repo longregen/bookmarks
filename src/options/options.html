@@ -85,6 +85,38 @@
         </div>
       </form>
 
+      <div class="data-section">
+        <h2>Import / Export</h2>
+        <p class="section-description">
+          Backup your bookmarks or transfer them between browsers.
+        </p>
+
+        <div class="data-actions">
+          <div class="data-action">
+            <h3>Export Bookmarks</h3>
+            <p>Download all your bookmarks as a JSON file.</p>
+            <button type="button" id="exportBtn" class="btn btn-secondary">
+              Export All Bookmarks
+            </button>
+          </div>
+
+          <div class="data-action">
+            <h3>Import Bookmarks</h3>
+            <p>Import bookmarks from a previously exported JSON file. Duplicates will be skipped.</p>
+            <input type="file" id="importFile" accept=".json" class="file-input" />
+            <label for="importFile" class="btn btn-secondary file-label">
+              Choose File to Import
+            </label>
+            <span id="importFileName" class="file-name"></span>
+            <button type="button" id="importBtn" class="btn btn-primary" disabled>
+              Import
+            </button>
+          </div>
+        </div>
+
+        <div id="importStatus" class="import-status hidden"></div>
+      </div>
+
       <div class="info-section">
         <h2>About</h2>
         <p>

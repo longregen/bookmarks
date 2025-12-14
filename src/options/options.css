@@ -168,6 +168,107 @@ input:focus {
   border-color: #9ca3af;
 }
 
+.data-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 32px;
+  margin-bottom: 32px;
+}
+
+.section-description {
+  color: #6b7280;
+  margin-bottom: 24px;
+}
+
+.data-actions {
+  display: grid;
+  gap: 24px;
+}
+
+.data-action {
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.data-action h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.data-action p {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 16px;
+}
+
+.file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.file-label {
+  display: inline-block;
+  margin-right: 12px;
+}
+
+.file-name {
+  font-size: 14px;
+  color: #6b7280;
+  margin-right: 12px;
+}
+
+.import-status {
+  margin-top: 24px;
+}
+
+.import-status.hidden {
+  display: none;
+}
+
+.import-result {
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.import-result.success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.import-result.warning {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.import-result.error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.import-errors {
+  margin-top: 12px;
+  padding-left: 20px;
+  font-size: 13px;
+}
+
+.import-errors li {
+  margin-bottom: 4px;
+}
+
 .info-section {
   background: white;
   border: 1px solid #e5e7eb;
