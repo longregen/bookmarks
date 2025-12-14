@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bookmark RAG Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Bookmark RAG Settings</h1>
+      <p class="subtitle">Configure your API settings for bookmark processing</p>
+    </header>
+
+    <main>
+      <div id="status" class="status hidden"></div>
+
+      <form id="settingsForm">
+        <div class="form-group">
+          <label for="apiBaseUrl">API Base URL</label>
+          <input
+            type="url"
+            id="apiBaseUrl"
+            name="apiBaseUrl"
+            placeholder="https://api.openai.com/v1"
+            required
+          />
+          <small class="help-text">
+            OpenAI-compatible API endpoint. For OpenAI, use the default.
+            For local models, use your local endpoint (e.g., http://localhost:1234/v1)
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label for="apiKey">API Key</label>
+          <input
+            type="password"
+            id="apiKey"
+            name="apiKey"
+            placeholder="sk-..."
+            required
+          />
+          <small class="help-text">
+            Your OpenAI API key or compatible provider key
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label for="chatModel">Chat Model</label>
+          <input
+            type="text"
+            id="chatModel"
+            name="chatModel"
+            placeholder="gpt-4o-mini"
+            required
+          />
+          <small class="help-text">
+            Model for Q&A generation (e.g., gpt-4o-mini, gpt-4o)
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label for="embeddingModel">Embedding Model</label>
+          <input
+            type="text"
+            id="embeddingModel"
+            name="embeddingModel"
+            placeholder="text-embedding-3-small"
+            required
+          />
+          <small class="help-text">
+            Model for generating embeddings (e.g., text-embedding-3-small)
+          </small>
+        </div>
+
+        <div class="button-group">
+          <button type="submit" class="btn btn-primary">
+            Save Settings
+          </button>
+          <button type="button" id="testBtn" class="btn btn-secondary">
+            Test Connection
+          </button>
+        </div>
+      </form>
+
+      <div class="info-section">
+        <h2>About</h2>
+        <p>
+          Bookmark RAG captures web pages and uses AI to generate searchable
+          question-answer pairs, enabling semantic search across your bookmarks.
+        </p>
+        <p>
+          <strong>Privacy:</strong> All bookmarks are stored locally in your browser.
+          Only the extracted content is sent to your configured API for processing.
+        </p>
+      </div>
+    </main>
+  </div>
+
+  <script src="options.ts" type="module"></script>
+</body>
+</html>
