@@ -63,10 +63,17 @@ async function launchBrowser(): Promise<Browser> {
   console.log(`Browser path: ${executablePath}`);
   console.log(`Extension contents: ${fs.readdirSync(EXTENSION_PATH).join(', ')}`);
 
+  // Print manifest for debugging
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+  console.log(`Manifest version: ${manifest.manifest_version}`);
+  console.log(`Extension name: ${manifest.name}`);
+  console.log(`Service worker: ${manifest.background?.service_worker}`);
+
   // Chrome - using a user data directory is required for extension loading in CI
   return puppeteer.launch({
     executablePath,
     headless: false, // Extensions require headed mode in Chrome
+    dumpio: true, // Pipe browser process stdout and stderr to process.stdout/stderr for debugging
     args: [
       `--user-data-dir=${USER_DATA_DIR}`,
       `--disable-extensions-except=${EXTENSION_PATH}`,
@@ -80,6 +87,8 @@ async function launchBrowser(): Promise<Browser> {
       '--disable-background-timer-throttling',
       '--disable-backgrounding-occluded-windows',
       '--disable-renderer-backgrounding',
+      '--enable-logging=stderr',
+      '--v=1',
     ],
   });
 }
@@ -88,6 +97,27 @@ async function getExtensionId(browser: Browser): Promise<string> {
   // Try to find extension ID using waitForTarget which properly waits for targets to appear
   // This is more robust than a fixed sleep, especially in CI environments
   const EXTENSION_TIMEOUT = 30000; // 30 seconds timeout
+
+  // Give Chrome a moment to initialize extensions
+  console.log('Waiting for Chrome to initialize extensions...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  // Try to trigger the extension by opening a test page
+  // This can cause the content script to run and potentially wake up the service worker
+  console.log('Opening a test page to potentially trigger extension...');
+  const pages = await browser.pages();
+  if (pages.length > 0) {
+    try {
+      await pages[0].goto('https://example.com', { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } catch (e) {
+      console.log('Could not navigate to test page:', e);
+    }
+  }
+
+  // List all targets for debugging
+  const allTargets = browser.targets();
+  console.log('All targets after page load:', allTargets.map(t => ({ type: t.type(), url: t.url() })));
 
   try {
     // First, try to find the service worker target
