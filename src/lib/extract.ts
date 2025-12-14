@@ -1,5 +1,6 @@
 import { Readability } from '@mozilla/readability';
 import TurndownService from 'turndown';
+import { parseHTML } from 'linkedom';
 
 const turndown = new TurndownService({
   headingStyle: 'atx',
@@ -14,9 +15,8 @@ export interface ExtractedContent {
 }
 
 export function extractMarkdown(html: string, url: string): ExtractedContent {
-  // Parse HTML into a DOM document
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
+  // Parse HTML into a DOM document using linkedom (works in service workers)
+  const { document: doc } = parseHTML(html);
 
   // Set the base URL for relative link resolution
   const base = doc.createElement('base');

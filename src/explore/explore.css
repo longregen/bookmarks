@@ -424,3 +424,17 @@ h2 {
   margin-top: 8px;
   font-size: 14px;
 }
+
+.error-stack {
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #7f1d1d;
+  max-height: 150px;
+  overflow-y: auto;
+}
