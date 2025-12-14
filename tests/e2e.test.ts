@@ -84,33 +84,36 @@ async function launchBrowser(): Promise<Browser> {
     await setupFirefoxProfile(USER_DATA_DIR, EXTENSION_PATH);
 
     console.log('Launching Firefox with Puppeteer...');
+    // Puppeteer 24.x uses WebDriver BiDi for Firefox
+    // Note: pipe is Chrome-only and must not be used with Firefox
     const browser = await puppeteer.launch({
-      product: 'firefox',
+      browser: 'firefox',
       executablePath: BROWSER_PATH,
       headless: false,
+      // Use WebDriver BiDi protocol for Firefox (required for Puppeteer 24.x)
+      protocol: 'webDriverBiDi',
       args: [
         '-profile',
         USER_DATA_DIR,
-        '--remote-debugging-port=0',
+        '-no-remote',
       ],
       extraPrefsFirefox: {
         // Enable extensions
         'xpinstall.signatures.required': false,
         'extensions.autoDisableScopes': 0,
         'extensions.enabledScopes': 15,
-        // Enable remote debugging
-        'devtools.chrome.enabled': true,
-        'devtools.debugger.remote-enabled': true,
-        'devtools.debugger.prompt-connection': false,
+        // Enable remote debugging via BiDi
         'remote.enabled': true,
         'remote.force-local': true,
+        // Disable first-run prompts
+        'browser.shell.checkDefaultBrowser': false,
+        'browser.startup.homepage_override.mstone': 'ignore',
+        'datareporting.policy.dataSubmissionEnabled': false,
       },
       // Increase timeout for Firefox startup
       timeout: 60000,
-      // Enable protocol debugging output
+      // Enable protocol debugging output for troubleshooting
       dumpio: false,
-      // Use pipe instead of websocket for more reliable connection
-      pipe: true,
     });
 
     console.log('Firefox launched successfully');
