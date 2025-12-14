@@ -241,7 +241,7 @@ async function main(): Promise<void> {
       await page.close();
     });
 
-    // Test 3: Create a test page and save as bookmark via service worker message
+    // Test 3: Create a test page and save as bookmark via service worker
     await runTest('Save bookmark via content script simulation', async () => {
       // Open explore page to interact with database
       const explorePage = await browser!.newPage();
@@ -253,43 +253,24 @@ async function main(): Promise<void> {
       // Get initial bookmark count
       const initialCount = await explorePage.$eval('#bookmarkCount', el => el.textContent);
 
-      // Now simulate saving a bookmark by sending message to service worker
-      // We'll use the popup page which can send messages
-
-      // Create a test tab with content
+      // Navigate to a real page where the content script can inject
       const testPage = await browser!.newPage();
-      await testPage.setContent(`
-        <!DOCTYPE html>
-        <html>
-        <head><title>E2E Test Article - AI and Machine Learning</title></head>
-        <body>
-          <article>
-            <h1>Understanding Artificial Intelligence</h1>
-            <p>Artificial intelligence (AI) is a branch of computer science that aims to create intelligent machines.</p>
-            <p>Machine learning is a subset of AI that enables systems to learn from data.</p>
-            <p>Deep learning uses neural networks with many layers to analyze complex patterns.</p>
-            <p>Natural language processing helps computers understand human language.</p>
-            <p>Computer vision enables machines to interpret visual information from the world.</p>
-          </article>
-        </body>
-        </html>
-      `, { waitUntil: 'domcontentloaded' });
+      await testPage.goto('https://example.com', { waitUntil: 'domcontentloaded', timeout: 15000 });
 
-      // Inject a script that sends the save message directly
-      await testPage.evaluate((extId: string) => {
-        const url = location.href;
-        const title = document.title;
-        const html = document.documentElement.outerHTML;
+      // Wait for content script to potentially inject
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // Send message to extension's service worker
-        chrome.runtime.sendMessage(extId, {
-          type: 'SAVE_BOOKMARK',
-          data: { url, title, html }
-        });
-      }, extensionId);
+      // Use the popup to save the current page
+      // The popup sends messages to the service worker which handles saving
+      const popupPage = await browser!.newPage();
+      await popupPage.goto(`chrome-extension://${extensionId}/src/popup/popup.html`);
+      await popupPage.waitForSelector('#saveBtn', { timeout: 5000 });
 
-      // Wait a moment for the message to be processed
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Click the save button
+      await popupPage.click('#saveBtn');
+
+      // Wait for save to process
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
       // Refresh explore page and check if bookmark was added
       await explorePage.reload({ waitUntil: 'domcontentloaded' });
@@ -299,6 +280,7 @@ async function main(): Promise<void> {
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       await testPage.close();
+      await popupPage.close();
       await explorePage.close();
     });
 
