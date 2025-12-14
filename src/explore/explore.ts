@@ -212,6 +212,8 @@ async function retryCurrentBookmark() {
 async function performSearch() {
   const query = searchInput.value.trim();
 
+  console.log('[Search] Starting search', { query, queryLength: query.length });
+
   if (!query) {
     searchResults.innerHTML = '<div class="empty-state">Enter a search query to find bookmarks</div>';
     return;
@@ -222,39 +224,122 @@ async function performSearch() {
     searchBtn.textContent = 'Searching...';
 
     // Generate embedding for the query
+    console.log('[Search] Generating query embedding...');
     const [queryEmbedding] = await generateEmbeddings([query]);
+
+    console.log('[Search] Query embedding received', {
+      exists: !!queryEmbedding,
+      isArray: Array.isArray(queryEmbedding),
+      dimension: queryEmbedding?.length,
+      sample: queryEmbedding?.slice(0, 5),
+    });
+
+    if (!queryEmbedding || !Array.isArray(queryEmbedding) || queryEmbedding.length === 0) {
+      console.error('[Search] Invalid query embedding received!');
+      searchResults.innerHTML = '<div class="error-message">Failed to generate query embedding</div>';
+      return;
+    }
 
     // Load all Q&A pairs with embeddings
     const allQAs = await db.questionsAnswers.toArray();
+
+    console.log('[Search] Loaded Q&A pairs from database', {
+      totalCount: allQAs.length,
+      withQuestionEmbedding: allQAs.filter(qa => Array.isArray(qa.embeddingQuestion) && qa.embeddingQuestion.length > 0).length,
+      withBothEmbedding: allQAs.filter(qa => Array.isArray(qa.embeddingBoth) && qa.embeddingBoth.length > 0).length,
+    });
 
     if (allQAs.length === 0) {
       searchResults.innerHTML = '<div class="empty-state">No processed bookmarks to search yet</div>';
       return;
     }
 
+    // Debug: Analyze embedding dimensions in database
+    const embeddingDimensions = new Map<number, number>();
+    allQAs.forEach(qa => {
+      [qa.embeddingQuestion, qa.embeddingBoth, qa.embeddingAnswer].forEach(emb => {
+        if (Array.isArray(emb) && emb.length > 0) {
+          embeddingDimensions.set(emb.length, (embeddingDimensions.get(emb.length) || 0) + 1);
+        }
+      });
+    });
+
+    console.log('[Search] Embedding dimensions found in database', {
+      queryDimension: queryEmbedding.length,
+      storedDimensions: Object.fromEntries(embeddingDimensions),
+      dimensionMismatch: !embeddingDimensions.has(queryEmbedding.length),
+    });
+
     // Find top K similar Q&A pairs using both question and combined embeddings
     // Filter out items with missing or invalid embeddings
-    const items = allQAs.flatMap(qa => [
-      { item: qa, embedding: qa.embeddingQuestion },
-      { item: qa, embedding: qa.embeddingBoth },
-    ]).filter(({ embedding }) =>
-      Array.isArray(embedding) &&
-      embedding.length > 0 &&
-      embedding.length === queryEmbedding.length
-    );
+    const allItems = allQAs.flatMap(qa => [
+      { item: qa, embedding: qa.embeddingQuestion, type: 'question' },
+      { item: qa, embedding: qa.embeddingBoth, type: 'both' },
+    ]);
+
+    console.log('[Search] Created items for comparison', {
+      totalItems: allItems.length,
+      itemsWithValidEmbedding: allItems.filter(i => Array.isArray(i.embedding) && i.embedding.length > 0).length,
+    });
+
+    // Detailed filtering with debugging
+    const filterResults = {
+      total: allItems.length,
+      notArray: 0,
+      emptyArray: 0,
+      dimensionMismatch: 0,
+      valid: 0,
+    };
+
+    const items = allItems.filter(({ embedding }) => {
+      if (!Array.isArray(embedding)) {
+        filterResults.notArray++;
+        return false;
+      }
+      if (embedding.length === 0) {
+        filterResults.emptyArray++;
+        return false;
+      }
+      if (embedding.length !== queryEmbedding.length) {
+        filterResults.dimensionMismatch++;
+        return false;
+      }
+      filterResults.valid++;
+      return true;
+    });
+
+    console.log('[Search] Filter results', {
+      ...filterResults,
+      queryDimension: queryEmbedding.length,
+    });
 
     if (items.length === 0) {
+      console.error('[Search] No valid items after filtering!', filterResults);
       searchResults.innerHTML = '<div class="empty-state">No valid embeddings found. Try reprocessing your bookmarks.</div>';
       return;
     }
 
+    console.log('[Search] Running similarity search on', items.length, 'items');
     const topResults = findTopK(queryEmbedding, items, 20);
+
+    console.log('[Search] Top results from findTopK', {
+      resultCount: topResults.length,
+      scores: topResults.map(r => r.score.toFixed(4)),
+      scoreRange: topResults.length > 0 ? {
+        min: Math.min(...topResults.map(r => r.score)).toFixed(4),
+        max: Math.max(...topResults.map(r => r.score)).toFixed(4),
+      } : null,
+    });
 
     // Group by bookmark and get unique bookmarks
     const bookmarkMap = new Map<string, { qa: QuestionAnswer; score: number }[]>();
 
+    let filteredByThreshold = 0;
     for (const result of topResults) {
-      if (result.score < 0.5) continue; // Skip low similarity results
+      if (result.score < 0.5) {
+        filteredByThreshold++;
+        continue; // Skip low similarity results
+      }
 
       const bookmarkId = result.item.bookmarkId;
       if (!bookmarkMap.has(bookmarkId)) {
@@ -263,7 +348,14 @@ async function performSearch() {
       bookmarkMap.get(bookmarkId)!.push({ qa: result.item, score: result.score });
     }
 
+    console.log('[Search] Results after 0.5 threshold filter', {
+      filteredOut: filteredByThreshold,
+      uniqueBookmarks: bookmarkMap.size,
+      totalMatches: [...bookmarkMap.values()].reduce((sum, arr) => sum + arr.length, 0),
+    });
+
     if (bookmarkMap.size === 0) {
+      console.log('[Search] No results above threshold');
       searchResults.innerHTML = '<div class="empty-state">No results found</div>';
       searchCount.textContent = '0';
       return;
@@ -281,9 +373,13 @@ async function performSearch() {
       searchResults.appendChild(card);
     }
 
+    console.log('[Search] Search completed successfully', {
+      resultsDisplayed: bookmarkMap.size,
+    });
+
     switchView('search');
   } catch (error) {
-    console.error('Error performing search:', error);
+    console.error('[Search] Error performing search:', error);
     searchResults.innerHTML = `<div class="error-message">Search failed: ${error instanceof Error ? error.message : 'Unknown error'}</div>`;
   } finally {
     searchBtn.disabled = false;
