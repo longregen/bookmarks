@@ -6,6 +6,7 @@
 import { fetchWithTimeout } from '../lib/browser-fetch';
 import { Readability } from '@mozilla/readability';
 import TurndownService from 'turndown';
+import type { ExtractedContent } from '../lib/extract';
 
 console.log('Offscreen document loaded');
 
@@ -13,13 +14,6 @@ const turndown = new TurndownService({
   headingStyle: 'atx',
   codeBlockStyle: 'fenced',
 });
-
-export interface ExtractedContent {
-  title: string;
-  content: string;      // Markdown
-  excerpt: string;
-  byline: string | null;
-}
 
 /**
  * Extract markdown content from HTML using native DOMParser

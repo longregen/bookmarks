@@ -58,29 +58,6 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(
 }
 
 /**
- * Clear an element's content safely
- * @param el Element to clear
- */
-export function clearElement(el: HTMLElement): void {
-  el.textContent = '';
-}
-
-/**
- * Append multiple children to an element
- * @param parent Parent element
- * @param children Children to append
- */
-export function appendChildren(parent: HTMLElement, children: (HTMLElement | string)[]): void {
-  for (const child of children) {
-    if (typeof child === 'string') {
-      parent.appendChild(document.createTextNode(child));
-    } else {
-      parent.appendChild(child);
-    }
-  }
-}
-
-/**
  * Show a temporary status message in a status div
  * @param statusDiv The status div element
  * @param message Message to display
