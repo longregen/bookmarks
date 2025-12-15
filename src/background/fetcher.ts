@@ -158,4 +158,3 @@ async function processSingleFetch(jobId: string, parentJobId: string): Promise<v
     });
   }
 }
-
