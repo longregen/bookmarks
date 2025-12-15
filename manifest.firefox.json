@@ -21,7 +21,7 @@
 
   "browser_specific_settings": {
     "gecko": {
-      "id": "bookmark-rag@example.com",
+      "id": "bookmarks@localforge.org",
       "strict_min_version": "140.0",
       "update_url": "https://longregen.github.io/bookmarks/updates.json",
       "data_collection_permissions": {

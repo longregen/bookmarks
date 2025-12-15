@@ -26,7 +26,12 @@ const EXTENSION_PATH = process.env.EXTENSION_PATH
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const BROWSER_PATH = process.env.BROWSER_PATH;
 
-// Fixed UUID for moz-extension:// URLs - must be pre-configured in Firefox preferences
+// Fixed UUID for moz-extension:// URLs
+// Firefox assigns a random UUID to each extension installation for its moz-extension:// URLs.
+// This makes testing impossible since URLs change on every install. To get consistent URLs,
+// we pre-configure this UUID in Firefox preferences via 'extensions.webextensions.uuids',
+// which maps the extension's manifest ID to this fixed UUID. The UUID value itself is
+// arbitrary - it just needs to be a valid UUID that we use consistently.
 const FIREFOX_EXTENSION_UUID = '3d9b1639-77fb-44a1-888a-6d97d773e96b';
 
 // Create a temporary directory for XPI and profile
