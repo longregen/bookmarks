@@ -100,35 +100,77 @@ function getExtensionUrl(urlPath: string): string {
  * to discover it after the extension is installed.
  */
 async function detectExtensionUUID(driver: WebDriver, extensionName: string): Promise<string> {
-  console.log('Detecting extension UUID from about:debugging...');
+  console.log(`Detecting extension UUID for "${extensionName}" from about:debugging...`);
 
   // Navigate to about:debugging to find the extension
   await driver.get('about:debugging#/runtime/this-firefox');
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  await new Promise(resolve => setTimeout(resolve, 3000));
 
-  // Find the extension by name and extract its internal UUID
-  // The UUID is shown in the "Internal UUID" field on about:debugging
+  // Get the page source
   const pageSource = await driver.getPageSource();
 
-  // Look for the extension's manifest URL which contains the UUID
-  // Format: moz-extension://[uuid]/manifest.json
-  const uuidMatch = pageSource.match(/moz-extension:\/\/([a-f0-9-]{36})/i);
+  // Debug: Check if our extension name appears in the page
+  if (!pageSource.includes(extensionName)) {
+    console.log('WARNING: Extension name not found in about:debugging page');
+    console.log('Looking for any temporary extension...');
 
-  if (uuidMatch) {
-    const uuid = uuidMatch[1];
-    console.log(`Detected extension UUID: ${uuid}`);
-    return uuid;
+    // Try to find "Temporary Extensions" section and get UUID from there
+    // Selenium-installed extensions appear as temporary extensions
   }
 
-  // Alternative: Try to find UUID in the extension details
-  // The about:debugging page shows "Internal UUID" for each extension
-  const internalUuidMatch = pageSource.match(/Internal UUID[^a-f0-9]*([a-f0-9-]{36})/i);
+  // The about:debugging page structure has extension cards with:
+  // - Extension name
+  // - Internal UUID field
+  // We need to find the UUID associated with our specific extension
 
-  if (internalUuidMatch) {
-    const uuid = internalUuidMatch[1];
+  // Strategy 1: Look for our extension name followed by moz-extension URL
+  // The manifest URL typically appears near the extension name
+  const extensionSection = pageSource.split(extensionName)[1];
+  if (extensionSection) {
+    const uuidMatch = extensionSection.match(/moz-extension:\/\/([a-f0-9-]{36})/i);
+    if (uuidMatch) {
+      const uuid = uuidMatch[1];
+      console.log(`Detected extension UUID (near extension name): ${uuid}`);
+      return uuid;
+    }
+  }
+
+  // Strategy 2: Look for Internal UUID pattern near extension name
+  const internalUuidPattern = new RegExp(
+    extensionName + '[\\s\\S]*?Internal UUID[\\s\\S]*?([a-f0-9-]{36})',
+    'i'
+  );
+  const internalMatch = pageSource.match(internalUuidPattern);
+  if (internalMatch) {
+    const uuid = internalMatch[1];
     console.log(`Detected extension UUID (from Internal UUID field): ${uuid}`);
     return uuid;
   }
+
+  // Strategy 3: If extension name not found, look for "Temporary Extension" with moz-extension
+  // This is a fallback for when the extension appears differently
+  const tempExtSection = pageSource.match(/Temporary Extensions[\s\S]*?moz-extension:\/\/([a-f0-9-]{36})/i);
+  if (tempExtSection) {
+    const uuid = tempExtSection[1];
+    console.log(`Detected extension UUID (from Temporary Extensions): ${uuid}`);
+    return uuid;
+  }
+
+  // Strategy 4: Last resort - get all UUIDs and use the last one (most recently installed)
+  const allUuids = pageSource.match(/moz-extension:\/\/([a-f0-9-]{36})/gi);
+  if (allUuids && allUuids.length > 0) {
+    // Filter out common system extension UUIDs if possible
+    const lastUuid = allUuids[allUuids.length - 1].match(/([a-f0-9-]{36})/i);
+    if (lastUuid) {
+      console.log(`Detected extension UUID (last found): ${lastUuid[1]}`);
+      console.log(`All UUIDs found: ${allUuids.length}`);
+      return lastUuid[1];
+    }
+  }
+
+  // Debug: Save page source for analysis
+  console.log('DEBUG: Page source excerpt (first 2000 chars):');
+  console.log(pageSource.substring(0, 2000));
 
   throw new Error(`Could not detect extension UUID for "${extensionName}". Extension may not be installed.`);
 }
@@ -186,6 +228,24 @@ async function createDriver(): Promise<WebDriver> {
 
   // Detect the actual extension UUID
   extensionUUID = await detectExtensionUUID(driver, extensionName);
+
+  // Verify the extension is accessible by trying to load its manifest
+  console.log('Verifying extension is accessible...');
+  try {
+    await driver.get(`moz-extension://${extensionUUID}/manifest.json`);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    const pageSource = await driver.getPageSource();
+    if (pageSource.includes(extensionName) || pageSource.includes('manifest_version')) {
+      console.log('✓ Extension manifest is accessible');
+    } else {
+      console.log('WARNING: Extension manifest loaded but content unexpected');
+      console.log('Page content preview:', pageSource.substring(0, 500));
+    }
+  } catch (error) {
+    console.error('ERROR: Could not access extension manifest');
+    console.error('This may indicate the wrong UUID was detected or extension failed to install');
+    throw error;
+  }
 
   return driver;
 }
