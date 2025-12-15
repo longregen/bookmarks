@@ -3,7 +3,7 @@ import { crx } from '@crxjs/vite-plugin';
 import manifest from './manifest.firefox.json';
 import * as fs from 'fs';
 import * as path from 'path';
-import { sharedConfig } from './vite.config.shared';
+import { sharedDefine } from './vite.config.shared';
 
 // Plugin to clean up Firefox manifest by removing Chrome-only properties
 function firefoxManifestCleanup(): Plugin {
@@ -31,7 +31,11 @@ function firefoxManifestCleanup(): Plugin {
 }
 
 export default defineConfig({
-  ...sharedConfig,
+  define: {
+    ...sharedDefine,
+    __IS_CHROME__: JSON.stringify(false),
+    __IS_FIREFOX__: JSON.stringify(true),
+  },
   plugins: [crx({ manifest }), firefoxManifestCleanup()],
   build: {
     outDir: 'dist-firefox',

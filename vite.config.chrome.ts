@@ -1,10 +1,14 @@
 import { defineConfig } from 'vite';
 import { crx } from '@crxjs/vite-plugin';
 import manifest from './manifest.chrome.json';
-import { sharedConfig } from './vite.config.shared';
+import { sharedDefine } from './vite.config.shared';
 
 export default defineConfig({
-  ...sharedConfig,
+  define: {
+    ...sharedDefine,
+    __IS_CHROME__: JSON.stringify(true),
+    __IS_FIREFOX__: JSON.stringify(false),
+  },
   plugins: [crx({ manifest })],
   build: {
     outDir: 'dist-chrome',
