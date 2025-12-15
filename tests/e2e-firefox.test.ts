@@ -26,13 +26,8 @@ const EXTENSION_PATH = process.env.EXTENSION_PATH
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const BROWSER_PATH = process.env.BROWSER_PATH;
 
-// Fixed UUID for moz-extension:// URLs
-// Firefox assigns a random UUID to each extension installation for its moz-extension:// URLs.
-// This makes testing impossible since URLs change on every install. To get consistent URLs,
-// we pre-configure this UUID in Firefox preferences via 'extensions.webextensions.uuids',
-// which maps the extension's manifest ID to this fixed UUID. The UUID value itself is
-// arbitrary - it just needs to be a valid UUID that we use consistently.
-const FIREFOX_EXTENSION_UUID = '3d9b1639-77fb-44a1-888a-6d97d773e96b';
+// This will be set after we detect the extension's actual UUID
+let extensionUUID: string = '';
 
 // Create a temporary directory for XPI and profile
 const TEMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'firefox-e2e-'));
@@ -92,8 +87,50 @@ interface TestResult {
 
 const results: TestResult[] = [];
 
-function getExtensionUrl(path: string): string {
-  return `moz-extension://${FIREFOX_EXTENSION_UUID}${path}`;
+function getExtensionUrl(urlPath: string): string {
+  if (!extensionUUID) {
+    throw new Error('Extension UUID not set. Call detectExtensionUUID first.');
+  }
+  return `moz-extension://${extensionUUID}${urlPath}`;
+}
+
+/**
+ * Detect the extension's internal UUID by navigating to about:debugging.
+ * Firefox assigns a random UUID to each extension installation, so we need
+ * to discover it after the extension is installed.
+ */
+async function detectExtensionUUID(driver: WebDriver, extensionName: string): Promise<string> {
+  console.log('Detecting extension UUID from about:debugging...');
+
+  // Navigate to about:debugging to find the extension
+  await driver.get('about:debugging#/runtime/this-firefox');
+  await new Promise(resolve => setTimeout(resolve, 2000));
+
+  // Find the extension by name and extract its internal UUID
+  // The UUID is shown in the "Internal UUID" field on about:debugging
+  const pageSource = await driver.getPageSource();
+
+  // Look for the extension's manifest URL which contains the UUID
+  // Format: moz-extension://[uuid]/manifest.json
+  const uuidMatch = pageSource.match(/moz-extension:\/\/([a-f0-9-]{36})/i);
+
+  if (uuidMatch) {
+    const uuid = uuidMatch[1];
+    console.log(`Detected extension UUID: ${uuid}`);
+    return uuid;
+  }
+
+  // Alternative: Try to find UUID in the extension details
+  // The about:debugging page shows "Internal UUID" for each extension
+  const internalUuidMatch = pageSource.match(/Internal UUID[^a-f0-9]*([a-f0-9-]{36})/i);
+
+  if (internalUuidMatch) {
+    const uuid = internalUuidMatch[1];
+    console.log(`Detected extension UUID (from Internal UUID field): ${uuid}`);
+    return uuid;
+  }
+
+  throw new Error(`Could not detect extension UUID for "${extensionName}". Extension may not be installed.`);
 }
 
 async function createDriver(): Promise<WebDriver> {
@@ -107,15 +144,15 @@ async function createDriver(): Promise<WebDriver> {
     throw new Error(`Extension manifest not found: ${manifestPath}`);
   }
 
-  // Read the manifest to get the extension ID
+  // Read the manifest to get the extension ID and name
   const manifestContent = fs.readFileSync(manifestPath, 'utf-8');
   const manifest = JSON.parse(manifestContent);
   const extensionId = manifest.browser_specific_settings?.gecko?.id || 'bookmarks@localforge.org';
+  const extensionName = manifest.name || 'Bookmark RAG';
 
   console.log(`Browser path: ${BROWSER_PATH}`);
   console.log(`Extension path: ${EXTENSION_PATH}`);
   console.log(`Extension ID from manifest: ${extensionId}`);
-  console.log(`Fixed UUID for moz-extension URLs: ${FIREFOX_EXTENSION_UUID}`);
 
   // Create XPI package from extension directory
   // Selenium's Firefox driver requires extensions to be packaged as .xpi or .zip files
@@ -135,11 +172,6 @@ async function createDriver(): Promise<WebDriver> {
   options.setPreference('browser.startup.homepage_override.mstone', 'ignore');
   options.setPreference('datareporting.policy.dataSubmissionEnabled', false);
 
-  // Pre-set the extension UUID to ensure consistent moz-extension:// URLs
-  options.setPreference('extensions.webextensions.uuids', JSON.stringify({
-    [extensionId]: FIREFOX_EXTENSION_UUID
-  }));
-
   // Add the extension XPI package
   options.addExtensions(XPI_PATH);
 
@@ -151,6 +183,9 @@ async function createDriver(): Promise<WebDriver> {
 
   // Wait for extension to initialize
   await new Promise(resolve => setTimeout(resolve, 3000));
+
+  // Detect the actual extension UUID
+  extensionUUID = await detectExtensionUUID(driver, extensionName);
 
   return driver;
 }
@@ -209,7 +244,7 @@ async function main(): Promise<void> {
   try {
     driver = await createDriver();
     console.log('\nFirefox launched successfully with Selenium');
-    console.log(`Extension URL base: moz-extension://${FIREFOX_EXTENSION_UUID}/\n`);
+    console.log(`Extension URL base: moz-extension://${extensionUUID}/\n`);
 
     // Test navigation to extension page first
     console.log('Testing basic extension navigation...');
