@@ -13,6 +13,9 @@ permissions:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.tag.outputs.tag }}
 
     steps:
       - name: Checkout code
@@ -80,6 +83,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Generate updates.json for Firefox
+        run: |
+          cat > landing/updates.json << EOF
+          {
+            "addons": {
+              "bookmark-rag@example.com": {
+                "updates": [
+                  {
+                    "version": "${{ needs.build-and-release.outputs.version }}",
+                    "update_link": "https://github.com/longregen/bookmarks/releases/download/${{ needs.build-and-release.outputs.tag }}/bookmark-rag-firefox.zip"
+                  }
+                ]
+              }
+            }
+          }
+          EOF
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
