@@ -4,18 +4,48 @@ import { createJob, completeJob, failJob } from '../lib/jobs';
 import { createBulkImportJob } from '../lib/bulk-import';
 import { processBulkFetch } from './fetcher';
 import { ensureOffscreenDocument } from '../lib/offscreen';
+import { resumeInterruptedJobs } from './job-resumption';
 
 console.log('Bookmark RAG service worker loaded');
 
-// Initialize the database and start processing queue on startup
+/**
+ * Initialize the extension - check for interrupted jobs and start processing
+ */
+async function initializeExtension() {
+  console.log('Initializing extension...');
+
+  try {
+    // First, check for and resume any interrupted jobs
+    const { resumedBulkImports, resetFetchJobs } = await resumeInterruptedJobs();
+
+    if (resumedBulkImports > 0 || resetFetchJobs > 0) {
+      console.log(`Job recovery: resumed ${resumedBulkImports} bulk imports, reset ${resetFetchJobs} fetch jobs`);
+    }
+
+    // Then start the bookmark processing queue
+    startProcessingQueue();
+  } catch (error) {
+    console.error('Error during initialization:', error);
+    // Still try to start the processing queue even if job recovery fails
+    startProcessingQueue();
+  }
+}
+
+// Initialize on extension install/update
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Extension installed/updated');
+  initializeExtension();
 });
 
+// Initialize on browser startup
 chrome.runtime.onStartup.addListener(() => {
-  console.log('Browser started, initializing queue');
-  startProcessingQueue();
+  console.log('Browser started, initializing');
+  initializeExtension();
 });
+
+// Also initialize immediately when the service worker loads
+// This handles cases where the service worker was killed and restarted
+initializeExtension();
 
 // Handle messages from content scripts and popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
