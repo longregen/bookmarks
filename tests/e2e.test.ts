@@ -132,8 +132,20 @@ async function launchBrowser(): Promise<LaunchResult> {
         },
       });
 
-      const firefoxExtensionId = result.extension;
+      // Log full result for debugging
+      console.log('webExtension.install result:', JSON.stringify(result, null, 2));
+
+      // The extension ID might be in different fields depending on Firefox/BiDi version
+      const firefoxExtensionId = result.extension || result.result?.extension;
       console.log(`Extension installed with ID: ${firefoxExtensionId}`);
+
+      if (!firefoxExtensionId) {
+        throw new Error(
+          `webExtension.install did not return extension ID. ` +
+          `Result: ${JSON.stringify(result)}. ` +
+          `This may indicate the Firefox version doesn't fully support webExtension.install.`
+        );
+      }
 
       // Wait for extension to initialize
       await new Promise(resolve => setTimeout(resolve, 3000));
@@ -1012,6 +1024,12 @@ async function main(): Promise<void> {
   const failed = results.filter(r => !r.passed).length;
 
   console.log(`Total: ${results.length} | Passed: ${passed} | Failed: ${failed}`);
+
+  // Fail if no tests were run (indicates setup failure)
+  if (results.length === 0) {
+    console.error('\n✗ No tests were executed! This indicates a setup failure.');
+    process.exit(1);
+  }
 
   if (failed > 0) {
     console.log('\nFailed tests:');
