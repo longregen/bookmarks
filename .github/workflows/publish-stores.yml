@@ -64,5 +64,4 @@ jobs:
           apiKey: ${{ secrets.FIREFOX_API_KEY }}
           apiSecret: ${{ secrets.FIREFOX_API_SECRET }}
           sourceCode: source-code.zip
-          license: MIT
           metaDataFile: amo-metadata.json
