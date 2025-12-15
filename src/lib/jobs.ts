@@ -1,5 +1,8 @@
 import { db, Job, JobType, JobStatus } from '../db/schema';
 
+// Re-export Job type for consumers
+export type { Job };
+
 /**
  * Create a new job in the database
  * @param params Job creation parameters
@@ -243,6 +246,131 @@ export async function cleanupOldJobs(daysOld: number = 30): Promise<number> {
   await db.jobs.bulkDelete(jobIds);
 
   return jobIds.length;
+}
+
+/**
+ * Find all jobs that were interrupted (stuck in IN_PROGRESS or PENDING with no active processor)
+ * This is used to detect jobs that need resumption after a service worker restart
+ * All results are sorted by updatedAt ascending (oldest first for round-robin processing)
+ */
+export async function findInterruptedJobs(): Promise<{
+  bulkImportJobs: Job[];
+  pendingFetchJobs: Job[];
+  inProgressFetchJobs: Job[];
+}> {
+  // Find BULK_URL_IMPORT jobs that are still IN_PROGRESS (parent jobs)
+  // Sort by updatedAt ascending so oldest jobs are processed first
+  const bulkImportJobs = await db.jobs
+    .where('type')
+    .equals(JobType.BULK_URL_IMPORT)
+    .and(job => job.status === JobStatus.IN_PROGRESS)
+    .sortBy('updatedAt');
+
+  // Find URL_FETCH jobs that are PENDING (never started)
+  const pendingFetchJobs = await db.jobs
+    .where('type')
+    .equals(JobType.URL_FETCH)
+    .and(job => job.status === JobStatus.PENDING)
+    .sortBy('updatedAt');
+
+  // Find URL_FETCH jobs that were IN_PROGRESS (started but interrupted)
+  const inProgressFetchJobs = await db.jobs
+    .where('type')
+    .equals(JobType.URL_FETCH)
+    .and(job => job.status === JobStatus.IN_PROGRESS)
+    .sortBy('updatedAt');
+
+  return {
+    bulkImportJobs,
+    pendingFetchJobs,
+    inProgressFetchJobs,
+  };
+}
+
+/**
+ * Reset interrupted jobs back to PENDING so they can be resumed
+ * @returns Summary of what was reset
+ */
+export async function resetInterruptedJobs(): Promise<{
+  bulkImportsReset: number;
+  fetchJobsReset: number;
+}> {
+  const { bulkImportJobs, inProgressFetchJobs } = await findInterruptedJobs();
+
+  let bulkImportsReset = 0;
+  let fetchJobsReset = 0;
+
+  // Reset IN_PROGRESS fetch jobs back to PENDING
+  for (const job of inProgressFetchJobs) {
+    await db.jobs.update(job.id, {
+      status: JobStatus.PENDING,
+      updatedAt: new Date(),
+      metadata: {
+        ...job.metadata,
+        retryCount: (job.metadata.retryCount || 0) + 1,
+        lastInterruptedAt: new Date().toISOString(),
+      },
+    });
+    fetchJobsReset++;
+    console.log(`Reset interrupted fetch job: ${job.id} (URL: ${job.metadata.url})`);
+  }
+
+  // For bulk import jobs, we don't reset the parent - we'll resume it
+  // Just log what we found
+  for (const job of bulkImportJobs) {
+    console.log(`Found interrupted bulk import job: ${job.id} (${job.metadata.successCount || 0}/${job.metadata.totalUrls} complete)`);
+    bulkImportsReset++;
+  }
+
+  return {
+    bulkImportsReset,
+    fetchJobsReset,
+  };
+}
+
+/**
+ * Get all bulk import parent jobs that need resumption
+ * A job needs resumption if it's IN_PROGRESS and has PENDING child jobs
+ * Returns jobs sorted by updatedAt ascending (oldest first for round-robin)
+ */
+export async function getBulkImportsToResume(): Promise<Job[]> {
+  // Find BULK_URL_IMPORT jobs that are IN_PROGRESS
+  // Sort by updatedAt ascending so oldest/least recently updated jobs go first
+  const inProgressBulkImports = await db.jobs
+    .where('type')
+    .equals(JobType.BULK_URL_IMPORT)
+    .and(job => job.status === JobStatus.IN_PROGRESS)
+    .sortBy('updatedAt');
+
+  const jobsToResume: Job[] = [];
+
+  for (const parentJob of inProgressBulkImports) {
+    // Check if there are any pending/in_progress child jobs
+    const incompleteChildren = await db.jobs
+      .where('parentJobId')
+      .equals(parentJob.id)
+      .and(job => job.status === JobStatus.PENDING || job.status === JobStatus.IN_PROGRESS)
+      .count();
+
+    if (incompleteChildren > 0) {
+      jobsToResume.push(parentJob);
+    } else {
+      // All children are complete/failed, mark parent as complete
+      const childJobs = await getJobsByParent(parentJob.id);
+      const successCount = childJobs.filter(j => j.status === JobStatus.COMPLETED).length;
+      const failureCount = childJobs.filter(j => j.status === JobStatus.FAILED).length;
+
+      await completeJob(parentJob.id, {
+        ...parentJob.metadata,
+        successCount,
+        failureCount,
+        resumedAndCompleted: true,
+      });
+      console.log(`Completed orphaned bulk import job: ${parentJob.id}`);
+    }
+  }
+
+  return jobsToResume;
 }
 
 /**

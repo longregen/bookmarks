@@ -99,6 +99,7 @@ export interface Job {
     url?: string;
     fetchTimeMs?: number;
     htmlSize?: number;
+    bookmarkId?: string;
 
     // For MANUAL_ADD
     title?: string;
@@ -109,6 +110,11 @@ export interface Job {
     errorMessage?: string;
     errorStack?: string;
     retryCount?: number;
+
+    // Job resumption tracking
+    lastInterruptedAt?: string;
+    resumedAt?: string;
+    resumedAndCompleted?: boolean;
   };
 
   createdAt: Date;

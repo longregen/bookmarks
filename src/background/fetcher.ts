@@ -15,9 +15,11 @@ const TIMEOUT_MS = 30000; // 30 second timeout per URL
 
 /**
  * Process a bulk import job by fetching all child URL jobs
+ * Supports resumption - only processes PENDING jobs (skips COMPLETED/FAILED)
  * @param parentJobId Parent bulk import job ID
+ * @param isResumption Whether this is resuming an interrupted job
  */
-export async function processBulkFetch(parentJobId: string): Promise<void> {
+export async function processBulkFetch(parentJobId: string, isResumption: boolean = false): Promise<void> {
   try {
     // Get parent job
     const parentJob = await db.jobs.get(parentJobId);
@@ -27,26 +29,45 @@ export async function processBulkFetch(parentJobId: string): Promise<void> {
     }
 
     // Get all child jobs
-    const childJobs = await getJobsByParent(parentJobId);
-    const childJobIds = childJobs.map(job => job.id);
+    const allChildJobs = await getJobsByParent(parentJobId);
 
-    console.log(`Starting bulk fetch for ${childJobIds.length} URLs`);
+    // Only process PENDING jobs (allows resumption of interrupted bulk imports)
+    // Sort by updatedAt ascending so oldest/least recently tried jobs go first (round-robin)
+    const pendingJobs = allChildJobs
+      .filter(job => job.status === JobStatus.PENDING)
+      .sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime());
+    const pendingJobIds = pendingJobs.map(job => job.id);
 
-    // Process in batches
-    for (let i = 0; i < childJobIds.length; i += CONCURRENCY) {
-      const batch = childJobIds.slice(i, i + CONCURRENCY);
+    if (isResumption) {
+      const completedCount = allChildJobs.filter(j => j.status === JobStatus.COMPLETED).length;
+      const failedCount = allChildJobs.filter(j => j.status === JobStatus.FAILED).length;
+      console.log(`Resuming bulk fetch: ${pendingJobIds.length} pending, ${completedCount} completed, ${failedCount} failed`);
+    } else {
+      console.log(`Starting bulk fetch for ${pendingJobIds.length} URLs`);
+    }
 
-      console.log(`Processing batch ${Math.floor(i / CONCURRENCY) + 1}/${Math.ceil(childJobIds.length / CONCURRENCY)}`);
+    if (pendingJobIds.length === 0) {
+      console.log('No pending jobs to process');
+    } else {
+      // Process in batches
+      for (let i = 0; i < pendingJobIds.length; i += CONCURRENCY) {
+        const batch = pendingJobIds.slice(i, i + CONCURRENCY);
 
-      await Promise.allSettled(
-        batch.map(jobId => processSingleFetch(jobId, parentJobId))
-      );
+        console.log(`Processing batch ${Math.floor(i / CONCURRENCY) + 1}/${Math.ceil(pendingJobIds.length / CONCURRENCY)}`);
+
+        await Promise.allSettled(
+          batch.map(jobId => processSingleFetch(jobId, parentJobId))
+        );
+      }
     }
 
     // Complete parent job
     const finalParentJob = await db.jobs.get(parentJobId);
     if (finalParentJob) {
-      await completeJob(parentJobId, finalParentJob.metadata);
+      await completeJob(parentJobId, {
+        ...finalParentJob.metadata,
+        resumedAt: isResumption ? new Date().toISOString() : undefined,
+      });
     }
 
     console.log('Bulk fetch completed');
