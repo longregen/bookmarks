@@ -89,7 +89,7 @@ async function launchBrowser(): Promise<LaunchResult> {
     const manifestPath = path.join(EXTENSION_PATH, 'manifest.json');
     const manifestContent = fs.readFileSync(manifestPath, 'utf-8');
     const manifest = JSON.parse(manifestContent);
-    const extensionId = manifest.browser_specific_settings?.gecko?.id || 'bookmark-rag@example.com';
+    const extensionId = manifest.browser_specific_settings?.gecko?.id || 'bookmarks@localforge.org';
 
     // Define a fixed UUID for the extension to use with moz-extension:// URLs
     // This UUID is pre-set in Firefox preferences to ensure consistent extension URLs across runs
@@ -152,7 +152,7 @@ async function launchBrowser(): Promise<LaunchResult> {
       // Log full result for debugging
       console.log('webExtension.install result:', JSON.stringify(result, null, 2));
 
-      // The extension ID returned by webExtension.install is the manifest ID (e.g., bookmark-rag@example.com)
+      // The extension ID returned by webExtension.install is the manifest ID (e.g., bookmarks@localforge.org)
       // NOT the internal moz-extension UUID. We use the pre-configured UUID instead.
       const manifestId = result.extension || result.result?.extension;
       console.log(`Extension installed with manifest ID: ${manifestId}`);

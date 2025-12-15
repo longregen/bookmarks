@@ -4,10 +4,13 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Fixed UUID for moz-extension:// URLs - must be set in profile before Firefox starts
+export const FIREFOX_EXTENSION_UUID = '3d9b1639-77fb-44a1-888a-6d97d773e96b';
+
 /**
  * Prepares a Firefox profile with the extension pre-installed
  * This is a workaround for Puppeteer's limited Firefox extension support
- * Returns the extension ID for use in tests
+ * Returns the extension manifest ID for use in tests
  */
 export async function setupFirefoxProfile(profileDir: string, extensionPath: string): Promise<string> {
   // Create extensions directory in profile
@@ -29,7 +32,7 @@ export async function setupFirefoxProfile(profileDir: string, extensionPath: str
     extensionId = manifest.applications.gecko.id;
   } else {
     // For testing, we can use a generated ID
-    extensionId = 'bookmark-rag-test@example.com';
+    extensionId = 'bookmarks@localforge.org';
     console.warn('No gecko ID found in manifest, using default:', extensionId);
   }
 
