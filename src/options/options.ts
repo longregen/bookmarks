@@ -10,6 +10,7 @@ import { initTheme, onThemeChange, applyTheme, getTheme, setTheme, type Theme } 
 const form = document.getElementById('settingsForm') as HTMLFormElement;
 const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
 const backBtn = document.getElementById('backBtn') as HTMLButtonElement;
+const sidebarBackBtn = document.getElementById('sidebarBackBtn') as HTMLButtonElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
 
 const apiBaseUrlInput = document.getElementById('apiBaseUrl') as HTMLInputElement;
@@ -110,9 +111,12 @@ testBtn.addEventListener('click', async () => {
 });
 
 // Navigate back to explore page
-backBtn.addEventListener('click', () => {
+function navigateToExplore() {
   chrome.tabs.create({ url: chrome.runtime.getURL('src/explore/explore.html') });
-});
+}
+
+backBtn.addEventListener('click', navigateToExplore);
+sidebarBackBtn?.addEventListener('click', navigateToExplore);
 
 // Import/Export functionality
 let selectedFile: File | null = null;
@@ -376,7 +380,7 @@ cancelBulkImportBtn.addEventListener('click', async () => {
     currentBulkImportJobId = null;
     startBulkImportBtn.disabled = false;
     cancelBulkImportBtn.style.display = 'none';
-    showStatus('Bulk import cancelled', 'error');
+    showStatusMessage(statusDiv, 'Bulk import cancelled', 'error', 5000);
   }
 });
 
@@ -630,6 +634,64 @@ themeRadios.forEach(radio => {
 // Initialize theme
 initTheme();
 onThemeChange((theme) => applyTheme(theme));
+
+// Sidebar Navigation
+const navItems = document.querySelectorAll<HTMLAnchorElement>('.nav-item');
+const sections = document.querySelectorAll<HTMLElement>('.settings-section');
+
+function setActiveNavItem(sectionId: string) {
+  navItems.forEach(item => {
+    if (item.dataset.section === sectionId) {
+      item.classList.add('active');
+    } else {
+      item.classList.remove('active');
+    }
+  });
+}
+
+// Handle nav item clicks
+navItems.forEach(item => {
+  item.addEventListener('click', (e) => {
+    const sectionId = item.dataset.section;
+    if (sectionId) {
+      setActiveNavItem(sectionId);
+    }
+  });
+});
+
+// Track scroll position to update active nav item
+function setupScrollObserver() {
+  const observerOptions: IntersectionObserverInit = {
+    root: null,
+    rootMargin: '-20% 0px -60% 0px',
+    threshold: 0
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const sectionId = entry.target.id;
+        setActiveNavItem(sectionId);
+      }
+    });
+  }, observerOptions);
+
+  sections.forEach(section => {
+    observer.observe(section);
+  });
+}
+
+// Only setup scroll observer on desktop
+if (window.matchMedia('(min-width: 1024px)').matches) {
+  setupScrollObserver();
+}
+
+// Re-setup observer on resize
+window.addEventListener('resize', () => {
+  if (window.matchMedia('(min-width: 1024px)').matches) {
+    setupScrollObserver();
+  }
+});
 
 // Load settings on page load
 loadSettings();
