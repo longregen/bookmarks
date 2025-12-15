@@ -7,17 +7,56 @@
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
-  <div class="container">
-    <header>
-      <button id="backBtn" class="btn btn-secondary btn-back">← Back to Explore</button>
-      <h1>Bookmark RAG Settings</h1>
-      <p class="subtitle">Configure your API settings for bookmark processing</p>
-    </header>
+  <div class="settings-layout">
+    <!-- Sidebar Navigation (Desktop only) -->
+    <aside class="settings-sidebar">
+      <div class="sidebar-header">
+        <h1>Settings</h1>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#appearance" class="nav-item active" data-section="appearance">
+          <span class="nav-icon">🎨</span>
+          <span class="nav-label">Appearance</span>
+        </a>
+        <a href="#api-config" class="nav-item" data-section="api-config">
+          <span class="nav-icon">🔑</span>
+          <span class="nav-label">API Configuration</span>
+        </a>
+        <a href="#bulk-import" class="nav-item" data-section="bulk-import">
+          <span class="nav-icon">📥</span>
+          <span class="nav-label">Bulk Import</span>
+        </a>
+        <a href="#import-export" class="nav-item" data-section="import-export">
+          <span class="nav-icon">💾</span>
+          <span class="nav-label">Import / Export</span>
+        </a>
+        <a href="#jobs" class="nav-item" data-section="jobs">
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">Jobs Dashboard</span>
+        </a>
+        <a href="#about" class="nav-item" data-section="about">
+          <span class="nav-icon">ℹ️</span>
+          <span class="nav-label">About</span>
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <button id="sidebarBackBtn" class="btn btn-secondary btn-back">← Back to Explore</button>
+      </div>
+    </aside>
 
-    <main>
-      <div id="status" class="status hidden"></div>
+    <!-- Main Content -->
+    <div class="settings-content">
+      <header class="mobile-header">
+        <button id="backBtn" class="btn btn-secondary btn-back">← Back to Explore</button>
+        <h1>Bookmark RAG Settings</h1>
+        <p class="subtitle">Configure your API settings for bookmark processing</p>
+      </header>
 
-      <div class="theme-section">
+      <main>
+        <div id="status" class="status hidden"></div>
+
+        <section id="appearance" class="settings-section">
+          <div class="theme-section">
         <h2>Theme</h2>
         <p class="section-description">
           Choose your preferred appearance. Auto will follow your system preferences.
@@ -59,9 +98,11 @@
             </label>
           </div>
         </div>
-      </div>
+          </div>
+        </section>
 
-      <form id="settingsForm">
+        <section id="api-config" class="settings-section">
+          <form id="settingsForm">
         <div class="form-group">
           <label for="apiBaseUrl">API Base URL</label>
           <input
@@ -127,10 +168,12 @@
             Test Connection
           </button>
         </div>
-      </form>
+          </form>
+        </section>
 
-      <div class="data-section">
-        <h2>Bulk Import URLs</h2>
+        <section id="bulk-import" class="settings-section">
+          <div class="data-section">
+            <h2>Bulk Import URLs</h2>
         <p class="section-description">
           Import multiple bookmarks at once by pasting a list of URLs (one per line).
         </p>
@@ -160,10 +203,12 @@
             <span id="bulkImportStatus" class="progress-status">Processing...</span>
           </div>
         </div>
-      </div>
+          </div>
+        </section>
 
-      <div class="data-section">
-        <h2>Import / Export</h2>
+        <section id="import-export" class="settings-section">
+          <div class="data-section">
+            <h2>Import / Export</h2>
         <p class="section-description">
           Backup your bookmarks or transfer them between browsers.
         </p>
@@ -192,10 +237,12 @@
         </div>
 
         <div id="importStatus" class="import-status hidden"></div>
-      </div>
+          </div>
+        </section>
 
-      <div class="data-section">
-        <h2>Jobs Dashboard</h2>
+        <section id="jobs" class="settings-section">
+          <div class="data-section">
+            <h2>Jobs Dashboard</h2>
         <p class="section-description">
           Monitor processing jobs for your bookmarks and bulk imports.
         </p>
@@ -230,10 +277,12 @@
         <div id="jobsList" class="jobs-list">
           <div class="loading">Loading jobs...</div>
         </div>
-      </div>
+          </div>
+        </section>
 
-      <div class="info-section">
-        <h2>About</h2>
+        <section id="about" class="settings-section">
+          <div class="info-section">
+            <h2>About</h2>
         <p>
           Bookmark RAG captures web pages and uses AI to generate searchable
           question-answer pairs, enabling semantic search across your bookmarks.
@@ -242,8 +291,10 @@
           <strong>Privacy:</strong> All bookmarks are stored locally in your browser.
           Only the extracted content is sent to your configured API for processing.
         </p>
-      </div>
-    </main>
+          </div>
+        </section>
+      </main>
+    </div>
   </div>
 
   <script src="options.ts" type="module"></script>
