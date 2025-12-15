@@ -1,0 +1,70 @@
+name: Publish to Browser Stores
+permissions:
+  contents: read
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-chrome:
+    name: Publish to Chrome Web Store
+    runs-on: ubuntu-latest
+    # Only run if Chrome secrets are configured
+    if: ${{ secrets.CHROME_EXTENSION_ID != '' }}
+    steps:
+      - name: Download Chrome extension from release
+        uses: robinrber/action-download-release-asset@v1
+        with:
+          repository: ${{ github.repository }}
+          tag: ${{ github.event.release.tag_name }}
+          file: bookmark-rag-chrome.zip
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Chrome Web Store
+        uses: mnao305/chrome-extension-upload@v5.0.0
+        with:
+          file-path: bookmark-rag-chrome.zip
+          extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
+          client-id: ${{ secrets.CHROME_CLIENT_ID }}
+          client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
+          refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          publish: true
+
+  publish-firefox:
+    name: Publish to Firefox Add-ons
+    runs-on: ubuntu-latest
+    # Only run if Firefox secrets are configured
+    if: ${{ secrets.FIREFOX_API_KEY != '' }}
+    steps:
+      - name: Checkout code (for source submission)
+        uses: actions/checkout@v4
+
+      - name: Download Firefox extension from release
+        uses: robinrber/action-download-release-asset@v1
+        with:
+          repository: ${{ github.repository }}
+          tag: ${{ github.event.release.tag_name }}
+          file: bookmark-rag-firefox.zip
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare source code archive
+        run: |
+          # Firefox requires source code when using bundlers like Vite
+          # Exclude node_modules, dist folders, and other non-source files
+          zip -r source-code.zip . \
+            -x "node_modules/*" \
+            -x "dist-*/*" \
+            -x ".git/*" \
+            -x "*.zip" \
+            -x ".github/*"
+
+      - name: Upload to Firefox Add-ons
+        uses: kewisch/action-web-ext@v1
+        with:
+          cmd: sign
+          source: bookmark-rag-firefox.zip
+          channel: listed
+          apiKey: ${{ secrets.FIREFOX_API_KEY }}
+          apiSecret: ${{ secrets.FIREFOX_API_SECRET }}
+          sourceCode: source-code.zip

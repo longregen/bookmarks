@@ -118,7 +118,8 @@ jobs:
         # web-ext lint exits with non-zero on errors (fails the build)
         # Warnings are displayed but don't fail the build - this is expected behavior
         # as some warnings (like UNSAFE_VAR_ASSIGNMENT for properly-escaped innerHTML) are acceptable
-        run: web-ext lint -s dist-firefox --ignore-files "*.map"
+        # --self-hosted tells web-ext that update_url is allowed (self-hosted distribution)
+        run: web-ext lint -s dist-firefox --ignore-files "*.map" --self-hosted
 
       - name: Run Firefox extension tests
         env:
