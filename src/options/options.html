@@ -17,6 +17,43 @@
     <main>
       <div id="status" class="status hidden"></div>
 
+      <div class="theme-section">
+        <h2>Theme</h2>
+        <p class="section-description">
+          Choose your preferred appearance. Auto will follow your system preferences.
+        </p>
+        <div class="theme-options">
+          <div class="theme-option">
+            <input type="radio" id="themeAuto" name="theme" value="auto" checked>
+            <label for="themeAuto">
+              <div class="theme-preview auto"></div>
+              <span class="theme-name">Auto</span>
+            </label>
+          </div>
+          <div class="theme-option">
+            <input type="radio" id="themeLight" name="theme" value="light">
+            <label for="themeLight">
+              <div class="theme-preview light">A</div>
+              <span class="theme-name">Light</span>
+            </label>
+          </div>
+          <div class="theme-option">
+            <input type="radio" id="themeDark" name="theme" value="dark">
+            <label for="themeDark">
+              <div class="theme-preview dark">A</div>
+              <span class="theme-name">Dark</span>
+            </label>
+          </div>
+          <div class="theme-option">
+            <input type="radio" id="themeTerminal" name="theme" value="terminal">
+            <label for="themeTerminal">
+              <div class="theme-preview terminal">&gt;_</div>
+              <span class="theme-name">Terminal</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
       <form id="settingsForm">
         <div class="form-group">
           <label for="apiBaseUrl">API Base URL</label>

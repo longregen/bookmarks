@@ -4,6 +4,7 @@ import { findTopK } from '../lib/similarity';
 import { exportSingleBookmark, exportAllBookmarks, downloadExport } from '../lib/export';
 import { createElement } from '../lib/dom';
 import { formatTimeAgoShort } from '../lib/time';
+import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
 
 // Constants
 const RESULTS_PER_PAGE = 10;
@@ -730,6 +731,10 @@ function marked(markdown: string): string {
 
   return `<p>${html}</p>`;
 }
+
+// Initialize theme
+initTheme();
+onThemeChange((theme) => applyTheme(theme));
 
 // Initialize
 loadBookmarks();

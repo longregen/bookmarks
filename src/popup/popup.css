@@ -1,3 +1,5 @@
+@import '../shared/theme.css';
+
 * {
   margin: 0;
   padding: 0;
@@ -6,9 +8,9 @@
 
 body {
   width: 320px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
-  background: #f9fafb;
-  color: #111827;
+  font-family: var(--font-family);
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .container {
@@ -18,13 +20,13 @@ body {
 header {
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 h1 {
   font-size: 18px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .status {
@@ -43,21 +45,21 @@ h1 {
 }
 
 .status.success {
-  background: #d1fae5;
-  color: #065f46;
-  border: 1px solid #6ee7b7;
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
 }
 
 .status.error {
-  background: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fca5a5;
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
 }
 
 .status.warning {
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fcd34d;
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border: 1px solid var(--warning-border);
 }
 
 .actions {
@@ -83,7 +85,7 @@ h1 {
 
 .btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .btn:active {
@@ -91,23 +93,23 @@ h1 {
 }
 
 .btn-primary {
-  background: #3b82f6;
-  color: white;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
 }
 
 .btn-primary:hover {
-  background: #2563eb;
+  background: var(--btn-primary-hover);
 }
 
 .btn-secondary {
-  background: white;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+  border: 1px solid var(--btn-secondary-border);
 }
 
 .btn-secondary:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
+  background: var(--btn-secondary-hover);
+  border-color: var(--border-secondary);
 }
 
 .icon {
@@ -119,7 +121,7 @@ h1 {
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   padding-top: 12px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border-primary);
 }
 
 .stat-item {
@@ -131,7 +133,7 @@ h1 {
 
 .stat-label {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -139,5 +141,5 @@ h1 {
 .stat-value {
   font-size: 18px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
 }
