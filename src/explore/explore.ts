@@ -2,46 +2,7 @@ import { db, Bookmark, QuestionAnswer } from '../db/schema';
 import { generateEmbeddings } from '../lib/api';
 import { findTopK } from '../lib/similarity';
 import { exportSingleBookmark, exportAllBookmarks, downloadExport } from '../lib/export';
-
-/**
- * Helper to create DOM elements safely without innerHTML
- */
-function createElement<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  options?: {
-    className?: string;
-    textContent?: string;
-    href?: string;
-    target?: string;
-    title?: string;
-    style?: Partial<CSSStyleDeclaration>;
-    attributes?: Record<string, string>;
-  },
-  children?: (HTMLElement | Text | string)[]
-): HTMLElementTagNameMap[K] {
-  const el = document.createElement(tag);
-  if (options?.className) el.className = options.className;
-  if (options?.textContent) el.textContent = options.textContent;
-  if (options?.style) Object.assign(el.style, options.style);
-  if (options?.href && 'href' in el) (el as HTMLAnchorElement).href = options.href;
-  if (options?.target && 'target' in el) (el as HTMLAnchorElement).target = options.target;
-  if (options?.title) el.title = options.title;
-  if (options?.attributes) {
-    for (const [key, value] of Object.entries(options.attributes)) {
-      el.setAttribute(key, value);
-    }
-  }
-  if (children) {
-    for (const child of children) {
-      if (typeof child === 'string') {
-        el.appendChild(document.createTextNode(child));
-      } else {
-        el.appendChild(child);
-      }
-    }
-  }
-  return el;
-}
+import { createElement } from '../lib/dom';
 
 // Constants
 const RESULTS_PER_PAGE = 10;

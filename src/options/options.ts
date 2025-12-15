@@ -3,40 +3,7 @@ import { exportAllBookmarks, downloadExport, readImportFile, importBookmarks } f
 import { validateUrls } from '../lib/bulk-import';
 import { getRecentJobs, type Job } from '../lib/jobs';
 import { db, JobType, JobStatus } from '../db/schema';
-
-/**
- * Helper to create DOM elements safely without innerHTML
- */
-function createElement<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  options?: {
-    className?: string;
-    textContent?: string;
-    style?: Partial<CSSStyleDeclaration>;
-    attributes?: Record<string, string>;
-  },
-  children?: (HTMLElement | string)[]
-): HTMLElementTagNameMap[K] {
-  const el = document.createElement(tag);
-  if (options?.className) el.className = options.className;
-  if (options?.textContent) el.textContent = options.textContent;
-  if (options?.style) Object.assign(el.style, options.style);
-  if (options?.attributes) {
-    for (const [key, value] of Object.entries(options.attributes)) {
-      el.setAttribute(key, value);
-    }
-  }
-  if (children) {
-    for (const child of children) {
-      if (typeof child === 'string') {
-        el.appendChild(document.createTextNode(child));
-      } else {
-        el.appendChild(child);
-      }
-    }
-  }
-  return el;
-}
+import { createElement } from '../lib/dom';
 
 const form = document.getElementById('settingsForm') as HTMLFormElement;
 const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
