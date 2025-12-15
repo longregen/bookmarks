@@ -72,24 +72,20 @@ h3{
 }
 
 .screenshots{
-  margin:40px 0;
+  display:flex;
+  gap:10px;
+  margin:20px 0;
 }
 .screenshot{
-  margin:20px 0;
+  flex:1;
   border:1px solid #333;
-  padding:10px;
+  padding:5px;
   background:#0a0a0a;
 }
 .screenshot img{
   width:100%;
   height:auto;
   display:block;
-}
-.screenshot-caption{
-  color:#888;
-  font-size:12px;
-  margin-top:10px;
-  text-align:center;
 }
 
 .features{
@@ -200,23 +196,19 @@ footer a:hover{text-decoration:underline}
   </div>
 
   <div class="downloads">
-    <a href="https://github.com/nicholaschen09/bookmarks/releases" class="download-btn">Download for Chrome</a>
-    <a href="https://github.com/nicholaschen09/bookmarks/releases" class="download-btn secondary">Download for Firefox</a>
+    <a href="https://github.com/nicholaschen09/bookmarks/releases" class="download-btn">Download for Firefox</a>
+    <a href="https://github.com/nicholaschen09/bookmarks/releases" class="download-btn secondary">Download for Chrome</a>
   </div>
 
-  <h2>Screenshots</h2>
   <div class="screenshots">
     <div class="screenshot">
-      <img src="screenshot-popup.png" alt="Extension popup showing save button and bookmark stats">
-      <p class="screenshot-caption">Quick-access popup with one-click save and stats</p>
+      <img src="screenshot-popup.png" alt="Extension popup">
     </div>
     <div class="screenshot">
-      <img src="screenshot-explore.png" alt="Explore page showing recent bookmarks">
-      <p class="screenshot-caption">Browse and manage your recent bookmarks</p>
+      <img src="screenshot-explore.png" alt="Explore bookmarks">
     </div>
     <div class="screenshot">
-      <img src="screenshot-search.png" alt="Semantic search results">
-      <p class="screenshot-caption">Semantic search finds content by meaning with relevance scores</p>
+      <img src="screenshot-search.png" alt="Semantic search">
     </div>
   </div>
 
