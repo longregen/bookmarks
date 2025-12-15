@@ -649,17 +649,23 @@ function setActiveNavItem(sectionId: string) {
 // Handle nav item clicks
 navItems.forEach(item => {
   item.addEventListener('click', (e) => {
+    e.preventDefault();
     const sectionId = item.dataset.section;
     if (sectionId) {
       setActiveNavItem(sectionId);
+      const section = document.getElementById(sectionId);
+      if (section) {
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
   });
 });
 
 // Track scroll position to update active nav item
 function setupScrollObserver() {
+  const scrollContainer = document.querySelector('.app-layout__content');
   const observerOptions: IntersectionObserverInit = {
-    root: null,
+    root: scrollContainer,
     rootMargin: '-20% 0px -60% 0px',
     threshold: 0
   };
