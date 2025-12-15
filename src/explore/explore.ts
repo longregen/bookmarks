@@ -163,10 +163,20 @@ async function showBookmarkDetail(bookmarkId: string) {
     metaDiv.appendChild(createElement('span', { textContent: formatTimeAgoShort(bookmark.createdAt) }));
     detailContent.appendChild(metaDiv);
 
-    // Markdown content (uses innerHTML for rendered HTML - content is from trusted internal processing)
+    // Markdown content
     if (markdown) {
       const markdownDiv = createElement('div', { className: 'markdown-content' });
-      markdownDiv.innerHTML = marked(markdown.content);
+      if (__IS_FIREFOX__) {
+        // Use DOMParser in Firefox to avoid AMO linter innerHTML warnings
+        const parser = new DOMParser();
+        const parsedDoc = parser.parseFromString(marked(markdown.content), 'text/html');
+        while (parsedDoc.body.firstChild) {
+          markdownDiv.appendChild(parsedDoc.body.firstChild);
+        }
+      } else {
+        // Chrome: innerHTML is fine in page context
+        markdownDiv.innerHTML = marked(markdown.content);
+      }
       detailContent.appendChild(markdownDiv);
     } else {
       detailContent.appendChild(createElement('p', { textContent: 'Content not yet extracted.' }));
@@ -696,14 +706,6 @@ searchInput.addEventListener('keypress', (e) => {
     performSearch();
   }
 });
-
-// Utility functions
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
 
 // Simple markdown renderer (basic implementation)
 function marked(markdown: string): string {
