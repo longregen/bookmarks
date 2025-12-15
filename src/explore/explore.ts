@@ -32,7 +32,6 @@ const closeDetailBtn = document.getElementById('closeDetailBtn') as HTMLButtonEl
 const deleteBtn = document.getElementById('deleteBtn') as HTMLButtonElement;
 const retryBtn = document.getElementById('retryBtn') as HTMLButtonElement;
 const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
-const exportAllBtn = document.getElementById('exportAllBtn') as HTMLButtonElement;
 const debugHtmlBtn = document.getElementById('debugHtmlBtn') as HTMLButtonElement;
 const detailBackdrop = document.getElementById('detailBackdrop') as HTMLDivElement;
 
@@ -390,28 +389,6 @@ async function exportBookmarkById(bookmarkId: string, event: Event) {
   }
 }
 
-async function handleExportAll() {
-  try {
-    exportAllBtn.disabled = true;
-    exportAllBtn.textContent = 'Exporting...';
-
-    const exportData = await exportAllBookmarks();
-
-    if (exportData.bookmarkCount === 0) {
-      alert('No bookmarks to export');
-      return;
-    }
-
-    downloadExport(exportData);
-  } catch (error) {
-    console.error('Error exporting all bookmarks:', error);
-    alert('Failed to export bookmarks');
-  } finally {
-    exportAllBtn.disabled = false;
-    exportAllBtn.textContent = 'Export All';
-  }
-}
-
 // Search functionality
 async function performSearch() {
   const query = searchInput.value.trim();
@@ -707,7 +684,6 @@ detailBackdrop.addEventListener('click', closeDetail);
 deleteBtn.addEventListener('click', deleteCurrentBookmark);
 retryBtn.addEventListener('click', retryCurrentBookmark);
 exportBtn.addEventListener('click', exportCurrentBookmark);
-exportAllBtn.addEventListener('click', handleExportAll);
 debugHtmlBtn.addEventListener('click', debugCurrentBookmarkHtml);
 navSettings.addEventListener('click', (e) => {
   e.preventDefault();

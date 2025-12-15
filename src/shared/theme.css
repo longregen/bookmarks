@@ -74,6 +74,7 @@
   --accent-primary-hover: #2563eb;
   --accent-secondary: #6366f1;
   --accent-link: #3b82f6;
+  --accent-text: #ffffff;
 
   /* Status colors */
   --success-bg: #d1fae5;
@@ -150,6 +151,7 @@
     --accent-primary-hover: #3b82f6;
     --accent-secondary: #818cf8;
     --accent-link: #60a5fa;
+    --accent-text: #ffffff;
 
     /* Status colors */
     --success-bg: #064e3b;
@@ -222,6 +224,7 @@
   --accent-primary-hover: #00cc00;
   --accent-secondary: #00ff00;
   --accent-link: #00ff00;
+  --accent-text: #000000;
 
   /* Status colors */
   --success-bg: #001a00;
@@ -368,6 +371,7 @@
   --accent-primary-hover: #2563eb;
   --accent-secondary: #6366f1;
   --accent-link: #3b82f6;
+  --accent-text: #ffffff;
 
   /* Status colors */
   --success-bg: #d1fae5;
@@ -439,6 +443,7 @@
   --accent-primary-hover: #800000;
   --accent-secondary: #a00000;
   --accent-link: #a00000;
+  --accent-text: #ffffff;
 
   /* Status colors - muted, understated versions */
   --success-bg: #e8f0e8;
@@ -847,6 +852,9 @@
 
 /* ===== App Header / Navigation ===== */
 .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   display: flex;
   justify-content: space-between;
   align-items: center;
