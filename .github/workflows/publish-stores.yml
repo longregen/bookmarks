@@ -10,8 +10,6 @@ jobs:
   publish-chrome:
     name: Publish to Chrome Web Store
     runs-on: ubuntu-latest
-    # Only run if Chrome secrets are configured
-    if: ${{ secrets.CHROME_EXTENSION_ID != '' }}
     steps:
       - name: Download Chrome extension from release
         uses: robinrber/action-download-release-asset@v1
@@ -34,8 +32,6 @@ jobs:
   publish-firefox:
     name: Publish to Firefox Add-ons
     runs-on: ubuntu-latest
-    # Only run if Firefox secrets are configured
-    if: ${{ secrets.FIREFOX_API_KEY != '' }}
     steps:
       - name: Checkout code (for source submission)
         uses: actions/checkout@v4
