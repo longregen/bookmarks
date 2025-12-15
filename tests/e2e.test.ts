@@ -308,7 +308,41 @@ async function main(): Promise<void> {
     if (BROWSER_TYPE === 'firefox' && launchResult.firefoxExtensionId) {
       // Use the fixed UUID that we pre-configured in Firefox preferences
       extensionId = launchResult.firefoxExtensionId;
-      console.log(`\nFirefox extension UUID (pre-configured): ${extensionId}\n`);
+      console.log(`\nFirefox extension UUID (pre-configured): ${extensionId}`);
+
+      // Debug: Test basic navigation first
+      console.log('Testing basic browser navigation...');
+      const testPage = await browser.newPage();
+      try {
+        await testPage.goto('about:blank', { timeout: 10000 });
+        console.log('✓ Basic navigation works');
+      } catch (e) {
+        console.error('✗ Basic navigation failed:', e);
+      }
+
+      // Debug: List all targets to see what's available
+      console.log('Available browser targets:');
+      const targets = browser.targets();
+      targets.forEach(t => console.log(`  - ${t.type()}: ${t.url()}`));
+
+      // Debug: Try to find moz-extension targets
+      const extTargets = targets.filter(t => t.url().includes('moz-extension://'));
+      if (extTargets.length > 0) {
+        console.log('Found moz-extension targets:');
+        extTargets.forEach(t => console.log(`  - ${t.url()}`));
+        // Extract actual UUID from target URL
+        const match = extTargets[0].url().match(/moz-extension:\/\/([^/]+)/);
+        if (match && match[1] !== extensionId) {
+          console.log(`Actual extension UUID differs: ${match[1]}`);
+          extensionId = match[1];
+        }
+      }
+
+      // Debug: Show the URL we'll try to navigate to
+      const testUrl = getExtensionUrl(extensionId, '/src/options/options.html');
+      console.log(`Extension URL to test: ${testUrl}\n`);
+
+      await testPage.close();
     } else {
       extensionId = await getExtensionId(browser);
       console.log(`\nExtension ID: ${extensionId}\n`);
