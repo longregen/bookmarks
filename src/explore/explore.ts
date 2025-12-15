@@ -288,7 +288,8 @@ async function debugCurrentBookmarkHtml() {
 
     const debugContent = document.createElement('div');
     debugContent.style.cssText = `
-      background: white;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
       border-radius: 8px;
       padding: 20px;
       max-width: 90%;
@@ -313,20 +314,22 @@ async function debugCurrentBookmarkHtml() {
     htmlInfo.appendChild(createElement('div', { textContent: `Raw HTML Length: ${bookmark.html.length} characters` }));
     htmlInfo.appendChild(createElement('div', { textContent: `Status: ${bookmark.status}` }));
     if (bookmark.errorMessage) {
-      htmlInfo.appendChild(createElement('div', { textContent: `Error: ${bookmark.errorMessage}`, style: { color: 'red' } }));
+      htmlInfo.appendChild(createElement('div', { textContent: `Error: ${bookmark.errorMessage}`, style: { color: 'var(--error-text)' } }));
     }
 
     const htmlDisplay = document.createElement('pre');
     htmlDisplay.style.cssText = `
       white-space: pre-wrap;
       word-wrap: break-word;
-      background: #f5f5f5;
+      background: var(--bg-code);
+      color: var(--text-primary);
       padding: 10px;
       border-radius: 4px;
-      font-family: monospace;
+      font-family: var(--font-mono);
       font-size: 12px;
       max-height: 70vh;
       overflow: auto;
+      border: 1px solid var(--border-primary);
     `;
     htmlDisplay.textContent = bookmark.html || '(empty)';
 

@@ -1,6 +1,24 @@
 // Content script for capturing the current page as a bookmark
 // This script is injected when the user triggers the bookmark action
 
+import { getTheme, getEffectiveTheme } from '../shared/theme';
+
+// Theme-aware toast colors
+const toastColors = {
+  light: {
+    success: { bg: '#d1fae5', text: '#065f46', border: '#6ee7b7' },
+    error: { bg: '#fee2e2', text: '#991b1b', border: '#fca5a5' }
+  },
+  dark: {
+    success: { bg: '#065f46', text: '#d1fae5', border: '#059669' },
+    error: { bg: '#7f1d1d', text: '#fecaca', border: '#dc2626' }
+  },
+  terminal: {
+    success: { bg: '#001100', text: '#00ff00', border: '#00ff00' },
+    error: { bg: '#110000', text: '#ff3333', border: '#ff3333' }
+  }
+};
+
 async function capturePage() {
   const url = location.href;
   const title = document.title;
@@ -23,7 +41,12 @@ async function capturePage() {
   }
 }
 
-function showNotification(message: string, type: 'success' | 'error') {
+async function showNotification(message: string, type: 'success' | 'error') {
+  // Get the user's theme preference
+  const theme = await getTheme();
+  const effectiveTheme = getEffectiveTheme(theme);
+  const colors = toastColors[effectiveTheme][type];
+
   // Create a simple toast notification
   const toast = document.createElement('div');
   toast.textContent = message;
@@ -32,10 +55,11 @@ function showNotification(message: string, type: 'success' | 'error') {
     top: 20px;
     right: 20px;
     padding: 12px 24px;
-    background: ${type === 'success' ? '#10b981' : '#ef4444'};
-    color: white;
+    background: ${colors.bg};
+    color: ${colors.text};
+    border: 1px solid ${colors.border};
     border-radius: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: ${effectiveTheme === 'terminal' ? 'monospace' : "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"};
     font-size: 14px;
     font-weight: 500;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
