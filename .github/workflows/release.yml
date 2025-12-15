@@ -8,8 +8,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   build-and-release:
@@ -86,43 +84,3 @@ jobs:
             bookmark-rag-firefox.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  deploy-landing:
-    runs-on: ubuntu-latest
-    needs: build-and-release
-    if: needs.build-and-release.outputs.tag != ''
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Generate updates.json for Firefox
-        run: |
-          cat > landing/updates.json << EOF
-          {
-            "addons": {
-              "bookmark-rag@example.com": {
-                "updates": [
-                  {
-                    "version": "${{ needs.build-and-release.outputs.version }}",
-                    "update_link": "https://github.com/longregen/bookmarks/releases/download/${{ needs.build-and-release.outputs.tag }}/bookmark-rag-firefox.zip"
-                  }
-                ]
-              }
-            }
-          }
-          EOF
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: 'landing'
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4

@@ -23,7 +23,6 @@
     "gecko": {
       "id": "bookmarks@localforge.org",
       "strict_min_version": "140.0",
-      "update_url": "https://bookmarks.localforge.org/updates.json",
       "data_collection_permissions": {
         "required": ["none"]
       }
