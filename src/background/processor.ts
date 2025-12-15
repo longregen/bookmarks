@@ -1,5 +1,5 @@
 import { db, Bookmark, JobType, JobStatus } from '../db/schema';
-import { extractMarkdown } from '../lib/extract';
+import { extractMarkdownAsync } from '../lib/extract';
 import { generateQAPairs, generateEmbeddings } from '../lib/api';
 import { createJob, updateJob, completeJob, failJob } from '../lib/jobs';
 
@@ -30,7 +30,7 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
     markdownJobId = markdownJob.id;
 
     const markdownStartTime = Date.now();
-    const extracted = extractMarkdown(bookmark.html, bookmark.url);
+    const extracted = await extractMarkdownAsync(bookmark.html, bookmark.url);
     const extractionTimeMs = Date.now() - markdownStartTime;
 
     // Save markdown to database
