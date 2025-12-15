@@ -3,7 +3,6 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { fileURLToPath } from 'url';
-import { setupFirefoxProfile } from './firefox-setup.js';
 
 // Type declaration for test helpers exposed by the explore page
 declare global {
@@ -84,37 +83,22 @@ async function launchBrowser(): Promise<LaunchResult> {
   console.log(`Browser path: ${BROWSER_PATH}`);
 
   if (BROWSER_TYPE === 'firefox') {
-    // Pre-install extension to Firefox profile and get extension ID
-    console.log('Setting up Firefox profile with extension...');
-    const firefoxExtensionId = await setupFirefoxProfile(USER_DATA_DIR, EXTENSION_PATH);
-
-    console.log('Launching Firefox with Puppeteer...');
-    // Use CDP protocol for Firefox as it has better extension support
-    // WebDriver BiDi doesn't properly expose extension targets
+    console.log('Launching Firefox with Puppeteer (WebDriver BiDi)...');
+    // Use WebDriver BiDi protocol (default for Firefox in Puppeteer 23+)
+    // CDP is no longer supported for Firefox
     const browser = await puppeteer.launch({
       browser: 'firefox',
       executablePath: BROWSER_PATH,
       headless: false,
-      // Use CDP protocol for better extension support (BiDi doesn't expose extensions well)
-      protocol: 'cdp',
+      // WebDriver BiDi is the default protocol for Firefox
       args: [
-        '-profile',
-        USER_DATA_DIR,
         '-no-remote',
-        // Enable remote debugging for CDP
-        '--remote-debugging-port=0',
       ],
       extraPrefsFirefox: {
-        // Enable extensions
+        // Enable unsigned extensions
         'xpinstall.signatures.required': false,
         'extensions.autoDisableScopes': 0,
         'extensions.enabledScopes': 15,
-        // Enable remote debugging
-        'remote.enabled': true,
-        'remote.force-local': true,
-        'devtools.chrome.enabled': true,
-        'devtools.debugger.remote-enabled': true,
-        'devtools.debugger.prompt-connection': false,
         // Disable first-run prompts
         'browser.shell.checkDefaultBrowser': false,
         'browser.startup.homepage_override.mstone': 'ignore',
@@ -122,15 +106,45 @@ async function launchBrowser(): Promise<LaunchResult> {
       },
       // Increase timeout for Firefox startup
       timeout: 60000,
-      // Enable protocol debugging output for troubleshooting
-      dumpio: false,
     });
 
     console.log('Firefox launched successfully');
-    // Wait for extension to initialize
-    await new Promise(resolve => setTimeout(resolve, 5000));
 
-    return { browser, firefoxExtensionId };
+    // Install extension via WebDriver BiDi webExtension.install command
+    // This is the supported way to install extensions in Firefox with Puppeteer 23+
+    console.log('Installing extension via WebDriver BiDi...');
+    console.log(`Extension path: ${EXTENSION_PATH}`);
+
+    try {
+      // Access the BiDi connection to send raw commands
+      // The connection property exposes the WebDriver BiDi connection
+      const connection = (browser as any).connection;
+      if (!connection) {
+        throw new Error('Could not access BiDi connection');
+      }
+
+      // Send webExtension.install command
+      // See: https://w3c.github.io/webdriver-bidi/#command-webExtension-install
+      const result = await connection.send('webExtension.install', {
+        extensionData: {
+          type: 'path',
+          path: EXTENSION_PATH,
+        },
+      });
+
+      const firefoxExtensionId = result.extension;
+      console.log(`Extension installed with ID: ${firefoxExtensionId}`);
+
+      // Wait for extension to initialize
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      return { browser, firefoxExtensionId };
+    } catch (error) {
+      console.error('Failed to install extension via BiDi:', error);
+      // If webExtension.install fails, the extension won't be available
+      // This could happen if Firefox version doesn't support the command
+      throw new Error(`Firefox extension installation failed: ${error}`);
+    }
   } else {
     // Chrome/Chromium
     const browser = await puppeteer.launch({
@@ -257,31 +271,12 @@ async function main(): Promise<void> {
     const launchResult = await launchBrowser();
     browser = launchResult.browser;
 
-    // For Firefox, we know the extension ID from the manifest (set during profile setup)
+    // For Firefox, we get the extension UUID directly from webExtension.install
     // For Chrome, we need to detect it dynamically from targets
     if (BROWSER_TYPE === 'firefox' && launchResult.firefoxExtensionId) {
-      // Firefox with WebDriver BiDi doesn't expose extension targets the same way
-      // We use the known extension ID and need to find the internal moz-extension UUID
-      console.log(`\nFirefox extension manifest ID: ${launchResult.firefoxExtensionId}`);
-      console.log('Waiting for Firefox extension to initialize...');
-
-      // Give the extension more time to load
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      // Try to find the moz-extension UUID by looking at targets
-      try {
-        extensionId = await getExtensionId(browser);
-        console.log(`Firefox extension UUID: ${extensionId}\n`);
-      } catch {
-        // If we can't find the extension via targets, Firefox E2E tests won't work
-        // This is a known limitation of Puppeteer's Firefox/BiDi support
-        console.log('\nWarning: Could not detect Firefox extension via targets.');
-        console.log('Firefox E2E tests require extension to be loaded.');
-        console.log('Listing available targets for debugging:');
-        const targets = browser.targets();
-        targets.forEach(t => console.log(`  - ${t.type()}: ${t.url()}`));
-        throw new Error('Firefox extension not loaded. This may be a Puppeteer/BiDi limitation.');
-      }
+      // The webExtension.install command returns the moz-extension UUID directly
+      extensionId = launchResult.firefoxExtensionId;
+      console.log(`\nFirefox extension UUID: ${extensionId}\n`);
     } else {
       extensionId = await getExtensionId(browser);
       console.log(`\nExtension ID: ${extensionId}\n`);
