@@ -2,6 +2,7 @@ import { db, Bookmark, QuestionAnswer } from '../db/schema';
 import { generateEmbeddings } from '../lib/api';
 import { findTopK } from '../lib/similarity';
 import { exportSingleBookmark, exportAllBookmarks, downloadExport } from '../lib/export';
+import { createElement } from '../lib/dom';
 
 // Constants
 const RESULTS_PER_PAGE = 10;
@@ -73,11 +74,12 @@ async function loadBookmarks() {
     bookmarkCount.textContent = bookmarks.length.toString();
 
     if (bookmarks.length === 0) {
-      bookmarkList.innerHTML = '<div class="empty-state">No bookmarks yet. Start by saving a page!</div>';
+      bookmarkList.textContent = '';
+      bookmarkList.appendChild(createElement('div', { className: 'empty-state', textContent: 'No bookmarks yet. Start by saving a page!' }));
       return;
     }
 
-    bookmarkList.innerHTML = '';
+    bookmarkList.textContent = '';
 
     for (const bookmark of bookmarks) {
       const card = createBookmarkCard(bookmark);
@@ -85,7 +87,8 @@ async function loadBookmarks() {
     }
   } catch (error) {
     console.error('Error loading bookmarks:', error);
-    bookmarkList.innerHTML = '<div class="error-message">Failed to load bookmarks</div>';
+    bookmarkList.textContent = '';
+    bookmarkList.appendChild(createElement('div', { className: 'error-message', textContent: 'Failed to load bookmarks' }));
   }
 }
 
@@ -96,36 +99,38 @@ function createBookmarkCard(bookmark: Bookmark): HTMLElement {
 
   const statusClass = `status-${bookmark.status}`;
   const statusText = bookmark.status.charAt(0).toUpperCase() + bookmark.status.slice(1);
-
   const timeAgo = getTimeAgo(bookmark.createdAt);
 
-  card.innerHTML = `
-    <div class="bookmark-header">
-      <div>
-        <div class="bookmark-title">${escapeHtml(bookmark.title)}</div>
-        <a href="${escapeHtml(bookmark.url)}" class="bookmark-url">${escapeHtml(bookmark.url)}</a>
-      </div>
-      <div class="bookmark-header-actions">
-        <button class="btn btn-small btn-export" title="Export bookmark">Export</button>
-        <span class="status-badge ${statusClass}">${statusText}</span>
-      </div>
-    </div>
-    <div class="bookmark-meta">
-      <span>${timeAgo}</span>
-    </div>
-    ${bookmark.errorMessage ? `<div class="error-message">${escapeHtml(bookmark.errorMessage)}${bookmark.errorStack ? `<pre class="error-stack">${escapeHtml(bookmark.errorStack)}</pre>` : ''}</div>` : ''}
-  `;
+  // Build card using DOM APIs (CSP-safe)
+  const header = createElement('div', { className: 'bookmark-header' });
 
-  // Add event listener to stop propagation on link clicks (CSP-compliant)
-  const link = card.querySelector('.bookmark-url');
-  if (link) {
-    link.addEventListener('click', (e) => e.stopPropagation());
-  }
+  const headerLeft = createElement('div');
+  headerLeft.appendChild(createElement('div', { className: 'bookmark-title', textContent: bookmark.title }));
+  const link = createElement('a', { className: 'bookmark-url', href: bookmark.url, textContent: bookmark.url });
+  link.addEventListener('click', (e) => e.stopPropagation());
+  headerLeft.appendChild(link);
+  header.appendChild(headerLeft);
 
-  // Add event listener for per-item export button
-  const exportButton = card.querySelector('.btn-export');
-  if (exportButton) {
-    exportButton.addEventListener('click', (e) => exportBookmarkById(bookmark.id, e));
+  const headerActions = createElement('div', { className: 'bookmark-header-actions' });
+  const exportButton = createElement('button', { className: 'btn btn-small btn-export', textContent: 'Export', title: 'Export bookmark' });
+  exportButton.addEventListener('click', (e) => exportBookmarkById(bookmark.id, e));
+  headerActions.appendChild(exportButton);
+  headerActions.appendChild(createElement('span', { className: `status-badge ${statusClass}`, textContent: statusText }));
+  header.appendChild(headerActions);
+
+  card.appendChild(header);
+
+  const meta = createElement('div', { className: 'bookmark-meta' });
+  meta.appendChild(createElement('span', { textContent: timeAgo }));
+  card.appendChild(meta);
+
+  // Error message (if any)
+  if (bookmark.errorMessage) {
+    const errorDiv = createElement('div', { className: 'error-message', textContent: bookmark.errorMessage });
+    if (bookmark.errorStack) {
+      errorDiv.appendChild(createElement('pre', { className: 'error-stack', textContent: bookmark.errorStack }));
+    }
+    card.appendChild(errorDiv);
   }
 
   return card;
@@ -144,32 +149,42 @@ async function showBookmarkDetail(bookmarkId: string) {
     const markdown = await db.markdown.where('bookmarkId').equals(bookmarkId).first();
     const qaPairs = await db.questionsAnswers.where('bookmarkId').equals(bookmarkId).toArray();
 
-    detailContent.innerHTML = `
-      <h1>${escapeHtml(bookmark.title)}</h1>
-      <div class="bookmark-meta" style="margin-bottom: 24px;">
-        <a href="${escapeHtml(bookmark.url)}" target="_blank" class="bookmark-url">${escapeHtml(bookmark.url)}</a>
-        <span class="status-badge status-${bookmark.status}">${bookmark.status}</span>
-        <span>${getTimeAgo(bookmark.createdAt)}</span>
-      </div>
+    // Build detail view using DOM APIs (CSP-safe)
+    detailContent.textContent = '';
 
-      ${markdown ? `
-        <div class="markdown-content">
-          ${marked(markdown.content)}
-        </div>
-      ` : '<p>Content not yet extracted.</p>'}
+    // Title
+    detailContent.appendChild(createElement('h1', { textContent: bookmark.title }));
 
-      ${qaPairs.length > 0 ? `
-        <div class="qa-section">
-          <h2>Generated Q&A Pairs (${qaPairs.length})</h2>
-          ${qaPairs.map(qa => `
-            <div class="qa-pair">
-              <div class="qa-question">Q: ${escapeHtml(qa.question)}</div>
-              <div class="qa-answer">A: ${escapeHtml(qa.answer)}</div>
-            </div>
-          `).join('')}
-        </div>
-      ` : ''}
-    `;
+    // Meta section
+    const metaDiv = createElement('div', { className: 'bookmark-meta', style: { marginBottom: '24px' } });
+    metaDiv.appendChild(createElement('a', { className: 'bookmark-url', href: bookmark.url, target: '_blank', textContent: bookmark.url }));
+    metaDiv.appendChild(createElement('span', { className: `status-badge status-${bookmark.status}`, textContent: bookmark.status }));
+    metaDiv.appendChild(createElement('span', { textContent: getTimeAgo(bookmark.createdAt) }));
+    detailContent.appendChild(metaDiv);
+
+    // Markdown content (uses innerHTML for rendered HTML - content is from trusted internal processing)
+    if (markdown) {
+      const markdownDiv = createElement('div', { className: 'markdown-content' });
+      markdownDiv.innerHTML = marked(markdown.content);
+      detailContent.appendChild(markdownDiv);
+    } else {
+      detailContent.appendChild(createElement('p', { textContent: 'Content not yet extracted.' }));
+    }
+
+    // Q&A pairs
+    if (qaPairs.length > 0) {
+      const qaSection = createElement('div', { className: 'qa-section' });
+      qaSection.appendChild(createElement('h2', { textContent: `Generated Q&A Pairs (${qaPairs.length})` }));
+
+      for (const qa of qaPairs) {
+        const qaPair = createElement('div', { className: 'qa-pair' });
+        qaPair.appendChild(createElement('div', { className: 'qa-question', textContent: `Q: ${qa.question}` }));
+        qaPair.appendChild(createElement('div', { className: 'qa-answer', textContent: `A: ${qa.answer}` }));
+        qaSection.appendChild(qaPair);
+      }
+
+      detailContent.appendChild(qaSection);
+    }
 
     // Show/hide retry button based on status
     if (bookmark.status === 'error') {
@@ -282,11 +297,12 @@ async function debugCurrentBookmarkHtml() {
 
     const htmlInfo = document.createElement('div');
     htmlInfo.style.cssText = 'margin-bottom: 10px; font-weight: bold;';
-    htmlInfo.innerHTML = `
-      <div>Raw HTML Length: ${bookmark.html.length} characters</div>
-      <div>Status: ${bookmark.status}</div>
-      ${bookmark.errorMessage ? `<div style="color: red;">Error: ${escapeHtml(bookmark.errorMessage)}</div>` : ''}
-    `;
+    // Build info using DOM APIs (CSP-safe)
+    htmlInfo.appendChild(createElement('div', { textContent: `Raw HTML Length: ${bookmark.html.length} characters` }));
+    htmlInfo.appendChild(createElement('div', { textContent: `Status: ${bookmark.status}` }));
+    if (bookmark.errorMessage) {
+      htmlInfo.appendChild(createElement('div', { textContent: `Error: ${bookmark.errorMessage}`, style: { color: 'red' } }));
+    }
 
     const htmlDisplay = document.createElement('pre');
     htmlDisplay.style.cssText = `
@@ -384,7 +400,8 @@ async function performSearch() {
   }
 
   if (!query) {
-    searchResults.innerHTML = '<div class="empty-state">Enter a search query to find bookmarks</div>';
+    searchResults.textContent = '';
+    searchResults.appendChild(createElement('div', { className: 'empty-state', textContent: 'Enter a search query to find bookmarks' }));
     return;
   }
 
@@ -415,7 +432,8 @@ async function performSearch() {
       if (__DEBUG_EMBEDDINGS__) {
         console.error('[Search] Invalid query embedding received!');
       }
-      searchResults.innerHTML = '<div class="error-message">Failed to generate query embedding</div>';
+      searchResults.textContent = '';
+      searchResults.appendChild(createElement('div', { className: 'error-message', textContent: 'Failed to generate query embedding' }));
       return;
     }
 
@@ -431,7 +449,8 @@ async function performSearch() {
     }
 
     if (allQAs.length === 0) {
-      searchResults.innerHTML = '<div class="empty-state">No processed bookmarks to search yet</div>';
+      searchResults.textContent = '';
+      searchResults.appendChild(createElement('div', { className: 'empty-state', textContent: 'No processed bookmarks to search yet' }));
       return;
     }
 
@@ -500,7 +519,8 @@ async function performSearch() {
       if (__DEBUG_EMBEDDINGS__) {
         console.error('[Search] No valid items after filtering!', filterResults);
       }
-      searchResults.innerHTML = '<div class="empty-state">No valid embeddings found. Try reprocessing your bookmarks.</div>';
+      searchResults.textContent = '';
+      searchResults.appendChild(createElement('div', { className: 'empty-state', textContent: 'No valid embeddings found. Try reprocessing your bookmarks.' }));
       return;
     }
 
@@ -543,7 +563,8 @@ async function performSearch() {
       if (__DEBUG_EMBEDDINGS__) {
         console.log('[Search] No results found');
       }
-      searchResults.innerHTML = '<div class="empty-state">No results found</div>';
+      searchResults.textContent = '';
+      searchResults.appendChild(createElement('div', { className: 'empty-state', textContent: 'No results found' }));
       searchCount.textContent = '0';
       return;
     }
@@ -583,7 +604,8 @@ async function performSearch() {
     switchView('search');
   } catch (error) {
     console.error('[Search] Error performing search:', error);
-    searchResults.innerHTML = `<div class="error-message">Search failed: ${error instanceof Error ? error.message : 'Unknown error'}</div>`;
+    searchResults.textContent = '';
+    searchResults.appendChild(createElement('div', { className: 'error-message', textContent: `Search failed: ${error instanceof Error ? error.message : 'Unknown error'}` }));
   } finally {
     searchBtn.disabled = false;
     searchBtn.textContent = 'Search';
@@ -597,7 +619,7 @@ function renderSearchResults() {
 
   // If this is the first render, clear the container
   if (startIndex === 0) {
-    searchResults.innerHTML = '';
+    searchResults.textContent = '';
   } else {
     // Remove existing "Load more" button if present
     const existingLoadMore = searchResults.querySelector('.load-more-container');
@@ -615,22 +637,18 @@ function renderSearchResults() {
 
   displayedResultsCount = endIndex;
 
-  // Add "Load more" button if there are more results
+  // Add "Load more" button if there are more results (using DOM APIs)
   if (displayedResultsCount < currentSearchResults.length) {
     const remaining = currentSearchResults.length - displayedResultsCount;
-    const loadMoreContainer = document.createElement('div');
-    loadMoreContainer.className = 'load-more-container';
-    loadMoreContainer.innerHTML = `
-      <button class="btn btn-secondary load-more-btn">
-        Load more (${remaining} remaining)
-      </button>
-    `;
-
-    const loadMoreBtn = loadMoreContainer.querySelector('.load-more-btn') as HTMLButtonElement;
+    const loadMoreContainer = createElement('div', { className: 'load-more-container' });
+    const loadMoreBtn = createElement('button', {
+      className: 'btn btn-secondary load-more-btn',
+      textContent: `Load more (${remaining} remaining)`
+    });
     loadMoreBtn.addEventListener('click', () => {
       renderSearchResults();
     });
-
+    loadMoreContainer.appendChild(loadMoreBtn);
     searchResults.appendChild(loadMoreContainer);
   }
 }
@@ -646,21 +664,18 @@ function createSearchResultCard(
   const bestScore = Math.max(...qaResults.map(r => r.score));
   const topQA = qaResults[0].qa;
 
-  card.innerHTML = `
-    <span class="similarity-score">${(bestScore * 100).toFixed(0)}% match</span>
-    <div class="bookmark-title">${escapeHtml(bookmark.title)}</div>
-    <a href="${escapeHtml(bookmark.url)}" class="bookmark-url">${escapeHtml(bookmark.url)}</a>
-    <div class="qa-pair">
-      <div class="qa-question">${escapeHtml(topQA.question)}</div>
-      <div class="qa-answer">${escapeHtml(topQA.answer)}</div>
-    </div>
-  `;
+  // Build card using DOM APIs (CSP-safe)
+  card.appendChild(createElement('span', { className: 'similarity-score', textContent: `${(bestScore * 100).toFixed(0)}% match` }));
+  card.appendChild(createElement('div', { className: 'bookmark-title', textContent: bookmark.title }));
 
-  // Add event listener to stop propagation on link clicks (CSP-compliant)
-  const link = card.querySelector('.bookmark-url');
-  if (link) {
-    link.addEventListener('click', (e) => e.stopPropagation());
-  }
+  const link = createElement('a', { className: 'bookmark-url', href: bookmark.url, textContent: bookmark.url });
+  link.addEventListener('click', (e) => e.stopPropagation());
+  card.appendChild(link);
+
+  const qaPair = createElement('div', { className: 'qa-pair' });
+  qaPair.appendChild(createElement('div', { className: 'qa-question', textContent: topQA.question }));
+  qaPair.appendChild(createElement('div', { className: 'qa-answer', textContent: topQA.answer }));
+  card.appendChild(qaPair);
 
   return card;
 }

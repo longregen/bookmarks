@@ -3,6 +3,7 @@ import { exportAllBookmarks, downloadExport, readImportFile, importBookmarks } f
 import { validateUrls } from '../lib/bulk-import';
 import { getRecentJobs, type Job } from '../lib/jobs';
 import { db, JobType, JobStatus } from '../db/schema';
+import { createElement } from '../lib/dom';
 
 const form = document.getElementById('settingsForm') as HTMLFormElement;
 const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
@@ -180,16 +181,22 @@ importBtn.addEventListener('click', async () => {
       message += `, skipped ${result.skipped} duplicate(s)`;
     }
 
-    importStatus.innerHTML = `
-      <div class="import-result ${result.success ? 'success' : 'warning'}">
-        <strong>${message}</strong>
-        ${result.errors.length > 0 ? `
-          <ul class="import-errors">
-            ${result.errors.map(err => `<li>${err}</li>`).join('')}
-          </ul>
-        ` : ''}
-      </div>
-    `;
+    // Build import result using DOM APIs (CSP-safe)
+    importStatus.textContent = ''; // Clear existing content
+    const resultDiv = createElement('div', {
+      className: `import-result ${result.success ? 'success' : 'warning'}`
+    });
+    resultDiv.appendChild(createElement('strong', { textContent: message }));
+
+    if (result.errors.length > 0) {
+      const errorList = createElement('ul', { className: 'import-errors' });
+      for (const err of result.errors) {
+        errorList.appendChild(createElement('li', { textContent: err }));
+      }
+      resultDiv.appendChild(errorList);
+    }
+
+    importStatus.appendChild(resultDiv);
     importStatus.classList.remove('hidden');
 
     // Reset file input
@@ -198,11 +205,12 @@ importBtn.addEventListener('click', async () => {
     importFileName.textContent = '';
   } catch (error) {
     console.error('Error importing bookmarks:', error);
-    importStatus.innerHTML = `
-      <div class="import-result error">
-        <strong>Import failed:</strong> ${error instanceof Error ? error.message : 'Unknown error'}
-      </div>
-    `;
+    // Build error result using DOM APIs (CSP-safe)
+    importStatus.textContent = '';
+    const errorDiv = createElement('div', { className: 'import-result error' });
+    errorDiv.appendChild(createElement('strong', { textContent: 'Import failed: ' }));
+    errorDiv.appendChild(document.createTextNode(error instanceof Error ? error.message : 'Unknown error'));
+    importStatus.appendChild(errorDiv);
     importStatus.classList.remove('hidden');
   } finally {
     importBtn.disabled = true;
@@ -382,7 +390,9 @@ cancelBulkImportBtn.addEventListener('click', async () => {
 // Jobs Dashboard functions
 async function loadJobs() {
   try {
-    jobsList.innerHTML = '<div class="loading">Loading jobs...</div>';
+    // Clear and show loading using DOM APIs (CSP-safe)
+    jobsList.textContent = '';
+    jobsList.appendChild(createElement('div', { className: 'loading', textContent: 'Loading jobs...' }));
 
     // Get recent jobs from database
     const jobs = await getRecentJobs({ limit: 100 });
@@ -402,67 +412,163 @@ async function loadJobs() {
     }
 
     if (filteredJobs.length === 0) {
-      jobsList.innerHTML = '<div class="empty">No jobs found</div>';
+      jobsList.textContent = '';
+      jobsList.appendChild(createElement('div', { className: 'empty', textContent: 'No jobs found' }));
       return;
     }
 
-    // Render jobs
-    jobsList.innerHTML = filteredJobs.map(job => renderJobItem(job)).join('');
-
-    // Add click handlers for expandable details
-    const jobItems = jobsList.querySelectorAll('.job-item');
-    jobItems.forEach(item => {
-      item.addEventListener('click', () => {
-        item.classList.toggle('expanded');
+    // Render jobs using DOM APIs
+    jobsList.textContent = '';
+    for (const job of filteredJobs) {
+      const jobEl = renderJobItemElement(job);
+      jobEl.addEventListener('click', () => {
+        jobEl.classList.toggle('expanded');
       });
-    });
+      jobsList.appendChild(jobEl);
+    }
   } catch (error) {
     console.error('Error loading jobs:', error);
-    jobsList.innerHTML = '<div class="empty">Error loading jobs</div>';
+    jobsList.textContent = '';
+    jobsList.appendChild(createElement('div', { className: 'empty', textContent: 'Error loading jobs' }));
   }
 }
 
-function renderJobItem(job: Job): string {
+/**
+ * Create a job item element using DOM APIs (CSP-safe)
+ */
+function renderJobItemElement(job: Job): HTMLElement {
   const typeLabel = formatJobType(job.type);
   const statusClass = job.status.toLowerCase();
   const statusLabel = job.status.replace('_', ' ').toUpperCase();
   const timestamp = formatTimestamp(job.createdAt);
-  const metadata = formatMetadata(job);
 
-  return `
-    <div class="job-item" data-job-id="${job.id}">
-      <div class="job-header">
-        <div class="job-info">
-          <div class="job-type">${typeLabel}</div>
-          <div class="job-timestamp">${timestamp}</div>
-        </div>
-        <div class="job-status-badge ${statusClass}">${statusLabel}</div>
-      </div>
+  const jobItem = createElement('div', {
+    className: 'job-item',
+    attributes: { 'data-job-id': job.id }
+  });
 
-      ${job.progress > 0 && job.status === JobStatus.IN_PROGRESS ? `
-        <div class="job-progress">
-          <div class="job-progress-bar">
-            <div class="job-progress-fill" style="width: ${job.progress}%"></div>
-          </div>
-          <div class="job-progress-text">${job.progress}%</div>
-        </div>
-      ` : ''}
+  // Job header
+  const header = createElement('div', { className: 'job-header' });
+  const jobInfo = createElement('div', { className: 'job-info' });
+  jobInfo.appendChild(createElement('div', { className: 'job-type', textContent: typeLabel }));
+  jobInfo.appendChild(createElement('div', { className: 'job-timestamp', textContent: timestamp }));
+  header.appendChild(jobInfo);
+  header.appendChild(createElement('div', { className: `job-status-badge ${statusClass}`, textContent: statusLabel }));
+  jobItem.appendChild(header);
 
-      ${job.currentStep ? `
-        <div class="job-step">${job.currentStep}</div>
-      ` : ''}
+  // Progress bar (if applicable)
+  if (job.progress > 0 && job.status === JobStatus.IN_PROGRESS) {
+    const progressDiv = createElement('div', { className: 'job-progress' });
+    const progressBar = createElement('div', { className: 'job-progress-bar' });
+    progressBar.appendChild(createElement('div', {
+      className: 'job-progress-fill',
+      style: { width: `${job.progress}%` }
+    }));
+    progressDiv.appendChild(progressBar);
+    progressDiv.appendChild(createElement('div', { className: 'job-progress-text', textContent: `${job.progress}%` }));
+    jobItem.appendChild(progressDiv);
+  }
 
-      <div class="job-metadata">
-        ${metadata}
-      </div>
+  // Current step
+  if (job.currentStep) {
+    jobItem.appendChild(createElement('div', { className: 'job-step', textContent: job.currentStep }));
+  }
 
-      ${job.status === JobStatus.FAILED && job.metadata.errorMessage ? `
-        <div class="job-error">
-          <strong>Error:</strong> ${job.metadata.errorMessage}
-        </div>
-      ` : ''}
-    </div>
-  `;
+  // Metadata
+  const metadataDiv = createElement('div', { className: 'job-metadata' });
+  appendMetadataElements(metadataDiv, job);
+  jobItem.appendChild(metadataDiv);
+
+  // Error message
+  if (job.status === JobStatus.FAILED && job.metadata.errorMessage) {
+    const errorDiv = createElement('div', { className: 'job-error' });
+    errorDiv.appendChild(createElement('strong', { textContent: 'Error: ' }));
+    errorDiv.appendChild(document.createTextNode(job.metadata.errorMessage));
+    jobItem.appendChild(errorDiv);
+  }
+
+  return jobItem;
+}
+
+/**
+ * Helper to create a metadata item element
+ */
+function createMetadataItem(label: string, value: string | number): HTMLElement {
+  const item = createElement('div', { className: 'job-metadata-item' });
+  item.appendChild(createElement('strong', { textContent: `${label}: ` }));
+  item.appendChild(document.createTextNode(String(value)));
+  return item;
+}
+
+/**
+ * Append metadata elements to container using DOM APIs
+ */
+function appendMetadataElements(container: HTMLElement, job: Job): void {
+  let hasMetadata = false;
+
+  // Common metadata
+  if (job.metadata.url) {
+    container.appendChild(createMetadataItem('URL', job.metadata.url));
+    hasMetadata = true;
+  }
+
+  if (job.metadata.title) {
+    container.appendChild(createMetadataItem('Title', job.metadata.title));
+    hasMetadata = true;
+  }
+
+  // Type-specific metadata
+  if (job.type === JobType.MARKDOWN_GENERATION) {
+    if (job.metadata.characterCount) {
+      container.appendChild(createMetadataItem('Characters', job.metadata.characterCount.toLocaleString()));
+      hasMetadata = true;
+    }
+    if (job.metadata.wordCount) {
+      container.appendChild(createMetadataItem('Words', job.metadata.wordCount.toLocaleString()));
+      hasMetadata = true;
+    }
+  }
+
+  if (job.type === JobType.QA_GENERATION) {
+    if (job.metadata.pairsGenerated) {
+      container.appendChild(createMetadataItem('Q&A Pairs', job.metadata.pairsGenerated));
+      hasMetadata = true;
+    }
+  }
+
+  if (job.type === JobType.FILE_IMPORT) {
+    if (job.metadata.fileName) {
+      container.appendChild(createMetadataItem('File', job.metadata.fileName));
+      hasMetadata = true;
+    }
+    if (job.metadata.importedCount !== undefined) {
+      container.appendChild(createMetadataItem('Imported', job.metadata.importedCount));
+      hasMetadata = true;
+    }
+    if (job.metadata.skippedCount !== undefined) {
+      container.appendChild(createMetadataItem('Skipped', job.metadata.skippedCount));
+      hasMetadata = true;
+    }
+  }
+
+  if (job.type === JobType.BULK_URL_IMPORT) {
+    if (job.metadata.totalUrls) {
+      container.appendChild(createMetadataItem('Total URLs', job.metadata.totalUrls));
+      hasMetadata = true;
+    }
+    if (job.metadata.successCount !== undefined) {
+      container.appendChild(createMetadataItem('Success', job.metadata.successCount));
+      hasMetadata = true;
+    }
+    if (job.metadata.failureCount !== undefined) {
+      container.appendChild(createMetadataItem('Failed', job.metadata.failureCount));
+      hasMetadata = true;
+    }
+  }
+
+  if (!hasMetadata) {
+    container.appendChild(createElement('div', { className: 'job-metadata-item', textContent: 'No additional information' }));
+  }
 }
 
 function formatJobType(type: JobType): string {
@@ -490,61 +596,6 @@ function formatTimestamp(date: Date): string {
   if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
   if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
   return new Date(date).toLocaleDateString();
-}
-
-function formatMetadata(job: Job): string {
-  const items: string[] = [];
-
-  // Common metadata
-  if (job.metadata.url) {
-    items.push(`<div class="job-metadata-item"><strong>URL:</strong> ${job.metadata.url}</div>`);
-  }
-
-  if (job.metadata.title) {
-    items.push(`<div class="job-metadata-item"><strong>Title:</strong> ${job.metadata.title}</div>`);
-  }
-
-  // Type-specific metadata
-  if (job.type === JobType.MARKDOWN_GENERATION) {
-    if (job.metadata.characterCount) {
-      items.push(`<div class="job-metadata-item"><strong>Characters:</strong> ${job.metadata.characterCount.toLocaleString()}</div>`);
-    }
-    if (job.metadata.wordCount) {
-      items.push(`<div class="job-metadata-item"><strong>Words:</strong> ${job.metadata.wordCount.toLocaleString()}</div>`);
-    }
-  }
-
-  if (job.type === JobType.QA_GENERATION) {
-    if (job.metadata.pairsGenerated) {
-      items.push(`<div class="job-metadata-item"><strong>Q&A Pairs:</strong> ${job.metadata.pairsGenerated}</div>`);
-    }
-  }
-
-  if (job.type === JobType.FILE_IMPORT) {
-    if (job.metadata.fileName) {
-      items.push(`<div class="job-metadata-item"><strong>File:</strong> ${job.metadata.fileName}</div>`);
-    }
-    if (job.metadata.importedCount !== undefined) {
-      items.push(`<div class="job-metadata-item"><strong>Imported:</strong> ${job.metadata.importedCount}</div>`);
-    }
-    if (job.metadata.skippedCount !== undefined) {
-      items.push(`<div class="job-metadata-item"><strong>Skipped:</strong> ${job.metadata.skippedCount}</div>`);
-    }
-  }
-
-  if (job.type === JobType.BULK_URL_IMPORT) {
-    if (job.metadata.totalUrls) {
-      items.push(`<div class="job-metadata-item"><strong>Total URLs:</strong> ${job.metadata.totalUrls}</div>`);
-    }
-    if (job.metadata.successCount !== undefined) {
-      items.push(`<div class="job-metadata-item"><strong>Success:</strong> ${job.metadata.successCount}</div>`);
-    }
-    if (job.metadata.failureCount !== undefined) {
-      items.push(`<div class="job-metadata-item"><strong>Failed:</strong> ${job.metadata.failureCount}</div>`);
-    }
-  }
-
-  return items.join('') || '<div class="job-metadata-item">No additional information</div>';
 }
 
 // Jobs filter handlers

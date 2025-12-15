@@ -1,0 +1,71 @@
+/**
+ * Shared offscreen document utilities for Chrome MV3
+ * Firefox doesn't need this - it has DOMParser in service workers
+ */
+
+/**
+ * Check if running in Firefox
+ */
+export function isFirefox(): boolean {
+  return typeof navigator !== 'undefined' && navigator.userAgent.includes('Firefox');
+}
+
+/**
+ * Ensure offscreen document exists (Chrome only)
+ * Uses feature detection to avoid Firefox compatibility issues
+ */
+export async function ensureOffscreenDocument(): Promise<void> {
+  // Check if we're in Chrome extension context
+  if (typeof chrome === 'undefined') {
+    return;
+  }
+
+  // Check for offscreen API (Chrome MV3 only)
+  const offscreenApi = (chrome as any).offscreen;
+  if (!offscreenApi || typeof offscreenApi.createDocument !== 'function') {
+    return; // Offscreen API not available (Firefox)
+  }
+
+  // Check for runtime.getContexts API (Chrome 116+)
+  const runtimeApi = chrome.runtime as any;
+  if (!runtimeApi.getContexts || typeof runtimeApi.getContexts !== 'function') {
+    // Fallback: try to create document without checking existing contexts
+    // This may fail if document already exists, but that's acceptable
+    try {
+      await offscreenApi.createDocument({
+        url: 'src/offscreen/offscreen.html',
+        reasons: ['DOM_SCRAPING'],
+        justification: 'Parse HTML content for bookmark processing',
+      });
+      console.log('[Offscreen] Document created (without context check)');
+    } catch (error: any) {
+      // Ignore "already exists" errors
+      if (!error?.message?.includes('single offscreen')) {
+        console.error('[Offscreen] Error creating document:', error);
+      }
+    }
+    return;
+  }
+
+  try {
+    // Check if offscreen document already exists
+    const existingContexts = await runtimeApi.getContexts({
+      contextTypes: ['OFFSCREEN_DOCUMENT'],
+    });
+
+    if (existingContexts.length > 0) {
+      return; // Already exists
+    }
+
+    // Create offscreen document
+    await offscreenApi.createDocument({
+      url: 'src/offscreen/offscreen.html',
+      reasons: ['DOM_SCRAPING'],
+      justification: 'Parse HTML content for bookmark processing',
+    });
+
+    console.log('[Offscreen] Document created');
+  } catch (error) {
+    console.error('[Offscreen] Error creating document:', error);
+  }
+}

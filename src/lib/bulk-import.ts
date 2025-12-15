@@ -188,6 +188,24 @@ export async function createBulkImportJob(urls: string[]): Promise<string> {
 }
 
 /**
+ * Decode common HTML entities to their text representation
+ * @param text Text with HTML entities
+ * @returns Decoded text
+ */
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCharCode(parseInt(code, 16)))
+    .replace(/&amp;/g, '&');
+}
+
+/**
  * Extract title from HTML string
  * @param html HTML content
  * @returns Extracted title or empty string
@@ -195,10 +213,8 @@ export async function createBulkImportJob(urls: string[]): Promise<string> {
 export function extractTitleFromHtml(html: string): string {
   const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
   if (titleMatch && titleMatch[1]) {
-    // Decode HTML entities
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = titleMatch[1];
-    return textarea.value.trim();
+    // Decode HTML entities using regex-based approach (CSP-safe)
+    return decodeHtmlEntities(titleMatch[1]).trim();
   }
   return '';
 }

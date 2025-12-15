@@ -8,6 +8,7 @@ import { updateJob, completeJob, failJob, getJobsByParent } from '../lib/jobs';
 import { browserFetch } from '../lib/browser-fetch';
 import { extractTitleFromHtml } from '../lib/bulk-import';
 import { startProcessingQueue } from './queue';
+export { ensureOffscreenDocument } from '../lib/offscreen';
 
 const CONCURRENCY = 5; // Process 5 URLs concurrently
 const TIMEOUT_MS = 30000; // 30 second timeout per URL
@@ -158,4 +159,3 @@ async function processSingleFetch(jobId: string, parentJobId: string): Promise<v
     });
   }
 }
-

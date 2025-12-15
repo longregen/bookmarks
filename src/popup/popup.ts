@@ -65,7 +65,13 @@ saveBtn.addEventListener('click', async () => {
     showStatus('Failed to save bookmark', 'error');
   } finally {
     saveBtn.disabled = false;
-    saveBtn.innerHTML = '<span class="icon">📌</span> Save This Page';
+    // Use DOM APIs instead of innerHTML (CSP-safe)
+    saveBtn.textContent = '';
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'icon';
+    iconSpan.textContent = '📌';
+    saveBtn.appendChild(iconSpan);
+    saveBtn.appendChild(document.createTextNode(' Save This Page'));
   }
 });
 

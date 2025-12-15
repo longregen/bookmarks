@@ -1,5 +1,6 @@
 import { Readability } from '@mozilla/readability';
 import TurndownService from 'turndown';
+import { isFirefox, ensureOffscreenDocument } from './offscreen';
 
 const turndown = new TurndownService({
   headingStyle: 'atx',
@@ -14,8 +15,8 @@ export interface ExtractedContent {
 }
 
 /**
- * Extract markdown from HTML using native DOMParser
- * Used in Firefox service workers and Chrome offscreen document
+ * Extract markdown from HTML using native DOMParser (Firefox only)
+ * This is used directly in Firefox service workers where DOMParser is available
  */
 function extractMarkdownNative(html: string, url: string): ExtractedContent {
   console.log('[Extract] Using native DOMParser', { url, htmlLength: html.length });
@@ -54,36 +55,6 @@ function extractMarkdownNative(html: string, url: string): ExtractedContent {
     excerpt: article.excerpt ?? '',
     byline: article.byline ?? null,
   };
-}
-
-/**
- * Ensure offscreen document exists (Chrome MV3 only)
- * This function is only called in Chrome builds; it's tree-shaken from Firefox builds.
- * Exported for use by service-worker.ts to pre-create the offscreen document.
- */
-export async function ensureOffscreenDocument(): Promise<void> {
-  try {
-    // Check if offscreen document already exists
-    const existingContexts = await chrome.runtime.getContexts({
-      contextTypes: ['OFFSCREEN_DOCUMENT' as chrome.runtime.ContextType],
-    });
-
-    if (existingContexts.length > 0) {
-      return; // Already exists
-    }
-
-    // Create offscreen document
-    await chrome.offscreen.createDocument({
-      url: 'src/offscreen/offscreen.html',
-      reasons: ['DOM_SCRAPING' as chrome.offscreen.Reason],
-      justification: 'Parse HTML content for bookmark extraction',
-    });
-
-    console.log('[Extract] Offscreen document created');
-  } catch (error) {
-    console.error('[Extract] Error creating offscreen document:', error);
-    throw error;
-  }
 }
 
 /**

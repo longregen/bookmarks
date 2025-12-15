@@ -3,7 +3,7 @@ import { startProcessingQueue } from './queue';
 import { createJob, completeJob, failJob } from '../lib/jobs';
 import { createBulkImportJob } from '../lib/bulk-import';
 import { processBulkFetch } from './fetcher';
-import { ensureOffscreenDocument } from '../lib/extract';
+import { ensureOffscreenDocument } from '../lib/offscreen';
 
 console.log('Bookmark RAG service worker loaded');
 
