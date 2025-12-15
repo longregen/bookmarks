@@ -19,17 +19,22 @@ export async function startProcessingQueue() {
         .equals('pending')
         .toArray();
 
-      // Reset any bookmarks stuck in 'processing' state (from interrupted service worker)
+      // Reset bookmarks stuck in 'processing' state for more than 1 minute
       const processingBookmarks = await db.bookmarks
         .where('status')
         .equals('processing')
         .toArray();
 
+      const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
       for (const bookmark of processingBookmarks) {
-        await db.bookmarks.update(bookmark.id, {
-          status: 'pending',
-          updatedAt: new Date(),
-        });
+        // Check if the bookmark has been processing for more than 1 minute
+        if (bookmark.updatedAt < oneMinuteAgo) {
+          console.log(`Resetting bookmark ${bookmark.id} (${bookmark.title}) - processing timeout exceeded (1 minute)`);
+          await db.bookmarks.update(bookmark.id, {
+            status: 'pending',
+            updatedAt: new Date(),
+          });
+        }
       }
 
       // Get all pending bookmarks (including newly reset ones)

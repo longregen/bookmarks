@@ -85,6 +85,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'START_PROCESSING') {
+    // Ping to restart processing queue
+    startProcessingQueue();
+    sendResponse({ success: true });
+    return true;
+  }
+
   // Handle FETCH_URL messages from offscreen document (Chrome only)
   if (message.type === 'FETCH_URL' && !sender.tab) {
     // This message should be forwarded to offscreen document

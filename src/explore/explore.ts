@@ -740,6 +740,9 @@ function marked(markdown: string): string {
 // Initialize
 loadBookmarks();
 
+// Ping background service to restart processing if needed
+chrome.runtime.sendMessage({ type: 'START_PROCESSING' });
+
 // Refresh bookmarks every 5 seconds
 setInterval(loadBookmarks, 5000);
 
