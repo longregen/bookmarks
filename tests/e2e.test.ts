@@ -84,6 +84,20 @@ async function launchBrowser(): Promise<LaunchResult> {
 
   if (BROWSER_TYPE === 'firefox') {
     console.log('Launching Firefox with Puppeteer (WebDriver BiDi)...');
+
+    // Read the manifest to get the extension ID
+    const manifestPath = path.join(EXTENSION_PATH, 'manifest.json');
+    const manifestContent = fs.readFileSync(manifestPath, 'utf-8');
+    const manifest = JSON.parse(manifestContent);
+    const extensionId = manifest.browser_specific_settings?.gecko?.id || 'bookmark-rag@example.com';
+
+    // Define a fixed UUID for the extension to use with moz-extension:// URLs
+    // This UUID is pre-set in Firefox preferences to ensure consistent extension URLs across runs
+    const FIXED_EXTENSION_UUID = '3d9b1639-77fb-44a1-888a-6d97d773e96b';
+
+    console.log(`Extension ID from manifest: ${extensionId}`);
+    console.log(`Fixed UUID for moz-extension URLs: ${FIXED_EXTENSION_UUID}`);
+
     // Use WebDriver BiDi protocol (default for Firefox in Puppeteer 23+)
     // CDP is no longer supported for Firefox
     const browser = await puppeteer.launch({
@@ -103,6 +117,9 @@ async function launchBrowser(): Promise<LaunchResult> {
         'browser.shell.checkDefaultBrowser': false,
         'browser.startup.homepage_override.mstone': 'ignore',
         'datareporting.policy.dataSubmissionEnabled': false,
+        // Pre-set the extension UUID to ensure consistent moz-extension:// URLs
+        // This maps the manifest ID to a fixed UUID that we can use in tests
+        'extensions.webextensions.uuids': `{"${extensionId}":"${FIXED_EXTENSION_UUID}"}`,
       },
       // Increase timeout for Firefox startup
       timeout: 60000,
@@ -135,11 +152,12 @@ async function launchBrowser(): Promise<LaunchResult> {
       // Log full result for debugging
       console.log('webExtension.install result:', JSON.stringify(result, null, 2));
 
-      // The extension ID might be in different fields depending on Firefox/BiDi version
-      const firefoxExtensionId = result.extension || result.result?.extension;
-      console.log(`Extension installed with ID: ${firefoxExtensionId}`);
+      // The extension ID returned by webExtension.install is the manifest ID (e.g., bookmark-rag@example.com)
+      // NOT the internal moz-extension UUID. We use the pre-configured UUID instead.
+      const manifestId = result.extension || result.result?.extension;
+      console.log(`Extension installed with manifest ID: ${manifestId}`);
 
-      if (!firefoxExtensionId) {
+      if (!manifestId) {
         throw new Error(
           `webExtension.install did not return extension ID. ` +
           `Result: ${JSON.stringify(result)}. ` +
@@ -150,7 +168,9 @@ async function launchBrowser(): Promise<LaunchResult> {
       // Wait for extension to initialize
       await new Promise(resolve => setTimeout(resolve, 3000));
 
-      return { browser, firefoxExtensionId };
+      // Return the pre-configured UUID that we set in extraPrefsFirefox
+      // This is the actual UUID used in moz-extension:// URLs
+      return { browser, firefoxExtensionId: FIXED_EXTENSION_UUID };
     } catch (error) {
       console.error('Failed to install extension via BiDi:', error);
       // If webExtension.install fails, the extension won't be available
@@ -283,12 +303,12 @@ async function main(): Promise<void> {
     const launchResult = await launchBrowser();
     browser = launchResult.browser;
 
-    // For Firefox, we get the extension UUID directly from webExtension.install
+    // For Firefox, we use the pre-configured UUID from extraPrefsFirefox
     // For Chrome, we need to detect it dynamically from targets
     if (BROWSER_TYPE === 'firefox' && launchResult.firefoxExtensionId) {
-      // The webExtension.install command returns the moz-extension UUID directly
+      // Use the fixed UUID that we pre-configured in Firefox preferences
       extensionId = launchResult.firefoxExtensionId;
-      console.log(`\nFirefox extension UUID: ${extensionId}\n`);
+      console.log(`\nFirefox extension UUID (pre-configured): ${extensionId}\n`);
     } else {
       extensionId = await getExtensionId(browser);
       console.log(`\nExtension ID: ${extensionId}\n`);
