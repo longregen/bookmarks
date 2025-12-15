@@ -1,4 +1,5 @@
 import { db } from '../db/schema';
+import { showStatusMessage } from '../lib/dom';
 
 const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement;
 const exploreBtn = document.getElementById('exploreBtn') as HTMLButtonElement;
@@ -22,14 +23,6 @@ async function updateStats() {
   }
 }
 
-function showStatus(message: string, type: 'success' | 'error' | 'warning') {
-  statusDiv.textContent = message;
-  statusDiv.className = `status ${type}`;
-
-  setTimeout(() => {
-    statusDiv.classList.add('hidden');
-  }, 3000);
-}
 
 saveBtn.addEventListener('click', async () => {
   try {
@@ -39,7 +32,7 @@ saveBtn.addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
     if (!tab || !tab.id) {
-      showStatus('No active tab found', 'error');
+      showStatusMessage(statusDiv, 'No active tab found', 'error');
       return;
     }
 
@@ -58,11 +51,11 @@ saveBtn.addEventListener('click', async () => {
       }
     });
 
-    showStatus('Bookmark saved!', 'success');
+    showStatusMessage(statusDiv, 'Bookmark saved!', 'success');
     await updateStats();
   } catch (error) {
     console.error('Error saving bookmark:', error);
-    showStatus('Failed to save bookmark', 'error');
+    showStatusMessage(statusDiv, 'Failed to save bookmark', 'error');
   } finally {
     saveBtn.disabled = false;
     // Use DOM APIs instead of innerHTML (CSP-safe)

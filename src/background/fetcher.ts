@@ -4,7 +4,7 @@
  */
 
 import { db, JobType, JobStatus } from '../db/schema';
-import { updateJob, completeJob, failJob, getJobsByParent } from '../lib/jobs';
+import { updateJob, completeJob, failJob, getJobsByParent, incrementParentJobProgress } from '../lib/jobs';
 import { browserFetch } from '../lib/browser-fetch';
 import { extractTitleFromHtml } from '../lib/bulk-import';
 import { startProcessingQueue } from './queue';
@@ -156,13 +156,7 @@ async function processSingleFetch(jobId: string, parentJobId: string): Promise<v
     await db.jobs.update(jobId, { bookmarkId });
 
     // Update parent job success count and progress
-    await db.jobs.where('id').equals(parentJobId).modify(job => {
-      job.metadata.successCount = (job.metadata.successCount || 0) + 1;
-      const total = job.metadata.totalUrls || 1;
-      const completed = (job.metadata.successCount || 0) + (job.metadata.failureCount || 0);
-      job.progress = Math.round((completed / total) * 100);
-      job.updatedAt = new Date();
-    });
+    await incrementParentJobProgress(parentJobId, true);
 
   } catch (error) {
     console.error(`Error fetching URL:`, error);
@@ -171,12 +165,6 @@ async function processSingleFetch(jobId: string, parentJobId: string): Promise<v
     await failJob(jobId, error instanceof Error ? error : String(error));
 
     // Update parent job failure count and progress
-    await db.jobs.where('id').equals(parentJobId).modify(job => {
-      job.metadata.failureCount = (job.metadata.failureCount || 0) + 1;
-      const total = job.metadata.totalUrls || 1;
-      const completed = (job.metadata.successCount || 0) + (job.metadata.failureCount || 0);
-      job.progress = Math.round((completed / total) * 100);
-      job.updatedAt = new Date();
-    });
+    await incrementParentJobProgress(parentJobId, false);
   }
 }

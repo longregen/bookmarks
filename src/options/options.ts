@@ -3,7 +3,8 @@ import { exportAllBookmarks, downloadExport, readImportFile, importBookmarks } f
 import { validateUrls } from '../lib/bulk-import';
 import { getRecentJobs, type Job } from '../lib/jobs';
 import { db, JobType, JobStatus } from '../db/schema';
-import { createElement } from '../lib/dom';
+import { createElement, showStatusMessage } from '../lib/dom';
+import { formatTimeAgo } from '../lib/time';
 
 const form = document.getElementById('settingsForm') as HTMLFormElement;
 const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
@@ -22,15 +23,6 @@ const importBtn = document.getElementById('importBtn') as HTMLButtonElement;
 const importFileName = document.getElementById('importFileName') as HTMLSpanElement;
 const importStatus = document.getElementById('importStatus') as HTMLDivElement;
 
-function showStatus(message: string, type: 'success' | 'error') {
-  statusDiv.textContent = message;
-  statusDiv.className = `status ${type}`;
-
-  setTimeout(() => {
-    statusDiv.classList.add('hidden');
-  }, 5000);
-}
-
 async function loadSettings() {
   try {
     const settings = await getSettings();
@@ -41,7 +33,7 @@ async function loadSettings() {
     embeddingModelInput.value = settings.embeddingModel;
   } catch (error) {
     console.error('Error loading settings:', error);
-    showStatus('Failed to load settings', 'error');
+    showStatusMessage(statusDiv, 'Failed to load settings', 'error', 5000);
   }
 }
 
@@ -58,13 +50,13 @@ form.addEventListener('submit', async (e) => {
     await saveSetting('chatModel', chatModelInput.value.trim());
     await saveSetting('embeddingModel', embeddingModelInput.value.trim());
 
-    showStatus('Settings saved successfully!', 'success');
+    showStatusMessage(statusDiv, 'Settings saved successfully!', 'success', 5000);
 
     submitBtn.disabled = false;
     submitBtn.textContent = 'Save Settings';
   } catch (error) {
     console.error('Error saving settings:', error);
-    showStatus('Failed to save settings', 'error');
+    showStatusMessage(statusDiv, 'Failed to save settings', 'error', 5000);
 
     const submitBtn = form.querySelector('[type="submit"]') as HTMLButtonElement;
     submitBtn.disabled = false;
@@ -84,7 +76,7 @@ testBtn.addEventListener('click', async () => {
     };
 
     if (!settings.apiKey) {
-      showStatus('Please enter an API key first', 'error');
+      showStatusMessage(statusDiv, 'Please enter an API key first', 'error', 5000);
       return;
     }
 
@@ -102,14 +94,14 @@ testBtn.addEventListener('click', async () => {
     });
 
     if (response.ok) {
-      showStatus('Connection successful! API is working correctly.', 'success');
+      showStatusMessage(statusDiv, 'Connection successful! API is working correctly.', 'success', 5000);
     } else {
       const error = await response.text();
-      showStatus(`Connection failed: ${response.status} - ${error}`, 'error');
+      showStatusMessage(statusDiv, `Connection failed: ${response.status} - ${error}`, 'error', 5000);
     }
   } catch (error) {
     console.error('Error testing connection:', error);
-    showStatus(`Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+    showStatusMessage(statusDiv, `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error', 5000);
   } finally {
     testBtn.disabled = false;
     testBtn.textContent = 'Test Connection';
@@ -132,15 +124,15 @@ exportBtn.addEventListener('click', async () => {
     const exportData = await exportAllBookmarks();
 
     if (exportData.bookmarkCount === 0) {
-      showStatus('No bookmarks to export', 'error');
+      showStatusMessage(statusDiv, 'No bookmarks to export', 'error', 5000);
       return;
     }
 
     downloadExport(exportData);
-    showStatus(`Exported ${exportData.bookmarkCount} bookmark(s) successfully!`, 'success');
+    showStatusMessage(statusDiv, `Exported ${exportData.bookmarkCount} bookmark(s) successfully!`, 'success', 5000);
   } catch (error) {
     console.error('Error exporting bookmarks:', error);
-    showStatus('Failed to export bookmarks', 'error');
+    showStatusMessage(statusDiv, 'Failed to export bookmarks', 'error', 5000);
   } finally {
     exportBtn.disabled = false;
     exportBtn.textContent = 'Export All Bookmarks';
@@ -289,7 +281,7 @@ startBulkImportBtn.addEventListener('click', async () => {
 
   const validation = validateUrls(urlsText);
   if (validation.validUrls.length === 0) {
-    showStatus('No valid URLs to import', 'error');
+    showStatusMessage(statusDiv, 'No valid URLs to import', 'error', 5000);
     return;
   }
 
@@ -345,13 +337,13 @@ startBulkImportBtn.addEventListener('click', async () => {
           cancelBulkImportBtn.style.display = 'none';
 
           if (job.status === 'completed') {
-            showStatus(`Bulk import completed! Imported ${successCount} URLs (${failureCount} failed)`, 'success');
+            showStatusMessage(statusDiv, `Bulk import completed! Imported ${successCount} URLs (${failureCount} failed)`, 'success', 5000);
             bulkUrlsInput.value = '';
             urlValidationFeedback.classList.remove('show');
           } else if (job.status === 'failed') {
-            showStatus('Bulk import failed: ' + (job.metadata.errorMessage || 'Unknown error'), 'error');
+            showStatusMessage(statusDiv, 'Bulk import failed: ' + (job.metadata.errorMessage || 'Unknown error'), 'error', 5000);
           } else {
-            showStatus('Bulk import cancelled', 'error');
+            showStatusMessage(statusDiv, 'Bulk import cancelled', 'error', 5000);
           }
 
           // Refresh jobs list
@@ -360,10 +352,10 @@ startBulkImportBtn.addEventListener('click', async () => {
       }
     }, 1000);
 
-    showStatus(`Started importing ${validation.validUrls.length} URLs`, 'success');
+    showStatusMessage(statusDiv, `Started importing ${validation.validUrls.length} URLs`, 'success', 5000);
   } catch (error) {
     console.error('Error starting bulk import:', error);
-    showStatus('Failed to start bulk import: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
+    showStatusMessage(statusDiv, 'Failed to start bulk import: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error', 5000);
     startBulkImportBtn.disabled = false;
     cancelBulkImportBtn.style.display = 'none';
     bulkImportProgress.classList.add('hidden');
@@ -440,7 +432,7 @@ function renderJobItemElement(job: Job): HTMLElement {
   const typeLabel = formatJobType(job.type);
   const statusClass = job.status.toLowerCase();
   const statusLabel = job.status.replace('_', ' ').toUpperCase();
-  const timestamp = formatTimestamp(job.createdAt);
+  const timestamp = formatTimeAgo(job.createdAt);
 
   const jobItem = createElement('div', {
     className: 'job-item',
@@ -583,20 +575,6 @@ function formatJobType(type: JobType): string {
   return labels[type] || type;
 }
 
-function formatTimestamp(date: Date): string {
-  const now = new Date();
-  const diff = now.getTime() - new Date(date).getTime();
-  const seconds = Math.floor(diff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  if (seconds < 60) return 'Just now';
-  if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-  if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-  if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
-  return new Date(date).toLocaleDateString();
-}
 
 // Jobs filter handlers
 jobTypeFilter.addEventListener('change', loadJobs);

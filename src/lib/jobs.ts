@@ -412,3 +412,26 @@ export async function getJobStats(): Promise<{
     byType,
   };
 }
+
+/**
+ * Update parent job progress after a child job completes or fails
+ * Used for bulk import jobs to track progress across multiple URL fetch jobs
+ * @param parentJobId Parent job ID
+ * @param success Whether the child job succeeded (true) or failed (false)
+ */
+export async function incrementParentJobProgress(
+  parentJobId: string,
+  success: boolean
+): Promise<void> {
+  await db.jobs.where('id').equals(parentJobId).modify(job => {
+    if (success) {
+      job.metadata.successCount = (job.metadata.successCount || 0) + 1;
+    } else {
+      job.metadata.failureCount = (job.metadata.failureCount || 0) + 1;
+    }
+    const total = job.metadata.totalUrls || 1;
+    const completed = (job.metadata.successCount || 0) + (job.metadata.failureCount || 0);
+    job.progress = Math.round((completed / total) * 100);
+    job.updatedAt = new Date();
+  });
+}
