@@ -72,6 +72,37 @@ function extractMarkdownNative(html: string, url: string): ExtractedContent {
 }
 
 /**
+ * Ensure offscreen document exists (Chrome only)
+ */
+async function ensureOffscreenDocument(): Promise<void> {
+  // Check if we're in Chrome and have offscreen API
+  if (typeof chrome !== 'undefined' && chrome.offscreen) {
+    try {
+      // Check if offscreen document already exists
+      const existingContexts = await chrome.runtime.getContexts({
+        contextTypes: ['OFFSCREEN_DOCUMENT' as chrome.runtime.ContextType],
+      });
+
+      if (existingContexts.length > 0) {
+        return; // Already exists
+      }
+
+      // Create offscreen document
+      await chrome.offscreen.createDocument({
+        url: 'src/offscreen/offscreen.html',
+        reasons: ['DOM_SCRAPING' as chrome.offscreen.Reason],
+        justification: 'Parse HTML content for bookmark extraction',
+      });
+
+      console.log('[Extract] Offscreen document created');
+    } catch (error) {
+      console.error('[Extract] Error creating offscreen document:', error);
+      throw error;
+    }
+  }
+}
+
+/**
  * Extract markdown via Chrome offscreen document
  * Chrome MV3 service workers don't have DOMParser, so we use the offscreen document
  */
@@ -80,6 +111,9 @@ async function extractMarkdownViaOffscreen(html: string, url: string): Promise<E
     url,
     htmlLength: html.length,
   });
+
+  // Ensure offscreen document exists before sending message
+  await ensureOffscreenDocument();
 
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
