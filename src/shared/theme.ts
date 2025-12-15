@@ -1,6 +1,6 @@
 // Theme management utilities
 
-export type Theme = 'auto' | 'light' | 'dark' | 'terminal';
+export type Theme = 'auto' | 'light' | 'dark' | 'terminal' | 'tufte';
 
 const THEME_STORAGE_KEY = 'bookmark-rag-theme';
 
@@ -53,8 +53,9 @@ export async function initTheme(): Promise<void> {
 /**
  * Get the effective theme (resolves 'auto' to actual light/dark)
  */
-export function getEffectiveTheme(theme: Theme): 'light' | 'dark' | 'terminal' {
+export function getEffectiveTheme(theme: Theme): 'light' | 'dark' | 'terminal' | 'tufte' {
   if (theme === 'terminal') return 'terminal';
+  if (theme === 'tufte') return 'tufte';
   if (theme === 'light') return 'light';
   if (theme === 'dark') return 'dark';
 

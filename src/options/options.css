@@ -373,6 +373,14 @@ input:focus {
   font-family: monospace;
 }
 
+.theme-preview.tufte {
+  background: #fffff8;
+  border: 1px solid #e0ddd4;
+  color: #a00000;
+  font-family: Georgia, serif;
+  font-style: italic;
+}
+
 .theme-name {
   font-size: 14px;
   font-weight: 500;
