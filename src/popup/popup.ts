@@ -4,7 +4,6 @@ import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
 
 const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement;
 const exploreBtn = document.getElementById('exploreBtn') as HTMLButtonElement;
-const settingsBtn = document.getElementById('settingsBtn') as HTMLButtonElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
 const totalCount = document.getElementById('totalCount') as HTMLSpanElement;
 const pendingCount = document.getElementById('pendingCount') as HTMLSpanElement;
@@ -71,10 +70,6 @@ saveBtn.addEventListener('click', async () => {
 
 exploreBtn.addEventListener('click', () => {
   chrome.tabs.create({ url: chrome.runtime.getURL('src/explore/explore.html') });
-});
-
-settingsBtn.addEventListener('click', () => {
-  chrome.runtime.openOptionsPage();
 });
 
 // Initialize theme

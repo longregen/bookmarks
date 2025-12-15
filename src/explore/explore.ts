@@ -709,7 +709,9 @@ retryBtn.addEventListener('click', retryCurrentBookmark);
 exportBtn.addEventListener('click', exportCurrentBookmark);
 exportAllBtn.addEventListener('click', handleExportAll);
 debugHtmlBtn.addEventListener('click', debugCurrentBookmarkHtml);
-settingsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
+settingsBtn.addEventListener('click', () => {
+  window.location.href = chrome.runtime.getURL('src/options/options.html');
+});
 searchBtn.addEventListener('click', performSearch);
 
 // Close detail panel on Escape key
