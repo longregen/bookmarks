@@ -9,6 +9,11 @@ on:
     branches: ['main']
   workflow_dispatch:
 
+# Pin browser versions for consistent caching
+env:
+  FIREFOX_VERSION: '145.0'
+  GECKODRIVER_VERSION: '0.36.0'
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -103,10 +108,18 @@ jobs:
           name: extension-firefox
           path: dist-firefox/
 
+      # Cache Firefox browser download
+      - name: Cache Firefox
+        uses: actions/cache@v4
+        id: cache-firefox
+        with:
+          path: ${{ runner.tool_cache }}/firefox
+          key: firefox-${{ runner.os }}-${{ env.FIREFOX_VERSION }}
+
       - name: Install Firefox
         uses: browser-actions/setup-firefox@v1
         with:
-          firefox-version: latest
+          firefox-version: ${{ env.FIREFOX_VERSION }}
         id: setup-firefox
 
       - name: Install xvfb and web-ext
@@ -208,14 +221,32 @@ jobs:
           name: extension-firefox
           path: dist-firefox/
 
+      # Cache Firefox browser download
+      - name: Cache Firefox
+        uses: actions/cache@v4
+        id: cache-firefox
+        with:
+          path: ${{ runner.tool_cache }}/firefox
+          key: firefox-${{ runner.os }}-${{ env.FIREFOX_VERSION }}
+
       - name: Install Firefox
         uses: browser-actions/setup-firefox@v1
         with:
-          firefox-version: latest
+          firefox-version: ${{ env.FIREFOX_VERSION }}
         id: setup-firefox
+
+      # Cache GeckoDriver download
+      - name: Cache GeckoDriver
+        uses: actions/cache@v4
+        id: cache-geckodriver
+        with:
+          path: ${{ runner.tool_cache }}/geckodriver
+          key: geckodriver-${{ runner.os }}-${{ env.GECKODRIVER_VERSION }}
 
       - name: Install GeckoDriver
         uses: browser-actions/setup-geckodriver@latest
+        with:
+          geckodriver-version: ${{ env.GECKODRIVER_VERSION }}
 
       - name: Install xvfb and zip
         run: sudo apt-get update && sudo apt-get install -y xvfb zip
