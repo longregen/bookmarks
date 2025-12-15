@@ -16,6 +16,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const EXTENSION_PATH = process.env.EXTENSION_PATH
@@ -28,24 +29,44 @@ const BROWSER_PATH = process.env.BROWSER_PATH;
 // Fixed UUID for moz-extension:// URLs - must be pre-configured in Firefox preferences
 const FIREFOX_EXTENSION_UUID = '3d9b1639-77fb-44a1-888a-6d97d773e96b';
 
-// Create a temporary profile directory
-const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'firefox-e2e-profile-'));
+// Create a temporary directory for XPI and profile
+const TEMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'firefox-e2e-'));
+const XPI_PATH = path.join(TEMP_DIR, 'extension.xpi');
 
-// Cleanup function for profile directory
-function cleanupProfileDir() {
+// Cleanup function for temporary directory
+function cleanupTempDir() {
   try {
-    if (fs.existsSync(PROFILE_DIR)) {
-      fs.rmSync(PROFILE_DIR, { recursive: true, force: true });
+    if (fs.existsSync(TEMP_DIR)) {
+      fs.rmSync(TEMP_DIR, { recursive: true, force: true });
     }
   } catch {
     // Ignore cleanup errors
   }
 }
 
+/**
+ * Create an XPI (ZIP) file from the extension directory.
+ * Selenium's Firefox driver requires extensions to be packaged as .xpi or .zip files.
+ */
+function createXpiFromDirectory(extensionDir: string, xpiPath: string): void {
+  console.log(`Creating XPI package from ${extensionDir}...`);
+
+  // Use the system zip command to create the XPI
+  // XPI files are just ZIP files with a different extension
+  try {
+    execSync(`cd "${extensionDir}" && zip -r "${xpiPath}" .`, {
+      stdio: 'pipe'
+    });
+    console.log(`XPI created at: ${xpiPath}`);
+  } catch (error) {
+    throw new Error(`Failed to create XPI: ${error}`);
+  }
+}
+
 // Ensure cleanup on exit
-process.on('exit', cleanupProfileDir);
-process.on('SIGINT', () => { cleanupProfileDir(); process.exit(1); });
-process.on('SIGTERM', () => { cleanupProfileDir(); process.exit(1); });
+process.on('exit', cleanupTempDir);
+process.on('SIGINT', () => { cleanupTempDir(); process.exit(1); });
+process.on('SIGTERM', () => { cleanupTempDir(); process.exit(1); });
 
 if (!OPENAI_API_KEY) {
   console.error('ERROR: OPENAI_API_KEY environment variable is required for E2E tests');
@@ -91,6 +112,10 @@ async function createDriver(): Promise<WebDriver> {
   console.log(`Extension ID from manifest: ${extensionId}`);
   console.log(`Fixed UUID for moz-extension URLs: ${FIREFOX_EXTENSION_UUID}`);
 
+  // Create XPI package from extension directory
+  // Selenium's Firefox driver requires extensions to be packaged as .xpi or .zip files
+  createXpiFromDirectory(EXTENSION_PATH, XPI_PATH);
+
   // Set up Firefox options
   const options = new firefox.Options();
 
@@ -110,8 +135,8 @@ async function createDriver(): Promise<WebDriver> {
     [extensionId]: FIREFOX_EXTENSION_UUID
   }));
 
-  // Add the extension - Selenium requires the extension path directly
-  options.addExtensions(EXTENSION_PATH);
+  // Add the extension XPI package
+  options.addExtensions(XPI_PATH);
 
   // Build the driver
   const driver = await new Builder()
@@ -777,7 +802,7 @@ async function main(): Promise<void> {
     if (driver) {
       await driver.quit();
     }
-    cleanupProfileDir();
+    cleanupTempDir();
   }
 
   // Print summary

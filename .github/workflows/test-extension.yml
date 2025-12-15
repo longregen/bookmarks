@@ -218,8 +218,8 @@ jobs:
       - name: Install GeckoDriver
         uses: browser-actions/setup-geckodriver@latest
 
-      - name: Install xvfb
-        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: Install xvfb and zip
+        run: sudo apt-get update && sudo apt-get install -y xvfb zip
 
       - name: Run Firefox E2E tests with Selenium
         if: env.HAS_API_KEY == 'true'
