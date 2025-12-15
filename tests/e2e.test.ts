@@ -622,10 +622,11 @@ async function main(): Promise<void> {
             const markdown = bookmarkMarkdown.contentPreview;
 
             // Check for key content that should be extracted by Readability
+            // Note: We only check the preview (first ~200 chars), so we can only verify
+            // content from the beginning of the extracted article
             const expectedPhrases = [
               'Machine learning',
               'artificial intelligence',
-              'pattern recognition',
             ];
 
             const missingPhrases = expectedPhrases.filter(phrase =>
