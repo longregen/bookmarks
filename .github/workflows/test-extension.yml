@@ -11,7 +11,7 @@ on:
 
 # Pin browser versions for consistent caching
 env:
-  FIREFOX_VERSION: '134.0'
+  FIREFOX_VERSION: '145.0'
   GECKODRIVER_VERSION: '0.36.0'
 
 jobs:
