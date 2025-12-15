@@ -3,6 +3,7 @@ import { generateEmbeddings } from '../lib/api';
 import { findTopK } from '../lib/similarity';
 import { exportSingleBookmark, exportAllBookmarks, downloadExport } from '../lib/export';
 import { createElement } from '../lib/dom';
+import { formatTimeAgoShort } from '../lib/time';
 
 // Constants
 const RESULTS_PER_PAGE = 10;
@@ -99,7 +100,7 @@ function createBookmarkCard(bookmark: Bookmark): HTMLElement {
 
   const statusClass = `status-${bookmark.status}`;
   const statusText = bookmark.status.charAt(0).toUpperCase() + bookmark.status.slice(1);
-  const timeAgo = getTimeAgo(bookmark.createdAt);
+  const timeAgo = formatTimeAgoShort(bookmark.createdAt);
 
   // Build card using DOM APIs (CSP-safe)
   const header = createElement('div', { className: 'bookmark-header' });
@@ -159,7 +160,7 @@ async function showBookmarkDetail(bookmarkId: string) {
     const metaDiv = createElement('div', { className: 'bookmark-meta', style: { marginBottom: '24px' } });
     metaDiv.appendChild(createElement('a', { className: 'bookmark-url', href: bookmark.url, target: '_blank', textContent: bookmark.url }));
     metaDiv.appendChild(createElement('span', { className: `status-badge status-${bookmark.status}`, textContent: bookmark.status }));
-    metaDiv.appendChild(createElement('span', { textContent: getTimeAgo(bookmark.createdAt) }));
+    metaDiv.appendChild(createElement('span', { textContent: formatTimeAgoShort(bookmark.createdAt) }));
     detailContent.appendChild(metaDiv);
 
     // Markdown content (uses innerHTML for rendered HTML - content is from trusted internal processing)
@@ -703,15 +704,6 @@ function escapeHtml(text: string): string {
   return div.innerHTML;
 }
 
-function getTimeAgo(date: Date): string {
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-
-  if (seconds < 60) return 'just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-  return date.toLocaleDateString();
-}
 
 // Simple markdown renderer (basic implementation)
 function marked(markdown: string): string {

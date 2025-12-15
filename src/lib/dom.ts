@@ -79,3 +79,25 @@ export function appendChildren(parent: HTMLElement, children: (HTMLElement | str
     }
   }
 }
+
+/**
+ * Show a temporary status message in a status div
+ * @param statusDiv The status div element
+ * @param message Message to display
+ * @param type Type of status (success, error, warning)
+ * @param timeoutMs Duration to show the message (default: 3000ms)
+ */
+export function showStatusMessage(
+  statusDiv: HTMLElement,
+  message: string,
+  type: 'success' | 'error' | 'warning',
+  timeoutMs: number = 3000
+): void {
+  statusDiv.textContent = message;
+  statusDiv.className = `status ${type}`;
+  statusDiv.classList.remove('hidden');
+
+  setTimeout(() => {
+    statusDiv.classList.add('hidden');
+  }, timeoutMs);
+}
