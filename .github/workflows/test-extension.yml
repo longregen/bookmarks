@@ -70,36 +70,22 @@ jobs:
           name: extension-chrome
           path: dist-chrome/
 
-      # Cache Chromium browser download
       # Use Chromium instead of Google Chrome because Google Chrome blocks
       # the --load-extension and --disable-extensions-except flags for security.
       # Chromium (the open-source base) allows these flags for testing.
-      - name: Cache Chromium
-        uses: actions/cache@v4
-        id: cache-chromium
-        with:
-          path: ~/.cache/puppeteer
-          key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            chromium-${{ runner.os }}-
-
       - name: Install Chromium
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb
-          # Download Chromium via Puppeteer if not cached
-          npx puppeteer browsers install chrome
-          echo "PUPPETEER_CHROMIUM_PATH=$(npx puppeteer browsers path chrome)" >> $GITHUB_ENV
+          sudo apt-get install -y chromium-browser xvfb
+          chromium-browser --version
 
       - name: Run Chrome extension tests
         env:
           BROWSER_TYPE: chrome
+          BROWSER_PATH: /usr/bin/chromium-browser
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EXTENSION_PATH: dist-chrome
-        run: |
-          # PUPPETEER_CHROMIUM_PATH is set via GITHUB_ENV in a previous step
-          export BROWSER_PATH="$PUPPETEER_CHROMIUM_PATH"
-          xvfb-run --auto-servernum npx tsx tests/extension.test.ts
+        run: xvfb-run --auto-servernum npx tsx tests/extension.test.ts
 
   test-firefox:
     needs: build
@@ -192,36 +178,21 @@ jobs:
           name: extension-chrome
           path: dist-chrome/
 
-      # Cache Chromium browser download
       # Use Chromium instead of Google Chrome because Google Chrome blocks
       # the --load-extension and --disable-extensions-except flags for security.
-      - name: Cache Chromium
-        uses: actions/cache@v4
-        id: cache-chromium
-        with:
-          path: ~/.cache/puppeteer
-          key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            chromium-${{ runner.os }}-
-
       - name: Install Chromium
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb
-          # Download Chromium via Puppeteer if not cached
-          npx puppeteer browsers install chrome
-          echo "PUPPETEER_CHROMIUM_PATH=$(npx puppeteer browsers path chrome)" >> $GITHUB_ENV
+          sudo apt-get install -y chromium-browser xvfb
 
       - name: Run E2E tests with API
         if: env.HAS_API_KEY == 'true'
         env:
           BROWSER_TYPE: chrome
+          BROWSER_PATH: /usr/bin/chromium-browser
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EXTENSION_PATH: dist-chrome
-        run: |
-          # PUPPETEER_CHROMIUM_PATH is set via GITHUB_ENV in a previous step
-          export BROWSER_PATH="$PUPPETEER_CHROMIUM_PATH"
-          xvfb-run --auto-servernum npx tsx tests/e2e.test.ts
+        run: xvfb-run --auto-servernum npx tsx tests/e2e.test.ts
 
       - name: Skip E2E tests (no API key)
         if: env.HAS_API_KEY != 'true'
