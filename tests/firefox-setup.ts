@@ -4,11 +4,15 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Fixed UUID for moz-extension:// URLs - must be set in profile before Firefox starts
+export const FIREFOX_EXTENSION_UUID = '3d9b1639-77fb-44a1-888a-6d97d773e96b';
+
 /**
  * Prepares a Firefox profile with the extension pre-installed
  * This is a workaround for Puppeteer's limited Firefox extension support
+ * Returns the extension manifest ID for use in tests
  */
-export async function setupFirefoxProfile(profileDir: string, extensionPath: string): Promise<void> {
+export async function setupFirefoxProfile(profileDir: string, extensionPath: string): Promise<string> {
   // Create extensions directory in profile
   const extensionsDir = path.join(profileDir, 'extensions');
 
@@ -28,7 +32,7 @@ export async function setupFirefoxProfile(profileDir: string, extensionPath: str
     extensionId = manifest.applications.gecko.id;
   } else {
     // For testing, we can use a generated ID
-    extensionId = 'bookmark-rag-test@example.com';
+    extensionId = 'bookmarks@localforge.org';
     console.warn('No gecko ID found in manifest, using default:', extensionId);
   }
 
@@ -45,8 +49,41 @@ export async function setupFirefoxProfile(profileDir: string, extensionPath: str
   // Copy the entire extension directory
   copyDirectory(extensionPath, targetExtensionDir);
 
+  // Write user.js with preferences to enable unsigned extensions
+  const userPrefs = `
+// Enable unsigned extensions
+user_pref("xpinstall.signatures.required", false);
+user_pref("extensions.autoDisableScopes", 0);
+user_pref("extensions.enabledScopes", 15);
+
+// Disable extension updates and recommendations
+user_pref("extensions.update.enabled", false);
+user_pref("extensions.getAddons.showPane", false);
+user_pref("extensions.htmlaboutaddons.recommendations.enabled", false);
+
+// Enable remote debugging
+user_pref("remote.enabled", true);
+user_pref("remote.force-local", true);
+user_pref("devtools.chrome.enabled", true);
+user_pref("devtools.debugger.remote-enabled", true);
+user_pref("devtools.debugger.prompt-connection", false);
+
+// Disable first-run and updates
+user_pref("browser.shell.checkDefaultBrowser", false);
+user_pref("browser.startup.homepage_override.mstone", "ignore");
+user_pref("datareporting.policy.dataSubmissionEnabled", false);
+user_pref("app.update.enabled", false);
+user_pref("app.update.auto", false);
+user_pref("toolkit.telemetry.enabled", false);
+user_pref("browser.rights.3.shown", true);
+`;
+
+  fs.writeFileSync(path.join(profileDir, 'user.js'), userPrefs);
+
   console.log(`Firefox extension installed to profile: ${targetExtensionDir}`);
   console.log(`Extension ID: ${extensionId}`);
+
+  return extensionId;
 }
 
 function copyDirectory(src: string, dest: string): void {

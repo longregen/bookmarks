@@ -3,7 +3,6 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { fileURLToPath } from 'url';
-import { setupFirefoxProfile } from './firefox-setup.js';
 
 // Type declaration for test helpers exposed by the explore page
 declare global {
@@ -62,7 +61,12 @@ interface TestResult {
 
 const results: TestResult[] = [];
 
-async function launchBrowser(): Promise<Browser> {
+interface LaunchResult {
+  browser: Browser;
+  firefoxExtensionId?: string;
+}
+
+async function launchBrowser(): Promise<LaunchResult> {
   // Verify extension path exists
   if (!fs.existsSync(EXTENSION_PATH)) {
     throw new Error(`Extension path does not exist: ${EXTENSION_PATH}`);
@@ -79,48 +83,103 @@ async function launchBrowser(): Promise<Browser> {
   console.log(`Browser path: ${BROWSER_PATH}`);
 
   if (BROWSER_TYPE === 'firefox') {
-    // Pre-install extension to Firefox profile
-    console.log('Setting up Firefox profile with extension...');
-    await setupFirefoxProfile(USER_DATA_DIR, EXTENSION_PATH);
+    console.log('Launching Firefox with Puppeteer (WebDriver BiDi)...');
 
-    console.log('Launching Firefox with Puppeteer...');
+    // Read the manifest to get the extension ID
+    const manifestPath = path.join(EXTENSION_PATH, 'manifest.json');
+    const manifestContent = fs.readFileSync(manifestPath, 'utf-8');
+    const manifest = JSON.parse(manifestContent);
+    const extensionId = manifest.browser_specific_settings?.gecko?.id || 'bookmarks@localforge.org';
+
+    // Define a fixed UUID for the extension to use with moz-extension:// URLs
+    // This UUID is pre-set in Firefox preferences to ensure consistent extension URLs across runs
+    const FIXED_EXTENSION_UUID = '3d9b1639-77fb-44a1-888a-6d97d773e96b';
+
+    console.log(`Extension ID from manifest: ${extensionId}`);
+    console.log(`Fixed UUID for moz-extension URLs: ${FIXED_EXTENSION_UUID}`);
+
+    // Use WebDriver BiDi protocol (default for Firefox in Puppeteer 23+)
+    // CDP is no longer supported for Firefox
     const browser = await puppeteer.launch({
-      product: 'firefox',
+      browser: 'firefox',
       executablePath: BROWSER_PATH,
       headless: false,
+      // WebDriver BiDi is the default protocol for Firefox
       args: [
-        '-profile',
-        USER_DATA_DIR,
-        '--remote-debugging-port=0',
+        '-no-remote',
       ],
       extraPrefsFirefox: {
-        // Enable extensions
+        // Enable unsigned extensions
         'xpinstall.signatures.required': false,
         'extensions.autoDisableScopes': 0,
         'extensions.enabledScopes': 15,
-        // Enable remote debugging
-        'devtools.chrome.enabled': true,
-        'devtools.debugger.remote-enabled': true,
-        'devtools.debugger.prompt-connection': false,
-        'remote.enabled': true,
-        'remote.force-local': true,
+        // Disable first-run prompts
+        'browser.shell.checkDefaultBrowser': false,
+        'browser.startup.homepage_override.mstone': 'ignore',
+        'datareporting.policy.dataSubmissionEnabled': false,
+        // Pre-set the extension UUID to ensure consistent moz-extension:// URLs
+        // This maps the manifest ID to a fixed UUID that we can use in tests
+        'extensions.webextensions.uuids': `{"${extensionId}":"${FIXED_EXTENSION_UUID}"}`,
       },
       // Increase timeout for Firefox startup
       timeout: 60000,
-      // Enable protocol debugging output
-      dumpio: false,
-      // Use pipe instead of websocket for more reliable connection
-      pipe: true,
     });
 
     console.log('Firefox launched successfully');
-    // Wait for extension to initialize
-    await new Promise(resolve => setTimeout(resolve, 5000));
 
-    return browser;
+    // Install extension via WebDriver BiDi webExtension.install command
+    // This is the supported way to install extensions in Firefox with Puppeteer 23+
+    console.log('Installing extension via WebDriver BiDi...');
+    console.log(`Extension path: ${EXTENSION_PATH}`);
+
+    try {
+      // Access the BiDi connection to send raw commands
+      // The connection property exposes the WebDriver BiDi connection
+      const connection = (browser as any).connection;
+      if (!connection) {
+        throw new Error('Could not access BiDi connection');
+      }
+
+      // Send webExtension.install command
+      // See: https://w3c.github.io/webdriver-bidi/#command-webExtension-install
+      const result = await connection.send('webExtension.install', {
+        extensionData: {
+          type: 'path',
+          path: EXTENSION_PATH,
+        },
+      });
+
+      // Log full result for debugging
+      console.log('webExtension.install result:', JSON.stringify(result, null, 2));
+
+      // The extension ID returned by webExtension.install is the manifest ID (e.g., bookmarks@localforge.org)
+      // NOT the internal moz-extension UUID. We use the pre-configured UUID instead.
+      const manifestId = result.extension || result.result?.extension;
+      console.log(`Extension installed with manifest ID: ${manifestId}`);
+
+      if (!manifestId) {
+        throw new Error(
+          `webExtension.install did not return extension ID. ` +
+          `Result: ${JSON.stringify(result)}. ` +
+          `This may indicate the Firefox version doesn't fully support webExtension.install.`
+        );
+      }
+
+      // Wait for extension to initialize
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // Return the pre-configured UUID that we set in extraPrefsFirefox
+      // This is the actual UUID used in moz-extension:// URLs
+      return { browser, firefoxExtensionId: FIXED_EXTENSION_UUID };
+    } catch (error) {
+      console.error('Failed to install extension via BiDi:', error);
+      // If webExtension.install fails, the extension won't be available
+      // This could happen if Firefox version doesn't support the command
+      throw new Error(`Firefox extension installation failed: ${error}`);
+    }
   } else {
     // Chrome/Chromium
-    return puppeteer.launch({
+    const browser = await puppeteer.launch({
       executablePath: BROWSER_PATH,
       headless: false, // Extensions require headed mode
       args: [
@@ -138,6 +197,7 @@ async function launchBrowser(): Promise<Browser> {
         '--disable-renderer-backgrounding',
       ],
     });
+    return { browser };
   }
 }
 
@@ -240,9 +300,53 @@ async function main(): Promise<void> {
   let extensionId: string = '';
 
   try {
-    browser = await launchBrowser();
-    extensionId = await getExtensionId(browser);
-    console.log(`\nExtension ID: ${extensionId}\n`);
+    const launchResult = await launchBrowser();
+    browser = launchResult.browser;
+
+    // For Firefox, we use the pre-configured UUID from extraPrefsFirefox
+    // For Chrome, we need to detect it dynamically from targets
+    if (BROWSER_TYPE === 'firefox' && launchResult.firefoxExtensionId) {
+      // Use the fixed UUID that we pre-configured in Firefox preferences
+      extensionId = launchResult.firefoxExtensionId;
+      console.log(`\nFirefox extension UUID (pre-configured): ${extensionId}`);
+
+      // Debug: Test basic navigation first
+      console.log('Testing basic browser navigation...');
+      const testPage = await browser.newPage();
+      try {
+        await testPage.goto('about:blank', { timeout: 10000 });
+        console.log('✓ Basic navigation works');
+      } catch (e) {
+        console.error('✗ Basic navigation failed:', e);
+      }
+
+      // Debug: List all targets to see what's available
+      console.log('Available browser targets:');
+      const targets = browser.targets();
+      targets.forEach(t => console.log(`  - ${t.type()}: ${t.url()}`));
+
+      // Debug: Try to find moz-extension targets
+      const extTargets = targets.filter(t => t.url().includes('moz-extension://'));
+      if (extTargets.length > 0) {
+        console.log('Found moz-extension targets:');
+        extTargets.forEach(t => console.log(`  - ${t.url()}`));
+        // Extract actual UUID from target URL
+        const match = extTargets[0].url().match(/moz-extension:\/\/([^/]+)/);
+        if (match && match[1] !== extensionId) {
+          console.log(`Actual extension UUID differs: ${match[1]}`);
+          extensionId = match[1];
+        }
+      }
+
+      // Debug: Show the URL we'll try to navigate to
+      const testUrl = getExtensionUrl(extensionId, '/src/options/options.html');
+      console.log(`Extension URL to test: ${testUrl}\n`);
+
+      await testPage.close();
+    } else {
+      extensionId = await getExtensionId(browser);
+      console.log(`\nExtension ID: ${extensionId}\n`);
+    }
 
     // Test 1: Configure API settings
     await runTest('Configure API settings', async () => {
@@ -974,6 +1078,12 @@ async function main(): Promise<void> {
   const failed = results.filter(r => !r.passed).length;
 
   console.log(`Total: ${results.length} | Passed: ${passed} | Failed: ${failed}`);
+
+  // Fail if no tests were run (indicates setup failure)
+  if (results.length === 0) {
+    console.error('\n✗ No tests were executed! This indicates a setup failure.');
+    process.exit(1);
+  }
 
   if (failed > 0) {
     console.log('\nFailed tests:');
