@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Localforge.org's Bookmarks Extension</title>
+<meta name="description" content="AI-powered bookmark manager with semantic search. Save pages, extract content, and search by meaning - all locally in your browser.">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:#000;
+  color:#fff;
+  font-family:monospace;
+  line-height:1.6;
+  min-height:100vh;
+  padding:40px 20px;
+}
+.container{max-width:800px;margin:0 auto}
+h1{
+  color:#0f0;
+  font-size:2em;
+  margin-bottom:10px;
+  letter-spacing:2px;
+}
+h2{
+  color:#0f0;
+  font-size:1.4em;
+  margin:40px 0 20px;
+  letter-spacing:1px;
+}
+h3{
+  color:#0f0;
+  font-size:1.1em;
+  margin:20px 0 10px;
+}
+.tagline{
+  color:#888;
+  font-size:14px;
+  margin-bottom:30px;
+}
+.highlight{color:#0f0}
+.principles{margin:30px 0;padding:20px 0;border-top:1px solid #333;border-bottom:1px solid #333}
+.principles p{margin:10px 0;font-size:14px}
+
+.downloads{
+  display:flex;
+  gap:15px;
+  flex-wrap:wrap;
+  margin:30px 0;
+}
+.download-btn{
+  background:#0f0;
+  color:#000;
+  border:none;
+  padding:14px 28px;
+  cursor:pointer;
+  font-family:monospace;
+  font-weight:bold;
+  font-size:14px;
+  text-decoration:none;
+  display:inline-block;
+}
+.download-btn:hover{opacity:0.85}
+.download-btn.secondary{
+  background:transparent;
+  color:#0f0;
+  border:1px solid #0f0;
+}
+.download-btn.secondary:hover{
+  background:#0f0;
+  color:#000;
+}
+
+.screenshots{
+  margin:40px 0;
+}
+.screenshot{
+  margin:20px 0;
+  border:1px solid #333;
+  padding:10px;
+  background:#0a0a0a;
+}
+.screenshot img{
+  width:100%;
+  height:auto;
+  display:block;
+}
+.screenshot-caption{
+  color:#888;
+  font-size:12px;
+  margin-top:10px;
+  text-align:center;
+}
+
+.features{
+  margin:30px 0;
+}
+.feature{
+  margin:15px 0;
+  padding:15px;
+  border-left:2px solid #333;
+}
+.feature:hover{
+  border-left-color:#0f0;
+}
+.feature-title{
+  color:#0f0;
+  font-weight:bold;
+  margin-bottom:5px;
+}
+.feature-desc{
+  color:#ccc;
+  font-size:13px;
+}
+
+.how-it-works{
+  margin:30px 0;
+}
+.step{
+  display:flex;
+  gap:15px;
+  margin:15px 0;
+  align-items:flex-start;
+}
+.step-num{
+  color:#0f0;
+  font-weight:bold;
+  min-width:25px;
+}
+.step-text{
+  color:#ccc;
+  font-size:14px;
+}
+
+.specs{
+  margin:30px 0;
+  padding:20px;
+  background:#0a0a0a;
+  border:1px solid #333;
+}
+.spec-row{
+  display:flex;
+  justify-content:space-between;
+  padding:8px 0;
+  border-bottom:1px solid #222;
+  font-size:13px;
+}
+.spec-row:last-child{border-bottom:none}
+.spec-label{color:#888}
+.spec-value{color:#0f0}
+
+.privacy{
+  margin:30px 0;
+  padding:20px;
+  border:1px solid #0f0;
+  background:#001100;
+}
+.privacy p{
+  font-size:13px;
+  color:#ccc;
+  margin:8px 0;
+}
+
+footer{
+  margin-top:60px;
+  padding-top:20px;
+  border-top:1px solid #333;
+  text-align:center;
+}
+footer p{
+  color:#666;
+  font-size:12px;
+  margin:5px 0;
+}
+footer a{
+  color:#0f0;
+  text-decoration:none;
+}
+footer a:hover{text-decoration:underline}
+
+@media (max-width:600px){
+  h1{font-size:1.5em}
+  .downloads{flex-direction:column}
+  .download-btn{text-align:center}
+  .step{flex-direction:column;gap:5px}
+  .spec-row{flex-direction:column;gap:5px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Localforge.org's Bookmarks Extension</h1>
+  <p class="tagline">AI-powered semantic search for your saved web pages</p>
+
+  <div class="principles">
+    <p><span class="highlight">></span> Save any page with one click. Full content extracted automatically.</p>
+    <p><span class="highlight">></span> Search by meaning, not keywords. AI understands your intent.</p>
+    <p><span class="highlight">></span> 100% local storage. Your data never leaves your browser.</p>
+    <p><span class="highlight">></span> Works with any OpenAI-compatible API, including local LLMs.</p>
+  </div>
+
+  <div class="downloads">
+    <a href="https://github.com/nicholaschen09/bookmarks/releases" class="download-btn">Download for Chrome</a>
+    <a href="https://github.com/nicholaschen09/bookmarks/releases" class="download-btn secondary">Download for Firefox</a>
+  </div>
+
+  <h2>Screenshots</h2>
+  <div class="screenshots">
+    <div class="screenshot">
+      <img src="screenshot-popup.png" alt="Extension popup showing save button and bookmark stats">
+      <p class="screenshot-caption">Quick-access popup with one-click save and stats</p>
+    </div>
+    <div class="screenshot">
+      <img src="screenshot-explore.png" alt="Explore page showing recent bookmarks">
+      <p class="screenshot-caption">Browse and manage your recent bookmarks</p>
+    </div>
+    <div class="screenshot">
+      <img src="screenshot-search.png" alt="Semantic search results">
+      <p class="screenshot-caption">Semantic search finds content by meaning with relevance scores</p>
+    </div>
+  </div>
+
+  <h2>Features</h2>
+  <div class="features">
+    <div class="feature">
+      <div class="feature-title">One-Click Capture</div>
+      <div class="feature-desc">Save URLs, titles, and full page content with a single click or keyboard shortcut (Ctrl+Shift+B / Cmd+Shift+B)</div>
+    </div>
+    <div class="feature">
+      <div class="feature-title">Intelligent Content Extraction</div>
+      <div class="feature-desc">Automatically converts HTML to clean Markdown using Mozilla's Readability engine</div>
+    </div>
+    <div class="feature">
+      <div class="feature-title">AI-Generated Q&A Pairs</div>
+      <div class="feature-desc">LLM generates 5-10 smart question-answer pairs about each bookmark for better searchability</div>
+    </div>
+    <div class="feature">
+      <div class="feature-title">Semantic Search</div>
+      <div class="feature-desc">Search your bookmarks by meaning and context, not just keywords. Find what you're looking for even if you don't remember the exact words.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-title">Bulk Import</div>
+      <div class="feature-desc">Import hundreds of URLs at once. Process 100 bookmarks in 2-3 minutes with parallel fetching.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-title">Export & Backup</div>
+      <div class="feature-desc">Export your entire collection as JSON anytime. Your data, your control.</div>
+    </div>
+  </div>
+
+  <h2>How It Works</h2>
+  <div class="how-it-works">
+    <div class="step">
+      <span class="step-num">1.</span>
+      <span class="step-text"><strong>Capture</strong> — Click the extension or press the shortcut. Full page HTML is saved locally.</span>
+    </div>
+    <div class="step">
+      <span class="step-num">2.</span>
+      <span class="step-text"><strong>Extract</strong> — Main content is extracted and converted to clean, readable Markdown.</span>
+    </div>
+    <div class="step">
+      <span class="step-num">3.</span>
+      <span class="step-text"><strong>Generate</strong> — Your configured LLM creates Q&A pairs about the content.</span>
+    </div>
+    <div class="step">
+      <span class="step-num">4.</span>
+      <span class="step-text"><strong>Embed</strong> — Each Q&A pair is converted to vector embeddings for semantic search.</span>
+    </div>
+    <div class="step">
+      <span class="step-num">5.</span>
+      <span class="step-text"><strong>Search</strong> — Query with natural language. Results ranked by semantic similarity.</span>
+    </div>
+  </div>
+
+  <h2>Privacy First</h2>
+  <div class="privacy">
+    <p><span class="highlight">></span> All bookmarks stored in your browser's IndexedDB — never uploaded to any server.</p>
+    <p><span class="highlight">></span> Only extracted Markdown is sent to your configured API for processing.</p>
+    <p><span class="highlight">></span> You control the API endpoint — use OpenAI, local models (Ollama, LM Studio), or any compatible service.</p>
+    <p><span class="highlight">></span> Export your data anytime. No lock-in, no surprises.</p>
+  </div>
+
+  <h2>Specifications</h2>
+  <div class="specs">
+    <div class="spec-row">
+      <span class="spec-label">Version</span>
+      <span class="spec-value">3.0.0</span>
+    </div>
+    <div class="spec-row">
+      <span class="spec-label">Chrome Support</span>
+      <span class="spec-value">Manifest V3</span>
+    </div>
+    <div class="spec-row">
+      <span class="spec-label">Firefox Support</span>
+      <span class="spec-value">Desktop & Android (v140+)</span>
+    </div>
+    <div class="spec-row">
+      <span class="spec-label">Storage</span>
+      <span class="spec-value">Local IndexedDB</span>
+    </div>
+    <div class="spec-row">
+      <span class="spec-label">Search Latency</span>
+      <span class="spec-value">&lt;100ms</span>
+    </div>
+    <div class="spec-row">
+      <span class="spec-label">License</span>
+      <span class="spec-value">MIT</span>
+    </div>
+  </div>
+
+  <h2>Getting Started</h2>
+  <div class="how-it-works">
+    <div class="step">
+      <span class="step-num">1.</span>
+      <span class="step-text">Download and install the extension for your browser</span>
+    </div>
+    <div class="step">
+      <span class="step-num">2.</span>
+      <span class="step-text">Click the extension icon and go to Settings</span>
+    </div>
+    <div class="step">
+      <span class="step-num">3.</span>
+      <span class="step-text">Configure your API endpoint and models (OpenAI or compatible)</span>
+    </div>
+    <div class="step">
+      <span class="step-num">4.</span>
+      <span class="step-text">Click "Test Connection" to verify setup</span>
+    </div>
+    <div class="step">
+      <span class="step-num">5.</span>
+      <span class="step-text">Start saving pages and searching semantically!</span>
+    </div>
+  </div>
+
+  <div class="downloads" style="margin-top:40px">
+    <a href="https://github.com/nicholaschen09/bookmarks/releases" class="download-btn">Download Now</a>
+    <a href="https://github.com/nicholaschen09/bookmarks" class="download-btn secondary">View Source on GitHub</a>
+  </div>
+
+  <footer>
+    <p>Built by <a href="https://localforge.org">localforge.org</a></p>
+    <p>Own your stack. Run what you can, cloud what you must.</p>
+  </footer>
+</div>
+</body>
+</html>
