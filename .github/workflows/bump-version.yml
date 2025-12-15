@@ -108,6 +108,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Trigger test workflow
+        run: gh workflow run test-extension.yml --ref main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger release workflow
+        run: gh workflow run release.yml --ref main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Summary
         run: |
           echo "### Version Bump Complete! :rocket:" >> $GITHUB_STEP_SUMMARY
