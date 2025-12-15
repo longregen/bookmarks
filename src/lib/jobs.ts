@@ -251,6 +251,7 @@ export async function cleanupOldJobs(daysOld: number = 30): Promise<number> {
 /**
  * Find all jobs that were interrupted (stuck in IN_PROGRESS or PENDING with no active processor)
  * This is used to detect jobs that need resumption after a service worker restart
+ * All results are sorted by updatedAt ascending (oldest first for round-robin processing)
  */
 export async function findInterruptedJobs(): Promise<{
   bulkImportJobs: Job[];
@@ -258,25 +259,26 @@ export async function findInterruptedJobs(): Promise<{
   inProgressFetchJobs: Job[];
 }> {
   // Find BULK_URL_IMPORT jobs that are still IN_PROGRESS (parent jobs)
+  // Sort by updatedAt ascending so oldest jobs are processed first
   const bulkImportJobs = await db.jobs
     .where('type')
     .equals(JobType.BULK_URL_IMPORT)
     .and(job => job.status === JobStatus.IN_PROGRESS)
-    .toArray();
+    .sortBy('updatedAt');
 
   // Find URL_FETCH jobs that are PENDING (never started)
   const pendingFetchJobs = await db.jobs
     .where('type')
     .equals(JobType.URL_FETCH)
     .and(job => job.status === JobStatus.PENDING)
-    .toArray();
+    .sortBy('updatedAt');
 
   // Find URL_FETCH jobs that were IN_PROGRESS (started but interrupted)
   const inProgressFetchJobs = await db.jobs
     .where('type')
     .equals(JobType.URL_FETCH)
     .and(job => job.status === JobStatus.IN_PROGRESS)
-    .toArray();
+    .sortBy('updatedAt');
 
   return {
     bulkImportJobs,
@@ -329,14 +331,16 @@ export async function resetInterruptedJobs(): Promise<{
 /**
  * Get all bulk import parent jobs that need resumption
  * A job needs resumption if it's IN_PROGRESS and has PENDING child jobs
+ * Returns jobs sorted by updatedAt ascending (oldest first for round-robin)
  */
 export async function getBulkImportsToResume(): Promise<Job[]> {
   // Find BULK_URL_IMPORT jobs that are IN_PROGRESS
+  // Sort by updatedAt ascending so oldest/least recently updated jobs go first
   const inProgressBulkImports = await db.jobs
     .where('type')
     .equals(JobType.BULK_URL_IMPORT)
     .and(job => job.status === JobStatus.IN_PROGRESS)
-    .toArray();
+    .sortBy('updatedAt');
 
   const jobsToResume: Job[] = [];
 

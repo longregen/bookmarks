@@ -32,7 +32,10 @@ export async function processBulkFetch(parentJobId: string, isResumption: boolea
     const allChildJobs = await getJobsByParent(parentJobId);
 
     // Only process PENDING jobs (allows resumption of interrupted bulk imports)
-    const pendingJobs = allChildJobs.filter(job => job.status === JobStatus.PENDING);
+    // Sort by updatedAt ascending so oldest/least recently tried jobs go first (round-robin)
+    const pendingJobs = allChildJobs
+      .filter(job => job.status === JobStatus.PENDING)
+      .sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime());
     const pendingJobIds = pendingJobs.map(job => job.id);
 
     if (isResumption) {
