@@ -58,20 +58,22 @@
         </div>
       </div>
 
-      <div id="detailView" class="detail-view hidden">
-        <div class="detail-header">
-          <button id="closeDetailBtn" class="btn btn-secondary">← Back</button>
-          <div class="detail-actions">
-            <button id="debugHtmlBtn" class="btn btn-secondary">Debug HTML</button>
-            <button id="exportBtn" class="btn btn-secondary">Export</button>
-            <button id="retryBtn" class="btn btn-secondary hidden">Retry</button>
-            <button id="deleteBtn" class="btn btn-danger">Delete</button>
-          </div>
-        </div>
-
-        <div id="detailContent" class="detail-content"></div>
-      </div>
     </main>
+
+    <!-- Detail View Slide Panel -->
+    <div id="detailBackdrop" class="detail-backdrop"></div>
+    <div id="detailView" class="detail-view">
+      <div class="detail-header">
+        <button id="closeDetailBtn" class="btn btn-secondary">← Back</button>
+        <div class="detail-actions">
+          <button id="debugHtmlBtn" class="btn btn-secondary">Debug HTML</button>
+          <button id="exportBtn" class="btn btn-secondary">Export</button>
+          <button id="retryBtn" class="btn btn-secondary hidden">Retry</button>
+          <button id="deleteBtn" class="btn btn-danger">Delete</button>
+        </div>
+      </div>
+      <div id="detailContent" class="detail-content"></div>
+    </div>
   </div>
 
   <script src="explore.ts" type="module"></script>

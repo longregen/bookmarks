@@ -34,6 +34,7 @@ const retryBtn = document.getElementById('retryBtn') as HTMLButtonElement;
 const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
 const exportAllBtn = document.getElementById('exportAllBtn') as HTMLButtonElement;
 const debugHtmlBtn = document.getElementById('debugHtmlBtn') as HTMLButtonElement;
+const detailBackdrop = document.getElementById('detailBackdrop') as HTMLDivElement;
 
 let currentBookmarkId: string | null = null;
 
@@ -205,7 +206,10 @@ async function showBookmarkDetail(bookmarkId: string) {
       retryBtn.classList.add('hidden');
     }
 
-    detailView.classList.remove('hidden');
+    // Show detail panel with animation
+    detailView.classList.add('active');
+    detailBackdrop.classList.add('active');
+    document.body.style.overflow = 'hidden'; // Prevent background scroll
   } catch (error) {
     console.error('Error showing bookmark detail:', error);
     alert('Failed to load bookmark details');
@@ -213,7 +217,9 @@ async function showBookmarkDetail(bookmarkId: string) {
 }
 
 function closeDetail() {
-  detailView.classList.add('hidden');
+  detailView.classList.remove('active');
+  detailBackdrop.classList.remove('active');
+  document.body.style.overflow = ''; // Restore scroll
   currentBookmarkId = null;
 }
 
@@ -697,6 +703,7 @@ function createSearchResultCard(
 
 // Event listeners
 closeDetailBtn.addEventListener('click', closeDetail);
+detailBackdrop.addEventListener('click', closeDetail);
 deleteBtn.addEventListener('click', deleteCurrentBookmark);
 retryBtn.addEventListener('click', retryCurrentBookmark);
 exportBtn.addEventListener('click', exportCurrentBookmark);
@@ -704,6 +711,13 @@ exportAllBtn.addEventListener('click', handleExportAll);
 debugHtmlBtn.addEventListener('click', debugCurrentBookmarkHtml);
 settingsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
 searchBtn.addEventListener('click', performSearch);
+
+// Close detail panel on Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && detailView.classList.contains('active')) {
+    closeDetail();
+  }
+});
 
 searchInput.addEventListener('keypress', (e) => {
   if (e.key === 'Enter') {
