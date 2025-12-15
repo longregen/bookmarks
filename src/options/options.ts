@@ -5,6 +5,7 @@ import { getRecentJobs, type Job } from '../lib/jobs';
 import { db, JobType, JobStatus } from '../db/schema';
 import { createElement, showStatusMessage } from '../lib/dom';
 import { formatTimeAgo } from '../lib/time';
+import { initTheme, onThemeChange, applyTheme, getTheme, setTheme, type Theme } from '../shared/theme';
 
 const form = document.getElementById('settingsForm') as HTMLFormElement;
 const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
@@ -606,8 +607,33 @@ window.addEventListener('beforeunload', () => {
   }
 });
 
+// Theme selector
+const themeRadios = document.querySelectorAll<HTMLInputElement>('input[name="theme"]');
+
+async function loadTheme() {
+  const theme = await getTheme();
+  const radio = document.querySelector<HTMLInputElement>(`input[name="theme"][value="${theme}"]`);
+  if (radio) {
+    radio.checked = true;
+  }
+}
+
+themeRadios.forEach(radio => {
+  radio.addEventListener('change', async (e) => {
+    const target = e.target as HTMLInputElement;
+    if (target.checked) {
+      await setTheme(target.value as Theme);
+    }
+  });
+});
+
+// Initialize theme
+initTheme();
+onThemeChange((theme) => applyTheme(theme));
+
 // Load settings on page load
 loadSettings();
+loadTheme();
 
 // Load jobs on page load
 loadJobs();

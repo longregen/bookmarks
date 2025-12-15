@@ -1,0 +1,366 @@
+/* Theme CSS Variables and Dark Mode Support */
+
+/* Light Theme (Default) */
+:root {
+  /* Background colors */
+  --bg-primary: #f9fafb;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f3f4f6;
+  --bg-input: #ffffff;
+  --bg-hover: #f9fafb;
+  --bg-code: #f3f4f6;
+  --bg-code-block: #1f2937;
+
+  /* Text colors */
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-tertiary: #6b7280;
+  --text-muted: #9ca3af;
+  --text-inverse: #f9fafb;
+  --text-code-block: #f9fafb;
+
+  /* Border colors */
+  --border-primary: #e5e7eb;
+  --border-secondary: #d1d5db;
+  --border-focus: #3b82f6;
+
+  /* Accent colors */
+  --accent-primary: #3b82f6;
+  --accent-primary-hover: #2563eb;
+  --accent-secondary: #6366f1;
+  --accent-link: #3b82f6;
+
+  /* Status colors */
+  --success-bg: #d1fae5;
+  --success-text: #065f46;
+  --success-border: #6ee7b7;
+  --error-bg: #fee2e2;
+  --error-text: #991b1b;
+  --error-border: #fca5a5;
+  --warning-bg: #fef3c7;
+  --warning-text: #92400e;
+  --warning-border: #fcd34d;
+  --info-bg: #dbeafe;
+  --info-text: #1e40af;
+  --info-border: #93c5fd;
+
+  /* Button colors */
+  --btn-primary-bg: #3b82f6;
+  --btn-primary-text: #ffffff;
+  --btn-primary-hover: #2563eb;
+  --btn-secondary-bg: #ffffff;
+  --btn-secondary-text: #374151;
+  --btn-secondary-border: #d1d5db;
+  --btn-secondary-hover: #f9fafb;
+  --btn-danger-bg: #ef4444;
+  --btn-danger-text: #ffffff;
+  --btn-danger-hover: #dc2626;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.1);
+
+  /* Progress bar */
+  --progress-bg: #e5e7eb;
+  --progress-fill: linear-gradient(90deg, #3b82f6, #2563eb);
+
+  /* Badge colors */
+  --badge-bg: #e5e7eb;
+  --badge-text: #374151;
+
+  /* Font */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  --font-mono: 'Monaco', 'Courier New', monospace;
+}
+
+/* Dark Theme - Auto-detected via prefers-color-scheme */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="terminal"]) {
+    /* Background colors */
+    --bg-primary: #111827;
+    --bg-secondary: #1f2937;
+    --bg-tertiary: #374151;
+    --bg-input: #1f2937;
+    --bg-hover: #374151;
+    --bg-code: #374151;
+    --bg-code-block: #0f172a;
+
+    /* Text colors */
+    --text-primary: #f9fafb;
+    --text-secondary: #e5e7eb;
+    --text-tertiary: #9ca3af;
+    --text-muted: #6b7280;
+    --text-inverse: #111827;
+    --text-code-block: #e5e7eb;
+
+    /* Border colors */
+    --border-primary: #374151;
+    --border-secondary: #4b5563;
+    --border-focus: #60a5fa;
+
+    /* Accent colors */
+    --accent-primary: #60a5fa;
+    --accent-primary-hover: #3b82f6;
+    --accent-secondary: #818cf8;
+    --accent-link: #60a5fa;
+
+    /* Status colors */
+    --success-bg: #064e3b;
+    --success-text: #6ee7b7;
+    --success-border: #065f46;
+    --error-bg: #7f1d1d;
+    --error-text: #fca5a5;
+    --error-border: #991b1b;
+    --warning-bg: #78350f;
+    --warning-text: #fcd34d;
+    --warning-border: #92400e;
+    --info-bg: #1e3a5f;
+    --info-text: #93c5fd;
+    --info-border: #1e40af;
+
+    /* Button colors */
+    --btn-primary-bg: #3b82f6;
+    --btn-primary-text: #ffffff;
+    --btn-primary-hover: #60a5fa;
+    --btn-secondary-bg: #374151;
+    --btn-secondary-text: #e5e7eb;
+    --btn-secondary-border: #4b5563;
+    --btn-secondary-hover: #4b5563;
+    --btn-danger-bg: #dc2626;
+    --btn-danger-text: #ffffff;
+    --btn-danger-hover: #ef4444;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-focus: 0 0 0 3px rgba(96, 165, 250, 0.2);
+
+    /* Progress bar */
+    --progress-bg: #374151;
+    --progress-fill: linear-gradient(90deg, #3b82f6, #60a5fa);
+
+    /* Badge colors */
+    --badge-bg: #374151;
+    --badge-text: #e5e7eb;
+  }
+}
+
+/* Terminal Theme - Localforge inspired */
+[data-theme="terminal"] {
+  /* Background colors */
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-tertiary: #111111;
+  --bg-input: #111111;
+  --bg-hover: #1a1a1a;
+  --bg-code: #111111;
+  --bg-code-block: #0a0a0a;
+
+  /* Text colors */
+  --text-primary: #ffffff;
+  --text-secondary: #cccccc;
+  --text-tertiary: #888888;
+  --text-muted: #666666;
+  --text-inverse: #000000;
+  --text-code-block: #00ff00;
+
+  /* Border colors */
+  --border-primary: #333333;
+  --border-secondary: #444444;
+  --border-focus: #00ff00;
+
+  /* Accent colors */
+  --accent-primary: #00ff00;
+  --accent-primary-hover: #00cc00;
+  --accent-secondary: #00ff00;
+  --accent-link: #00ff00;
+
+  /* Status colors */
+  --success-bg: #001a00;
+  --success-text: #00ff00;
+  --success-border: #00cc00;
+  --error-bg: #1a0000;
+  --error-text: #ff4444;
+  --error-border: #cc0000;
+  --warning-bg: #1a1a00;
+  --warning-text: #ffff00;
+  --warning-border: #cccc00;
+  --info-bg: #001a1a;
+  --info-text: #00ffff;
+  --info-border: #00cccc;
+
+  /* Button colors */
+  --btn-primary-bg: #00ff00;
+  --btn-primary-text: #000000;
+  --btn-primary-hover: #00cc00;
+  --btn-secondary-bg: #111111;
+  --btn-secondary-text: #ffffff;
+  --btn-secondary-border: #333333;
+  --btn-secondary-hover: #222222;
+  --btn-danger-bg: #ff0000;
+  --btn-danger-text: #ffffff;
+  --btn-danger-hover: #cc0000;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 255, 0, 0.1);
+  --shadow-md: 0 2px 4px rgba(0, 255, 0, 0.15);
+  --shadow-lg: 0 2px 8px rgba(0, 255, 0, 0.1);
+  --shadow-focus: 0 0 0 3px rgba(0, 255, 0, 0.2);
+
+  /* Progress bar */
+  --progress-bg: #222222;
+  --progress-fill: linear-gradient(90deg, #00ff00, #00cc00);
+
+  /* Badge colors */
+  --badge-bg: #111111;
+  --badge-text: #00ff00;
+
+  /* Font - Monospace for terminal feel */
+  --font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'Courier New', monospace;
+  --font-mono: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'Courier New', monospace;
+}
+
+/* Dark Theme - Manual override */
+[data-theme="dark"] {
+  /* Background colors */
+  --bg-primary: #111827;
+  --bg-secondary: #1f2937;
+  --bg-tertiary: #374151;
+  --bg-input: #1f2937;
+  --bg-hover: #374151;
+  --bg-code: #374151;
+  --bg-code-block: #0f172a;
+
+  /* Text colors */
+  --text-primary: #f9fafb;
+  --text-secondary: #e5e7eb;
+  --text-tertiary: #9ca3af;
+  --text-muted: #6b7280;
+  --text-inverse: #111827;
+  --text-code-block: #e5e7eb;
+
+  /* Border colors */
+  --border-primary: #374151;
+  --border-secondary: #4b5563;
+  --border-focus: #60a5fa;
+
+  /* Accent colors */
+  --accent-primary: #60a5fa;
+  --accent-primary-hover: #3b82f6;
+  --accent-secondary: #818cf8;
+  --accent-link: #60a5fa;
+
+  /* Status colors */
+  --success-bg: #064e3b;
+  --success-text: #6ee7b7;
+  --success-border: #065f46;
+  --error-bg: #7f1d1d;
+  --error-text: #fca5a5;
+  --error-border: #991b1b;
+  --warning-bg: #78350f;
+  --warning-text: #fcd34d;
+  --warning-border: #92400e;
+  --info-bg: #1e3a5f;
+  --info-text: #93c5fd;
+  --info-border: #1e40af;
+
+  /* Button colors */
+  --btn-primary-bg: #3b82f6;
+  --btn-primary-text: #ffffff;
+  --btn-primary-hover: #60a5fa;
+  --btn-secondary-bg: #374151;
+  --btn-secondary-text: #e5e7eb;
+  --btn-secondary-border: #4b5563;
+  --btn-secondary-hover: #4b5563;
+  --btn-danger-bg: #dc2626;
+  --btn-danger-text: #ffffff;
+  --btn-danger-hover: #ef4444;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-focus: 0 0 0 3px rgba(96, 165, 250, 0.2);
+
+  /* Progress bar */
+  --progress-bg: #374151;
+  --progress-fill: linear-gradient(90deg, #3b82f6, #60a5fa);
+
+  /* Badge colors */
+  --badge-bg: #374151;
+  --badge-text: #e5e7eb;
+}
+
+/* Light Theme - Manual override (for when user explicitly selects light) */
+[data-theme="light"] {
+  /* Background colors */
+  --bg-primary: #f9fafb;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f3f4f6;
+  --bg-input: #ffffff;
+  --bg-hover: #f9fafb;
+  --bg-code: #f3f4f6;
+  --bg-code-block: #1f2937;
+
+  /* Text colors */
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-tertiary: #6b7280;
+  --text-muted: #9ca3af;
+  --text-inverse: #f9fafb;
+  --text-code-block: #f9fafb;
+
+  /* Border colors */
+  --border-primary: #e5e7eb;
+  --border-secondary: #d1d5db;
+  --border-focus: #3b82f6;
+
+  /* Accent colors */
+  --accent-primary: #3b82f6;
+  --accent-primary-hover: #2563eb;
+  --accent-secondary: #6366f1;
+  --accent-link: #3b82f6;
+
+  /* Status colors */
+  --success-bg: #d1fae5;
+  --success-text: #065f46;
+  --success-border: #6ee7b7;
+  --error-bg: #fee2e2;
+  --error-text: #991b1b;
+  --error-border: #fca5a5;
+  --warning-bg: #fef3c7;
+  --warning-text: #92400e;
+  --warning-border: #fcd34d;
+  --info-bg: #dbeafe;
+  --info-text: #1e40af;
+  --info-border: #93c5fd;
+
+  /* Button colors */
+  --btn-primary-bg: #3b82f6;
+  --btn-primary-text: #ffffff;
+  --btn-primary-hover: #2563eb;
+  --btn-secondary-bg: #ffffff;
+  --btn-secondary-text: #374151;
+  --btn-secondary-border: #d1d5db;
+  --btn-secondary-hover: #f9fafb;
+  --btn-danger-bg: #ef4444;
+  --btn-danger-text: #ffffff;
+  --btn-danger-hover: #dc2626;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.1);
+
+  /* Progress bar */
+  --progress-bg: #e5e7eb;
+  --progress-fill: linear-gradient(90deg, #3b82f6, #2563eb);
+
+  /* Badge colors */
+  --badge-bg: #e5e7eb;
+  --badge-text: #374151;
+}

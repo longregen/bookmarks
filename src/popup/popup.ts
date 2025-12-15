@@ -1,5 +1,6 @@
 import { db } from '../db/schema';
 import { showStatusMessage } from '../lib/dom';
+import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
 
 const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement;
 const exploreBtn = document.getElementById('exploreBtn') as HTMLButtonElement;
@@ -75,6 +76,10 @@ exploreBtn.addEventListener('click', () => {
 settingsBtn.addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
+
+// Initialize theme
+initTheme();
+onThemeChange((theme) => applyTheme(theme));
 
 // Initial stats update
 updateStats();
