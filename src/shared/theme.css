@@ -77,7 +77,7 @@
 
 /* Dark Theme - Auto-detected via prefers-color-scheme */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):not([data-theme="terminal"]) {
+  :root:not([data-theme="light"]):not([data-theme="terminal"]):not([data-theme="tufte"]) {
     /* Background colors */
     --bg-primary: #111827;
     --bg-secondary: #1f2937;
@@ -363,4 +363,79 @@
   /* Badge colors */
   --badge-bg: #e5e7eb;
   --badge-text: #374151;
+}
+
+/* Tufte Theme - Elegant, book-inspired design */
+[data-theme="tufte"] {
+  /* Background colors - warm cream/ivory tones */
+  --bg-primary: #fffff8;
+  --bg-secondary: #fffff8;
+  --bg-tertiary: #f7f7f0;
+  --bg-input: #fffff8;
+  --bg-hover: #f7f7f0;
+  --bg-code: #f7f7f0;
+  --bg-code-block: #f7f7f0;
+
+  /* Text colors - high contrast, classic book typography */
+  --text-primary: #111111;
+  --text-secondary: #333333;
+  --text-tertiary: #555555;
+  --text-muted: #777777;
+  --text-inverse: #fffff8;
+  --text-code-block: #111111;
+
+  /* Border colors - subtle, understated */
+  --border-primary: #e0ddd4;
+  --border-secondary: #ccc8bc;
+  --border-focus: #a00000;
+
+  /* Accent colors - Tufte's signature muted red */
+  --accent-primary: #a00000;
+  --accent-primary-hover: #800000;
+  --accent-secondary: #a00000;
+  --accent-link: #a00000;
+
+  /* Status colors - muted, understated versions */
+  --success-bg: #e8f0e8;
+  --success-text: #2d5a2d;
+  --success-border: #a8c8a8;
+  --error-bg: #f8e8e8;
+  --error-text: #8b0000;
+  --error-border: #d4a0a0;
+  --warning-bg: #f8f0e0;
+  --warning-text: #705000;
+  --warning-border: #d4c090;
+  --info-bg: #e8f0f8;
+  --info-text: #2d4a6d;
+  --info-border: #a0b8d0;
+
+  /* Button colors - understated, classic */
+  --btn-primary-bg: #a00000;
+  --btn-primary-text: #ffffff;
+  --btn-primary-hover: #800000;
+  --btn-secondary-bg: #fffff8;
+  --btn-secondary-text: #333333;
+  --btn-secondary-border: #ccc8bc;
+  --btn-secondary-hover: #f7f7f0;
+  --btn-danger-bg: #a00000;
+  --btn-danger-text: #ffffff;
+  --btn-danger-hover: #800000;
+
+  /* Shadows - minimal, subtle */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-focus: 0 0 0 2px rgba(160, 0, 0, 0.15);
+
+  /* Progress bar */
+  --progress-bg: #e0ddd4;
+  --progress-fill: linear-gradient(90deg, #a00000, #800000);
+
+  /* Badge colors */
+  --badge-bg: #f7f7f0;
+  --badge-text: #333333;
+
+  /* Font - Elegant serif typography */
+  --font-family: 'Georgia', 'Palatino', 'Palatino Linotype', 'Times New Roman', serif;
+  --font-mono: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
