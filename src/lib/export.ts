@@ -1,8 +1,11 @@
 import { db, Bookmark, Markdown, QuestionAnswer, JobType, JobStatus } from '../db/schema';
 import { createJob, updateJob, completeJob, failJob } from './jobs';
+import { encodeEmbedding, decodeEmbedding, isEncodedEmbedding } from './embedding-codec';
 
 // Export format version for future compatibility
-const EXPORT_VERSION = 1;
+// v1: Original format with raw number[] embeddings
+// v2: Embeddings encoded as base64 strings (16-bit quantized)
+const EXPORT_VERSION = 2;
 
 export interface ExportedBookmark {
   id: string;
@@ -16,10 +19,20 @@ export interface ExportedBookmark {
   questionsAnswers: Array<{
     question: string;
     answer: string;
-    embeddingQuestion?: number[];
-    embeddingAnswer?: number[];
-    embeddingBoth?: number[];
+    // v2 format: base64 encoded embeddings (16-bit quantized)
+    embeddingQuestion?: string;
+    embeddingAnswer?: string;
+    embeddingBoth?: string;
   }>;
+}
+
+// Legacy v1 format interface for backward compatibility during import
+interface LegacyExportedQA {
+  question: string;
+  answer: string;
+  embeddingQuestion?: number[];
+  embeddingAnswer?: number[];
+  embeddingBoth?: number[];
 }
 
 export interface BookmarkExport {
@@ -75,6 +88,7 @@ export async function exportAllBookmarks(): Promise<BookmarkExport> {
 
 /**
  * Format a bookmark for export (includes embeddings for full backup)
+ * Embeddings are encoded as base64 strings for ~7x size reduction
  */
 function formatBookmarkForExport(
   bookmark: Bookmark,
@@ -93,9 +107,10 @@ function formatBookmarkForExport(
     questionsAnswers: qaPairs.map(qa => ({
       question: qa.question,
       answer: qa.answer,
-      embeddingQuestion: qa.embeddingQuestion,
-      embeddingAnswer: qa.embeddingAnswer,
-      embeddingBoth: qa.embeddingBoth,
+      // Encode embeddings as base64 for compact storage
+      embeddingQuestion: qa.embeddingQuestion ? encodeEmbedding(qa.embeddingQuestion) : undefined,
+      embeddingAnswer: qa.embeddingAnswer ? encodeEmbedding(qa.embeddingAnswer) : undefined,
+      embeddingBoth: qa.embeddingBoth ? encodeEmbedding(qa.embeddingBoth) : undefined,
     })),
   };
 }
@@ -137,6 +152,28 @@ function sanitizeFilename(name: string): string {
  */
 function formatDateForFilename(date: Date): string {
   return date.toISOString().split('T')[0];
+}
+
+/**
+ * Decode an embedding field from import data
+ * Supports both v1 format (number[]) and v2 format (base64 string)
+ */
+function decodeEmbeddingField(value: unknown): number[] | null {
+  // v2 format: base64 encoded string
+  if (isEncodedEmbedding(value)) {
+    try {
+      return decodeEmbedding(value);
+    } catch {
+      return null;
+    }
+  }
+
+  // v1 format: raw number array
+  if (Array.isArray(value) && value.every(v => typeof v === 'number')) {
+    return value;
+  }
+
+  return null;
 }
 
 export interface ImportResult {
@@ -248,18 +285,25 @@ export async function importBookmarks(data: BookmarkExport, fileName?: string): 
           for (const qa of exportedBookmark.questionsAnswers) {
             // Only import if we have embeddings (otherwise they won't be searchable)
             if (qa.embeddingQuestion && qa.embeddingAnswer && qa.embeddingBoth) {
-              const questionAnswer: QuestionAnswer = {
-                id: crypto.randomUUID(),
-                bookmarkId,
-                question: qa.question,
-                answer: qa.answer,
-                embeddingQuestion: qa.embeddingQuestion,
-                embeddingAnswer: qa.embeddingAnswer,
-                embeddingBoth: qa.embeddingBoth,
-                createdAt: now,
-                updatedAt: now,
-              };
-              await db.questionsAnswers.add(questionAnswer);
+              // Decode embeddings - support both v1 (number[]) and v2 (base64 string) formats
+              const embeddingQuestion = decodeEmbeddingField(qa.embeddingQuestion);
+              const embeddingAnswer = decodeEmbeddingField(qa.embeddingAnswer);
+              const embeddingBoth = decodeEmbeddingField(qa.embeddingBoth);
+
+              if (embeddingQuestion && embeddingAnswer && embeddingBoth) {
+                const questionAnswer: QuestionAnswer = {
+                  id: crypto.randomUUID(),
+                  bookmarkId,
+                  question: qa.question,
+                  answer: qa.answer,
+                  embeddingQuestion,
+                  embeddingAnswer,
+                  embeddingBoth,
+                  createdAt: now,
+                  updatedAt: now,
+                };
+                await db.questionsAnswers.add(questionAnswer);
+              }
             }
           }
         }

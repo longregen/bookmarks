@@ -34,6 +34,16 @@ const themeCssVariables = {
     --toast-error-border: #ff3333;
     --toast-font-family: monospace;
     --toast-shadow: 0 4px 6px rgba(0, 255, 0, 0.1);
+  `,
+  tufte: `
+    --toast-success-bg: #fffff8;
+    --toast-success-text: #111111;
+    --toast-success-border: #111111;
+    --toast-error-bg: #fffff8;
+    --toast-error-text: #a00000;
+    --toast-error-border: #a00000;
+    --toast-font-family: et-book, Palatino, 'Palatino Linotype', 'Palatino LT STD', Georgia, serif;
+    --toast-shadow: none;
   `
 };
 
@@ -60,7 +70,7 @@ async function capturePage() {
 }
 
 // Inject CSS variables for the current theme into the page
-function injectThemeVariables(effectiveTheme: 'light' | 'dark' | 'terminal') {
+function injectThemeVariables(effectiveTheme: 'light' | 'dark' | 'terminal' | 'tufte') {
   const styleId = 'bookmark-rag-toast-theme';
   let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
 
