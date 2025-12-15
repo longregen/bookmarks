@@ -214,19 +214,22 @@ async function createDriver(): Promise<WebDriver> {
   options.setPreference('browser.startup.homepage_override.mstone', 'ignore');
   options.setPreference('datareporting.policy.dataSubmissionEnabled', false);
 
-  // Add the extension XPI package
-  options.addExtensions(XPI_PATH);
-
-  // Build the driver
+  // Build the driver WITHOUT the extension first
   const driver = await new Builder()
     .forBrowser(Browser.FIREFOX)
     .setFirefoxOptions(options)
     .build();
 
+  // Install extension AFTER driver starts using installAddon
+  // This method is more reliable and returns the addon ID
+  console.log('Installing extension via driver.installAddon()...');
+  const installedAddonId = await (driver as any).installAddon(XPI_PATH, true);
+  console.log(`Extension installed with addon ID: ${installedAddonId}`);
+
   // Wait for extension to initialize
   await new Promise(resolve => setTimeout(resolve, 3000));
 
-  // Detect the actual extension UUID
+  // Detect the actual extension UUID from about:debugging
   extensionUUID = await detectExtensionUUID(driver, extensionName);
 
   // Verify the extension is accessible by trying to load its manifest
