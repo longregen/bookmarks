@@ -12,11 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Chrome extension from release
-        uses: robinrber/action-download-release-asset@v1
+        uses: robinraju/release-downloader@v1
         with:
           repository: ${{ github.repository }}
           tag: ${{ github.event.release.tag_name }}
-          file: bookmark-rag-chrome.zip
+          fileName: bookmark-rag-chrome.zip
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload to Chrome Web Store
@@ -37,11 +37,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download Firefox extension from release
-        uses: robinrber/action-download-release-asset@v1
+        uses: robinraju/release-downloader@v1
         with:
           repository: ${{ github.repository }}
           tag: ${{ github.event.release.tag_name }}
-          file: bookmark-rag-firefox.zip
+          fileName: bookmark-rag-firefox.zip
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Prepare source code archive
