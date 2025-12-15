@@ -9,8 +9,7 @@ import { initTheme, onThemeChange, applyTheme, getTheme, setTheme, type Theme } 
 
 const form = document.getElementById('settingsForm') as HTMLFormElement;
 const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
-const backBtn = document.getElementById('backBtn') as HTMLButtonElement;
-const sidebarBackBtn = document.getElementById('sidebarBackBtn') as HTMLButtonElement;
+const navExplore = document.getElementById('navExplore') as HTMLAnchorElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
 
 const apiBaseUrlInput = document.getElementById('apiBaseUrl') as HTMLInputElement;
@@ -110,13 +109,11 @@ testBtn.addEventListener('click', async () => {
   }
 });
 
-// Navigate back to explore page
-function navigateToExplore() {
-  chrome.tabs.create({ url: chrome.runtime.getURL('src/explore/explore.html') });
-}
-
-backBtn.addEventListener('click', navigateToExplore);
-sidebarBackBtn?.addEventListener('click', navigateToExplore);
+// Navigate to explore page (same tab)
+navExplore.addEventListener('click', (e) => {
+  e.preventDefault();
+  window.location.href = chrome.runtime.getURL('src/explore/explore.html');
+});
 
 // Import/Export functionality
 let selectedFile: File | null = null;

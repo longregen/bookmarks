@@ -7,15 +7,27 @@
   <link rel="stylesheet" href="explore.css">
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>Bookmark RAG</h1>
-      <div class="header-actions">
-        <button id="exportAllBtn" class="btn btn-secondary" title="Export All Bookmarks">Export All</button>
-        <button id="settingsBtn" class="btn btn-icon" title="Settings">⚙️</button>
-      </div>
-    </header>
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="app-header__brand">
+      <h1 class="app-header__title">Bookmark RAG</h1>
+    </div>
+    <nav class="app-header__nav">
+      <a href="#" id="navExplore" class="app-header__nav-link active">
+        <span class="app-header__nav-icon">🔍</span>
+        <span>Explore</span>
+      </a>
+      <a href="#" id="navSettings" class="app-header__nav-link">
+        <span class="app-header__nav-icon">⚙️</span>
+        <span>Settings</span>
+      </a>
+    </nav>
+    <div class="app-header__actions">
+      <button id="exportAllBtn" class="btn btn-secondary" title="Export All Bookmarks">Export All</button>
+    </div>
+  </header>
 
+  <div class="container">
     <div class="search-section">
       <div class="search-box">
         <input

@@ -7,12 +7,27 @@
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="app-header__brand">
+      <h1 class="app-header__title">Bookmark RAG</h1>
+    </div>
+    <nav class="app-header__nav">
+      <a href="#" id="navExplore" class="app-header__nav-link">
+        <span class="app-header__nav-icon">🔍</span>
+        <span>Explore</span>
+      </a>
+      <a href="#" id="navSettings" class="app-header__nav-link active">
+        <span class="app-header__nav-icon">⚙️</span>
+        <span>Settings</span>
+      </a>
+    </nav>
+    <div class="app-header__actions"></div>
+  </header>
+
   <div class="settings-layout">
     <!-- Sidebar Navigation (Desktop only) -->
     <aside class="settings-sidebar">
-      <div class="sidebar-header">
-        <h1>Settings</h1>
-      </div>
       <nav class="sidebar-nav">
         <a href="#appearance" class="nav-item active" data-section="appearance">
           <span class="nav-icon">🎨</span>
@@ -39,19 +54,10 @@
           <span class="nav-label">About</span>
         </a>
       </nav>
-      <div class="sidebar-footer">
-        <button id="sidebarBackBtn" class="btn btn-secondary btn-back">← Back to Explore</button>
-      </div>
     </aside>
 
     <!-- Main Content -->
     <div class="settings-content">
-      <header class="mobile-header">
-        <button id="backBtn" class="btn btn-secondary btn-back">← Back to Explore</button>
-        <h1>Bookmark RAG Settings</h1>
-        <p class="subtitle">Configure your API settings for bookmark processing</p>
-      </header>
-
       <main>
         <div id="status" class="status hidden"></div>
 

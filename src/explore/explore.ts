@@ -12,7 +12,7 @@ const RESULTS_PER_PAGE = 10;
 // UI Elements
 const searchInput = document.getElementById('searchInput') as HTMLInputElement;
 const searchBtn = document.getElementById('searchBtn') as HTMLButtonElement;
-const settingsBtn = document.getElementById('settingsBtn') as HTMLButtonElement;
+const navSettings = document.getElementById('navSettings') as HTMLAnchorElement;
 
 const listViewBtn = document.getElementById('listViewBtn') as HTMLButtonElement;
 const searchViewBtn = document.getElementById('searchViewBtn') as HTMLButtonElement;
@@ -709,7 +709,8 @@ retryBtn.addEventListener('click', retryCurrentBookmark);
 exportBtn.addEventListener('click', exportCurrentBookmark);
 exportAllBtn.addEventListener('click', handleExportAll);
 debugHtmlBtn.addEventListener('click', debugCurrentBookmarkHtml);
-settingsBtn.addEventListener('click', () => {
+navSettings.addEventListener('click', (e) => {
+  e.preventDefault();
   window.location.href = chrome.runtime.getURL('src/options/options.html');
 });
 searchBtn.addEventListener('click', performSearch);
