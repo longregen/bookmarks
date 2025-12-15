@@ -850,11 +850,22 @@
   line-height: var(--leading-normal);
 }
 
+/* ===== App Layout ===== */
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-layout__content {
+  flex: 1;
+  overflow-y: auto;
+}
+
 /* ===== App Header / Navigation ===== */
 .app-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
