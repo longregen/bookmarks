@@ -159,32 +159,3 @@ async function processSingleFetch(jobId: string, parentJobId: string): Promise<v
   }
 }
 
-/**
- * Ensure offscreen document exists (Chrome only)
- */
-export async function ensureOffscreenDocument(): Promise<void> {
-  // Check if we're in Chrome and have offscreen API
-  if (typeof chrome !== 'undefined' && chrome.offscreen) {
-    try {
-      // Check if offscreen document already exists
-      const existingContexts = await chrome.runtime.getContexts({
-        contextTypes: ['OFFSCREEN_DOCUMENT' as chrome.runtime.ContextType],
-      });
-
-      if (existingContexts.length > 0) {
-        return; // Already exists
-      }
-
-      // Create offscreen document
-      await chrome.offscreen.createDocument({
-        url: 'src/offscreen/offscreen.html',
-        reasons: ['DOM_SCRAPING' as chrome.offscreen.Reason],
-        justification: 'Fetch URLs for bulk bookmark import',
-      });
-
-      console.log('Offscreen document created');
-    } catch (error) {
-      console.error('Error creating offscreen document:', error);
-    }
-  }
-}

@@ -14,21 +14,11 @@ export interface ExtractedContent {
 }
 
 /**
- * Check if running in Firefox
- */
-function isFirefox(): boolean {
-  return typeof navigator !== 'undefined' && navigator.userAgent.includes('Firefox');
-}
-
-/**
- * Extract markdown from HTML using native DOMParser (Firefox only)
- * This is used directly in Firefox service workers where DOMParser is available
+ * Extract markdown from HTML using native DOMParser
+ * Used in Firefox service workers and Chrome offscreen document
  */
 function extractMarkdownNative(html: string, url: string): ExtractedContent {
-  console.log('[Extract] Using native DOMParser (Firefox)', {
-    url,
-    htmlLength: html.length,
-  });
+  console.log('[Extract] Using native DOMParser', { url, htmlLength: html.length });
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
@@ -43,10 +33,7 @@ function extractMarkdownNative(html: string, url: string): ExtractedContent {
   const article = reader.parse();
 
   if (!article) {
-    console.error('[Extract] Readability returned null', {
-      url,
-      htmlLength: html.length,
-    });
+    console.error('[Extract] Readability returned null', { url, htmlLength: html.length });
     throw new Error('Readability could not parse the page');
   }
 
@@ -59,9 +46,7 @@ function extractMarkdownNative(html: string, url: string): ExtractedContent {
   const contentDoc = parser.parseFromString(article.content ?? '', 'text/html');
   const markdown = turndown.turndown(contentDoc.body);
 
-  console.log('[Extract] Markdown conversion complete', {
-    markdownLength: markdown.length,
-  });
+  console.log('[Extract] Markdown conversion complete', { markdownLength: markdown.length });
 
   return {
     title: article.title ?? '',
@@ -72,45 +57,42 @@ function extractMarkdownNative(html: string, url: string): ExtractedContent {
 }
 
 /**
- * Ensure offscreen document exists (Chrome only)
+ * Ensure offscreen document exists (Chrome MV3 only)
+ * This function is only called in Chrome builds; it's tree-shaken from Firefox builds.
+ * Exported for use by service-worker.ts to pre-create the offscreen document.
  */
-async function ensureOffscreenDocument(): Promise<void> {
-  // Check if we're in Chrome and have offscreen API
-  if (typeof chrome !== 'undefined' && chrome.offscreen) {
-    try {
-      // Check if offscreen document already exists
-      const existingContexts = await chrome.runtime.getContexts({
-        contextTypes: ['OFFSCREEN_DOCUMENT' as chrome.runtime.ContextType],
-      });
+export async function ensureOffscreenDocument(): Promise<void> {
+  try {
+    // Check if offscreen document already exists
+    const existingContexts = await chrome.runtime.getContexts({
+      contextTypes: ['OFFSCREEN_DOCUMENT' as chrome.runtime.ContextType],
+    });
 
-      if (existingContexts.length > 0) {
-        return; // Already exists
-      }
-
-      // Create offscreen document
-      await chrome.offscreen.createDocument({
-        url: 'src/offscreen/offscreen.html',
-        reasons: ['DOM_SCRAPING' as chrome.offscreen.Reason],
-        justification: 'Parse HTML content for bookmark extraction',
-      });
-
-      console.log('[Extract] Offscreen document created');
-    } catch (error) {
-      console.error('[Extract] Error creating offscreen document:', error);
-      throw error;
+    if (existingContexts.length > 0) {
+      return; // Already exists
     }
+
+    // Create offscreen document
+    await chrome.offscreen.createDocument({
+      url: 'src/offscreen/offscreen.html',
+      reasons: ['DOM_SCRAPING' as chrome.offscreen.Reason],
+      justification: 'Parse HTML content for bookmark extraction',
+    });
+
+    console.log('[Extract] Offscreen document created');
+  } catch (error) {
+    console.error('[Extract] Error creating offscreen document:', error);
+    throw error;
   }
 }
 
 /**
  * Extract markdown via Chrome offscreen document
- * Chrome MV3 service workers don't have DOMParser, so we use the offscreen document
+ * Chrome MV3 service workers don't have DOMParser, so we use the offscreen document.
+ * This function is only called in Chrome builds; it's tree-shaken from Firefox builds.
  */
 async function extractMarkdownViaOffscreen(html: string, url: string): Promise<ExtractedContent> {
-  console.log('[Extract] Using offscreen document (Chrome)', {
-    url,
-    htmlLength: html.length,
-  });
+  console.log('[Extract] Using offscreen document (Chrome)', { url, htmlLength: html.length });
 
   // Ensure offscreen document exists before sending message
   await ensureOffscreenDocument();
@@ -121,11 +103,7 @@ async function extractMarkdownViaOffscreen(html: string, url: string): Promise<E
     }, 60000); // 60s timeout for extraction
 
     chrome.runtime.sendMessage(
-      {
-        type: 'EXTRACT_CONTENT',
-        html,
-        url,
-      },
+      { type: 'EXTRACT_CONTENT', html, url },
       (response) => {
         clearTimeout(timeout);
 
@@ -146,15 +124,18 @@ async function extractMarkdownViaOffscreen(html: string, url: string): Promise<E
 
 /**
  * Extract markdown from HTML - async version that works on both browsers
+ * Build-time constants ensure only the relevant code path is included in each build:
  * - Firefox: Uses native DOMParser directly in service worker
  * - Chrome: Routes to offscreen document where DOMParser is available
  */
 export async function extractMarkdownAsync(html: string, url: string): Promise<ExtractedContent> {
-  if (isFirefox()) {
-    // Firefox has DOMParser in service workers
+  // Build-time branching: __IS_FIREFOX__ is replaced with true/false at build time
+  // Bundler eliminates the dead code path during minification
+  if (__IS_FIREFOX__) {
+    // Firefox has DOMParser in service workers - use it directly
     return extractMarkdownNative(html, url);
   } else {
-    // Chrome needs to use offscreen document
+    // Chrome needs to use offscreen document (no DOMParser in service workers)
     return extractMarkdownViaOffscreen(html, url);
   }
 }

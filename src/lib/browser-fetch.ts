@@ -1,14 +1,8 @@
 /**
  * Browser-agnostic fetch wrapper for bulk URL import
  * Chrome uses offscreen document, Firefox can fetch directly in service worker
+ * Build-time constants ensure only the relevant code path is included in each build.
  */
-
-/**
- * Check if running in Firefox
- */
-function isFirefox(): boolean {
-  return typeof navigator !== 'undefined' && navigator.userAgent.includes('Firefox');
-}
 
 /**
  * Fetch a URL with timeout
@@ -48,12 +42,13 @@ export async function fetchWithTimeout(url: string, timeoutMs: number = 30000): 
 
 /**
  * Browser-agnostic fetch that works in both Chrome and Firefox
+ * Build-time branching ensures only the relevant implementation is included.
  * @param url URL to fetch
  * @param timeoutMs Timeout in milliseconds
  * @returns HTML content
  */
 export async function browserFetch(url: string, timeoutMs: number = 30000): Promise<string> {
-  if (isFirefox()) {
+  if (__IS_FIREFOX__) {
     // Firefox MV3 service workers can fetch directly
     return fetchWithTimeout(url, timeoutMs);
   } else {
@@ -63,7 +58,8 @@ export async function browserFetch(url: string, timeoutMs: number = 30000): Prom
 }
 
 /**
- * Fetch URL via Chrome offscreen document
+ * Fetch URL via Chrome offscreen document (Chrome only)
+ * This function is only called in Chrome builds; it's tree-shaken from Firefox builds.
  * @param url URL to fetch
  * @param timeoutMs Timeout in milliseconds
  * @returns HTML content
