@@ -282,9 +282,9 @@ Click card to open detail panel (same panel as Library).
 
 ### Search History
 
-- Stored in memory (last 10 queries)
-- **Not displayed in UI** - reserved for future autocomplete feature
-- Optional setting to enable/disable autocomplete suggestions
+- Stored in memory
+- only shown as  autocomplete 
+- setting to enable/disable autocomplete suggestions, erase history
 
 ---
 
@@ -292,7 +292,7 @@ Click card to open detail panel (same panel as Library).
 
 ### Layout
 
-Matches Library structure exactly. Simple shuffle action at top.
+Matches Library structure exactly. Simple shuffle action at top, in line with shuffle button, shuffle button on right align, show results on left align
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -619,22 +619,6 @@ db.version(3).stores({
 | Tablet | 600-899px | Sidebar as drawer + List, Detail as overlay |
 | Mobile | <600px | Sidebar as dropdown, List full, Detail full screen |
 
----
-
-## Keyboard Shortcuts
-
-| Key | Action |
-|-----|--------|
-| `1` | Go to Library |
-| `2` | Go to Search |
-| `3` | Go to Stumble |
-| `4` | Go to Settings |
-| `/` | Focus search input |
-| `Escape` | Close detail panel |
-| `j` / `↓` | Next item |
-| `k` / `↑` | Previous item |
-| `Enter` | Open detail panel |
-| `r` | Shuffle (Stumble only) |
 
 ---
 
@@ -680,121 +664,3 @@ describe('Search', () => {
   it('limits history to 10 queries');
 });
 ```
-
-### Detail Panel Tests
-```typescript
-describe('DetailPanel', () => {
-  it('opens when card is clicked');
-  it('closes on back button click');
-  it('closes on Escape key');
-  it('displays bookmark content');
-  it('displays Q&A pairs');
-  it('allows tag editing');
-  it('works from Library, Search, and Stumble');
-});
-```
-
----
-
-## Implementation Phases
-
-### Phase 1: Tags Foundation
-- [ ] Add Tags and BookmarkTags tables (schema v3)
-- [ ] Create tag CRUD in `lib/tags.ts`
-- [ ] Tag display on bookmark cards
-- [ ] Tag editor component with autocomplete
-- [ ] Tests for tag editor
-
-### Phase 2: Unified Detail Panel
-- [ ] Create shared DetailPanel component
-- [ ] Integrate with Library
-- [ ] Tag editing in panel
-- [ ] Tests for detail panel
-
-### Phase 3: Library Redesign
-- [ ] Sidebar with tag filtering (checkboxes)
-- [ ] Untagged view
-- [ ] New card layout (status right-aligned)
-- [ ] Responsive breakpoints
-
-### Phase 4: Search Page
-- [ ] Dedicated search.html
-- [ ] Sidebar with tag/status checkboxes
-- [ ] Search result cards with Q&A preview
-- [ ] Search history in memory
-- [ ] Shared detail panel integration
-- [ ] Tests for search
-
-### Phase 5: Stumble Feature
-- [ ] Dedicated stumble.html
-- [ ] Shuffle button + "Showing 10 random bookmarks"
-- [ ] Tag filter checkboxes
-- [ ] Random selection algorithm
-- [ ] Shared detail panel integration
-- [ ] Tests for stumble algorithm
-
-### Phase 6: Settings Overhaul
-- [ ] Sidebar section navigation
-- [ ] Unified visual hierarchy
-- [ ] Search autocomplete toggle option
-
-### Phase 7: Polish
-- [ ] Unified header component
-- [ ] Keyboard navigation
-- [ ] Mobile responsive testing
-- [ ] Animation refinements
-
----
-
-## File Structure
-
-```
-src/
-├── popup/
-│   ├── popup.html
-│   ├── popup.ts
-│   └── popup.css
-├── library/
-│   ├── library.html
-│   ├── library.ts
-│   └── library.css
-├── search/
-│   ├── search.html
-│   ├── search.ts
-│   └── search.css
-├── stumble/
-│   ├── stumble.html
-│   ├── stumble.ts
-│   └── stumble.css
-├── options/
-│   ├── options.html
-│   ├── options.ts
-│   └── options.css
-├── components/
-│   ├── header.ts
-│   ├── sidebar.ts
-│   ├── bookmark-card.ts
-│   ├── detail-panel.ts
-│   └── tag-editor.ts
-├── lib/
-│   ├── tags.ts
-│   ├── stumble.ts
-│   └── ... (existing)
-├── shared/
-│   ├── theme.css
-│   └── theme.ts
-└── db/
-    └── schema.ts
-
-tests/
-├── tag-editor.test.ts
-├── stumble-algorithm.test.ts
-├── search.test.ts
-├── detail-panel.test.ts
-└── ... (existing)
-```
-
----
-
-*Document v4.0 - December 2024*
-*Final specification with all decisions incorporated*
