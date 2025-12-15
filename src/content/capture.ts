@@ -3,20 +3,38 @@
 
 import { getTheme, getEffectiveTheme } from '../shared/theme';
 
-// Theme-aware toast colors
-const toastColors = {
-  light: {
-    success: { bg: '#d1fae5', text: '#065f46', border: '#6ee7b7' },
-    error: { bg: '#fee2e2', text: '#991b1b', border: '#fca5a5' }
-  },
-  dark: {
-    success: { bg: '#065f46', text: '#d1fae5', border: '#059669' },
-    error: { bg: '#7f1d1d', text: '#fecaca', border: '#dc2626' }
-  },
-  terminal: {
-    success: { bg: '#001100', text: '#00ff00', border: '#00ff00' },
-    error: { bg: '#110000', text: '#ff3333', border: '#ff3333' }
-  }
+// CSS variables for each theme (injected into the page for toast styling)
+const themeCssVariables = {
+  light: `
+    --toast-success-bg: #d1fae5;
+    --toast-success-text: #065f46;
+    --toast-success-border: #6ee7b7;
+    --toast-error-bg: #fee2e2;
+    --toast-error-text: #991b1b;
+    --toast-error-border: #fca5a5;
+    --toast-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --toast-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  `,
+  dark: `
+    --toast-success-bg: #065f46;
+    --toast-success-text: #d1fae5;
+    --toast-success-border: #059669;
+    --toast-error-bg: #7f1d1d;
+    --toast-error-text: #fecaca;
+    --toast-error-border: #dc2626;
+    --toast-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --toast-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  `,
+  terminal: `
+    --toast-success-bg: #001100;
+    --toast-success-text: #00ff00;
+    --toast-success-border: #00ff00;
+    --toast-error-bg: #110000;
+    --toast-error-text: #ff3333;
+    --toast-error-border: #ff3333;
+    --toast-font-family: monospace;
+    --toast-shadow: 0 4px 6px rgba(0, 255, 0, 0.1);
+  `
 };
 
 async function capturePage() {
@@ -41,13 +59,27 @@ async function capturePage() {
   }
 }
 
+// Inject CSS variables for the current theme into the page
+function injectThemeVariables(effectiveTheme: 'light' | 'dark' | 'terminal') {
+  const styleId = 'bookmark-rag-toast-theme';
+  let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
+
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = styleId;
+    document.head.appendChild(styleEl);
+  }
+
+  styleEl.textContent = `:root { ${themeCssVariables[effectiveTheme]} }`;
+}
+
 async function showNotification(message: string, type: 'success' | 'error') {
-  // Get the user's theme preference
+  // Get the user's theme preference and inject CSS variables
   const theme = await getTheme();
   const effectiveTheme = getEffectiveTheme(theme);
-  const colors = toastColors[effectiveTheme][type];
+  injectThemeVariables(effectiveTheme);
 
-  // Create a simple toast notification
+  // Create a simple toast notification using CSS variables
   const toast = document.createElement('div');
   toast.textContent = message;
   toast.style.cssText = `
@@ -55,14 +87,14 @@ async function showNotification(message: string, type: 'success' | 'error') {
     top: 20px;
     right: 20px;
     padding: 12px 24px;
-    background: ${colors.bg};
-    color: ${colors.text};
-    border: 1px solid ${colors.border};
+    background: var(--toast-${type}-bg);
+    color: var(--toast-${type}-text);
+    border: 1px solid var(--toast-${type}-border);
     border-radius: 8px;
-    font-family: ${effectiveTheme === 'terminal' ? 'monospace' : "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"};
+    font-family: var(--toast-font-family);
     font-size: 14px;
     font-weight: 500;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--toast-shadow);
     z-index: 999999;
     animation: slideIn 0.3s ease-out;
   `;
