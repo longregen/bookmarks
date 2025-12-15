@@ -131,19 +131,18 @@ BROWSER_TYPE=chrome \
 BROWSER_PATH=/path/to/chrome \
 EXTENSION_PATH=dist-chrome \
 OPENAI_API_KEY=your-key \
-npm run test:e2e
+npm run test:e2e:chrome
 ```
 
 #### Firefox E2E Tests
 ```bash
-BROWSER_TYPE=firefox \
 BROWSER_PATH=/path/to/firefox \
 EXTENSION_PATH=dist-firefox \
 OPENAI_API_KEY=your-key \
-npm run test:e2e
+npm run test:e2e:firefox
 ```
 
-⚠️ **Firefox E2E Limitations**: Puppeteer's Firefox support is experimental. See "Firefox E2E Test Status" section below for details.
+Firefox E2E tests use Selenium WebDriver with GeckoDriver for reliable extension testing.
 
 ### Run All Tests
 ```bash
@@ -245,61 +244,41 @@ Tests are run in GitHub Actions:
 
 ## Firefox E2E Test Status
 
-The e2e test suite has been extended to support both Chrome and Firefox browsers. However, there are important limitations with Firefox support:
+The e2e test suite supports both Chrome and Firefox browsers with reliable testing infrastructure.
 
 ### Current Status
 
-- ✅ **Chrome E2E tests** - Work reliably in all environments
-- ⚠️ **Firefox E2E tests** - Infrastructure configured but experimental
+- ✅ **Chrome E2E tests** (`e2e.test.ts`) - Uses Puppeteer, works reliably in all environments
+- ✅ **Firefox E2E tests** (`e2e-firefox.test.ts`) - Uses Selenium WebDriver, works reliably in all environments
 - ✅ **Firefox extension tests** (non-e2e) - Work using web-ext
 
 ### Technical Details
 
-The Firefox e2e implementation includes:
-- **firefox-setup.ts**: Helper module to pre-install Firefox extensions in test profiles
-- **Browser detection**: Automatic protocol switching (`moz-extension://` vs `chrome-extension://`)
-- **Profile setup**: Extensions are copied to Firefox profile before launch
+**Chrome E2E Tests:**
+- Framework: Puppeteer
+- File: `tests/e2e.test.ts`
+- Extension protocol: `chrome-extension://`
 
-### Known Limitations
+**Firefox E2E Tests:**
+- Framework: Selenium WebDriver with GeckoDriver
+- File: `tests/e2e-firefox.test.ts`
+- Extension protocol: `moz-extension://`
+- Extension packaging: Automatically creates XPI from extension directory
+- UUID detection: Dynamically detects extension UUID from `about:debugging`
 
-⚠️ **Puppeteer's Firefox support has significant issues:**
+### Why Selenium for Firefox?
 
-1. **Connection Timeout**: Puppeteer may timeout waiting for WebSocket/pipe connections to Firefox
-2. **Experimental Status**: Firefox support in Puppeteer is marked as experimental
-3. **CI Environment**: More reliable locally than in CI/CD pipelines
+Puppeteer's Firefox support via WebDriver BiDi cannot interact with `moz-extension://` pages, making it unsuitable for Firefox extension testing. Selenium WebDriver with GeckoDriver provides full support for:
+- Navigation to `moz-extension://` pages
+- Extension installation and management
+- Complete extension API testing
 
-### CI Workflow Behavior
+### CI Workflow
 
-The GitHub Actions workflow handles Firefox e2e tests with:
-- `continue-on-error: true` - Prevents CI failures
-- Clear messaging about experimental status
-- Fallback messages if tests fail
-
-### Recommended Alternatives
-
-For production-grade Firefox e2e testing, consider:
-
-1. **Playwright** - Superior cross-browser support including Firefox
-   ```bash
-   npm install -D @playwright/test
-   ```
-
-2. **web-ext run** - Official Firefox extension testing tool
-   ```bash
-   web-ext run --source-dir dist-firefox
-   ```
-
-3. **Selenium WebDriver** - Mature testing framework
-   ```bash
-   npm install -D selenium-webdriver geckodriver
-   ```
-
-### Future Improvements
-
-Potential paths forward:
-- Migrate to Playwright for better Firefox support
-- Create separate Firefox e2e tests using web-ext
-- Focus on Chrome e2e + Firefox unit/integration tests
+Both Chrome and Firefox E2E tests run in GitHub Actions:
+- Firefox tests use Selenium with GeckoDriver
+- Tests fail the build if they encounter errors (no `continue-on-error`)
+- Full test coverage across both browsers
 
 ## Troubleshooting
 
