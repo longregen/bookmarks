@@ -14,9 +14,8 @@ import type { UserConfig } from 'vite';
  *   if (__IS_CHROME__) { ... } // Dead code eliminated in Firefox builds
  */
 export const sharedDefine = {
-  // Enable debug logging for embeddings pipeline (ON by default for beta)
   // Set to false to disable all embedding-related console.log statements
-  __DEBUG_EMBEDDINGS__: JSON.stringify(true),
+  __DEBUG_EMBEDDINGS__: JSON.stringify(false),
 };
 
 export const sharedConfig: Partial<UserConfig> = {
