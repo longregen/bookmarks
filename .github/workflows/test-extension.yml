@@ -215,28 +215,22 @@ jobs:
           firefox-version: latest
         id: setup-firefox
 
+      - name: Install GeckoDriver
+        uses: browser-actions/setup-geckodriver@latest
+
       - name: Install xvfb
         run: sudo apt-get update && sudo apt-get install -y xvfb
 
-      - name: Run Firefox E2E tests with API
+      - name: Run Firefox E2E tests with Selenium
         if: env.HAS_API_KEY == 'true'
-        continue-on-error: true
         env:
-          BROWSER_TYPE: firefox
           BROWSER_PATH: ${{ steps.setup-firefox.outputs.firefox-path }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EXTENSION_PATH: dist-firefox
         run: |
-          echo "⚠️  Note: Puppeteer's Firefox support is experimental and may have limitations"
-          echo "Attempting to run Firefox E2E tests..."
-          xvfb-run --auto-servernum npx tsx tests/e2e.test.ts || echo "❌ Firefox E2E tests failed due to Puppeteer's limited Firefox support"
+          echo "Running Firefox E2E tests with Selenium/GeckoDriver..."
+          xvfb-run --auto-servernum npx tsx tests/e2e-firefox.test.ts
 
       - name: Skip Firefox E2E tests (no API key)
         if: env.HAS_API_KEY != 'true'
         run: echo "Skipping Firefox E2E tests - OPENAI_API_KEY secret not configured"
-
-      - name: Firefox E2E Test Notice
-        if: env.HAS_API_KEY == 'true'
-        run: |
-          echo "ℹ️  Firefox E2E tests are experimental due to Puppeteer's limited Firefox support."
-          echo "For production testing, consider using Playwright or web-ext run for Firefox."
