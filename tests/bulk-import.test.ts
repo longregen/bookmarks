@@ -6,7 +6,6 @@ import {
   createBulkImportJob,
   extractTitleFromHtml,
   bookmarkExists,
-  getExistingUrls,
 } from '../src/lib/bulk-import';
 
 describe('Bulk Import Library', () => {
@@ -381,76 +380,6 @@ describe('Bulk Import Library', () => {
 
       const exists = await bookmarkExists('https://EXAMPLE.COM');
       expect(exists).toBe(false);
-    });
-  });
-
-  describe('getExistingUrls', () => {
-    it('should return set of existing URLs', async () => {
-      await db.bookmarks.add({
-        id: 'test-1',
-        url: 'https://example.com',
-        title: 'Test 1',
-        html: '<html></html>',
-        status: 'pending',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      await db.bookmarks.add({
-        id: 'test-2',
-        url: 'https://github.com',
-        title: 'Test 2',
-        html: '<html></html>',
-        status: 'pending',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      const urls = [
-        'https://example.com',
-        'https://github.com',
-        'https://google.com',
-      ];
-
-      const existing = await getExistingUrls(urls);
-      expect(existing.size).toBe(2);
-      expect(existing.has('https://example.com')).toBe(true);
-      expect(existing.has('https://github.com')).toBe(true);
-      expect(existing.has('https://google.com')).toBe(false);
-    });
-
-    it('should return empty set if no URLs exist', async () => {
-      const urls = [
-        'https://example.com',
-        'https://github.com',
-      ];
-
-      const existing = await getExistingUrls(urls);
-      expect(existing.size).toBe(0);
-    });
-
-    it('should handle empty URL array', async () => {
-      const existing = await getExistingUrls([]);
-      expect(existing.size).toBe(0);
-    });
-
-    it('should handle large URL lists', async () => {
-      // Add one existing bookmark
-      await db.bookmarks.add({
-        id: 'test-1',
-        url: 'https://example50.com',
-        title: 'Test',
-        html: '<html></html>',
-        status: 'pending',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      const urls = Array.from({ length: 100 }, (_, i) => `https://example${i}.com`);
-      const existing = await getExistingUrls(urls);
-
-      expect(existing.size).toBe(1);
-      expect(existing.has('https://example50.com')).toBe(true);
     });
   });
 

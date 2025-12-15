@@ -228,20 +228,3 @@ export async function bookmarkExists(url: string): Promise<boolean> {
   const existing = await db.bookmarks.where('url').equals(url).first();
   return !!existing;
 }
-
-/**
- * Get existing bookmark URLs to check for duplicates
- * @param urls URLs to check
- * @returns Set of URLs that already exist
- */
-export async function getExistingUrls(urls: string[]): Promise<Set<string>> {
-  const existing = new Set<string>();
-
-  for (const url of urls) {
-    if (await bookmarkExists(url)) {
-      existing.add(url);
-    }
-  }
-
-  return existing;
-}
