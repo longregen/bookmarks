@@ -1,4 +1,6 @@
 name: Publish to Browser Stores
+permissions:
+  contents: read
 
 on:
   release:
