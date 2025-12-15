@@ -2,7 +2,8 @@ import { db, JobType, JobStatus } from '../db/schema';
 import { startProcessingQueue } from './queue';
 import { createJob, completeJob, failJob } from '../lib/jobs';
 import { createBulkImportJob } from '../lib/bulk-import';
-import { processBulkFetch, ensureOffscreenDocument } from './fetcher';
+import { processBulkFetch } from './fetcher';
+import { ensureOffscreenDocument } from '../lib/extract';
 
 console.log('Bookmark RAG service worker loaded');
 
@@ -182,8 +183,10 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
 
 async function handleBulkImport(urls: string[]) {
   try {
-    // Ensure offscreen document exists (Chrome only)
-    await ensureOffscreenDocument();
+    // Ensure offscreen document exists (Chrome only, tree-shaken from Firefox builds)
+    if (__IS_CHROME__) {
+      await ensureOffscreenDocument();
+    }
 
     // Create bulk import job and child jobs
     const parentJobId = await createBulkImportJob(urls);

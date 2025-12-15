@@ -95,6 +95,7 @@ export function validateSingleUrl(url: string): UrlValidation {
     return {
       original,
       normalized: '',
+      isValid: false,
       error: 'VBScript URLs are not allowed',
     };
   }
@@ -103,7 +104,6 @@ export function validateSingleUrl(url: string): UrlValidation {
     return {
       original,
       normalized: '',
-      isValid: false,
       isValid: false,
       error: 'File URLs are not allowed',
     };
