@@ -9,6 +9,11 @@ on:
     branches: ['main']
   workflow_dispatch:
 
+# Pin browser versions for consistent caching
+env:
+  FIREFOX_VERSION: '134.0'
+  GECKODRIVER_VERSION: '0.36.0'
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -65,22 +70,36 @@ jobs:
           name: extension-chrome
           path: dist-chrome/
 
+      # Cache Chromium browser download
       # Use Chromium instead of Google Chrome because Google Chrome blocks
       # the --load-extension and --disable-extensions-except flags for security.
       # Chromium (the open-source base) allows these flags for testing.
+      - name: Cache Chromium
+        uses: actions/cache@v4
+        id: cache-chromium
+        with:
+          path: ~/.cache/puppeteer
+          key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            chromium-${{ runner.os }}-
+
       - name: Install Chromium
         run: |
           sudo apt-get update
-          sudo apt-get install -y chromium-browser xvfb
-          chromium-browser --version
+          sudo apt-get install -y xvfb
+          # Download Chromium via Puppeteer if not cached
+          npx puppeteer browsers install chrome
+          echo "PUPPETEER_CHROMIUM_PATH=$(npx puppeteer browsers path chrome)" >> $GITHUB_ENV
 
       - name: Run Chrome extension tests
         env:
           BROWSER_TYPE: chrome
-          BROWSER_PATH: /usr/bin/chromium-browser
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EXTENSION_PATH: dist-chrome
-        run: xvfb-run --auto-servernum npx tsx tests/extension.test.ts
+        run: |
+          # PUPPETEER_CHROMIUM_PATH is set via GITHUB_ENV in a previous step
+          export BROWSER_PATH="$PUPPETEER_CHROMIUM_PATH"
+          xvfb-run --auto-servernum npx tsx tests/extension.test.ts
 
   test-firefox:
     needs: build
@@ -103,10 +122,18 @@ jobs:
           name: extension-firefox
           path: dist-firefox/
 
+      # Cache Firefox browser download
+      - name: Cache Firefox
+        uses: actions/cache@v4
+        id: cache-firefox
+        with:
+          path: ${{ runner.tool_cache }}/firefox
+          key: firefox-${{ runner.os }}-${{ env.FIREFOX_VERSION }}
+
       - name: Install Firefox
         uses: browser-actions/setup-firefox@v1
         with:
-          firefox-version: latest
+          firefox-version: ${{ env.FIREFOX_VERSION }}
         id: setup-firefox
 
       - name: Install xvfb and web-ext
@@ -165,21 +192,36 @@ jobs:
           name: extension-chrome
           path: dist-chrome/
 
+      # Cache Chromium browser download
       # Use Chromium instead of Google Chrome because Google Chrome blocks
       # the --load-extension and --disable-extensions-except flags for security.
+      - name: Cache Chromium
+        uses: actions/cache@v4
+        id: cache-chromium
+        with:
+          path: ~/.cache/puppeteer
+          key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            chromium-${{ runner.os }}-
+
       - name: Install Chromium
         run: |
           sudo apt-get update
-          sudo apt-get install -y chromium-browser xvfb
+          sudo apt-get install -y xvfb
+          # Download Chromium via Puppeteer if not cached
+          npx puppeteer browsers install chrome
+          echo "PUPPETEER_CHROMIUM_PATH=$(npx puppeteer browsers path chrome)" >> $GITHUB_ENV
 
       - name: Run E2E tests with API
         if: env.HAS_API_KEY == 'true'
         env:
           BROWSER_TYPE: chrome
-          BROWSER_PATH: /usr/bin/chromium-browser
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EXTENSION_PATH: dist-chrome
-        run: xvfb-run --auto-servernum npx tsx tests/e2e.test.ts
+        run: |
+          # PUPPETEER_CHROMIUM_PATH is set via GITHUB_ENV in a previous step
+          export BROWSER_PATH="$PUPPETEER_CHROMIUM_PATH"
+          xvfb-run --auto-servernum npx tsx tests/e2e.test.ts
 
       - name: Skip E2E tests (no API key)
         if: env.HAS_API_KEY != 'true'
@@ -208,14 +250,32 @@ jobs:
           name: extension-firefox
           path: dist-firefox/
 
+      # Cache Firefox browser download
+      - name: Cache Firefox
+        uses: actions/cache@v4
+        id: cache-firefox
+        with:
+          path: ${{ runner.tool_cache }}/firefox
+          key: firefox-${{ runner.os }}-${{ env.FIREFOX_VERSION }}
+
       - name: Install Firefox
         uses: browser-actions/setup-firefox@v1
         with:
-          firefox-version: latest
+          firefox-version: ${{ env.FIREFOX_VERSION }}
         id: setup-firefox
+
+      # Cache GeckoDriver download
+      - name: Cache GeckoDriver
+        uses: actions/cache@v4
+        id: cache-geckodriver
+        with:
+          path: ${{ runner.tool_cache }}/geckodriver
+          key: geckodriver-${{ runner.os }}-${{ env.GECKODRIVER_VERSION }}
 
       - name: Install GeckoDriver
         uses: browser-actions/setup-geckodriver@latest
+        with:
+          geckodriver-version: ${{ env.GECKODRIVER_VERSION }}
 
       - name: Install xvfb and zip
         run: sudo apt-get update && sudo apt-get install -y xvfb zip
