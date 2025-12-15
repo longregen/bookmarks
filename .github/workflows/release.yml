@@ -55,9 +55,7 @@ jobs:
       - name: Generate release tag
         id: tag
         run: |
-          # Create a unique tag with version and short SHA
-          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
-          TAG="v${{ steps.version.outputs.version }}-${SHORT_SHA}"
+          TAG="v${{ steps.version.outputs.version }}"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "Tag: $TAG"
 
