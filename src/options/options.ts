@@ -5,7 +5,8 @@ import { getRecentJobs, type Job } from '../lib/jobs';
 import { db, JobType, JobStatus } from '../db/schema';
 import { createElement, showStatusMessage } from '../lib/dom';
 import { formatTimeAgo } from '../lib/time';
-import { initTheme, onThemeChange, applyTheme, getTheme, setTheme, type Theme } from '../shared/theme';
+import { onThemeChange, applyTheme, getTheme, setTheme, type Theme } from '../shared/theme';
+import { initExtension } from '../lib/init-extension';
 
 const form = document.getElementById('settingsForm') as HTMLFormElement;
 const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
@@ -790,7 +791,7 @@ themeRadios.forEach(radio => {
 });
 
 // Initialize theme
-initTheme();
+initExtension();
 onThemeChange((theme) => applyTheme(theme));
 
 // Sidebar Navigation

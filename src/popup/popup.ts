@@ -1,5 +1,6 @@
 import { showStatusMessage } from '../lib/dom';
-import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
+import { onThemeChange, applyTheme } from '../shared/theme';
+import { initExtension } from '../lib/init-extension';
 
 const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
@@ -70,5 +71,5 @@ navSettings.addEventListener('click', () => {
 });
 
 // Initialize theme
-initTheme();
+initExtension();
 onThemeChange((theme) => applyTheme(theme));
