@@ -167,7 +167,7 @@ loadBookmarks();
 
 // Event-driven updates instead of constant polling
 const removeEventListener = addBookmarkEventListener((event) => {
-  if (event.type === 'BOOKMARK_UPDATED' || event.type === 'PROCESSING_COMPLETE') {
+  if (event.type === 'BOOKMARK_UPDATED' || event.type === 'PROCESSING_COMPLETE' || event.type === 'TAG_UPDATED') {
     loadTags();
     loadBookmarks();
   }

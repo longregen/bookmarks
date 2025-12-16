@@ -24,6 +24,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export class FirefoxAdapter implements TestAdapter {
   platformName = 'Firefox Extension';
+  isExtension = true;
 
   private driver: WebDriver | null = null;
   private extensionUUID: string = '';

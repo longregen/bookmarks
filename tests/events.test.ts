@@ -212,5 +212,47 @@ describe('Event System', () => {
 
       expect(receivedEvents).toHaveLength(1);
     });
+
+    it('should support TAG_UPDATED events', async () => {
+      removeListener = addEventListener((event) => {
+        if (event.type === 'TAG_UPDATED') {
+          receivedEvents.push(event);
+        }
+      });
+
+      await broadcastEvent('TAG_UPDATED', {
+        bookmarkId: 'bookmark-123',
+        tagName: 'javascript',
+        action: 'added'
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(receivedEvents).toHaveLength(1);
+      expect(receivedEvents[0].payload.bookmarkId).toBe('bookmark-123');
+      expect(receivedEvents[0].payload.tagName).toBe('javascript');
+      expect(receivedEvents[0].payload.action).toBe('added');
+    });
+
+    it('should support TAG_UPDATED events for tag removal', async () => {
+      removeListener = addEventListener((event) => {
+        if (event.type === 'TAG_UPDATED') {
+          receivedEvents.push(event);
+        }
+      });
+
+      await broadcastEvent('TAG_UPDATED', {
+        bookmarkId: 'bookmark-456',
+        tagName: 'tutorial',
+        action: 'removed'
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(receivedEvents).toHaveLength(1);
+      expect(receivedEvents[0].payload.bookmarkId).toBe('bookmark-456');
+      expect(receivedEvents[0].payload.tagName).toBe('tutorial');
+      expect(receivedEvents[0].payload.action).toBe('removed');
+    });
   });
 });

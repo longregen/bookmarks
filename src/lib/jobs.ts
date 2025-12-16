@@ -1,14 +1,8 @@
 import { db, Job, JobType, JobStatus } from '../db/schema';
 import { broadcastEvent } from './events';
 
-// Re-export Job type for consumers
 export type { Job };
 
-/**
- * Create a new job in the database
- * @param params Job creation parameters
- * @returns The created job with generated ID
- */
 export async function createJob(params: {
   type: JobType;
   status?: JobStatus;
@@ -40,11 +34,6 @@ export async function createJob(params: {
   return job;
 }
 
-/**
- * Update an existing job's progress and/or status
- * @param jobId Job ID to update
- * @param updates Fields to update
- */
 export async function updateJob(
   jobId: string,
   updates: {
@@ -91,16 +80,9 @@ export async function updateJob(
   }
 
   await db.jobs.update(jobId, updatedJob);
-
-  // Broadcast event when job is updated
   await broadcastEvent('JOB_UPDATED', { jobId, updates: updatedJob });
 }
 
-/**
- * Mark a job as completed with optional metadata
- * @param jobId Job ID to complete
- * @param metadata Additional metadata to store
- */
 export async function completeJob(
   jobId: string,
   metadata?: Partial<Job['metadata']>
@@ -117,16 +99,9 @@ export async function completeJob(
     updatedAt: new Date(),
     completedAt: new Date(),
   });
-
-  // Broadcast event when job completes
   await broadcastEvent('JOB_UPDATED', { jobId, status: JobStatus.COMPLETED });
 }
 
-/**
- * Mark a job as failed with error details
- * @param jobId Job ID to fail
- * @param error Error object or message
- */
 export async function failJob(
   jobId: string,
   error: Error | string
@@ -149,15 +124,9 @@ export async function failJob(
     updatedAt: new Date(),
     completedAt: new Date(),
   });
-
-  // Broadcast event when job fails
   await broadcastEvent('JOB_UPDATED', { jobId, status: JobStatus.FAILED });
 }
 
-/**
- * Cancel a job
- * @param jobId Job ID to cancel
- */
 export async function cancelJob(jobId: string): Promise<void> {
   await db.jobs.update(jobId, {
     status: JobStatus.CANCELLED,
@@ -166,11 +135,6 @@ export async function cancelJob(jobId: string): Promise<void> {
   });
 }
 
-/**
- * Get all jobs associated with a bookmark
- * @param bookmarkId Bookmark ID
- * @returns Array of jobs ordered by creation date (newest first)
- */
 export async function getJobsByBookmark(bookmarkId: string): Promise<Job[]> {
   return await db.jobs
     .where('bookmarkId')
@@ -179,11 +143,6 @@ export async function getJobsByBookmark(bookmarkId: string): Promise<Job[]> {
     .sortBy('createdAt');
 }
 
-/**
- * Get all child jobs of a parent job
- * @param parentJobId Parent job ID
- * @returns Array of child jobs ordered by creation date
- */
 export async function getJobsByParent(parentJobId: string): Promise<Job[]> {
   return await db.jobs
     .where('parentJobId')
@@ -191,10 +150,6 @@ export async function getJobsByParent(parentJobId: string): Promise<Job[]> {
     .sortBy('createdAt');
 }
 
-/**
- * Get all active (in-progress) jobs
- * @returns Array of in-progress jobs
- */
 export async function getActiveJobs(): Promise<Job[]> {
   return await db.jobs
     .where('status')
@@ -202,11 +157,6 @@ export async function getActiveJobs(): Promise<Job[]> {
     .sortBy('createdAt');
 }
 
-/**
- * Get recent jobs with optional filtering
- * @param options Filter options
- * @returns Array of jobs matching criteria
- */
 export async function getRecentJobs(options?: {
   limit?: number;
   type?: JobType;
@@ -218,7 +168,6 @@ export async function getRecentJobs(options?: {
   // Get all jobs first (we'll filter and limit after)
   let jobs = await query.toArray();
 
-  // Apply filters before limiting
   if (options?.type) {
     jobs = jobs.filter(job => job.type === options.type);
   }
@@ -235,11 +184,6 @@ export async function getRecentJobs(options?: {
   return jobs.slice(0, options?.limit || 100);
 }
 
-/**
- * Delete completed jobs older than the specified number of days
- * @param daysOld Number of days (default: 30)
- * @returns Number of jobs deleted
- */
 export async function cleanupOldJobs(daysOld: number = 30): Promise<number> {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysOld);
@@ -256,49 +200,32 @@ export async function cleanupOldJobs(daysOld: number = 30): Promise<number> {
   return jobIds.length;
 }
 
-/**
- * Find all jobs that were interrupted (stuck in IN_PROGRESS or PENDING with no active processor)
- * This is used to detect jobs that need resumption after a service worker restart
- * All results are sorted by updatedAt ascending (oldest first for round-robin processing)
- */
 export async function findInterruptedJobs(): Promise<{
   bulkImportJobs: Job[];
   pendingFetchJobs: Job[];
   inProgressFetchJobs: Job[];
 }> {
-  // Find BULK_URL_IMPORT jobs that are still IN_PROGRESS (parent jobs)
-  // Sort by updatedAt ascending so oldest jobs are processed first
   const bulkImportJobs = await db.jobs
     .where('type')
     .equals(JobType.BULK_URL_IMPORT)
     .and(job => job.status === JobStatus.IN_PROGRESS)
     .sortBy('updatedAt');
 
-  // Find URL_FETCH jobs that are PENDING (never started)
   const pendingFetchJobs = await db.jobs
     .where('type')
     .equals(JobType.URL_FETCH)
     .and(job => job.status === JobStatus.PENDING)
     .sortBy('updatedAt');
 
-  // Find URL_FETCH jobs that were IN_PROGRESS (started but interrupted)
   const inProgressFetchJobs = await db.jobs
     .where('type')
     .equals(JobType.URL_FETCH)
     .and(job => job.status === JobStatus.IN_PROGRESS)
     .sortBy('updatedAt');
 
-  return {
-    bulkImportJobs,
-    pendingFetchJobs,
-    inProgressFetchJobs,
-  };
+  return { bulkImportJobs, pendingFetchJobs, inProgressFetchJobs };
 }
 
-/**
- * Reset interrupted jobs back to PENDING so they can be resumed
- * @returns Summary of what was reset
- */
 export async function resetInterruptedJobs(): Promise<{
   bulkImportsReset: number;
   fetchJobsReset: number;
@@ -308,7 +235,6 @@ export async function resetInterruptedJobs(): Promise<{
   let bulkImportsReset = 0;
   let fetchJobsReset = 0;
 
-  // Reset IN_PROGRESS fetch jobs back to PENDING
   for (const job of inProgressFetchJobs) {
     await db.jobs.update(job.id, {
       status: JobStatus.PENDING,
@@ -320,30 +246,16 @@ export async function resetInterruptedJobs(): Promise<{
       },
     });
     fetchJobsReset++;
-    console.log(`Reset interrupted fetch job: ${job.id} (URL: ${job.metadata.url})`);
   }
 
-  // For bulk import jobs, we don't reset the parent - we'll resume it
-  // Just log what we found
   for (const job of bulkImportJobs) {
-    console.log(`Found interrupted bulk import job: ${job.id} (${job.metadata.successCount || 0}/${job.metadata.totalUrls} complete)`);
     bulkImportsReset++;
   }
 
-  return {
-    bulkImportsReset,
-    fetchJobsReset,
-  };
+  return { bulkImportsReset, fetchJobsReset };
 }
 
-/**
- * Get all bulk import parent jobs that need resumption
- * A job needs resumption if it's IN_PROGRESS and has PENDING child jobs
- * Returns jobs sorted by updatedAt ascending (oldest first for round-robin)
- */
 export async function getBulkImportsToResume(): Promise<Job[]> {
-  // Find BULK_URL_IMPORT jobs that are IN_PROGRESS
-  // Sort by updatedAt ascending so oldest/least recently updated jobs go first
   const inProgressBulkImports = await db.jobs
     .where('type')
     .equals(JobType.BULK_URL_IMPORT)
@@ -353,7 +265,6 @@ export async function getBulkImportsToResume(): Promise<Job[]> {
   const jobsToResume: Job[] = [];
 
   for (const parentJob of inProgressBulkImports) {
-    // Check if there are any pending/in_progress child jobs
     const incompleteChildren = await db.jobs
       .where('parentJobId')
       .equals(parentJob.id)
@@ -363,28 +274,21 @@ export async function getBulkImportsToResume(): Promise<Job[]> {
     if (incompleteChildren > 0) {
       jobsToResume.push(parentJob);
     } else {
-      // All children are complete/failed, mark parent as complete
       const childJobs = await getJobsByParent(parentJob.id);
       const successCount = childJobs.filter(j => j.status === JobStatus.COMPLETED).length;
       const failureCount = childJobs.filter(j => j.status === JobStatus.FAILED).length;
-
       await completeJob(parentJob.id, {
         ...parentJob.metadata,
         successCount,
         failureCount,
         resumedAndCompleted: true,
       });
-      console.log(`Completed orphaned bulk import job: ${parentJob.id}`);
     }
   }
 
   return jobsToResume;
 }
 
-/**
- * Get job statistics
- * @returns Statistics about jobs in the database
- */
 export async function getJobStats(): Promise<{
   total: number;
   byStatus: Record<JobStatus, number>;
@@ -421,12 +325,6 @@ export async function getJobStats(): Promise<{
   };
 }
 
-/**
- * Update parent job progress after a child job completes or fails
- * Used for bulk import jobs to track progress across multiple URL fetch jobs
- * @param parentJobId Parent job ID
- * @param success Whether the child job succeeded (true) or failed (false)
- */
 export async function incrementParentJobProgress(
   parentJobId: string,
   success: boolean
@@ -442,7 +340,5 @@ export async function incrementParentJobProgress(
     job.progress = Math.round((completed / total) * 100);
     job.updatedAt = new Date();
   });
-
-  // Broadcast event when parent job progress is updated
   await broadcastEvent('JOB_UPDATED', { jobId: parentJobId });
 }

@@ -7,7 +7,8 @@ export type EventType =
   | 'BOOKMARK_UPDATED'
   | 'JOB_UPDATED'
   | 'SYNC_STATUS_UPDATED'
-  | 'PROCESSING_COMPLETE';
+  | 'PROCESSING_COMPLETE'
+  | 'TAG_UPDATED';
 
 export interface EventData {
   type: EventType;

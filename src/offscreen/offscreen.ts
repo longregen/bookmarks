@@ -10,10 +10,20 @@ import type { ExtractedContent } from '../lib/extract';
 
 console.log('Offscreen document loaded');
 
-const turndown = new TurndownService({
-  headingStyle: 'atx',
-  codeBlockStyle: 'fenced',
-});
+/**
+ * Get or create a TurndownService instance
+ * Lazy initialization to avoid potential issues during module loading
+ */
+let turndownInstance: TurndownService | null = null;
+function getTurndown(): TurndownService {
+  if (!turndownInstance) {
+    turndownInstance = new TurndownService({
+      headingStyle: 'atx',
+      codeBlockStyle: 'fenced',
+    });
+  }
+  return turndownInstance;
+}
 
 /**
  * Extract markdown content from HTML using native DOMParser
@@ -51,9 +61,9 @@ function extractMarkdownInOffscreen(html: string, url: string): ExtractedContent
     contentLength: article.content?.length ?? 0,
   });
 
-  // Convert HTML content to Markdown using native DOMParser
+  // Convert HTML content to Markdown using lazy-initialized TurndownService
   const contentDoc = parser.parseFromString(article.content ?? '', 'text/html');
-  const markdown = turndown.turndown(contentDoc.body);
+  const markdown = getTurndown().turndown(contentDoc.body);
 
   console.log('[Offscreen] Markdown conversion complete', {
     markdownLength: markdown.length,

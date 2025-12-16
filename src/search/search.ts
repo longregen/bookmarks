@@ -14,12 +14,11 @@ import {
   SEARCH_AUTOCOMPLETE_LIMIT,
   SEARCH_TOP_K_RESULTS
 } from '../lib/constants';
+import { addEventListener as addBookmarkEventListener } from '../lib/events';
 
 let selectedTags: Set<string> = new Set();
-let selectedStatuses: Set<string> = new Set(['complete', 'pending', 'processing', 'error']);
 
 const tagFilters = document.getElementById('tagFilters')!;
-const statusFilters = document.getElementById('statusFilters')!;
 const searchInput = document.getElementById('searchInput') as HTMLInputElement;
 const searchBtn = document.getElementById('searchBtn') as HTMLButtonElement;
 const autocompleteDropdown = document.getElementById('autocompleteDropdown')!;
@@ -139,26 +138,14 @@ async function loadFilters() {
   await loadTagFilters({
     container: tagFilters,
     selectedTags,
-    onChange: () => loadFilters()
+    onChange: () => {
+      loadFilters();
+      // Re-run search if there's a query to reflect tag filter changes
+      if (searchInput.value.trim()) {
+        performSearch();
+      }
+    }
   });
-
-  // Load status filters
-  statusFilters.innerHTML = '';
-  const statusAll = createElement('label', { className: 'filter-item' });
-  const statusAllCb = createElement('input', { attributes: { type: 'checkbox', checked: selectedStatuses.size === 4 ? 'checked' : '' } }) as HTMLInputElement;
-  statusAllCb.onchange = () => { selectedStatuses = new Set(['complete', 'pending', 'processing', 'error']); loadFilters(); };
-  statusAll.appendChild(statusAllCb);
-  statusAll.appendChild(createElement('span', { textContent: 'Select all' }));
-  statusFilters.appendChild(statusAll);
-
-  for (const status of ['complete', 'pending', 'error']) {
-    const label = createElement('label', { className: 'filter-item' });
-    const cb = createElement('input', { attributes: { type: 'checkbox', checked: selectedStatuses.has(status) ? 'checked' : '' } }) as HTMLInputElement;
-    cb.onchange = () => { if (cb.checked) selectedStatuses.add(status); else selectedStatuses.delete(status); };
-    label.appendChild(cb);
-    label.appendChild(createElement('span', { textContent: status.charAt(0).toUpperCase() + status.slice(1) }));
-    statusFilters.appendChild(label);
-  }
 }
 
 async function performSearch() {
@@ -219,7 +206,7 @@ async function performSearch() {
     const filteredResults = [];
     for (const [bookmarkId, qaResults] of sortedResults) {
       const bookmark = bookmarksById.get(bookmarkId);
-      if (!bookmark || !selectedStatuses.has(bookmark.status)) continue;
+      if (!bookmark) continue;
 
       if (selectedTags.size > 0) {
         const tags = tagsByBookmarkId.get(bookmarkId) || [];
@@ -288,3 +275,15 @@ const healthIndicatorContainer = document.getElementById('healthIndicator');
 if (healthIndicatorContainer) {
   createHealthIndicator(healthIndicatorContainer);
 }
+
+// Event-driven updates for tag changes
+const removeEventListener = addBookmarkEventListener((event) => {
+  if (event.type === 'TAG_UPDATED') {
+    loadFilters();
+  }
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  removeEventListener();
+});

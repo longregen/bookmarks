@@ -24,25 +24,26 @@ export async function loadTagFilters(config: TagFilterConfig) {
 
   config.container.innerHTML = '';
 
-  // Create "Select all" checkbox
-  const selectAll = createElement('label', { className: 'filter-item' });
-  const selectAllCb = createElement('input', {
-    attributes: { type: 'checkbox', checked: config.selectedTags.size === 0 ? 'checked' : '' }
-  }) as HTMLInputElement;
-  selectAllCb.onchange = () => {
-    config.selectedTags.clear();
-    config.onChange();
-  };
-  selectAll.appendChild(selectAllCb);
-  selectAll.appendChild(createElement('span', { textContent: 'Select all' }));
-  config.container.appendChild(selectAll);
+  // Create "Clear selection" button (only shown when tags are selected)
+  if (config.selectedTags.size > 0) {
+    const clearBtn = createElement('button', {
+      className: 'clear-selection-btn',
+      textContent: 'Clear selection'
+    }) as HTMLButtonElement;
+    clearBtn.onclick = () => {
+      config.selectedTags.clear();
+      config.onChange();
+    };
+    config.container.appendChild(clearBtn);
+  }
 
   // Create individual tag checkboxes
   for (const tag of Array.from(allTags).sort()) {
     const label = createElement('label', { className: 'filter-item' });
     const cb = createElement('input', {
-      attributes: { type: 'checkbox', checked: config.selectedTags.has(tag) ? 'checked' : '' }
+      attributes: { type: 'checkbox' }
     }) as HTMLInputElement;
+    cb.checked = config.selectedTags.has(tag);
     cb.onchange = () => {
       if (cb.checked) {
         config.selectedTags.add(tag);

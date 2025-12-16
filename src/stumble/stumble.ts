@@ -8,6 +8,7 @@ import { createHealthIndicator } from '../lib/health-indicator';
 import { BookmarkDetailManager } from '../lib/bookmark-detail';
 import { loadTagFilters } from '../lib/tag-filter';
 import { STUMBLE_COUNT } from '../lib/constants';
+import { addEventListener as addBookmarkEventListener } from '../lib/events';
 
 let selectedTags: Set<string> = new Set();
 
@@ -130,3 +131,15 @@ const healthIndicatorContainer = document.getElementById('healthIndicator');
 if (healthIndicatorContainer) {
   createHealthIndicator(healthIndicatorContainer);
 }
+
+// Event-driven updates for tag changes
+const removeEventListener = addBookmarkEventListener((event) => {
+  if (event.type === 'TAG_UPDATED') {
+    loadFilters();
+  }
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  removeEventListener();
+});
