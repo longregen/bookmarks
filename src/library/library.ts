@@ -10,6 +10,7 @@ let sortBy = 'newest';
 
 const tagList = document.getElementById('tagList')!;
 const bookmarkList = document.getElementById('bookmarkList')!;
+const bookmarkCount = document.getElementById('bookmarkCount')!;
 const sortSelect = document.getElementById('sortSelect') as HTMLSelectElement;
 
 // Initialize bookmark detail manager
@@ -100,6 +101,7 @@ async function loadBookmarks() {
   else if (sortBy === 'title') bookmarks.sort((a, b) => a.title.localeCompare(b.title));
 
   bookmarkList.innerHTML = '';
+  bookmarkCount.textContent = bookmarks.length.toString();
 
   if (bookmarks.length === 0) {
     bookmarkList.appendChild(createElement('div', { className: 'empty-state', textContent: 'No bookmarks found' }));
@@ -156,3 +158,35 @@ if (bookmarkIdParam) {
     detailManager.showDetail(bookmarkIdParam);
   }, 500);
 }
+
+// Expose test helpers for E2E tests
+declare global {
+  interface Window {
+    __testHelpers?: {
+      getBookmarkStatus: () => Promise<any>;
+    };
+  }
+}
+
+window.__testHelpers = {
+  async getBookmarkStatus() {
+    const bookmarks = await db.bookmarks.toArray();
+    const markdown = await db.markdownContents.toArray();
+
+    return {
+      bookmarks: bookmarks.map(b => ({
+        id: b.id,
+        title: b.title,
+        url: b.url,
+        status: b.status,
+        errorMessage: b.errorMessage,
+        createdAt: b.createdAt
+      })),
+      markdown: markdown.map(m => ({
+        bookmarkId: m.bookmarkId,
+        contentLength: m.content?.length || 0,
+        contentPreview: m.content?.substring(0, 200) || ''
+      }))
+    };
+  }
+};

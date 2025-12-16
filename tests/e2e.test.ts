@@ -613,7 +613,7 @@ async function main(): Promise<void> {
     // Test 7: Test search functionality
     await runTest('Search for bookmarks', async () => {
       const page = await browser!.newPage();
-      await page.goto(getExtensionUrl(extensionId, '/src/library/library.html'));
+      await page.goto(getExtensionUrl(extensionId, '/src/search/search.html'));
 
       await page.waitForSelector('#searchInput', { timeout: 5000 });
 
@@ -627,50 +627,46 @@ async function main(): Promise<void> {
       await page.waitForFunction(
         () => {
           const btn = document.querySelector('#searchBtn') as HTMLButtonElement;
-          return btn && !btn.disabled && btn.textContent === 'Search';
+          return btn && !btn.disabled && btn.textContent?.includes('Search');
         },
         { timeout: 60000 }
       );
 
       // Check search results
-      const searchResults = await page.$('#searchResults');
-      if (!searchResults) {
+      const resultsList = await page.$('#resultsList');
+      if (!resultsList) {
         throw new Error('Search results container not found');
       }
 
-      // Verify we switched to search view
-      const searchViewActive = await page.$eval('#searchViewBtn', el => el.classList.contains('active'));
-      if (!searchViewActive) {
-        // It might not have results if processing didn't complete
-        console.log('  (Search view not active - may not have processed bookmarks)');
-      }
+      // Check result count
+      const count = await page.$eval('#resultCount', el => el.textContent);
+      console.log(`  (Found ${count} search results)`);
 
       await page.close();
     });
 
-    // Test 8: View switching
-    await runTest('View switching between list and search', async () => {
+    // Test 8: Navigation between pages
+    await runTest('Navigation between library and search pages', async () => {
       const page = await browser!.newPage();
       await page.goto(getExtensionUrl(extensionId, '/src/library/library.html'));
 
-      await page.waitForSelector('#listViewBtn', { timeout: 5000 });
+      // Wait for library page to load
+      await page.waitForSelector('#bookmarkList', { timeout: 5000 });
 
-      // Click search view
-      await page.click('#searchViewBtn');
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const searchActive = await page.$eval('#searchView', el => el.classList.contains('active'));
-      if (!searchActive) {
-        throw new Error('Search view should be active');
+      // Verify we're on library page
+      const libraryNavActive = await page.$eval('.app-header__nav-link[href="library.html"]', el => el.classList.contains('active'));
+      if (!libraryNavActive) {
+        throw new Error('Library navigation should be active');
       }
 
-      // Click list view
-      await page.click('#listViewBtn');
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Navigate to search page
+      await page.click('.app-header__nav-link[href="../search/search.html"]');
+      await page.waitForSelector('#searchInput', { timeout: 5000 });
 
-      const listActive = await page.$eval('#listView', el => el.classList.contains('active'));
-      if (!listActive) {
-        throw new Error('List view should be active');
+      // Verify we're on search page
+      const searchNavActive = await page.$eval('.app-header__nav-link[href="search.html"]', el => el.classList.contains('active'));
+      if (!searchNavActive) {
+        throw new Error('Search navigation should be active');
       }
 
       await page.close();

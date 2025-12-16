@@ -368,7 +368,7 @@ async function main(): Promise<void> {
 
     // Test 3: Save bookmark via content script simulation
     await runTest('Save bookmark via extension messaging', async () => {
-      // Open explore page first to get initial count
+      // Open library page first to get initial count
       await driver!.get(getExtensionUrl('/src/library/library.html'));
       await waitForElement(driver!, '#bookmarkList', 5000);
 
@@ -402,7 +402,7 @@ async function main(): Promise<void> {
       // Wait for save to process
       await new Promise(resolve => setTimeout(resolve, 3000));
 
-      // Refresh explore page and check count
+      // Refresh library page and check count
       await driver!.get(getExtensionUrl('/src/library/library.html'));
       await waitForElement(driver!, '#bookmarkCount', 5000);
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -627,7 +627,7 @@ async function main(): Promise<void> {
 
     // Test 7: Test search functionality
     await runTest('Search for bookmarks', async () => {
-      await driver!.get(getExtensionUrl('/src/library/library.html'));
+      await driver!.get(getExtensionUrl('/src/search/search.html'));
       await waitForElement(driver!, '#searchInput', 5000);
 
       // Set search query
@@ -642,41 +642,40 @@ async function main(): Promise<void> {
         const btn = await driver!.findElement(By.id('searchBtn'));
         const text = await btn.getText();
         const disabled = await btn.getAttribute('disabled');
-        return !disabled && text === 'Search';
+        return !disabled && text.includes('Search');
       }, 60000);
 
-      // Check search results container exists
-      const searchResults = await driver!.findElements(By.id('searchResults'));
-      if (searchResults.length === 0) {
-        throw new Error('Search results container not found');
+      // Check results list container exists
+      const resultsList = await driver!.findElements(By.id('resultsList'));
+      if (resultsList.length === 0) {
+        throw new Error('Results list container not found');
       }
     });
 
-    // Test 8: View switching
-    await runTest('View switching between list and search', async () => {
+    // Test 8: Navigation between pages
+    await runTest('Navigation between library and search pages', async () => {
       await driver!.get(getExtensionUrl('/src/library/library.html'));
-      await waitForElement(driver!, '#listViewBtn', 5000);
 
-      // Click search view
-      const searchViewBtn = await driver!.findElement(By.id('searchViewBtn'));
-      await searchViewBtn.click();
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait for library page to load
+      await waitForElement(driver!, '#bookmarkList', 5000);
 
-      const searchView = await driver!.findElement(By.id('searchView'));
-      const searchActive = await hasClass(searchView, 'active');
-      if (!searchActive) {
-        throw new Error('Search view should be active');
+      // Verify we're on library page
+      const libraryNav = await driver!.findElement(By.css('.app-header__nav-link[href="library.html"]'));
+      const libraryNavActive = await hasClass(libraryNav, 'active');
+      if (!libraryNavActive) {
+        throw new Error('Library navigation should be active');
       }
 
-      // Click list view
-      const listViewBtn = await driver!.findElement(By.id('listViewBtn'));
-      await listViewBtn.click();
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Navigate to search page
+      const searchNav = await driver!.findElement(By.css('.app-header__nav-link[href="../search/search.html"]'));
+      await searchNav.click();
+      await waitForElement(driver!, '#searchInput', 5000);
 
-      const listView = await driver!.findElement(By.id('listView'));
-      const listActive = await hasClass(listView, 'active');
-      if (!listActive) {
-        throw new Error('List view should be active');
+      // Verify we're on search page
+      const searchNavActive = await driver!.findElement(By.css('.app-header__nav-link[href="search.html"]'));
+      const isActive = await hasClass(searchNavActive, 'active');
+      if (!isActive) {
+        throw new Error('Search navigation should be active');
       }
     });
 
