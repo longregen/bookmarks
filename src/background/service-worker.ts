@@ -5,6 +5,11 @@ import { createBulkImportJob } from '../lib/bulk-import';
 import { processBulkFetch } from './fetcher';
 import { ensureOffscreenDocument } from '../lib/offscreen';
 import { resumeInterruptedJobs } from './job-resumption';
+import { setPlatformAdapter } from '../lib/platform';
+import { extensionAdapter } from '../lib/adapters/extension';
+
+// Initialize platform adapter immediately (required for API calls)
+setPlatformAdapter(extensionAdapter);
 
 console.log('Bookmark RAG service worker loaded');
 
