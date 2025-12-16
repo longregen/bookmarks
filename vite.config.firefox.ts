@@ -35,6 +35,7 @@ export default defineConfig({
     ...sharedDefine,
     __IS_CHROME__: JSON.stringify(false),
     __IS_FIREFOX__: JSON.stringify(true),
+    __IS_WEB__: JSON.stringify(false),
   },
   plugins: [crx({ manifest }), firefoxManifestCleanup()],
   build: {
