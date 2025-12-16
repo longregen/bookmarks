@@ -7,9 +7,11 @@
     "dev": "npx vite --config vite.config.chrome.ts",
     "dev:chrome": "npx vite --config vite.config.chrome.ts",
     "dev:firefox": "npx vite --config vite.config.firefox.ts",
+    "dev:web": "npx vite --config vite.config.web.ts",
     "build": "npm run build:chrome && npm run build:firefox",
     "build:chrome": "npx vite build --config vite.config.chrome.ts",
     "build:firefox": "npx vite build --config vite.config.firefox.ts",
+    "build:web": "npx vite build --config vite.config.web.ts",
     "preview": "npx vite preview",
     "test": "npx tsx tests/extension.test.ts",
     "test:unit": "vitest run",
@@ -18,10 +20,9 @@
     "test:e2e": "npx tsx tests/e2e.test.ts",
     "test:e2e:chrome": "BROWSER_TYPE=chrome npx tsx tests/e2e.test.ts",
     "test:e2e:firefox": "npx tsx tests/e2e-firefox.test.ts",
-    "test:all": "npm run test:unit && npm run test && npm run test:e2e",
-    "dev:web": "npx vite --config vite.config.web.ts",
-    "build:web": "npx vite build --config vite.config.web.ts",
-    "test:web": "npx tsx tests/web.test.ts"
+    "test:web": "npx tsx tests/web.test.ts",
+    "test:all": "npm run test:unit && npm run test && npm run test:e2e && npm run test:web",
+    "screenshots": "npx tsx scripts/capture-screenshots.ts"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
