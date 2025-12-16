@@ -158,7 +158,11 @@ export class TestRunner {
 // SHARED TEST DEFINITIONS
 // ============================================================================
 
-export async function runSharedTests(adapter: TestAdapter, runner: TestRunner): Promise<void> {
+export interface TestOptions {
+  skipRealApiTests?: boolean;
+}
+
+export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, options: TestOptions = {}): Promise<void> {
   console.log('\n--- MOCKED API TESTS ---\n');
 
   // Test 1: Configure API settings (with mock server)
@@ -389,63 +393,67 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner): 
   // ========================================================================
   // ONE REAL API TEST
   // ========================================================================
-  console.log('\n--- REAL API TEST (1 test with actual OpenAI API) ---\n');
+  if (options.skipRealApiTests) {
+    console.log('\n--- REAL API TESTS SKIPPED ---\n');
+  } else {
+    console.log('\n--- REAL API TEST (1 test with actual OpenAI API) ---\n');
 
-  // Reconfigure to use real OpenAI API
-  await runner.runTest('Configure real OpenAI API', async () => {
-    const page = await adapter.newPage();
-    await page.goto(adapter.getPageUrl('options'));
-    await page.waitForSelector('#apiKey');
+    // Reconfigure to use real OpenAI API
+    await runner.runTest('Configure real OpenAI API', async () => {
+      const page = await adapter.newPage();
+      await page.goto(adapter.getPageUrl('options'));
+      await page.waitForSelector('#apiKey');
 
-    // Set real API settings
-    await page.evaluate(`document.getElementById('apiBaseUrl').value = 'https://api.openai.com/v1'`);
-    await page.evaluate(`document.getElementById('apiKey').value = '${adapter.getRealApiKey()}'`);
-    await page.evaluate(`document.getElementById('chatModel').value = 'gpt-4o-mini'`);
-    await page.evaluate(`document.getElementById('embeddingModel').value = 'text-embedding-3-small'`);
+      // Set real API settings
+      await page.evaluate(`document.getElementById('apiBaseUrl').value = 'https://api.openai.com/v1'`);
+      await page.evaluate(`document.getElementById('apiKey').value = '${adapter.getRealApiKey()}'`);
+      await page.evaluate(`document.getElementById('chatModel').value = 'gpt-4o-mini'`);
+      await page.evaluate(`document.getElementById('embeddingModel').value = 'text-embedding-3-small'`);
 
-    // Save settings
-    await page.click('[type="submit"]');
+      // Save settings
+      await page.click('[type="submit"]');
 
-    // Wait for success
-    await page.waitForFunction(
-      `document.querySelector('.status')?.textContent?.includes('success')`,
-      10000
-    );
+      // Wait for success
+      await page.waitForFunction(
+        `document.querySelector('.status')?.textContent?.includes('success')`,
+        10000
+      );
 
-    await page.close();
-  });
+      await page.close();
+    });
 
-  // Real API test - test connection
-  await runner.runTest('[REAL API] Test API connection', async () => {
-    console.log('  🔴 Using REAL OpenAI API...');
+    // Real API test - test connection
+    await runner.runTest('[REAL API] Test API connection', async () => {
+      console.log('  🔴 Using REAL OpenAI API...');
 
-    const page = await adapter.newPage();
-    await page.goto(adapter.getPageUrl('options'));
-    await page.waitForSelector('#testBtn');
+      const page = await adapter.newPage();
+      await page.goto(adapter.getPageUrl('options'));
+      await page.waitForSelector('#testBtn');
 
-    // Wait for settings to load
-    await new Promise(resolve => setTimeout(resolve, 1000));
+      // Wait for settings to load
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Click test button
-    await page.click('#testBtn');
+      // Click test button
+      await page.click('#testBtn');
 
-    // Wait for result
-    await page.waitForFunction(
-      `(() => {
-        const status = document.querySelector('.status');
-        return status && !status.classList.contains('hidden') &&
-               (status.textContent?.includes('successful') || status.textContent?.includes('failed'));
-      })()`,
-      30000
-    );
+      // Wait for result
+      await page.waitForFunction(
+        `(() => {
+          const status = document.querySelector('.status');
+          return status && !status.classList.contains('hidden') &&
+                 (status.textContent?.includes('successful') || status.textContent?.includes('failed'));
+        })()`,
+        30000
+      );
 
-    const statusText = await page.$eval<string>('.status', 'el => el.textContent');
-    if (!statusText?.toLowerCase().includes('successful')) {
-      throw new Error(`Real API test failed: ${statusText}`);
-    }
+      const statusText = await page.$eval<string>('.status', 'el => el.textContent');
+      if (!statusText?.toLowerCase().includes('successful')) {
+        throw new Error(`Real API test failed: ${statusText}`);
+      }
 
-    console.log('  ✓ Real API connection successful');
+      console.log('  ✓ Real API connection successful');
 
-    await page.close();
-  });
+      await page.close();
+    });
+  }
 }

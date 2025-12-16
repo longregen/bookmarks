@@ -2,7 +2,8 @@
  * Web E2E Tests
  *
  * Runs the shared E2E test suite against the standalone web application.
- * Uses Puppeteer with mock API server for most tests, plus one real API test.
+ * Uses Puppeteer with mock API server. Real API tests are skipped for web
+ * since the web app doesn't have reliable access to the API key in CI.
  */
 
 import { WebAdapter } from './adapters/web-adapter';
@@ -13,7 +14,7 @@ async function main(): Promise<void> {
   console.log('Web App E2E Tests');
   console.log('='.repeat(60));
   console.log(`API Key: ${process.env.OPENAI_API_KEY ? 'Provided' : 'Not provided'}`);
-  console.log('Mode: MOCK API (with 1 real API test at the end)');
+  console.log('Mode: MOCK API only (real API tests skipped for web)');
   console.log('='.repeat(60));
 
   const adapter = new WebAdapter();
@@ -21,7 +22,7 @@ async function main(): Promise<void> {
 
   try {
     await adapter.setup();
-    await runSharedTests(adapter, runner);
+    await runSharedTests(adapter, runner, { skipRealApiTests: true });
   } catch (error) {
     console.error('\nFatal error:', error);
   } finally {
