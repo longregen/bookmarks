@@ -112,12 +112,13 @@ export class FirefoxAdapter implements TestAdapter {
     return new SeleniumPageHandle(this.driver!);
   }
 
-  getPageUrl(pageName: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index'): string {
+  getPageUrl(pageName: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs'): string {
     const paths: Record<string, string> = {
       library: '/src/library/library.html',
       search: '/src/search/search.html',
       options: '/src/options/options.html',
       stumble: '/src/stumble/stumble.html',
+      jobs: '/src/jobs/jobs.html',
       popup: '/src/popup/popup.html',
       index: '/src/popup/popup.html', // Firefox extension uses popup as main entry
     };

@@ -18,6 +18,7 @@ export default defineConfig({
         search: 'src/search/search.html',
         stumble: 'src/stumble/stumble.html',
         options: 'src/options/options.html',
+        jobs: 'src/jobs/jobs.html',
       },
       output: sharedOutput,
     },

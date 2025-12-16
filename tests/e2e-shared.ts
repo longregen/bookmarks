@@ -41,7 +41,7 @@ export interface TestAdapter {
   newPage(): Promise<PageHandle>;
 
   // URL helpers
-  getPageUrl(page: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index'): string;
+  getPageUrl(page: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs'): string;
 
   // Mock API
   getMockApiUrl(): string;
@@ -376,10 +376,10 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
-  // Test 10: Jobs dashboard exists
+  // Test 10: Jobs dashboard exists (on separate jobs page)
   await runner.runTest('Jobs dashboard exists', async () => {
     const page = await adapter.newPage();
-    await page.goto(adapter.getPageUrl('options'));
+    await page.goto(adapter.getPageUrl('jobs'));
     await page.waitForSelector('#jobsList');
 
     const hasJobsList = await page.$('#jobsList');
@@ -393,10 +393,10 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
-  // Test 11: Jobs filtering works
+  // Test 11: Jobs filtering works (on separate jobs page)
   await runner.runTest('Jobs can be filtered by type and status', async () => {
     const page = await adapter.newPage();
-    await page.goto(adapter.getPageUrl('options'));
+    await page.goto(adapter.getPageUrl('jobs'));
     await page.waitForSelector('#jobTypeFilter');
     await page.waitForSelector('#jobStatusFilter');
 
@@ -411,8 +411,8 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await new Promise(resolve => setTimeout(resolve, 500));
 
     // Reset filters
-    await page.select('#jobTypeFilter', 'all');
-    await page.select('#jobStatusFilter', 'all');
+    await page.select('#jobTypeFilter', '');
+    await page.select('#jobStatusFilter', '');
 
     await page.close();
   });

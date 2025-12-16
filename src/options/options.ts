@@ -9,7 +9,6 @@ import { initSettingsModule } from './modules/settings';
 import { initWebDAVModule } from './modules/webdav';
 import { initImportExportModule } from './modules/import-export';
 import { initBulkImportModule } from './modules/bulk-import';
-import { initJobsModule } from './modules/jobs';
 import { initThemeModule } from './modules/theme';
 import { initNavigationModule } from './modules/navigation';
 
@@ -37,10 +36,6 @@ function initializeModules() {
   // Initialize bulk import module (returns cleanup function)
   const bulkImportCleanup = initBulkImportModule();
   if (bulkImportCleanup) cleanupFunctions.push(bulkImportCleanup);
-
-  // Initialize jobs module (returns cleanup function)
-  const jobsCleanup = initJobsModule();
-  if (jobsCleanup) cleanupFunctions.push(jobsCleanup);
 }
 
 // Cleanup on page unload

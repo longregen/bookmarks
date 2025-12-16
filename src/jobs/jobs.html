@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jobs Dashboard - Bookmarks by Localforge</title>
+  <link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+  <link rel="icon" type="image/png" href="../../favicon.png">
+  <link rel="stylesheet" href="../shared/app.css">
+</head>
+<body class="layout">
+  <header class="app-header">
+    <nav class="app-header__nav">
+      <a href="../library/library.html" class="app-header__nav-link">Library</a>
+      <a href="../search/search.html" class="app-header__nav-link">Search</a>
+      <a href="../stumble/stumble.html" class="app-header__nav-link">Stumble</a>
+      <a href="../options/options.html" class="app-header__nav-link">Settings</a>
+    </nav>
+    <div class="app-header__brand">
+      <div id="healthIndicator"></div>
+      <h1 class="app-header__title">Bookmarks by Localforge</h1>
+    </div>
+  </header>
+
+  <div class="main-content">
+    <main class="middle">
+      <div class="jobs-page-content">
+        <div class="option-panel">
+          <div class="option-panel__header">
+            <h2>Jobs Dashboard</h2>
+            <p class="section-description">
+              Monitor processing jobs for your bookmarks and bulk imports.
+            </p>
+          </div>
+
+          <div class="option-panel__content">
+            <div class="jobs-controls">
+              <div class="jobs-filters">
+                <select id="jobTypeFilter" class="filter-select">
+                  <option value="">All Types</option>
+                  <option value="manual_add">Manual Add</option>
+                  <option value="markdown_generation">Markdown Generation</option>
+                  <option value="qa_generation">Q&A Generation</option>
+                  <option value="file_import">File Import</option>
+                  <option value="bulk_url_import">Bulk URL Import</option>
+                  <option value="url_fetch">URL Fetch</option>
+                </select>
+
+                <select id="jobStatusFilter" class="filter-select">
+                  <option value="">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="failed">Failed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+
+              <button type="button" id="refreshJobsBtn" class="btn btn-secondary">
+                Refresh
+              </button>
+            </div>
+
+            <div id="jobsList" class="jobs-list">
+              <div class="loading">Loading jobs...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="jobs.ts" type="module"></script>
+</body>
+</html>
