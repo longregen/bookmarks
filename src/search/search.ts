@@ -26,7 +26,6 @@ const resultsList = document.getElementById('resultsList')!;
 const resultCount = document.getElementById('resultCount')!;
 const searchPage = document.getElementById('searchPage')!;
 const searchHero = document.getElementById('searchHero')!;
-const searchHint = document.getElementById('searchHint')!;
 const resultHeader = document.getElementById('resultHeader')!;
 
 // Start in centered mode
@@ -185,14 +184,12 @@ async function loadFilters() {
 function showResultsMode() {
   searchPage.classList.remove('search-page--centered');
   searchHero.classList.add('hidden');
-  searchHint.classList.add('hidden');
   resultHeader.classList.remove('hidden');
 }
 
 function showCenteredMode() {
   searchPage.classList.add('search-page--centered');
   searchHero.classList.remove('hidden');
-  searchHint.classList.remove('hidden');
   resultHeader.classList.add('hidden');
 }
 
