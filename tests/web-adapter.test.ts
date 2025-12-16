@@ -1,16 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-/**
- * Web Adapter Tests
- *
- * Note: Settings tests are in extension-adapter.test.ts since both adapters
- * now use the same IndexedDB (Dexie) implementation for settings.
- *
- * These tests focus on web-specific functionality:
- * - Theme storage (localStorage instead of chrome.storage)
- * - Content fetching (CORS proxies)
- */
-
 // Mock localStorage for theme tests
 const localStorageMock = (() => {
   let store: Record<string, string> = {};

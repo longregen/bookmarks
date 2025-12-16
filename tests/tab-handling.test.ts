@@ -1,11 +1,5 @@
-/**
- * Tests for tab null/undefined handling in service-worker and popup
- * Ensures proper handling of incognito mode and restricted URLs
- */
-
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// Mock chrome API
 const mockChrome = {
   tabs: {
     query: vi.fn(),
@@ -18,8 +12,45 @@ const mockChrome = {
   },
 };
 
-// @ts-ignore - Setting up global chrome mock
+// @ts-ignore
 global.chrome = mockChrome as any;
+
+function handleTabInfoMessage(sendResponse: (response: any) => void) {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs: any[]) => {
+    const tab = tabs[0];
+    if (tab) {
+      if (!tab.url || !tab.title) {
+        sendResponse({
+          error: 'Cannot access tab information. This may be due to incognito mode or restricted URLs (chrome://, about:, etc.)'
+        });
+      } else {
+        sendResponse({ url: tab.url, title: tab.title });
+      }
+    } else {
+      sendResponse({ error: 'No active tab found' });
+    }
+  });
+}
+
+function canSaveTab(tab: any): { canSave: boolean; reason?: string } {
+  if (!tab || !tab.id) {
+    return { canSave: false, reason: 'No active tab found' };
+  }
+  if (!tab.url) {
+    return { canSave: false, reason: 'Cannot save in incognito mode or restricted URLs' };
+  }
+  const restrictedSchemes = ['chrome:', 'about:', 'chrome-extension:', 'edge:', 'moz-extension:'];
+  if (restrictedSchemes.some(scheme => tab.url?.startsWith(scheme))) {
+    return { canSave: false, reason: 'Cannot save browser internal pages' };
+  }
+  return { canSave: true };
+}
+
+function shouldProcessShortcut(tab: any): boolean {
+  if (!tab || !tab.id) return false;
+  if (!tab.url) return false;
+  return true;
+}
 
 describe('Tab Property Null Handling', () => {
   beforeEach(() => {
@@ -27,135 +58,39 @@ describe('Tab Property Null Handling', () => {
   });
 
   describe('Service Worker - GET_CURRENT_TAB_INFO handler', () => {
-    it('should handle undefined tab.url gracefully', async () => {
-      // Simulate a tab with undefined URL (incognito mode)
-      const mockTab = {
-        id: 1,
-        title: 'Test Page',
-        url: undefined, // This happens in incognito or restricted URLs
-      };
-
+    it('should handle undefined tab.url gracefully', () => {
       mockChrome.tabs.query.mockImplementation((query, callback) => {
-        callback([mockTab]);
+        callback([{ id: 1, title: 'Test Page', url: undefined }]);
       });
 
       const sendResponseMock = vi.fn();
-      const mockMessage = { type: 'GET_CURRENT_TAB_INFO' };
-
-      // Simulate the message listener behavior
-      const handleMessage = (message: any, sender: any, sendResponse: any) => {
-        if (message.type === 'GET_CURRENT_TAB_INFO') {
-          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            const tab = tabs[0];
-            if (tab) {
-              if (!tab.url || !tab.title) {
-                sendResponse({
-                  error: 'Cannot access tab information. This may be due to incognito mode or restricted URLs (chrome://, about:, etc.)'
-                });
-              } else {
-                sendResponse({
-                  url: tab.url,
-                  title: tab.title,
-                });
-              }
-            } else {
-              sendResponse({ error: 'No active tab found' });
-            }
-          });
-          return true;
-        }
-      };
-
-      handleMessage(mockMessage, {}, sendResponseMock);
+      handleTabInfoMessage(sendResponseMock);
 
       expect(sendResponseMock).toHaveBeenCalledWith({
         error: 'Cannot access tab information. This may be due to incognito mode or restricted URLs (chrome://, about:, etc.)'
       });
     });
 
-    it('should handle undefined tab.title gracefully', async () => {
-      // Simulate a tab with undefined title
-      const mockTab = {
-        id: 1,
-        title: undefined,
-        url: 'https://example.com',
-      };
-
+    it('should handle undefined tab.title gracefully', () => {
       mockChrome.tabs.query.mockImplementation((query, callback) => {
-        callback([mockTab]);
+        callback([{ id: 1, title: undefined, url: 'https://example.com' }]);
       });
 
       const sendResponseMock = vi.fn();
-      const mockMessage = { type: 'GET_CURRENT_TAB_INFO' };
-
-      const handleMessage = (message: any, sender: any, sendResponse: any) => {
-        if (message.type === 'GET_CURRENT_TAB_INFO') {
-          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            const tab = tabs[0];
-            if (tab) {
-              if (!tab.url || !tab.title) {
-                sendResponse({
-                  error: 'Cannot access tab information. This may be due to incognito mode or restricted URLs (chrome://, about:, etc.)'
-                });
-              } else {
-                sendResponse({
-                  url: tab.url,
-                  title: tab.title,
-                });
-              }
-            } else {
-              sendResponse({ error: 'No active tab found' });
-            }
-          });
-          return true;
-        }
-      };
-
-      handleMessage(mockMessage, {}, sendResponseMock);
+      handleTabInfoMessage(sendResponseMock);
 
       expect(sendResponseMock).toHaveBeenCalledWith({
         error: 'Cannot access tab information. This may be due to incognito mode or restricted URLs (chrome://, about:, etc.)'
       });
     });
 
-    it('should return tab info when both url and title are defined', async () => {
-      const mockTab = {
-        id: 1,
-        title: 'Test Page',
-        url: 'https://example.com',
-      };
-
+    it('should return tab info when both url and title are defined', () => {
       mockChrome.tabs.query.mockImplementation((query, callback) => {
-        callback([mockTab]);
+        callback([{ id: 1, title: 'Test Page', url: 'https://example.com' }]);
       });
 
       const sendResponseMock = vi.fn();
-      const mockMessage = { type: 'GET_CURRENT_TAB_INFO' };
-
-      const handleMessage = (message: any, sender: any, sendResponse: any) => {
-        if (message.type === 'GET_CURRENT_TAB_INFO') {
-          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            const tab = tabs[0];
-            if (tab) {
-              if (!tab.url || !tab.title) {
-                sendResponse({
-                  error: 'Cannot access tab information. This may be due to incognito mode or restricted URLs (chrome://, about:, etc.)'
-                });
-              } else {
-                sendResponse({
-                  url: tab.url,
-                  title: tab.title,
-                });
-              }
-            } else {
-              sendResponse({ error: 'No active tab found' });
-            }
-          });
-          return true;
-        }
-      };
-
-      handleMessage(mockMessage, {}, sendResponseMock);
+      handleTabInfoMessage(sendResponseMock);
 
       expect(sendResponseMock).toHaveBeenCalledWith({
         url: 'https://example.com',
@@ -163,72 +98,21 @@ describe('Tab Property Null Handling', () => {
       });
     });
 
-    it('should handle no active tab found', async () => {
+    it('should handle no active tab found', () => {
       mockChrome.tabs.query.mockImplementation((query, callback) => {
-        callback([]); // No tabs
+        callback([]);
       });
 
       const sendResponseMock = vi.fn();
-      const mockMessage = { type: 'GET_CURRENT_TAB_INFO' };
+      handleTabInfoMessage(sendResponseMock);
 
-      const handleMessage = (message: any, sender: any, sendResponse: any) => {
-        if (message.type === 'GET_CURRENT_TAB_INFO') {
-          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            const tab = tabs[0];
-            if (tab) {
-              if (!tab.url || !tab.title) {
-                sendResponse({
-                  error: 'Cannot access tab information. This may be due to incognito mode or restricted URLs (chrome://, about:, etc.)'
-                });
-              } else {
-                sendResponse({
-                  url: tab.url,
-                  title: tab.title,
-                });
-              }
-            } else {
-              sendResponse({ error: 'No active tab found' });
-            }
-          });
-          return true;
-        }
-      };
-
-      handleMessage(mockMessage, {}, sendResponseMock);
-
-      expect(sendResponseMock).toHaveBeenCalledWith({
-        error: 'No active tab found'
-      });
+      expect(sendResponseMock).toHaveBeenCalledWith({ error: 'No active tab found' });
     });
   });
 
   describe('Popup - Tab validation before script injection', () => {
     it('should reject undefined tab.url', () => {
-      const tab = {
-        id: 1,
-        url: undefined,
-        title: 'Test Page',
-      };
-
-      // Simulate the validation logic
-      const canSaveTab = (tab: any): { canSave: boolean; reason?: string } => {
-        if (!tab || !tab.id) {
-          return { canSave: false, reason: 'No active tab found' };
-        }
-
-        if (!tab.url) {
-          return { canSave: false, reason: 'Cannot save in incognito mode or restricted URLs' };
-        }
-
-        const restrictedSchemes = ['chrome:', 'about:', 'chrome-extension:', 'edge:', 'moz-extension:'];
-        if (restrictedSchemes.some(scheme => tab.url?.startsWith(scheme))) {
-          return { canSave: false, reason: 'Cannot save browser internal pages' };
-        }
-
-        return { canSave: true };
-      };
-
-      const result = canSaveTab(tab);
+      const result = canSaveTab({ id: 1, url: undefined, title: 'Test Page' });
       expect(result.canSave).toBe(false);
       expect(result.reason).toBe('Cannot save in incognito mode or restricted URLs');
     });
@@ -242,26 +126,8 @@ describe('Tab Property Null Handling', () => {
         'moz-extension://xyz789/page.html',
       ];
 
-      const canSaveTab = (tab: any): { canSave: boolean; reason?: string } => {
-        if (!tab || !tab.id) {
-          return { canSave: false, reason: 'No active tab found' };
-        }
-
-        if (!tab.url) {
-          return { canSave: false, reason: 'Cannot save in incognito mode or restricted URLs' };
-        }
-
-        const restrictedSchemes = ['chrome:', 'about:', 'chrome-extension:', 'edge:', 'moz-extension:'];
-        if (restrictedSchemes.some(scheme => tab.url?.startsWith(scheme))) {
-          return { canSave: false, reason: 'Cannot save browser internal pages' };
-        }
-
-        return { canSave: true };
-      };
-
       restrictedUrls.forEach(url => {
-        const tab = { id: 1, url, title: 'Test' };
-        const result = canSaveTab(tab);
+        const result = canSaveTab({ id: 1, url, title: 'Test' });
         expect(result.canSave).toBe(false);
         expect(result.reason).toBe('Cannot save browser internal pages');
       });
@@ -274,26 +140,8 @@ describe('Tab Property Null Handling', () => {
         'https://www.example.com/page?query=123',
       ];
 
-      const canSaveTab = (tab: any): { canSave: boolean; reason?: string } => {
-        if (!tab || !tab.id) {
-          return { canSave: false, reason: 'No active tab found' };
-        }
-
-        if (!tab.url) {
-          return { canSave: false, reason: 'Cannot save in incognito mode or restricted URLs' };
-        }
-
-        const restrictedSchemes = ['chrome:', 'about:', 'chrome-extension:', 'edge:', 'moz-extension:'];
-        if (restrictedSchemes.some(scheme => tab.url?.startsWith(scheme))) {
-          return { canSave: false, reason: 'Cannot save browser internal pages' };
-        }
-
-        return { canSave: true };
-      };
-
       validUrls.forEach(url => {
-        const tab = { id: 1, url, title: 'Test' };
-        const result = canSaveTab(tab);
+        const result = canSaveTab({ id: 1, url, title: 'Test' });
         expect(result.canSave).toBe(true);
       });
     });
@@ -301,38 +149,11 @@ describe('Tab Property Null Handling', () => {
 
   describe('Keyboard Shortcut Handler - Tab validation', () => {
     it('should handle undefined tab.url in keyboard shortcut', () => {
-      const tab = {
-        id: 1,
-        url: undefined,
-        title: 'Test',
-      };
-
-      // Simulate the keyboard shortcut handler logic
-      const shouldProcessShortcut = (tab: any): boolean => {
-        if (!tab || !tab.id) return false;
-        if (!tab.url) return false;
-        return true;
-      };
-
-      const result = shouldProcessShortcut(tab);
-      expect(result).toBe(false);
+      expect(shouldProcessShortcut({ id: 1, url: undefined, title: 'Test' })).toBe(false);
     });
 
     it('should allow tab with valid url in keyboard shortcut', () => {
-      const tab = {
-        id: 1,
-        url: 'https://example.com',
-        title: 'Test',
-      };
-
-      const shouldProcessShortcut = (tab: any): boolean => {
-        if (!tab || !tab.id) return false;
-        if (!tab.url) return false;
-        return true;
-      };
-
-      const result = shouldProcessShortcut(tab);
-      expect(result).toBe(true);
+      expect(shouldProcessShortcut({ id: 1, url: 'https://example.com', title: 'Test' })).toBe(true);
     });
   });
 });

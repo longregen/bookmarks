@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
 
-/**
- * Test search filtering logic without database dependency
- * Tests tag filtering and clear selection behavior
- */
-
 interface MockBookmark {
   id: string;
   status: 'complete' | 'pending' | 'processing' | 'error';
