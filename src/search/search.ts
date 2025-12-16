@@ -24,6 +24,13 @@ const searchBtn = document.getElementById('searchBtn') as HTMLButtonElement;
 const autocompleteDropdown = document.getElementById('autocompleteDropdown')!;
 const resultsList = document.getElementById('resultsList')!;
 const resultCount = document.getElementById('resultCount')!;
+const searchPage = document.getElementById('searchPage')!;
+const searchHero = document.getElementById('searchHero')!;
+const searchHint = document.getElementById('searchHint')!;
+const resultHeader = document.getElementById('resultHeader')!;
+
+// Start in centered mode
+searchPage.classList.add('search-page--centered');
 
 // Initialize bookmark detail manager
 const detailManager = new BookmarkDetailManager({
@@ -175,14 +182,29 @@ async function loadFilters() {
   });
 }
 
+function showResultsMode() {
+  searchPage.classList.remove('search-page--centered');
+  searchHero.classList.add('hidden');
+  searchHint.classList.add('hidden');
+  resultHeader.classList.remove('hidden');
+}
+
+function showCenteredMode() {
+  searchPage.classList.add('search-page--centered');
+  searchHero.classList.remove('hidden');
+  searchHint.classList.remove('hidden');
+  resultHeader.classList.add('hidden');
+}
+
 async function performSearch() {
   const query = searchInput.value.trim();
   if (!query) {
+    showCenteredMode();
     resultsList.innerHTML = '';
-    resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'Enter a search query' }));
     return;
   }
 
+  showResultsMode();
   searchBtn.disabled = true;
   searchBtn.textContent = 'Searching...';
 
@@ -279,6 +301,25 @@ if (__IS_WEB__) {
 }
 onThemeChange((theme) => applyTheme(theme));
 loadFilters();
+
+// Check for query parameter and auto-search
+const urlParams = new URLSearchParams(window.location.search);
+const initialQuery = urlParams.get('q');
+if (initialQuery) {
+  searchInput.value = initialQuery;
+  performSearch();
+}
+
+// Focus search input on page load
+searchInput.focus();
+
+// Ctrl+K shortcut to focus search
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    searchInput.focus();
+  }
+});
 
 // Initialize health indicator
 const healthIndicatorContainer = document.getElementById('healthIndicator');
