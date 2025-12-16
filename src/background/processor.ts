@@ -2,6 +2,8 @@ import { db, Bookmark, JobType, JobStatus } from '../db/schema';
 import { extractMarkdownAsync } from '../lib/extract';
 import { generateQAPairs, generateEmbeddings } from '../lib/api';
 import { createJob, updateJob, completeJob, failJob } from '../lib/jobs';
+import { broadcastEvent } from '../lib/events';
+import { PROCESSOR_QA_GENERATION_PROGRESS, PROCESSOR_QA_SAVING_PROGRESS } from '../lib/constants';
 
 export async function processBookmark(bookmark: Bookmark): Promise<void> {
   let markdownJobId: string | undefined;
@@ -91,7 +93,7 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
     // Step 3: Generate embeddings for Q&A pairs
     await updateJob(qaJobId, {
       currentStep: 'Generating embeddings...',
-      progress: 33,
+      progress: PROCESSOR_QA_GENERATION_PROGRESS,
     });
     if (__DEBUG_EMBEDDINGS__) {
       console.log(`[Processor] Generating embeddings for ${qaPairs.length} Q&A pairs`);
@@ -124,7 +126,7 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
     // Update progress
     await updateJob(qaJobId, {
       currentStep: 'Saving Q&A pairs...',
-      progress: 66,
+      progress: PROCESSOR_QA_SAVING_PROGRESS,
     });
 
     if (__DEBUG_EMBEDDINGS__) {
@@ -219,6 +221,9 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
     });
 
     console.log(`Successfully processed bookmark: ${bookmark.title}`);
+
+    // Broadcast event that bookmark processing is complete
+    await broadcastEvent('BOOKMARK_UPDATED', { bookmarkId: bookmark.id, status: 'complete' });
   } catch (error) {
     console.error(`Error processing bookmark ${bookmark.id}:`, error);
 
@@ -246,6 +251,9 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
       errorStack: error instanceof Error ? error.stack : undefined,
       updatedAt: new Date(),
     });
+
+    // Broadcast event that bookmark has an error
+    await broadcastEvent('BOOKMARK_UPDATED', { bookmarkId: bookmark.id, status: 'error' });
 
     throw error;
   }

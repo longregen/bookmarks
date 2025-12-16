@@ -1,4 +1,5 @@
 import { db, JobStatus } from '../db/schema';
+import { HEALTH_REFRESH_INTERVAL_MS } from './constants';
 
 export type HealthState = 'healthy' | 'processing' | 'idle' | 'error';
 
@@ -130,8 +131,8 @@ export function createHealthIndicator(container: HTMLElement): () => void {
   // Initial update
   updateIndicator();
 
-  // Auto-refresh every 5 seconds
-  const intervalId = setInterval(updateIndicator, 5000);
+  // Auto-refresh
+  const intervalId = setInterval(updateIndicator, HEALTH_REFRESH_INTERVAL_MS);
 
   // Return cleanup function
   return () => {

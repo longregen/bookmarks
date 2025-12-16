@@ -1375,6 +1375,32 @@ input:focus {
   font-size: var(--text-xs);
 }
 
+/* Security warnings */
+.security-warning {
+  display: block;
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.security-warning.hidden {
+  display: none;
+}
+
+.security-warning strong {
+  font-weight: 600;
+}
+
+.help-text.security-help {
+  color: var(--warning-text);
+  font-style: italic;
+}
+
 /* Connection status indicator */
 .connection-status {
   display: flex;

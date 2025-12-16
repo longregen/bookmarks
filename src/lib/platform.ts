@@ -11,6 +11,7 @@ export interface ApiSettings {
   webdavPassword: string;
   webdavPath: string;
   webdavEnabled: boolean;
+  webdavAllowInsecure: boolean; // Allow HTTP connections (insecure, for development only)
   // WebDAV sync state
   webdavSyncInterval: number; // Minutes between auto-sync (0 = disabled)
   webdavLastSyncTime: string; // ISO timestamp

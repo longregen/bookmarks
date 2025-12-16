@@ -8,9 +8,7 @@ import { updateJob, completeJob, failJob, getJobsByParent, incrementParentJobPro
 import { browserFetch } from '../lib/browser-fetch';
 import { extractTitleFromHtml } from '../lib/bulk-import';
 import { startProcessingQueue } from './queue';
-
-const CONCURRENCY = 5; // Process 5 URLs concurrently
-const TIMEOUT_MS = 30000; // 30 second timeout per URL
+import { FETCH_CONCURRENCY, FETCH_TIMEOUT_MS } from '../lib/constants';
 
 /**
  * Process a bulk import job by fetching all child URL jobs
@@ -49,10 +47,10 @@ export async function processBulkFetch(parentJobId: string, isResumption: boolea
       console.log('No pending jobs to process');
     } else {
       // Process in batches
-      for (let i = 0; i < pendingJobIds.length; i += CONCURRENCY) {
-        const batch = pendingJobIds.slice(i, i + CONCURRENCY);
+      for (let i = 0; i < pendingJobIds.length; i += FETCH_CONCURRENCY) {
+        const batch = pendingJobIds.slice(i, i + FETCH_CONCURRENCY);
 
-        console.log(`Processing batch ${Math.floor(i / CONCURRENCY) + 1}/${Math.ceil(pendingJobIds.length / CONCURRENCY)}`);
+        console.log(`Processing batch ${Math.floor(i / FETCH_CONCURRENCY) + 1}/${Math.ceil(pendingJobIds.length / FETCH_CONCURRENCY)}`);
 
         await Promise.allSettled(
           batch.map(jobId => processSingleFetch(jobId, parentJobId))
@@ -108,7 +106,7 @@ async function processSingleFetch(jobId: string, parentJobId: string): Promise<v
 
     // Fetch with timeout
     const startTime = Date.now();
-    const html = await browserFetch(url, TIMEOUT_MS);
+    const html = await browserFetch(url, FETCH_TIMEOUT_MS);
     const fetchTimeMs = Date.now() - startTime;
 
     console.log(`Fetched ${url} in ${fetchTimeMs}ms (${(html.length / 1024).toFixed(2)} KB)`);

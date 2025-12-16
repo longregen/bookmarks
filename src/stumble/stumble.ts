@@ -5,9 +5,9 @@ import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
 import { createHealthIndicator } from '../lib/health-indicator';
 import { BookmarkDetailManager } from '../lib/bookmark-detail';
 import { loadTagFilters } from '../lib/tag-filter';
+import { STUMBLE_COUNT } from '../lib/constants';
 
 let selectedTags: Set<string> = new Set();
-const STUMBLE_COUNT = 10;
 
 const tagFilters = document.getElementById('tagFilters')!;
 const stumbleList = document.getElementById('stumbleList')!;

@@ -23,6 +23,19 @@ saveBtn.addEventListener('click', async () => {
       return;
     }
 
+    // Check if tab.url is accessible (undefined in incognito or restricted URLs)
+    if (!tab.url) {
+      showStatusMessage(statusDiv, 'Cannot save in incognito mode or restricted URLs', 'error');
+      return;
+    }
+
+    // Check for restricted URL schemes that don't allow script injection
+    const restrictedSchemes = ['chrome:', 'about:', 'chrome-extension:', 'edge:', 'moz-extension:'];
+    if (restrictedSchemes.some(scheme => tab.url?.startsWith(scheme))) {
+      showStatusMessage(statusDiv, 'Cannot save browser internal pages', 'error');
+      return;
+    }
+
     // Inject content script to capture the page
     const result = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
@@ -47,7 +60,13 @@ saveBtn.addEventListener('click', async () => {
     }
   } catch (error) {
     console.error('Error saving bookmark:', error);
-    showStatusMessage(statusDiv, 'Failed to save bookmark', 'error');
+    // Provide more specific error messages for common cases
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('Cannot access') || errorMessage.includes('scripting')) {
+      showStatusMessage(statusDiv, 'Cannot access this page (permissions or restrictions)', 'error');
+    } else {
+      showStatusMessage(statusDiv, 'Failed to save bookmark', 'error');
+    }
   } finally {
     saveBtn.disabled = false;
     // Use DOM APIs instead of innerHTML (CSP-safe)

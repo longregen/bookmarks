@@ -21,13 +21,13 @@ export async function ensureOffscreenDocument(): Promise<void> {
   }
 
   // Check for offscreen API (Chrome MV3 only)
-  const offscreenApi = (chrome as any).offscreen;
+  const offscreenApi = chrome.offscreen;
   if (!offscreenApi || typeof offscreenApi.createDocument !== 'function') {
     return; // Offscreen API not available (Firefox)
   }
 
   // Check for runtime.getContexts API (Chrome 116+)
-  const runtimeApi = chrome.runtime as any;
+  const runtimeApi = chrome.runtime;
   if (!runtimeApi.getContexts || typeof runtimeApi.getContexts !== 'function') {
     // Fallback: try to create document without checking existing contexts
     // This may fail if document already exists, but that's acceptable
@@ -38,9 +38,10 @@ export async function ensureOffscreenDocument(): Promise<void> {
         justification: 'Parse HTML content for bookmark processing',
       });
       console.log('[Offscreen] Document created (without context check)');
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Ignore "already exists" errors
-      if (!error?.message?.includes('single offscreen')) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (!errorMessage.includes('single offscreen')) {
         console.error('[Offscreen] Error creating document:', error);
       }
     }

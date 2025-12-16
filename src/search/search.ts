@@ -7,6 +7,11 @@ import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
 import { createHealthIndicator } from '../lib/health-indicator';
 import { BookmarkDetailManager } from '../lib/bookmark-detail';
 import { loadTagFilters } from '../lib/tag-filter';
+import {
+  SEARCH_HISTORY_LIMIT,
+  SEARCH_AUTOCOMPLETE_LIMIT,
+  SEARCH_TOP_K_RESULTS
+} from '../lib/constants';
 
 let selectedTags: Set<string> = new Set();
 let selectedStatuses: Set<string> = new Set(['complete', 'pending', 'processing', 'error']);
@@ -38,8 +43,6 @@ searchInput.addEventListener('input', showAutocomplete);
 searchInput.addEventListener('focus', showAutocomplete);
 searchInput.addEventListener('blur', () => setTimeout(hideAutocomplete, 200));
 
-const MAX_SEARCH_HISTORY = 50;
-
 async function getSearchAutocompleteSetting(): Promise<boolean> {
   const setting = await db.settings.get('searchAutocomplete');
   return setting?.value ?? true;
@@ -58,8 +61,8 @@ async function saveSearchHistory(query: string, resultCount: number) {
     });
 
     const allHistory = await db.searchHistory.orderBy('createdAt').toArray();
-    if (allHistory.length > MAX_SEARCH_HISTORY) {
-      const toDelete = allHistory.slice(0, allHistory.length - MAX_SEARCH_HISTORY);
+    if (allHistory.length > SEARCH_HISTORY_LIMIT) {
+      const toDelete = allHistory.slice(0, allHistory.length - SEARCH_HISTORY_LIMIT);
       await Promise.all(toDelete.map(h => db.searchHistory.delete(h.id)));
     }
   } catch (error) {
@@ -88,7 +91,7 @@ async function showAutocomplete() {
 
   const matchingHistory = allHistory.filter(h =>
     h.query.toLowerCase().includes(query) && h.query.toLowerCase() !== query
-  ).slice(0, 10);
+  ).slice(0, SEARCH_AUTOCOMPLETE_LIMIT);
 
   if (!matchingHistory.length) {
     hideAutocomplete();
@@ -171,6 +174,8 @@ async function performSearch() {
     const [queryEmbedding] = await generateEmbeddings([query]);
     if (!queryEmbedding?.length) throw new Error('Failed to generate embedding');
 
+    // Load Q&A pairs - for semantic search we need embeddings to compute similarity
+    // Note: A production system would use a vector database with indexed similarity search
     const allQAs = await db.questionsAnswers.toArray();
     const items = allQAs.flatMap(qa => [
       { item: qa, embedding: qa.embeddingQuestion, type: 'question' },
@@ -183,7 +188,7 @@ async function performSearch() {
       return;
     }
 
-    const topResults = findTopK(queryEmbedding, items, 200);
+    const topResults = findTopK(queryEmbedding, items, SEARCH_TOP_K_RESULTS);
     const bookmarkMap = new Map<string, { qa: QuestionAnswer; score: number }[]>();
 
     for (const result of topResults) {
@@ -195,13 +200,27 @@ async function performSearch() {
     const sortedResults = Array.from(bookmarkMap.entries())
       .sort((a, b) => Math.max(...b[1].map(r => r.score)) - Math.max(...a[1].map(r => r.score)));
 
+    // Batch load bookmarks and tags to avoid N+1 query pattern
+    const bookmarkIds = sortedResults.map(([bookmarkId]) => bookmarkId);
+    const bookmarks = await db.bookmarks.bulkGet(bookmarkIds);
+    const bookmarksById = new Map(bookmarks.filter(Boolean).map(b => [b!.id, b!]));
+
+    const allTags = await db.bookmarkTags.where('bookmarkId').anyOf(bookmarkIds).toArray();
+    const tagsByBookmarkId = new Map<string, BookmarkTag[]>();
+    for (const tag of allTags) {
+      if (!tagsByBookmarkId.has(tag.bookmarkId)) {
+        tagsByBookmarkId.set(tag.bookmarkId, []);
+      }
+      tagsByBookmarkId.get(tag.bookmarkId)!.push(tag);
+    }
+
     const filteredResults = [];
     for (const [bookmarkId, qaResults] of sortedResults) {
-      const bookmark = await db.bookmarks.get(bookmarkId);
+      const bookmark = bookmarksById.get(bookmarkId);
       if (!bookmark || !selectedStatuses.has(bookmark.status)) continue;
 
       if (selectedTags.size > 0) {
-        const tags = await db.bookmarkTags.where('bookmarkId').equals(bookmarkId).toArray();
+        const tags = tagsByBookmarkId.get(bookmarkId) || [];
         if (!tags.some((t: BookmarkTag) => selectedTags.has(t.tagName))) continue;
       }
 

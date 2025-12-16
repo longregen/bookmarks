@@ -2,6 +2,7 @@ import { db, BookmarkTag } from '../db/schema';
 import { createElement } from '../lib/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
+import { addEventListener as addBookmarkEventListener } from '../lib/events';
 import { createHealthIndicator } from '../lib/health-indicator';
 import { BookmarkDetailManager } from '../lib/bookmark-detail';
 
@@ -39,16 +40,18 @@ sortSelect.addEventListener('change', () => {
 
 async function loadTags() {
   const bookmarks = await db.bookmarks.toArray();
-  const allTags: { [key: string]: number } = {};
 
-  for (const bookmark of bookmarks) {
-    const tags = await db.bookmarkTags.where('bookmarkId').equals(bookmark.id).toArray() || [];
-    for (const tag of tags) {
-      allTags[tag.tagName] = (allTags[tag.tagName] || 0) + 1;
-    }
+  // Batch load all tags at once to avoid N+1 query pattern
+  const allTagRecords = await db.bookmarkTags.toArray();
+  const allTags: { [key: string]: number } = {};
+  const taggedBookmarkIds = new Set<string>();
+
+  for (const tagRecord of allTagRecords) {
+    allTags[tagRecord.tagName] = (allTags[tagRecord.tagName] || 0) + 1;
+    taggedBookmarkIds.add(tagRecord.bookmarkId);
   }
 
-  const untaggedCount = bookmarks.length - Object.values(allTags).reduce((sum, count) => sum + count, 0);
+  const untaggedCount = bookmarks.length - taggedBookmarkIds.size;
 
   tagList.innerHTML = '';
 
@@ -108,8 +111,21 @@ async function loadBookmarks() {
     return;
   }
 
+  // Batch load all tags for the filtered bookmarks to avoid N+1 query pattern
+  const bookmarkIds = bookmarks.map(b => b.id);
+  const allTags = await db.bookmarkTags.where('bookmarkId').anyOf(bookmarkIds).toArray();
+
+  // Group tags by bookmarkId for efficient lookup
+  const tagsByBookmarkId = new Map<string, BookmarkTag[]>();
+  for (const tag of allTags) {
+    if (!tagsByBookmarkId.has(tag.bookmarkId)) {
+      tagsByBookmarkId.set(tag.bookmarkId, []);
+    }
+    tagsByBookmarkId.get(tag.bookmarkId)!.push(tag);
+  }
+
   for (const bookmark of bookmarks) {
-    const tags = await db.bookmarkTags.where('bookmarkId').equals(bookmark.id).toArray() || [];
+    const tags = tagsByBookmarkId.get(bookmark.id) || [];
     const card = createElement('div', { className: 'bookmark-card' });
     card.onclick = () => detailManager.showDetail(bookmark.id);
 
@@ -141,7 +157,26 @@ initTheme();
 onThemeChange((theme) => applyTheme(theme));
 loadTags();
 loadBookmarks();
-setInterval(() => { loadTags(); loadBookmarks(); }, 5000);
+
+// Event-driven updates instead of constant polling
+const removeEventListener = addBookmarkEventListener((event) => {
+  if (event.type === 'BOOKMARK_UPDATED' || event.type === 'PROCESSING_COMPLETE') {
+    loadTags();
+    loadBookmarks();
+  }
+});
+
+// Minimal fallback polling every 30 seconds (instead of 5)
+const fallbackInterval = setInterval(() => {
+  loadTags();
+  loadBookmarks();
+}, 30000);
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  removeEventListener();
+  clearInterval(fallbackInterval);
+});
 
 // Initialize health indicator
 const healthIndicatorContainer = document.getElementById('healthIndicator');

@@ -1,11 +1,18 @@
 import { getSettings, saveSetting, type ApiSettings } from './settings';
 import { exportAllBookmarks, importBookmarks, type BookmarkExport } from './export';
 import { db } from '../db/schema';
+import { createStateManager } from './state-manager';
+import { broadcastEvent } from './events';
+import { WEBDAV_SYNC_TIMEOUT_MS, WEBDAV_SYNC_DEBOUNCE_MS } from './constants';
 
-// Sync state
-let isSyncing = false;
+// Sync state manager
+const syncState = createStateManager({
+  name: 'WebDAVSync',
+  timeoutMs: WEBDAV_SYNC_TIMEOUT_MS,
+});
+
+// Debouncing state (separate from sync state)
 let lastSyncAttempt = 0;
-const SYNC_DEBOUNCE_MS = 5000; // Minimum 5 seconds between sync attempts
 
 export interface SyncResult {
   success: boolean;
@@ -22,6 +29,35 @@ export interface SyncStatus {
 }
 
 /**
+ * Validate that a WebDAV URL uses HTTPS or is explicitly allowed to use HTTP
+ */
+export function validateSecureConnection(settings: ApiSettings): { valid: boolean; error?: string } {
+  if (!settings.webdavUrl) {
+    return { valid: false, error: 'WebDAV URL is not configured' };
+  }
+
+  try {
+    const url = new URL(settings.webdavUrl);
+
+    // Check if protocol is HTTP (insecure)
+    if (url.protocol === 'http:') {
+      if (!settings.webdavAllowInsecure) {
+        return {
+          valid: false,
+          error: 'HTTP connections are not allowed for security reasons. Please use HTTPS or enable "Allow insecure connections" in settings.',
+        };
+      }
+      // HTTP is allowed but log a warning
+      console.warn('WARNING: WebDAV is using an insecure HTTP connection. Credentials are being sent in plain text.');
+    }
+
+    return { valid: true };
+  } catch (error) {
+    return { valid: false, error: 'Invalid WebDAV URL format' };
+  }
+}
+
+/**
  * Get current sync status from settings
  */
 export async function getSyncStatus(): Promise<SyncStatus> {
@@ -29,7 +65,7 @@ export async function getSyncStatus(): Promise<SyncStatus> {
   return {
     lastSyncTime: settings.webdavLastSyncTime || null,
     lastSyncError: settings.webdavLastSyncError || null,
-    isSyncing,
+    isSyncing: syncState.isActive(),
   };
 }
 
@@ -228,18 +264,9 @@ async function getLocalLastUpdate(): Promise<Date | null> {
  *    - Same: no action needed
  */
 export async function performSync(force = false): Promise<SyncResult> {
-  // Check if already syncing (debounce)
-  if (isSyncing) {
-    return {
-      success: true,
-      action: 'skipped',
-      message: 'Sync already in progress',
-    };
-  }
-
   // Debounce rapid sync requests
   const now = Date.now();
-  if (!force && now - lastSyncAttempt < SYNC_DEBOUNCE_MS) {
+  if (!force && now - lastSyncAttempt < WEBDAV_SYNC_DEBOUNCE_MS) {
     return {
       success: true,
       action: 'skipped',
@@ -258,10 +285,31 @@ export async function performSync(force = false): Promise<SyncResult> {
     };
   }
 
-  isSyncing = true;
+  // Try to start syncing (returns false if already active)
+  if (!syncState.start()) {
+    return {
+      success: true,
+      action: 'skipped',
+      message: 'Sync already in progress',
+    };
+  }
+
+  // Broadcast that sync has started
+  await broadcastEvent('SYNC_STATUS_UPDATED', { isSyncing: true });
 
   try {
     const settings = await getSettings();
+
+    // Validate secure connection
+    const validation = validateSecureConnection(settings);
+    if (!validation.valid) {
+      await saveSetting('webdavLastSyncError', validation.error || 'Connection validation failed');
+      return {
+        success: false,
+        action: 'error',
+        message: validation.error || 'Connection validation failed',
+      };
+    }
 
     // Get remote metadata
     const remote = await getRemoteMetadata(settings);
@@ -278,6 +326,13 @@ export async function performSync(force = false): Promise<SyncResult> {
         await saveSetting('webdavLastSyncTime', timestamp);
         await saveSetting('webdavLastSyncError', '');
 
+        // Broadcast sync completed
+        await broadcastEvent('SYNC_STATUS_UPDATED', {
+          isSyncing: false,
+          lastSyncTime: timestamp,
+          lastSyncError: null
+        });
+
         return {
           success: true,
           action: 'uploaded',
@@ -290,6 +345,13 @@ export async function performSync(force = false): Promise<SyncResult> {
         const timestamp = new Date().toISOString();
         await saveSetting('webdavLastSyncTime', timestamp);
         await saveSetting('webdavLastSyncError', '');
+
+        // Broadcast sync completed
+        await broadcastEvent('SYNC_STATUS_UPDATED', {
+          isSyncing: false,
+          lastSyncTime: timestamp,
+          lastSyncError: null
+        });
 
         return {
           success: true,
@@ -309,6 +371,13 @@ export async function performSync(force = false): Promise<SyncResult> {
       const timestamp = new Date().toISOString();
       await saveSetting('webdavLastSyncTime', timestamp);
       await saveSetting('webdavLastSyncError', '');
+
+      // Broadcast sync completed
+      await broadcastEvent('SYNC_STATUS_UPDATED', {
+        isSyncing: false,
+        lastSyncTime: timestamp,
+        lastSyncError: null
+      });
 
       return {
         success: true,
@@ -334,6 +403,13 @@ export async function performSync(force = false): Promise<SyncResult> {
       const mergedData = await exportAllBookmarks();
       await uploadToServer(settings, mergedData);
 
+      // Broadcast sync completed
+      await broadcastEvent('SYNC_STATUS_UPDATED', {
+        isSyncing: false,
+        lastSyncTime: timestamp,
+        lastSyncError: null
+      });
+
       return {
         success: true,
         action: 'downloaded',
@@ -347,6 +423,13 @@ export async function performSync(force = false): Promise<SyncResult> {
       const timestamp = new Date().toISOString();
       await saveSetting('webdavLastSyncTime', timestamp);
       await saveSetting('webdavLastSyncError', '');
+
+      // Broadcast sync completed
+      await broadcastEvent('SYNC_STATUS_UPDATED', {
+        isSyncing: false,
+        lastSyncTime: timestamp,
+        lastSyncError: null
+      });
 
       return {
         success: true,
@@ -362,13 +445,19 @@ export async function performSync(force = false): Promise<SyncResult> {
 
     console.error('WebDAV sync error:', error);
 
+    // Broadcast sync failed
+    await broadcastEvent('SYNC_STATUS_UPDATED', {
+      isSyncing: false,
+      lastSyncError: errorMessage
+    });
+
     return {
       success: false,
       action: 'error',
       message: errorMessage,
     };
   } finally {
-    isSyncing = false;
+    syncState.reset();
   }
 }
 
