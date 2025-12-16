@@ -7,6 +7,7 @@ import { createElement, showStatusMessage } from '../lib/dom';
 import { formatTimeAgo } from '../lib/time';
 import { onThemeChange, applyTheme, getTheme, setTheme, type Theme } from '../shared/theme';
 import { initExtension } from '../lib/init-extension';
+import { initWeb } from '../web/init-web';
 
 // Web-only imports for direct bulk import processing
 import { processBulkFetch } from '../background/fetcher';
@@ -179,8 +180,10 @@ webdavForm.addEventListener('submit', async (e) => {
     await saveSetting('webdavPath', webdavPathInput.value.trim() || '/bookmarks');
     await saveSetting('webdavSyncInterval', parseInt(webdavSyncIntervalInput.value, 10) || 15);
 
-    // Notify service worker to update sync alarm
-    await chrome.runtime.sendMessage({ type: 'UPDATE_SYNC_SETTINGS' });
+    // Notify service worker to update sync alarm (extension only)
+    if (!__IS_WEB__) {
+      await chrome.runtime.sendMessage({ type: 'UPDATE_SYNC_SETTINGS' });
+    }
 
     showStatusMessage(statusDiv, 'WebDAV settings saved successfully!', 'success', 5000);
 
@@ -284,6 +287,9 @@ async function testWebDAVConnection(
 
 // Sync status functions
 async function updateSyncStatus() {
+  // Skip sync status in web context (no background service worker)
+  if (__IS_WEB__) return;
+
   try {
     const response = await chrome.runtime.sendMessage({ type: 'GET_SYNC_STATUS' });
 
@@ -340,6 +346,12 @@ function formatSyncTime(isoTime: string): string {
 }
 
 syncNowBtn.addEventListener('click', async () => {
+  // Skip sync in web context (no background service worker)
+  if (__IS_WEB__) {
+    showStatusMessage(statusDiv, 'WebDAV sync is only available in the browser extension', 'error', 5000);
+    return;
+  }
+
   try {
     syncNowBtn.disabled = true;
     syncNowBtn.textContent = 'Syncing...';
@@ -917,8 +929,12 @@ themeRadios.forEach(radio => {
   });
 });
 
-// Initialize theme
-initExtension();
+// Initialize platform and theme
+if (__IS_WEB__) {
+  initWeb();
+} else {
+  initExtension();
+}
 onThemeChange((theme) => applyTheme(theme));
 
 // Sidebar Navigation
