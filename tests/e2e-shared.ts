@@ -282,11 +282,11 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner): 
 
     // Enter mix of valid and invalid URLs
     const testUrls = 'https://example.com\\njavascript:alert(1)\\nnot-a-url\\nhttps://github.com';
-    await page.evaluate(`
+    await page.evaluate(`(() => {
       const el = document.getElementById('bulkUrlsInput');
       el.value = '${testUrls}';
       el.dispatchEvent(new Event('input', { bubbles: true }));
-    `);
+    })()`);
 
     // Wait for validation feedback
     await new Promise(resolve => setTimeout(resolve, 1000));
