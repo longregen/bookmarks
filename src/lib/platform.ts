@@ -11,6 +11,10 @@ export interface ApiSettings {
   webdavPassword: string;
   webdavPath: string;
   webdavEnabled: boolean;
+  // WebDAV sync state
+  webdavSyncInterval: number; // Minutes between auto-sync (0 = disabled)
+  webdavLastSyncTime: string; // ISO timestamp
+  webdavLastSyncError: string; // Last error message (empty = no error)
 }
 
 export type Theme = 'auto' | 'light' | 'dark' | 'terminal' | 'tufte';
@@ -21,7 +25,7 @@ export type Theme = 'auto' | 'light' | 'dark' | 'terminal' | 'tufte';
 export interface PlatformAdapter {
   // Settings management
   getSettings(): Promise<ApiSettings>;
-  saveSetting(key: keyof ApiSettings, value: string | boolean): Promise<void>;
+  saveSetting(key: keyof ApiSettings, value: string | boolean | number): Promise<void>;
 
   // Theme management
   getTheme(): Promise<Theme>;

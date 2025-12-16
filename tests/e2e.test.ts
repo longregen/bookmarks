@@ -86,6 +86,7 @@ async function launchBrowser(): Promise<Browser> {
   const browser = await puppeteer.launch({
     executablePath: BROWSER_PATH,
     headless: false, // Extensions require headed mode
+    protocolTimeout: 180000, // 3 minutes timeout for protocol operations (increased for CI environments)
     args: [
       `--user-data-dir=${USER_DATA_DIR}`,
       `--disable-extensions-except=${EXTENSION_PATH}`,
@@ -182,6 +183,116 @@ async function runTest(name: string, fn: () => Promise<void>): Promise<void> {
     results.push({ name, passed: false, error: errorMessage, duration: Date.now() - start });
     console.error(`✗ ${name}: ${errorMessage}`);
   }
+}
+
+/**
+ * Helper function to wait for service worker to be ready before sending messages.
+ * This checks if the service worker is active and can receive messages.
+ */
+async function waitForServiceWorkerReady(page: Page, timeout = 30000): Promise<void> {
+  const startTime = Date.now();
+  console.log('  Waiting for service worker to be ready...');
+
+  while (Date.now() - startTime < timeout) {
+    try {
+      // Try to ping the service worker with a simple message
+      const isReady = await page.evaluate(async () => {
+        return new Promise<boolean>((resolve) => {
+          // Set a short timeout for this check
+          const checkTimeout = setTimeout(() => resolve(false), 1000);
+
+          try {
+            chrome.runtime.sendMessage({ type: 'PING' }, (response) => {
+              clearTimeout(checkTimeout);
+              // Service worker responded (even with undefined is ok - it means it's alive)
+              resolve(true);
+            });
+          } catch (error) {
+            clearTimeout(checkTimeout);
+            resolve(false);
+          }
+        });
+      });
+
+      if (isReady) {
+        console.log('  ✓ Service worker is ready');
+        return;
+      }
+    } catch (error) {
+      // Continue waiting
+    }
+
+    // Wait before next retry
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  throw new Error('Service worker did not become ready within timeout period');
+}
+
+/**
+ * Helper function to send a message to the service worker with retry logic and exponential backoff.
+ * This handles transient connection failures that are common in CI environments.
+ */
+async function sendMessageWithRetry(
+  page: Page,
+  message: any,
+  maxRetries = 5,
+  initialDelay = 1000
+): Promise<any> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const delay = initialDelay * Math.pow(2, attempt);
+
+      if (attempt > 0) {
+        console.log(`  Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+
+      // Wait for service worker to be ready before sending
+      await waitForServiceWorkerReady(page, 30000);
+
+      // Send the message with extended timeout
+      const result = await page.evaluate(async (msg) => {
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Message response timeout after 30 seconds'));
+          }, 30000);
+
+          try {
+            chrome.runtime.sendMessage(msg, (response) => {
+              clearTimeout(timeout);
+              if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+              } else {
+                resolve(response);
+              }
+            });
+          } catch (error) {
+            clearTimeout(timeout);
+            reject(error);
+          }
+        });
+      }, message);
+
+      console.log('  ✓ Message sent successfully');
+      return result;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.log(`  ✗ Attempt ${attempt + 1} failed: ${lastError.message}`);
+
+      // Don't retry if it's not a connection/timing error
+      if (!lastError.message.includes('Could not establish connection') &&
+          !lastError.message.includes('timed out') &&
+          !lastError.message.includes('timeout') &&
+          !lastError.message.includes('Service worker')) {
+        throw lastError;
+      }
+    }
+  }
+
+  throw new Error(`Failed to send message after ${maxRetries} attempts. Last error: ${lastError?.message}`);
 }
 
 async function main(): Promise<void> {
@@ -292,13 +403,11 @@ async function main(): Promise<void> {
       // Wait for popup to load
       await popupPage.waitForSelector('#saveBtn', { timeout: 5000 });
 
-      // Use the popup's context to send the message (it has access to chrome.runtime)
-      await popupPage.evaluate(async (data) => {
-        await chrome.runtime.sendMessage({
-          type: 'SAVE_BOOKMARK',
-          data: data
-        });
-      }, pageData);
+      // Use the popup's context to send the message with retry logic
+      await sendMessageWithRetry(popupPage, {
+        type: 'SAVE_BOOKMARK',
+        data: pageData
+      });
 
       await popupPage.close();
 
@@ -509,16 +618,11 @@ async function main(): Promise<void> {
       await libraryPage.goto(`chrome-extension://${extensionId}/src/library/library.html`);
       await libraryPage.waitForSelector('#bookmarkList', { timeout: 5000 });
 
-      // Inject the bookmark via the service worker
-      const saveResult = await libraryPage.evaluate(async (data) => {
-        // Send message to service worker to save the bookmark
-        return new Promise((resolve) => {
-          chrome.runtime.sendMessage(
-            { type: 'SAVE_BOOKMARK', data },
-            (response) => resolve(response)
-          );
-        });
-      }, pageData);
+      // Inject the bookmark via the service worker with retry logic
+      const saveResult = await sendMessageWithRetry(libraryPage, {
+        type: 'SAVE_BOOKMARK',
+        data: pageData
+      });
 
       if (!saveResult || !(saveResult as any).success) {
         throw new Error('Failed to save bookmark: ' + JSON.stringify(saveResult));

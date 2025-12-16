@@ -25,8 +25,13 @@ const webdavUrlInput = document.getElementById('webdavUrl') as HTMLInputElement;
 const webdavUsernameInput = document.getElementById('webdavUsername') as HTMLInputElement;
 const webdavPasswordInput = document.getElementById('webdavPassword') as HTMLInputElement;
 const webdavPathInput = document.getElementById('webdavPath') as HTMLInputElement;
+const webdavSyncIntervalInput = document.getElementById('webdavSyncInterval') as HTMLInputElement;
 const testWebdavBtn = document.getElementById('testWebdavBtn') as HTMLButtonElement;
 const webdavConnectionStatus = document.getElementById('webdavConnectionStatus') as HTMLDivElement;
+
+// Sync status elements
+const syncStatusIndicator = document.getElementById('syncStatusIndicator') as HTMLDivElement;
+const syncNowBtn = document.getElementById('syncNowBtn') as HTMLButtonElement;
 
 // Import/Export elements
 const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
@@ -58,9 +63,15 @@ async function loadWebDAVSettings() {
     webdavUsernameInput.value = settings.webdavUsername;
     webdavPasswordInput.value = settings.webdavPassword;
     webdavPathInput.value = settings.webdavPath;
+    webdavSyncIntervalInput.value = String(settings.webdavSyncInterval || 15);
 
     // Show/hide fields based on enabled state
     updateWebDAVFieldsVisibility();
+
+    // Load sync status if enabled
+    if (settings.webdavEnabled) {
+      updateSyncStatus();
+    }
   } catch (error) {
     console.error('Error loading WebDAV settings:', error);
   }
@@ -162,8 +173,17 @@ webdavForm.addEventListener('submit', async (e) => {
     await saveSetting('webdavUsername', webdavUsernameInput.value.trim());
     await saveSetting('webdavPassword', webdavPasswordInput.value);
     await saveSetting('webdavPath', webdavPathInput.value.trim() || '/bookmarks');
+    await saveSetting('webdavSyncInterval', parseInt(webdavSyncIntervalInput.value, 10) || 15);
+
+    // Notify service worker to update sync alarm
+    await chrome.runtime.sendMessage({ type: 'UPDATE_SYNC_SETTINGS' });
 
     showStatusMessage(statusDiv, 'WebDAV settings saved successfully!', 'success', 5000);
+
+    // Update sync status display
+    if (webdavEnabledInput.checked) {
+      updateSyncStatus();
+    }
   } catch (error) {
     console.error('Error saving WebDAV settings:', error);
     showStatusMessage(statusDiv, 'Failed to save WebDAV settings', 'error', 5000);
@@ -258,6 +278,113 @@ async function testWebDAVConnection(
   }
 }
 
+// Sync status functions
+async function updateSyncStatus() {
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'GET_SYNC_STATUS' });
+
+    if (response) {
+      const statusText = syncStatusIndicator.querySelector('.sync-status-text') as HTMLSpanElement;
+
+      // Remove existing status classes
+      syncStatusIndicator.classList.remove('syncing', 'success', 'error');
+
+      if (response.isSyncing) {
+        syncStatusIndicator.classList.add('syncing');
+        statusText.textContent = 'Syncing...';
+        syncNowBtn.disabled = true;
+        syncNowBtn.textContent = 'Syncing...';
+      } else if (response.lastSyncError) {
+        syncStatusIndicator.classList.add('error');
+        statusText.textContent = `Error: ${response.lastSyncError}`;
+        syncNowBtn.disabled = false;
+        syncNowBtn.textContent = 'Sync Now';
+      } else if (response.lastSyncTime) {
+        syncStatusIndicator.classList.add('success');
+        statusText.textContent = `Last synced: ${formatSyncTime(response.lastSyncTime)}`;
+        syncNowBtn.disabled = false;
+        syncNowBtn.textContent = 'Sync Now';
+      } else {
+        statusText.textContent = 'Not synced yet';
+        syncNowBtn.disabled = false;
+        syncNowBtn.textContent = 'Sync Now';
+      }
+    }
+  } catch (error) {
+    console.error('Error getting sync status:', error);
+  }
+}
+
+function formatSyncTime(isoTime: string): string {
+  const date = new Date(isoTime);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+
+  if (diffMinutes < 1) {
+    return 'just now';
+  } else if (diffMinutes < 60) {
+    return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
+  } else {
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) {
+      return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+    } else {
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+  }
+}
+
+syncNowBtn.addEventListener('click', async () => {
+  try {
+    syncNowBtn.disabled = true;
+    syncNowBtn.textContent = 'Syncing...';
+
+    const statusText = syncStatusIndicator.querySelector('.sync-status-text') as HTMLSpanElement;
+    syncStatusIndicator.classList.remove('success', 'error');
+    syncStatusIndicator.classList.add('syncing');
+    statusText.textContent = 'Syncing...';
+
+    const result = await chrome.runtime.sendMessage({ type: 'TRIGGER_SYNC' });
+
+    syncStatusIndicator.classList.remove('syncing');
+
+    if (result && result.success) {
+      syncStatusIndicator.classList.add('success');
+      statusText.textContent = result.message;
+      showStatusMessage(statusDiv, `Sync completed: ${result.message}`, 'success', 5000);
+    } else {
+      syncStatusIndicator.classList.add('error');
+      statusText.textContent = `Error: ${result?.message || 'Unknown error'}`;
+      showStatusMessage(statusDiv, `Sync failed: ${result?.message || 'Unknown error'}`, 'error', 5000);
+    }
+
+    // Refresh status after a short delay
+    setTimeout(updateSyncStatus, 1000);
+  } catch (error) {
+    console.error('Error triggering sync:', error);
+    showStatusMessage(statusDiv, 'Failed to trigger sync', 'error', 5000);
+  } finally {
+    syncNowBtn.disabled = false;
+    syncNowBtn.textContent = 'Sync Now';
+  }
+});
+
+// Poll for sync status while on the options page
+let syncStatusPollInterval: number | null = null;
+
+function startSyncStatusPolling() {
+  if (syncStatusPollInterval) {
+    clearInterval(syncStatusPollInterval);
+  }
+
+  // Only poll if WebDAV is enabled
+  if (webdavEnabledInput.checked) {
+    syncStatusPollInterval = window.setInterval(async () => {
+      await updateSyncStatus();
+    }, 10000); // Poll every 10 seconds
+  }
+}
 
 // Import/Export functionality
 let selectedFile: File | null = null;
@@ -750,6 +877,9 @@ window.addEventListener('beforeunload', () => {
   if (jobsPollingInterval) {
     clearInterval(jobsPollingInterval);
   }
+  if (syncStatusPollInterval) {
+    clearInterval(syncStatusPollInterval);
+  }
 });
 
 // Theme selector
@@ -848,3 +978,6 @@ loadTheme();
 // Load jobs on page load
 loadJobs();
 startJobsPolling();
+
+// Start sync status polling
+startSyncStatusPolling();
