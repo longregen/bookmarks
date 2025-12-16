@@ -34,7 +34,7 @@ Transform **Bookmarks by Localforge** into a knowledge discovery tool with four 
    └─────────┘  └─────────┘    └─────────┘    └─────────┘         │
         │            │               │               │            │
         └────────────┴───────┬───────┴───────────────┘            │
-                             │                                     │
+                             │                                    │
                     ┌────────┴────────┐                           │
                     │  DETAIL PANEL   │ ◄─────────────────────────┘
                     │ (shared across  │
@@ -49,11 +49,11 @@ Transform **Bookmarks by Localforge** into a knowledge discovery tool with four 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                                                                         │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌──────────┐    Bookmarks by      │
-│  │ Library │ │ Search  │ │ Stumble │ │ Settings │      Localforge      │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌──────────┐    Bookmarks by       │
+│  │ Library │ │ Search  │ │ Stumble │ │ Settings │      Localforge       │
 │  └─────────┘ └─────────┘ └─────────┘ └──────────┘                       │
 │   ▔▔▔▔▔▔▔▔▔                                                             │
-│   (active)                                                               │
+│   (active)                                                              │
 └─────────────────────────────────────────────────────────────────────────┘
        56px height, 16px horizontal padding
 ```
@@ -124,7 +124,7 @@ Minimal popup focused on the primary action. Processing status is shown in Libra
 │            │                                │                               │
 │            │                                │  ───────────────────────────  │
 │            │                                │  [Debug] [Export] [Delete]    │
-│   200px    │           350px                │         flex: 1 (max 680px)   │
+│   200px    │           350px                │  flex: 1 (max width 960px)    │
 └────────────┴────────────────────────────────┴───────────────────────────────┘
 ```
 
@@ -171,7 +171,7 @@ When space is constrained, stack vertically:
 ```
 ┌────────────────────────────────┐
 │ Title of the Article        ●  │  ← Color dot only
-│ example.com · 2h               │
+│ example.com · Oct 12           │
 │ #work #learning                │
 └────────────────────────────────┘
 ```
@@ -182,9 +182,9 @@ Click on tags section to enter edit mode. Type to filter existing tags or create
 
 ```
 TAGS
-┌──────┐ ┌──────────┐ ┌─────────────────────────┐
-│#work │ │#learning │ │ type to add...          │
-└──────┘ └──────────┘ └─────────────────────────┘
+┌─────────────────────────────────────────┐
+│#work | #learning | type to add...       │
+└─────────────────────────────────────────┘
                               │
                               ▼ (autocomplete dropdown)
                       ┌─────────────────────────┐
@@ -195,8 +195,8 @@ TAGS
                       └─────────────────────────┘
 ```
 
-- Click tag chip `×` to remove
 - Type in input to filter/create
+- Normal input erasing with backspace drops tags
 - Enter or click to add
 - Creates tag automatically if doesn't exist
 
@@ -208,24 +208,25 @@ TAGS
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  [Library] [Search] [Stumble] [Settings]             Bookmarks by Localforge│
+│  [Library] [Search] [Stumble] [Settings]            Bookmarks by Localforge │
 ├────────────┬────────────────────────────────┬───────────────────────────────┤
 │            │                                │                               │
 │  FILTERS   │  ┌──────────────────────────┐  │  DETAIL PANEL                 │
 │            │  │ Ask anything...       🔍 │  │                               │
 │  Tags:     │  └──────────────────────────┘  │  (same as Library)            │
+│  ☑ Select All │                             │                               │
 │  ☐ #work   │                                │                               │
 │  ☐ #learn  │  12 results · Relevance ▼      │                               │
 │  ☐ #read   │                                │                               │
 │  ☐ #ref    │ ┌────────────────────────────┐ │                               │
 │            │ │ 94%  Neural Networks    ●  │ │                               │
 │  ────────  │ │ arxiv.org · #research #ml  │ │                               │
-│            │ │                             │ │                               │
+│            │ │                            │ │                               │
 │  Status:   │ │ Q: What are the components │ │                               │
-│  ☑ Complete│ │    of neural networks?     │ │                               │
-│  ☐ Pending │ │ A: Neural networks consist │ │                               │
-│  ☐ Error   │ │    of layers of nodes...   │ │                               │
-│            │ └────────────────────────────┘ │                               │
+│  ☑ Select all│ │    of neural networks?     │ │                               │
+│  ☐ Complete│ │ A: Neural networks consist │ │                               │
+│  ☐ Processing │ │    of layers of nodes...   │ │                               │
+│  ☐ Error   │ └────────────────────────────┘ │                               │
 │            │                                │                               │
 │            │ ┌────────────────────────────┐ │                               │
 │            │ │ 87%  Deep Learning      ●  │ │                               │
@@ -247,6 +248,7 @@ TAGS
 FILTERS
 
 Tags:
+☐ Select all
 ☐ #work
 ☐ #learning
 ☐ #reading
@@ -256,12 +258,13 @@ Tags:
 ────────────────────────
 
 Status:
-☑ Complete
+☑ Select All
+☐ Complete
 ☐ Pending
 ☐ Error
 ```
 
-Checkboxes for multi-select filtering. Matches Library sidebar pattern.
+Checkboxes for multi-select filtering. Matches Library sidebar pattern. Select all toggling/untoggling clears all the rest
 
 ### Search Result Card
 
@@ -270,7 +273,7 @@ Shows relevance percentage and best matching Q&A:
 ```
 ┌──────────────────────────────────────────────────┐
 │ 94%  Introduction to Neural Networks          ●  │
-│ arxiv.org · #research #ml                        │
+│ arxiv.org · #research #ml ·  2022-03-14          │
 │                                                  │
 │ Q: What are the fundamental components?          │
 │ A: Neural networks consist of interconnected     │
@@ -282,7 +285,7 @@ Click card to open detail panel (same panel as Library).
 
 ### Search History
 
-- Stored in memory
+- Stored in database
 - only shown as  autocomplete 
 - setting to enable/disable autocomplete suggestions, erase history
 
@@ -336,6 +339,7 @@ Matches Library structure exactly. Simple shuffle action at top, in line with sh
 FILTER
 
 Tags:
+☐ Select all
 ☐ #work
 ☐ #learning
 ☐ #reading
@@ -343,7 +347,7 @@ Tags:
 ☐ #tutorial
 ```
 
-Same checkbox pattern as Search. Filter limits random selection to checked tags.
+Same checkbox pattern as Search. Filter limits random selection to checked tags. Selecting all clears all the rest. No
 
 ### Stumble Card
 
@@ -485,13 +489,17 @@ API Key
 DATA MANAGEMENT
 ───────────────────────────────────────────────────
 
-Import & Export
+Import
 
 ┌─────────────────────┐  ┌─────────────────────┐
 │ 📁 Import from File │  │ 🔗 Import URLs      │
 └─────────────────────┘  └─────────────────────┘
 
-[Export All Bookmarks]
+Export 
+
+┌─────────────────────┐  ┌─────────────────────┐
+│ () Export All       │  │ () Export Settings  │
+└─────────────────────┘  └─────────────────────┘
 
 ───────────────────────────────────────────────────
 
@@ -520,7 +528,7 @@ Version 3.4.0
 Your bookmarks are stored locally. Only extracted
 content is sent to your configured API.
 
-[Documentation]  [Report Issue]  [Privacy]
+[Website]  [Source code]  [Report Issue]
 ```
 
 ---
@@ -589,23 +597,9 @@ interface Tag {
 ```typescript
 interface BookmarkTag {
   bookmarkId: string;
-  tagId: string;
+  tagName: string;
   addedAt: Date;
 }
-```
-
-### Schema v3
-
-```typescript
-db.version(3).stores({
-  bookmarks: 'id, url, status, createdAt, updatedAt',
-  markdown: 'id, bookmarkId, createdAt, updatedAt',
-  questionAnswers: 'id, bookmarkId, createdAt, updatedAt',
-  jobs: 'id, bookmarkId, parentJobId, status, type, [parentJobId+status], [bookmarkId+type]',
-  settings: 'key, createdAt, updatedAt',
-  tags: 'id, &name, createdAt, updatedAt',
-  bookmarkTags: '[bookmarkId+tagId], bookmarkId, tagId, addedAt'
-});
 ```
 
 ---
@@ -630,13 +624,10 @@ Each advanced feature requires dedicated tests:
 ```typescript
 describe('TagEditor', () => {
   it('displays existing tags as chips');
-  it('removes tag when chip × is clicked');
+  it('removes tags as input gets cleared');
   it('shows autocomplete dropdown on input focus');
   it('filters autocomplete results while typing');
-  it('adds existing tag on selection');
-  it('creates new tag when typing non-existent name');
   it('prevents duplicate tags on same bookmark');
-  it('handles empty tag name gracefully');
 });
 ```
 
