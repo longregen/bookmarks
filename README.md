@@ -187,7 +187,7 @@ When you search:
 - All bookmarks are stored locally in your browser's IndexedDB
 - Only the extracted Markdown content is sent to your configured API for processing
 - No data is sent to any third-party servers (except your configured LLM API)
-- WebDAV sync sends encrypted bookmark data to your own server
+- WebDAV sync sends bookmark data to your own server
 - Export your data anytime as JSON files
 
 ## Development
