@@ -23,7 +23,7 @@ const searchInput = document.getElementById('searchInput') as HTMLInputElement;
 const searchBtn = document.getElementById('searchBtn') as HTMLButtonElement;
 const autocompleteDropdown = document.getElementById('autocompleteDropdown')!;
 const resultsList = document.getElementById('resultsList')!;
-const resultCount = document.getElementById('resultCount')!;
+const resultStatus = document.getElementById('resultStatus')!;
 const searchPage = document.getElementById('searchPage')!;
 const searchHero = document.getElementById('searchHero')!;
 const resultHeader = document.getElementById('resultHeader')!;
@@ -185,6 +185,7 @@ function showResultsMode() {
   searchPage.classList.remove('search-page--centered');
   searchHero.classList.add('hidden');
   resultHeader.classList.remove('hidden');
+  resultStatus.textContent = 'Searching...';
 }
 
 function showCenteredMode() {
@@ -262,11 +263,14 @@ async function performSearch() {
       filteredResults.push({ bookmark, qaResults });
     }
 
-    resultCount.textContent = filteredResults.length.toString();
+    const count = filteredResults.length;
+    resultStatus.textContent = count === 0
+      ? 'No results found'
+      : `${count} result${count === 1 ? '' : 's'}`;
     resultsList.innerHTML = '';
 
     if (!filteredResults.length) {
-      resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'No results found' }));
+      resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'Try a different search term or check your filters' }));
       await saveSearchHistory(query, 0);
       return;
     }
