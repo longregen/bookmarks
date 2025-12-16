@@ -16,6 +16,36 @@ const processingState = createStateManager({
   timeoutMs: QUEUE_STATE_TIMEOUT_MS,
 });
 
+async function updateBookmarkWithRetry(
+  bookmarkId: string,
+  errorMessage: string,
+  currentRetryCount: number
+): Promise<void> {
+  const retryCount = currentRetryCount + 1;
+  const canRetry = shouldRetryBookmark(retryCount - 1, QUEUE_MAX_RETRIES);
+
+  if (canRetry) {
+    const nextRetryAt = getNextRetryTime(retryCount - 1, QUEUE_RETRY_BASE_DELAY_MS, QUEUE_RETRY_MAX_DELAY_MS);
+    await db.bookmarks.update(bookmarkId, {
+      status: 'error',
+      errorMessage,
+      retryCount,
+      lastRetryAt: new Date(),
+      nextRetryAt,
+      updatedAt: new Date(),
+    });
+  } else {
+    await db.bookmarks.update(bookmarkId, {
+      status: 'error',
+      errorMessage: `Failed after ${QUEUE_MAX_RETRIES} retry attempts: ${errorMessage}`,
+      retryCount,
+      lastRetryAt: new Date(),
+      nextRetryAt: undefined,
+      updatedAt: new Date(),
+    });
+  }
+}
+
 export async function startProcessingQueue() {
   // Try to start processing (returns false if already active)
   if (!processingState.start()) {
@@ -41,25 +71,16 @@ export async function startProcessingQueue() {
             // Mark for retry with exponential backoff
             const nextRetryAt = getNextRetryTime(retryCount - 1, QUEUE_RETRY_BASE_DELAY_MS, QUEUE_RETRY_MAX_DELAY_MS);
             console.log(`Resetting bookmark ${bookmark.id} (${bookmark.title}) - processing timeout exceeded (retry ${retryCount}/${QUEUE_MAX_RETRIES}, next retry at ${nextRetryAt.toISOString()})`);
-
-            await db.bookmarks.update(bookmark.id, {
-              status: 'error',
-              errorMessage: 'Processing timeout exceeded',
-              retryCount,
-              lastRetryAt: new Date(),
-              nextRetryAt,
-              updatedAt: new Date(),
-            });
           } else {
             // Max retries exceeded
             console.error(`Bookmark ${bookmark.id} (${bookmark.title}) failed permanently after ${QUEUE_MAX_RETRIES} retries - processing timeout`);
-            await db.bookmarks.update(bookmark.id, {
-              status: 'error',
-              errorMessage: `Processing timeout exceeded after ${QUEUE_MAX_RETRIES} retry attempts`,
-              retryCount,
-              updatedAt: new Date(),
-            });
           }
+
+          await updateBookmarkWithRetry(
+            bookmark.id,
+            'Processing timeout exceeded',
+            bookmark.retryCount || 0
+          );
         }
       }
 
@@ -131,25 +152,16 @@ export async function startProcessingQueue() {
           const delaySeconds = Math.round((nextRetryAt.getTime() - Date.now()) / 1000);
 
           console.log(`Will retry bookmark ${bookmark.id} in ${delaySeconds}s (attempt ${retryCount}/${QUEUE_MAX_RETRIES + 1})`);
-
-          await db.bookmarks.update(bookmark.id, {
-            retryCount,
-            lastRetryAt: new Date(),
-            nextRetryAt,
-            updatedAt: new Date(),
-          });
         } else {
           // Max retries exceeded - mark as permanent error
           console.error(`Bookmark ${bookmark.id} (${bookmark.title}) failed permanently after ${QUEUE_MAX_RETRIES} retry attempts: ${errorMessage}`);
-
-          await db.bookmarks.update(bookmark.id, {
-            errorMessage: `Failed after ${QUEUE_MAX_RETRIES} retry attempts: ${errorMessage}`,
-            retryCount,
-            lastRetryAt: new Date(),
-            nextRetryAt: undefined, // Clear nextRetryAt to prevent further retries
-            updatedAt: new Date(),
-          });
         }
+
+        await updateBookmarkWithRetry(
+          bookmark.id,
+          errorMessage,
+          bookmark.retryCount || 0
+        );
       }
     }
   } finally {

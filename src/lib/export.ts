@@ -143,6 +143,74 @@ function decodeEmbeddingField(value: unknown): number[] | null {
   return null;
 }
 
+async function importSingleBookmark(exportedBookmark: ExportedBookmark): Promise<string> {
+  const now = new Date();
+  const bookmarkId = crypto.randomUUID();
+  const hasHtml = exportedBookmark.html && exportedBookmark.html.length > 0;
+  let status: Bookmark['status'] = exportedBookmark.status;
+  if (!hasHtml && !exportedBookmark.markdown) {
+    status = 'pending';
+  }
+
+  const bookmark: Bookmark = {
+    id: bookmarkId,
+    url: exportedBookmark.url,
+    title: exportedBookmark.title,
+    html: exportedBookmark.html || '',
+    status,
+    createdAt: exportedBookmark.createdAt ? new Date(exportedBookmark.createdAt) : now,
+    updatedAt: now,
+  };
+
+  await db.bookmarks.add(bookmark);
+  return bookmarkId;
+}
+
+async function importMarkdown(bookmarkId: string, content: string): Promise<void> {
+  const now = new Date();
+  const markdown: Markdown = {
+    id: crypto.randomUUID(),
+    bookmarkId,
+    content,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.markdown.add(markdown);
+}
+
+async function importQAPairs(
+  bookmarkId: string,
+  questionsAnswers: ExportedBookmark['questionsAnswers']
+): Promise<void> {
+  if (!questionsAnswers || questionsAnswers.length === 0) {
+    return;
+  }
+
+  const now = new Date();
+  for (const qa of questionsAnswers) {
+    if (qa.embeddingQuestion && qa.embeddingAnswer && qa.embeddingBoth) {
+      const embeddingQuestion = decodeEmbeddingField(qa.embeddingQuestion);
+      const embeddingAnswer = decodeEmbeddingField(qa.embeddingAnswer);
+      const embeddingBoth = decodeEmbeddingField(qa.embeddingBoth);
+
+      if (embeddingQuestion && embeddingAnswer && embeddingBoth) {
+        const questionAnswer: QuestionAnswer = {
+          id: crypto.randomUUID(),
+          bookmarkId,
+          question: qa.question,
+          answer: qa.answer,
+          embeddingQuestion,
+          embeddingAnswer,
+          embeddingBoth,
+          createdAt: now,
+          updatedAt: now,
+        };
+        await db.questionsAnswers.add(questionAnswer);
+      }
+    }
+  }
+}
+
 export interface ImportResult {
   success: boolean;
   imported: number;
@@ -203,61 +271,13 @@ export async function importBookmarks(data: BookmarkExport, fileName?: string): 
           continue;
         }
 
-        const now = new Date();
-        const bookmarkId = crypto.randomUUID();
-        const hasHtml = exportedBookmark.html && exportedBookmark.html.length > 0;
-        let status: Bookmark['status'] = exportedBookmark.status;
-        if (!hasHtml && !exportedBookmark.markdown) {
-          status = 'pending';
-        }
-
-        const bookmark: Bookmark = {
-          id: bookmarkId,
-          url: exportedBookmark.url,
-          title: exportedBookmark.title,
-          html: exportedBookmark.html || '',
-          status,
-          createdAt: exportedBookmark.createdAt ? new Date(exportedBookmark.createdAt) : now,
-          updatedAt: now,
-        };
-
-        await db.bookmarks.add(bookmark);
+        const bookmarkId = await importSingleBookmark(exportedBookmark);
 
         if (exportedBookmark.markdown) {
-          const markdown: Markdown = {
-            id: crypto.randomUUID(),
-            bookmarkId,
-            content: exportedBookmark.markdown,
-            createdAt: now,
-            updatedAt: now,
-          };
-          await db.markdown.add(markdown);
+          await importMarkdown(bookmarkId, exportedBookmark.markdown);
         }
 
-        if (exportedBookmark.questionsAnswers && exportedBookmark.questionsAnswers.length > 0) {
-          for (const qa of exportedBookmark.questionsAnswers) {
-            if (qa.embeddingQuestion && qa.embeddingAnswer && qa.embeddingBoth) {
-              const embeddingQuestion = decodeEmbeddingField(qa.embeddingQuestion);
-              const embeddingAnswer = decodeEmbeddingField(qa.embeddingAnswer);
-              const embeddingBoth = decodeEmbeddingField(qa.embeddingBoth);
-
-              if (embeddingQuestion && embeddingAnswer && embeddingBoth) {
-                const questionAnswer: QuestionAnswer = {
-                  id: crypto.randomUUID(),
-                  bookmarkId,
-                  question: qa.question,
-                  answer: qa.answer,
-                  embeddingQuestion,
-                  embeddingAnswer,
-                  embeddingBoth,
-                  createdAt: now,
-                  updatedAt: now,
-                };
-                await db.questionsAnswers.add(questionAnswer);
-              }
-            }
-          }
-        }
+        await importQAPairs(bookmarkId, exportedBookmark.questionsAnswers || []);
 
         result.imported++;
         existingUrls.add(exportedBookmark.url);

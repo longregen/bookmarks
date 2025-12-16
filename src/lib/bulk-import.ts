@@ -49,44 +49,21 @@ export function validateUrls(urlsText: string): ValidationResult {
   };
 }
 
+const BLOCKED_SCHEMES: Record<string, string> = {
+  'javascript:': 'JavaScript URLs are not allowed',
+  'data:': 'Data URLs are not allowed',
+  'vbscript:': 'VBScript URLs are not allowed',
+  'file:': 'File URLs are not allowed',
+};
+
 export function validateSingleUrl(url: string): UrlValidation {
   const original = url;
   const trimmedLower = url.trim().toLowerCase();
 
-  if (trimmedLower.startsWith('javascript:')) {
-    return {
-      original,
-      normalized: '',
-      isValid: false,
-      error: 'JavaScript URLs are not allowed',
-    };
-  }
-
-  if (trimmedLower.startsWith('data:')) {
-    return {
-      original,
-      normalized: '',
-      isValid: false,
-      error: 'Data URLs are not allowed',
-    };
-  }
-
-  if (trimmedLower.startsWith('vbscript:')) {
-    return {
-      original,
-      normalized: '',
-      isValid: false,
-      error: 'VBScript URLs are not allowed',
-    };
-  }
-
-  if (trimmedLower.startsWith('file:')) {
-    return {
-      original,
-      normalized: '',
-      isValid: false,
-      error: 'File URLs are not allowed',
-    };
+  for (const [scheme, error] of Object.entries(BLOCKED_SCHEMES)) {
+    if (trimmedLower.startsWith(scheme)) {
+      return { original, normalized: '', isValid: false, error };
+    }
   }
 
   let normalized = url;

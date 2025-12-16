@@ -207,6 +207,14 @@ async function getLocalLastUpdate(): Promise<Date | null> {
   return bookmarks?.updatedAt || null;
 }
 
+async function completeSyncSuccess(action: SyncResult['action'], message: string, count?: number): Promise<SyncResult> {
+  const timestamp = new Date().toISOString();
+  await saveSetting('webdavLastSyncTime', timestamp);
+  await saveSetting('webdavLastSyncError', '');
+  await broadcastEvent('SYNC_STATUS_UPDATED', { isSyncing: false, lastSyncTime: timestamp, lastSyncError: null });
+  return { success: true, action, message, timestamp, bookmarkCount: count };
+}
+
 export async function performSync(force = false): Promise<SyncResult> {
   const now = Date.now();
   if (!force && now - lastSyncAttempt < WEBDAV_SYNC_DEBOUNCE_MS) {
@@ -257,38 +265,9 @@ export async function performSync(force = false): Promise<SyncResult> {
     if (!remote.exists) {
       if (localData.bookmarkCount > 0) {
         await uploadToServer(settings, localData);
-        const timestamp = new Date().toISOString();
-        await saveSetting('webdavLastSyncTime', timestamp);
-        await saveSetting('webdavLastSyncError', '');
-        await broadcastEvent('SYNC_STATUS_UPDATED', {
-          isSyncing: false,
-          lastSyncTime: timestamp,
-          lastSyncError: null
-        });
-
-        return {
-          success: true,
-          action: 'uploaded',
-          message: `Uploaded ${localData.bookmarkCount} bookmarks`,
-          timestamp,
-          bookmarkCount: localData.bookmarkCount,
-        };
+        return completeSyncSuccess('uploaded', `Uploaded ${localData.bookmarkCount} bookmarks`, localData.bookmarkCount);
       } else {
-        const timestamp = new Date().toISOString();
-        await saveSetting('webdavLastSyncTime', timestamp);
-        await saveSetting('webdavLastSyncError', '');
-        await broadcastEvent('SYNC_STATUS_UPDATED', {
-          isSyncing: false,
-          lastSyncTime: timestamp,
-          lastSyncError: null
-        });
-
-        return {
-          success: true,
-          action: 'no-change',
-          message: 'No bookmarks to sync',
-          timestamp,
-        };
+        return completeSyncSuccess('no-change', 'No bookmarks to sync');
       }
     }
 
@@ -296,22 +275,7 @@ export async function performSync(force = false): Promise<SyncResult> {
 
     if (!remoteData) {
       await uploadToServer(settings, localData);
-      const timestamp = new Date().toISOString();
-      await saveSetting('webdavLastSyncTime', timestamp);
-      await saveSetting('webdavLastSyncError', '');
-      await broadcastEvent('SYNC_STATUS_UPDATED', {
-        isSyncing: false,
-        lastSyncTime: timestamp,
-        lastSyncError: null
-      });
-
-      return {
-        success: true,
-        action: 'uploaded',
-        message: `Uploaded ${localData.bookmarkCount} bookmarks`,
-        timestamp,
-        bookmarkCount: localData.bookmarkCount,
-      };
+      return completeSyncSuccess('uploaded', `Uploaded ${localData.bookmarkCount} bookmarks`, localData.bookmarkCount);
     }
 
     const remoteExportTime = new Date(remoteData.exportedAt);
@@ -319,42 +283,12 @@ export async function performSync(force = false): Promise<SyncResult> {
 
     if (remoteExportTime > localExportTime) {
       const result = await importBookmarks(remoteData, 'webdav-sync');
-      const timestamp = new Date().toISOString();
-      await saveSetting('webdavLastSyncTime', timestamp);
-      await saveSetting('webdavLastSyncError', '');
       const mergedData = await exportAllBookmarks();
       await uploadToServer(settings, mergedData);
-      await broadcastEvent('SYNC_STATUS_UPDATED', {
-        isSyncing: false,
-        lastSyncTime: timestamp,
-        lastSyncError: null
-      });
-
-      return {
-        success: true,
-        action: 'downloaded',
-        message: `Imported ${result.imported} bookmarks (${result.skipped} duplicates)`,
-        timestamp,
-        bookmarkCount: result.imported,
-      };
+      return completeSyncSuccess('downloaded', `Imported ${result.imported} bookmarks (${result.skipped} duplicates)`, result.imported);
     } else {
       await uploadToServer(settings, localData);
-      const timestamp = new Date().toISOString();
-      await saveSetting('webdavLastSyncTime', timestamp);
-      await saveSetting('webdavLastSyncError', '');
-      await broadcastEvent('SYNC_STATUS_UPDATED', {
-        isSyncing: false,
-        lastSyncTime: timestamp,
-        lastSyncError: null
-      });
-
-      return {
-        success: true,
-        action: 'uploaded',
-        message: `Uploaded ${localData.bookmarkCount} bookmarks`,
-        timestamp,
-        bookmarkCount: localData.bookmarkCount,
-      };
+      return completeSyncSuccess('uploaded', `Uploaded ${localData.bookmarkCount} bookmarks`, localData.bookmarkCount);
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

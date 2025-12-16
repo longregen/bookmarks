@@ -5,6 +5,11 @@ import { createJob, updateJob, completeJob, failJob } from '../lib/jobs';
 import { broadcastEvent } from '../lib/events';
 import { PROCESSOR_QA_GENERATION_PROGRESS, PROCESSOR_QA_SAVING_PROGRESS } from '../lib/constants';
 
+// Debug logger that compiles away when __DEBUG_EMBEDDINGS__ is false
+const debugLog = __DEBUG_EMBEDDINGS__
+  ? (msg: string, data?: unknown) => console.log(`[Processor] ${msg}`, data)
+  : (_msg: string, _data?: unknown) => {};
+
 export async function processBookmark(bookmark: Bookmark): Promise<void> {
   let markdownJobId: string | undefined;
   let qaJobId: string | undefined;
@@ -95,24 +100,20 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
       currentStep: 'Generating embeddings...',
       progress: PROCESSOR_QA_GENERATION_PROGRESS,
     });
-    if (__DEBUG_EMBEDDINGS__) {
-      console.log(`[Processor] Generating embeddings for ${qaPairs.length} Q&A pairs`);
-    }
+    debugLog(`Generating embeddings for ${qaPairs.length} Q&A pairs`);
 
     // Prepare texts for embedding
     const questions = qaPairs.map(qa => qa.question);
     const answers = qaPairs.map(qa => qa.answer);
     const combined = qaPairs.map(qa => `Q: ${qa.question}\nA: ${qa.answer}`);
 
-    if (__DEBUG_EMBEDDINGS__) {
-      console.log('[Processor] Prepared texts for embedding', {
-        questionCount: questions.length,
-        answerCount: answers.length,
-        combinedCount: combined.length,
-        sampleQuestion: questions[0]?.slice(0, 100),
-        sampleAnswer: answers[0]?.slice(0, 100),
-      });
-    }
+    debugLog('Prepared texts for embedding', {
+      questionCount: questions.length,
+      answerCount: answers.length,
+      combinedCount: combined.length,
+      sampleQuestion: questions[0]?.slice(0, 100),
+      sampleAnswer: answers[0]?.slice(0, 100),
+    });
 
     // Batch embedding generation
     const embeddingStartTime = Date.now();
@@ -170,28 +171,25 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
     for (let i = 0; i < qaPairs.length; i++) {
       const qa = qaPairs[i];
 
-      if (__DEBUG_EMBEDDINGS__) {
-        // Debug: Log each Q&A pair being saved
-        console.log(`[Processor] Saving Q&A pair ${i + 1}/${qaPairs.length}`, {
-          questionLength: qa.question.length,
-          answerLength: qa.answer.length,
-          embeddingQuestion: {
-            exists: !!questionEmbeddings[i],
-            dimension: questionEmbeddings[i]?.length,
-            isArray: Array.isArray(questionEmbeddings[i]),
-          },
-          embeddingAnswer: {
-            exists: !!answerEmbeddings[i],
-            dimension: answerEmbeddings[i]?.length,
-            isArray: Array.isArray(answerEmbeddings[i]),
-          },
-          embeddingBoth: {
-            exists: !!combinedEmbeddings[i],
-            dimension: combinedEmbeddings[i]?.length,
-            isArray: Array.isArray(combinedEmbeddings[i]),
-          },
-        });
-      }
+      debugLog(`Saving Q&A pair ${i + 1}/${qaPairs.length}`, {
+        questionLength: qa.question.length,
+        answerLength: qa.answer.length,
+        embeddingQuestion: {
+          exists: !!questionEmbeddings[i],
+          dimension: questionEmbeddings[i]?.length,
+          isArray: Array.isArray(questionEmbeddings[i]),
+        },
+        embeddingAnswer: {
+          exists: !!answerEmbeddings[i],
+          dimension: answerEmbeddings[i]?.length,
+          isArray: Array.isArray(answerEmbeddings[i]),
+        },
+        embeddingBoth: {
+          exists: !!combinedEmbeddings[i],
+          dimension: combinedEmbeddings[i]?.length,
+          isArray: Array.isArray(combinedEmbeddings[i]),
+        },
+      });
 
       await db.questionsAnswers.add({
         id: crypto.randomUUID(),

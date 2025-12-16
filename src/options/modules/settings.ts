@@ -1,7 +1,7 @@
 import { getSettings, saveSetting } from '../../lib/settings';
 import { showStatusMessage } from '../../lib/dom';
+import { initSettingsForm } from '../../lib/form-helper';
 
-const form = document.getElementById('settingsForm') as HTMLFormElement;
 const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
 
@@ -11,45 +11,20 @@ const chatModelInput = document.getElementById('chatModel') as HTMLInputElement;
 const embeddingModelInput = document.getElementById('embeddingModel') as HTMLInputElement;
 
 async function loadSettings() {
-  try {
-    const settings = await getSettings();
+  const settings = await getSettings();
 
-    apiBaseUrlInput.value = settings.apiBaseUrl;
-    apiKeyInput.value = settings.apiKey;
-    chatModelInput.value = settings.chatModel;
-    embeddingModelInput.value = settings.embeddingModel;
-  } catch (error) {
-    console.error('Error loading settings:', error);
-    showStatusMessage(statusDiv, 'Failed to load settings', 'error', 5000);
-  }
+  apiBaseUrlInput.value = settings.apiBaseUrl;
+  apiKeyInput.value = settings.apiKey;
+  chatModelInput.value = settings.chatModel;
+  embeddingModelInput.value = settings.embeddingModel;
 }
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-
-  try {
-    const submitBtn = form.querySelector('[type="submit"]') as HTMLButtonElement;
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Saving...';
-
-    await saveSetting('apiBaseUrl', apiBaseUrlInput.value.trim());
-    await saveSetting('apiKey', apiKeyInput.value.trim());
-    await saveSetting('chatModel', chatModelInput.value.trim());
-    await saveSetting('embeddingModel', embeddingModelInput.value.trim());
-
-    showStatusMessage(statusDiv, 'Settings saved successfully!', 'success', 5000);
-
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Save Settings';
-  } catch (error) {
-    console.error('Error saving settings:', error);
-    showStatusMessage(statusDiv, 'Failed to save settings', 'error', 5000);
-
-    const submitBtn = form.querySelector('[type="submit"]') as HTMLButtonElement;
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Save Settings';
-  }
-});
+async function saveSettings() {
+  await saveSetting('apiBaseUrl', apiBaseUrlInput.value.trim());
+  await saveSetting('apiKey', apiKeyInput.value.trim());
+  await saveSetting('chatModel', chatModelInput.value.trim());
+  await saveSetting('embeddingModel', embeddingModelInput.value.trim());
+}
 
 testBtn.addEventListener('click', async () => {
   try {
@@ -96,5 +71,14 @@ testBtn.addEventListener('click', async () => {
 });
 
 export function initSettingsModule() {
-  loadSettings();
+  initSettingsForm({
+    formId: 'settingsForm',
+    statusId: 'status',
+    onLoad: loadSettings,
+    onSave: saveSettings,
+    saveButtonText: {
+      default: 'Save Settings',
+      saving: 'Saving...',
+    },
+  });
 }
