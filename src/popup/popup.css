@@ -39,14 +39,16 @@ h1 {
 
 /* ===== Status Messages ===== */
 .status {
+  width: 100%;
   padding: var(--space-3);
   border-radius: var(--radius-lg);
-  margin-bottom: var(--space-4);
   font-size: var(--text-base);
   font-weight: var(--font-medium);
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
+  text-align: center;
 }
 
 .status.hidden {
@@ -72,14 +74,8 @@ h1 {
 }
 
 .status.success-with-cta {
-  width: 100%;
   padding: var(--space-4);
-  flex-direction: row;
   justify-content: space-between;
-}
-
-.status.success-with-cta .success-message {
-  font-weight: var(--font-semibold);
 }
 
 .status.success-with-cta .btn-cta {
@@ -91,9 +87,11 @@ h1 {
 main {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
+  gap: var(--space-3);
 }
 
 /* ===== Actions ===== */
