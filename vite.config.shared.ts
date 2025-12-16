@@ -1,4 +1,5 @@
 import type { UserConfig } from 'vite';
+import type { OutputOptions } from 'rollup';
 
 /**
  * Shared Vite configuration for both Chrome and Firefox builds.
@@ -16,6 +17,48 @@ import type { UserConfig } from 'vite';
 export const sharedDefine = {
   // Set to false to disable all embedding-related console.log statements
   __DEBUG_EMBEDDINGS__: JSON.stringify(false),
+};
+
+/**
+ * Shared rollup output options for bundling JavaScript.
+ *
+ * This configuration consolidates JavaScript into fewer chunks to reduce HTTP requests:
+ * - 'vendor': All node_modules dependencies (dexie, readability, marked, turndown)
+ * - 'shared': All shared library code from src/lib/
+ * - Entry points get their own minimal bundles that import from shared chunks
+ */
+export const sharedOutput: OutputOptions = {
+  manualChunks(id) {
+    // Bundle all node_modules into a single vendor chunk
+    if (id.includes('node_modules')) {
+      return 'vendor';
+    }
+    // Bundle all shared library code into a single chunk
+    // This includes: src/lib/, src/shared/, src/db/, src/background/, and platform initialization
+    if (id.includes('/src/lib/')) {
+      return 'shared';
+    }
+    if (id.includes('/src/shared/')) {
+      return 'shared';
+    }
+    // Database schema must be in shared to avoid circular dependencies
+    if (id.includes('/src/db/')) {
+      return 'shared';
+    }
+    // Background modules (queue, processor, etc.) must be in shared
+    // to prevent service worker from importing options-modules
+    if (id.includes('/src/background/')) {
+      return 'shared';
+    }
+    // Web initialization (used by both extension and web builds)
+    if (id.includes('/src/web/init-web')) {
+      return 'shared';
+    }
+    // Bundle options modules together
+    if (id.includes('/src/options/modules/')) {
+      return 'options-modules';
+    }
+  },
 };
 
 export const sharedConfig: Partial<UserConfig> = {

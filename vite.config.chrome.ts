@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import { crx } from '@crxjs/vite-plugin';
 import manifest from './manifest.chrome.json';
-import { sharedDefine } from './vite.config.shared';
+import { sharedDefine, sharedOutput } from './vite.config.shared';
 
 export default defineConfig({
   define: {
@@ -22,6 +22,7 @@ export default defineConfig({
         stumble: 'src/stumble/stumble.html',
         offscreen: 'src/offscreen/offscreen.html',
       },
+      output: sharedOutput,
     },
   },
 });

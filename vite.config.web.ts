@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-import { sharedDefine } from './vite.config.shared';
+import { sharedDefine, sharedOutput } from './vite.config.shared';
 
 export default defineConfig({
   define: {
@@ -19,6 +19,7 @@ export default defineConfig({
         stumble: 'src/stumble/stumble.html',
         options: 'src/options/options.html',
       },
+      output: sharedOutput,
     },
   },
 });
