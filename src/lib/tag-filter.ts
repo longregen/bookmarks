@@ -41,8 +41,9 @@ export async function loadTagFilters(config: TagFilterConfig) {
   for (const tag of Array.from(allTags).sort()) {
     const label = createElement('label', { className: 'filter-item' });
     const cb = createElement('input', {
-      attributes: { type: 'checkbox', checked: config.selectedTags.has(tag) ? 'checked' : '' }
+      attributes: { type: 'checkbox' }
     }) as HTMLInputElement;
+    cb.checked = config.selectedTags.has(tag);
     cb.onchange = () => {
       if (cb.checked) {
         config.selectedTags.add(tag);
