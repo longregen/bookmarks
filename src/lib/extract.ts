@@ -2,16 +2,26 @@ import { Readability } from '@mozilla/readability';
 import TurndownService from 'turndown';
 import { isFirefox, ensureOffscreenDocument } from './offscreen';
 
-const turndown = new TurndownService({
-  headingStyle: 'atx',
-  codeBlockStyle: 'fenced',
-});
-
 export interface ExtractedContent {
   title: string;
   content: string;      // Markdown
   excerpt: string;
   byline: string | null;
+}
+
+/**
+ * Get or create a TurndownService instance
+ * Lazy initialization to avoid accessing document in service worker contexts
+ */
+let turndownInstance: TurndownService | null = null;
+function getTurndown(): TurndownService {
+  if (!turndownInstance) {
+    turndownInstance = new TurndownService({
+      headingStyle: 'atx',
+      codeBlockStyle: 'fenced',
+    });
+  }
+  return turndownInstance;
 }
 
 /**
@@ -43,9 +53,9 @@ function extractMarkdownNative(html: string, url: string): ExtractedContent {
     contentLength: article.content?.length ?? 0,
   });
 
-  // Convert HTML content to Markdown
+  // Convert HTML content to Markdown using lazy-initialized TurndownService
   const contentDoc = parser.parseFromString(article.content ?? '', 'text/html');
-  const markdown = turndown.turndown(contentDoc.body);
+  const markdown = getTurndown().turndown(contentDoc.body);
 
   console.log('[Extract] Markdown conversion complete', { markdownLength: markdown.length });
 
