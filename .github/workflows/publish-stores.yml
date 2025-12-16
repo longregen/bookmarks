@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Chrome extension from release
-        uses: robinraju/release-downloader@v1
+        uses: robinraju/release-downloader@daf26c55d821e836577a15f77d86ddc078948b05 # v1.12
         with:
           repository: ${{ github.repository }}
           tag: ${{ github.event.release.tag_name }}
@@ -20,7 +20,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload to Chrome Web Store
-        uses: mnao305/chrome-extension-upload@v5.0.0
+        uses: mnao305/chrome-extension-upload@4008e29e13c144d0f6725462cbd49b7c291b4928 # v5.0.0
         with:
           file-path: bookmark-rag-chrome.zip
           extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
@@ -34,10 +34,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code (for source submission)
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Download Firefox extension from release
-        uses: robinraju/release-downloader@v1
+        uses: robinraju/release-downloader@daf26c55d821e836577a15f77d86ddc078948b05 # v1.12
         with:
           repository: ${{ github.repository }}
           tag: ${{ github.event.release.tag_name }}
@@ -56,7 +56,7 @@ jobs:
             -x ".github/*"
 
       - name: Upload to Firefox Add-ons
-        uses: kewisch/action-web-ext@v1
+        uses: kewisch/action-web-ext@fe10addf5d5e5ba6b78ffde720dd488a27d10e8c # v1
         with:
           cmd: sign
           source: bookmark-rag-firefox.zip

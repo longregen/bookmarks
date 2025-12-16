@@ -18,10 +18,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -36,14 +36,14 @@ jobs:
         run: npm run build:firefox
 
       - name: Upload Chrome build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: extension-chrome
           path: dist-chrome/
           retention-days: 1
 
       - name: Upload Firefox build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: extension-firefox
           path: dist-firefox/
@@ -53,10 +53,10 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -65,7 +65,7 @@ jobs:
         run: npm ci
 
       - name: Download Chrome build artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: extension-chrome
           path: dist-chrome/
@@ -93,10 +93,10 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -105,7 +105,7 @@ jobs:
         run: npm ci
 
       - name: Download Firefox build artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: extension-firefox
           path: dist-firefox/
@@ -128,7 +128,7 @@ jobs:
           ls -la web-ext-artifacts/ || echo "No artifacts created"
 
       - name: Upload Firefox package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: firefox-extension-xpi
           path: dist-firefox/web-ext-artifacts/
@@ -141,10 +141,10 @@ jobs:
     env:
       HAS_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -153,7 +153,7 @@ jobs:
         run: npm ci
 
       - name: Download Chrome build artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: extension-chrome
           path: dist-chrome/
@@ -184,10 +184,10 @@ jobs:
     env:
       HAS_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -196,35 +196,35 @@ jobs:
         run: npm ci
 
       - name: Download Firefox build artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: extension-firefox
           path: dist-firefox/
 
       # Cache Firefox browser download
       - name: Cache Firefox
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         id: cache-firefox
         with:
           path: ${{ runner.tool_cache }}/firefox
           key: firefox-${{ runner.os }}-${{ env.FIREFOX_VERSION }}
 
       - name: Install Firefox
-        uses: browser-actions/setup-firefox@v1
+        uses: browser-actions/setup-firefox@157fcc923ae034d53d4d5b9c7584005fd97e7275 # v1.7.0
         with:
           firefox-version: ${{ env.FIREFOX_VERSION }}
         id: setup-firefox
 
       # Cache GeckoDriver download
       - name: Cache GeckoDriver
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         id: cache-geckodriver
         with:
           path: ${{ runner.tool_cache }}/geckodriver
           key: geckodriver-${{ runner.os }}-${{ env.GECKODRIVER_VERSION }}
 
       - name: Install GeckoDriver
-        uses: browser-actions/setup-geckodriver@latest
+        uses: browser-actions/setup-geckodriver@5ef1526ed36211ab6cb531ec1cfb11f924ca2dee # latest
         with:
           geckodriver-version: ${{ env.GECKODRIVER_VERSION }}
 
