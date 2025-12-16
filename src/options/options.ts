@@ -9,7 +9,9 @@ import { initTheme, onThemeChange, applyTheme, getTheme, setTheme, type Theme } 
 
 const form = document.getElementById('settingsForm') as HTMLFormElement;
 const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
-const navExplore = document.getElementById('navExplore') as HTMLAnchorElement;
+const navLibrary = document.getElementById('navLibrary') as HTMLAnchorElement;
+const navSearch = document.getElementById('navSearch') as HTMLAnchorElement;
+const navStumble = document.getElementById('navStumble') as HTMLAnchorElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
 
 const apiBaseUrlInput = document.getElementById('apiBaseUrl') as HTMLInputElement;
@@ -109,10 +111,20 @@ testBtn.addEventListener('click', async () => {
   }
 });
 
-// Navigate to explore page (same tab)
-navExplore.addEventListener('click', (e) => {
+// Navigate to pages (same tab)
+navLibrary.addEventListener('click', (e) => {
   e.preventDefault();
-  window.location.href = chrome.runtime.getURL('src/explore/explore.html');
+  window.location.href = chrome.runtime.getURL('src/library/library.html');
+});
+
+navSearch.addEventListener('click', (e) => {
+  e.preventDefault();
+  window.location.href = chrome.runtime.getURL('src/search/search.html');
+});
+
+navStumble.addEventListener('click', (e) => {
+  e.preventDefault();
+  window.location.href = chrome.runtime.getURL('src/stumble/stumble.html');
 });
 
 // Import/Export functionality
