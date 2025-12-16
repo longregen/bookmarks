@@ -12,7 +12,7 @@ const RESULTS_PER_PAGE = 10;
 // UI Elements
 const searchInput = document.getElementById('searchInput') as HTMLInputElement;
 const searchBtn = document.getElementById('searchBtn') as HTMLButtonElement;
-const settingsBtn = document.getElementById('settingsBtn') as HTMLButtonElement;
+const navSettings = document.getElementById('navSettings') as HTMLAnchorElement;
 
 const listViewBtn = document.getElementById('listViewBtn') as HTMLButtonElement;
 const searchViewBtn = document.getElementById('searchViewBtn') as HTMLButtonElement;
@@ -32,8 +32,8 @@ const closeDetailBtn = document.getElementById('closeDetailBtn') as HTMLButtonEl
 const deleteBtn = document.getElementById('deleteBtn') as HTMLButtonElement;
 const retryBtn = document.getElementById('retryBtn') as HTMLButtonElement;
 const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
-const exportAllBtn = document.getElementById('exportAllBtn') as HTMLButtonElement;
 const debugHtmlBtn = document.getElementById('debugHtmlBtn') as HTMLButtonElement;
+const detailBackdrop = document.getElementById('detailBackdrop') as HTMLDivElement;
 
 let currentBookmarkId: string | null = null;
 
@@ -205,7 +205,10 @@ async function showBookmarkDetail(bookmarkId: string) {
       retryBtn.classList.add('hidden');
     }
 
-    detailView.classList.remove('hidden');
+    // Show detail panel with animation
+    detailView.classList.add('active');
+    detailBackdrop.classList.add('active');
+    document.body.style.overflow = 'hidden'; // Prevent background scroll
   } catch (error) {
     console.error('Error showing bookmark detail:', error);
     alert('Failed to load bookmark details');
@@ -213,7 +216,9 @@ async function showBookmarkDetail(bookmarkId: string) {
 }
 
 function closeDetail() {
-  detailView.classList.add('hidden');
+  detailView.classList.remove('active');
+  detailBackdrop.classList.remove('active');
+  document.body.style.overflow = ''; // Restore scroll
   currentBookmarkId = null;
 }
 
@@ -381,28 +386,6 @@ async function exportBookmarkById(bookmarkId: string, event: Event) {
   } finally {
     button.disabled = false;
     button.textContent = originalText;
-  }
-}
-
-async function handleExportAll() {
-  try {
-    exportAllBtn.disabled = true;
-    exportAllBtn.textContent = 'Exporting...';
-
-    const exportData = await exportAllBookmarks();
-
-    if (exportData.bookmarkCount === 0) {
-      alert('No bookmarks to export');
-      return;
-    }
-
-    downloadExport(exportData);
-  } catch (error) {
-    console.error('Error exporting all bookmarks:', error);
-    alert('Failed to export bookmarks');
-  } finally {
-    exportAllBtn.disabled = false;
-    exportAllBtn.textContent = 'Export All';
   }
 }
 
@@ -697,13 +680,23 @@ function createSearchResultCard(
 
 // Event listeners
 closeDetailBtn.addEventListener('click', closeDetail);
+detailBackdrop.addEventListener('click', closeDetail);
 deleteBtn.addEventListener('click', deleteCurrentBookmark);
 retryBtn.addEventListener('click', retryCurrentBookmark);
 exportBtn.addEventListener('click', exportCurrentBookmark);
-exportAllBtn.addEventListener('click', handleExportAll);
 debugHtmlBtn.addEventListener('click', debugCurrentBookmarkHtml);
-settingsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
+navSettings.addEventListener('click', (e) => {
+  e.preventDefault();
+  window.location.href = chrome.runtime.getURL('src/options/options.html');
+});
 searchBtn.addEventListener('click', performSearch);
+
+// Close detail panel on Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && detailView.classList.contains('active')) {
+    closeDetail();
+  }
+});
 
 searchInput.addEventListener('keypress', (e) => {
   if (e.key === 'Enter') {

@@ -1,4 +1,4 @@
-# UX Redesign: Final Specification
+# UX Redesign
 
 ## Vision
 
@@ -655,3 +655,105 @@ describe('Search', () => {
   it('limits history to 10 queries');
 });
 ```
+
+---
+
+## Original Analysis
+
+### Identified Issues
+
+#### Spacing Inconsistencies
+- Inconsistent padding across pages (16px, 20px, 24px used interchangeably)
+- No unified spacing scale
+- Margins varied without clear system
+
+#### Typography Problems
+- H1 sizes varied: 28px (explore), 32px (options), 18px (popup)
+- Inconsistent font weights across similar elements
+- No defined type scale
+
+#### Button Styling Variations
+- Different padding, border-radius, and hover states
+- Primary/secondary distinction unclear in some contexts
+
+#### Card/Section Styling
+- Borders, shadows, and backgrounds varied between pages
+- No unified "card" component
+
+#### Navigation Patterns
+- Settings accessed differently from different pages
+- Back button behavior inconsistent
+- No unified header/nav pattern
+
+---
+
+## Design System Implementation
+
+### Spacing Scale (4px base unit)
+```css
+--space-1: 4px;
+--space-2: 8px;
+--space-3: 12px;
+--space-4: 16px;
+--space-5: 20px;
+--space-6: 24px;
+--space-7: 32px;
+--space-8: 40px;
+--space-9: 48px;
+--space-10: 64px;
+```
+
+### Typography Scale
+```css
+--text-xs: 11px;
+--text-sm: 13px;
+--text-base: 14px;
+--text-md: 16px;
+--text-lg: 20px;
+--text-xl: 24px;
+--text-2xl: 28px;
+```
+
+### Theme-Aware Accent Text
+Added `--accent-text` variable for proper contrast on accent-colored backgrounds:
+- Light/Dark/Tufte themes: `#ffffff` (white on blue/red)
+- Terminal theme: `#000000` (black on bright green)
+
+---
+
+## User Instructions & Decisions
+
+### Branding
+- Brand name: **"Bookmarks by Localforge"**
+- Applied consistently across all page titles, headers, and about section
+
+### Navigation
+- Unified header navigation between Explore and Settings pages
+- Segmented control style tabs (Explore | Settings)
+- Navigation happens in **same tab** (not new tab)
+- Removed settings button from popup entirely
+
+### Removed Features
+- "Export All" button removed from explore page header
+- Back buttons removed from settings sidebar (redundant with unified nav)
+
+### Layout Approach
+**Use flex layout, not sticky positioning:**
+- Avoids height calculations
+- No z-index hacks
+- Header never hides content
+- Clean separation of scrollable content
+- 
+## Expert UX Notes
+
+### Accessibility Considerations
+- `--accent-text` ensures WCAG contrast on accent backgrounds
+- Smooth scrolling respects user preferences via CSS
+- Focus states should remain visible (uses `--shadow-focus`)
+
+### Theme Support
+When adding new themes, ensure:
+1. All color variables are defined
+2. `--accent-text` provides readable contrast on `--accent-primary`
+3. Status colors (success, error, warning, info) have appropriate bg/text/border
+

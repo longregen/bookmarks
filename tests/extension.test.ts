@@ -177,7 +177,6 @@ async function testChromeExtension(): Promise<void> {
       // Check for essential elements
       await page.waitForSelector('#saveBtn', { timeout: 5000 });
       await page.waitForSelector('#exploreBtn', { timeout: 5000 });
-      await page.waitForSelector('#settingsBtn', { timeout: 5000 });
 
       const title = await page.title();
       if (!title.includes('Bookmark')) {
