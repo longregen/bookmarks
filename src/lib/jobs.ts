@@ -162,6 +162,7 @@ export async function getRecentJobs(options?: {
   // Get all jobs first (we'll filter and limit after)
   let jobs = await query.toArray();
 
+  // Apply filters before limiting
   if (options?.type) {
     jobs = jobs.filter(job => job.type === options.type);
   }
