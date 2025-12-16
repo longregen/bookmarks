@@ -1,0 +1,22 @@
+{
+  "categories": {
+    "firefox": ["bookmarks", "feeds-news-blogging", "search-tools"]
+  },
+  "summary": {
+    "en-US": "Capture and semantically search your bookmarks"
+  },
+  "description": {
+    "en-US": "One-click bookmark capture — Save URL, title, and full DOM HTML\n\nAutomatic content extraction — Converts HTML to Markdown using Mozilla's Readability\n\nQ&A generation — LLM generates question-answer pairs for each bookmark\n\nEmbedding-based search — Semantically search your bookmarks\n\nConfigurable API — Use your own OpenAI-compatible endpoint\n\nBulk URL import — Import multiple bookmarks at once from a list of URLs\n\nJobs tracking system — Monitor processing jobs for all bookmarks and imports\n\nImport/Export — Backup and restore your bookmarks as JSON files"
+  },
+  "homepage": {
+    "en-US": "https://bookmarks.localforge.org"
+  },
+  "support_email": {
+    "en-US": "bookmarks@localforge.org"
+  },
+  "tags": ["download", "privacy", "search", "wayback machine"],
+  "requires_payment": false,
+  "version": {
+    "license": "MIT"
+  }
+}
