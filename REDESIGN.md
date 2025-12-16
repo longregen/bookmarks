@@ -782,9 +782,7 @@ When adding new themes, ensure:
 
 ---
 
----
-
-# Information Architecture Improvements: 10 Proposals
+# Information Architecture Improvements:
 
 The following proposals address gaps in the current design, with particular focus on how job status inspection should feel like "looking under the hood" — a diagnostic view that ideally shows everything as complete, not a primary navigation concern.
 
@@ -885,7 +883,7 @@ Job details are shown by time decreasing, collapsed by default, showing time + s
 
 ---
 
-## Improvement 5: Contextual Job Information in Detail Panel
+## Improvement 4: Contextual Job Information in Detail Panel
 
 **Problem**: Bookmark detail panel lacks processing metadata.
 
@@ -921,53 +919,7 @@ This is the "under the hood" info for a specific bookmark.
 
 ---
 
-## Improvement 6: Error Recovery Flow, Not Error Dashboard
-
-**Problem**: Failed jobs appear in a dashboard list, requiring manual intervention.
-
-**Proposal**: Errors should surface **in context** with clear recovery actions.
-
-**In Library (inline error):**
-
-```
-┌──────────────────────────────────────────────────┐
-│ Article That Failed                          ✕   │
-│ example.com · 2h ago                             │
-│ ⚠️ Markdown processing failed · [Retry] [View Details]    │
-└──────────────────────────────────────────────────┘
-```
-
-**Health indicator shows red**, clicking reveals:
-
-```
-┌───────────────────────────────────────────────────────┐
-│  ⚠️ 2 items need attention                     ✕     │
-├───────────────────────────────────────────────────────┤
-│                                                       │
-│  ┌─────────────────────────────────────────────────┐ │
-│  │ Article That Failed                             │ │
-│  │ QA Generation: API key not found             │ │
-│  │ [Retry Now]  [Dismiss]            │ │
-│  └─────────────────────────────────────────────────┘ │
-│                                                       │
-│  ┌─────────────────────────────────────────────────┐ │
-│  │ Another Failed Article                          │ │
-│  │ Embedding: Network timeout                                  │ │
-│  │ [Retry Now]  [Dismiss]                          │ │
-│  └─────────────────────────────────────────────────┘ │
-│                                                       │
-└───────────────────────────────────────────────────────┘
-```
-
-Errors are **actionable**, not just informational. Also, the UX must make clear which step of the processing failed.
-
----
-
-## Improvement 7: Bulk Import as a Wizard, Not a Form
-
-**Problem**: Bulk import in Settings feels disconnected from results.
-
-**Proposal**: Replace the bulk import form with a **guided wizard** that shows progress inline.
+## Improvement 5: Bulk Import as a Wizard
 
 **Step 1: Input**
 ```
