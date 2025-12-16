@@ -1648,3 +1648,48 @@ input[type="number"]:focus {
   border-color: var(--border-focus);
   box-shadow: var(--shadow-focus);
 }
+
+/* ===== About Section ===== */
+.about-links,
+.about-deps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.about-links li,
+.about-deps li {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-primary);
+  line-height: var(--leading-relaxed);
+}
+
+.about-links li:last-child,
+.about-deps li:last-child {
+  border-bottom: none;
+}
+
+.about-links a,
+.about-deps a {
+  color: var(--accent-link);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.about-links a:hover,
+.about-deps a:hover {
+  text-decoration: underline;
+}
+
+.about-deps li strong {
+  color: var(--text-primary);
+}
+
+/* About section panels - add spacing between them */
+#about .option-panel {
+  margin-bottom: var(--space-5);
+}
+
+#about .option-panel:last-child {
+  margin-bottom: 0;
+}
