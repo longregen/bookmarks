@@ -406,23 +406,18 @@ async function testChromeExtension(): Promise<void> {
   }
 }
 
-async function testFirefoxExtension(): Promise<void> {
-  console.log('\n🧪 Testing Firefox Extension\n');
-
-  // Firefox extension testing with Puppeteer doesn't support loading unpacked extensions
-  // like Chrome does. Firefox testing is handled via web-ext in the CI workflow.
-
-  console.log('  Firefox extension testing is done via web-ext lint in CI.');
-  console.log('  For manual testing, run: npx web-ext run -s dist-firefox');
+function showFirefoxTestInfo(): void {
+  console.log('\n🦊 Firefox Extension Testing\n');
+  console.log('  Puppeteer cannot test Firefox extensions (no moz-extension:// support).');
   console.log('');
-
-  await runTest('Firefox test placeholder (web-ext handles actual testing)', async () => {
-    // This is a placeholder - actual Firefox testing is done via web-ext lint
-    // which validates the extension structure and manifest
-    console.log('    web-ext lint validates extension compatibility');
-  });
-
-  console.log('\n✓ Firefox extension validation delegated to web-ext');
+  console.log('  Firefox extension testing is handled by:');
+  console.log('    - web-ext lint: Validates extension structure (lint-firefox CI job)');
+  console.log('    - Selenium E2E: Full integration tests (test-e2e-firefox CI job)');
+  console.log('');
+  console.log('  For local testing:');
+  console.log('    npm run test:e2e:firefox  # Selenium-based E2E tests');
+  console.log('    npx web-ext run -s dist-firefox  # Manual browser testing');
+  console.log('');
 }
 
 async function main(): Promise<void> {
@@ -433,11 +428,15 @@ async function main(): Promise<void> {
   console.log(`API Key: ${OPENAI_API_KEY ? 'Provided' : 'Not provided'}`);
   console.log('='.repeat(60));
 
+  if (BROWSER_TYPE === 'firefox') {
+    showFirefoxTestInfo();
+    console.log('Exiting - use npm run test:e2e:firefox for Firefox testing.');
+    process.exit(0);
+  }
+
   try {
     if (BROWSER_TYPE === 'chrome') {
       await testChromeExtension();
-    } else if (BROWSER_TYPE === 'firefox') {
-      await testFirefoxExtension();
     } else {
       throw new Error(`Unknown browser type: ${BROWSER_TYPE}`);
     }
