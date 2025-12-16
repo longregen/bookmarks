@@ -120,10 +120,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tab = tabs[0];
       if (tab) {
-        sendResponse({
-          url: tab.url,
-          title: tab.title,
-        });
+        // tab.url and tab.title can be undefined in incognito mode or for restricted URLs
+        if (!tab.url || !tab.title) {
+          sendResponse({
+            error: 'Cannot access tab information. This may be due to incognito mode or restricted URLs (chrome://, about:, etc.)'
+          });
+        } else {
+          sendResponse({
+            url: tab.url,
+            title: tab.title,
+          });
+        }
       } else {
         sendResponse({ error: 'No active tab found' });
       }
@@ -188,7 +195,13 @@ chrome.commands.onCommand.addListener((command) => {
   if (command === 'save-bookmark') {
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
       const tab = tabs[0];
-      if (!tab.id) return;
+      if (!tab || !tab.id) return;
+
+      // Check if we can access the tab URL (may be undefined in incognito or restricted URLs)
+      if (!tab.url) {
+        console.warn('Cannot save bookmark: tab URL is undefined (incognito mode or restricted URL)');
+        return;
+      }
 
       // Inject and execute the content script to capture the page
       try {

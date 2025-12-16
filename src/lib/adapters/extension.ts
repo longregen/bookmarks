@@ -14,6 +14,7 @@ const DEFAULTS: ApiSettings = {
   webdavPassword: '',
   webdavPath: '/bookmarks',
   webdavEnabled: false,
+  webdavAllowInsecure: false, // Require HTTPS by default for security
   // WebDAV sync state defaults
   webdavSyncInterval: 15, // 15 minutes default
   webdavLastSyncTime: '',
@@ -39,6 +40,7 @@ export const extensionAdapter: PlatformAdapter = {
       webdavPassword: map.webdavPassword ?? DEFAULTS.webdavPassword,
       webdavPath: map.webdavPath ?? DEFAULTS.webdavPath,
       webdavEnabled: map.webdavEnabled ?? DEFAULTS.webdavEnabled,
+      webdavAllowInsecure: map.webdavAllowInsecure ?? DEFAULTS.webdavAllowInsecure,
       // WebDAV sync state
       webdavSyncInterval: map.webdavSyncInterval ?? DEFAULTS.webdavSyncInterval,
       webdavLastSyncTime: map.webdavLastSyncTime ?? DEFAULTS.webdavLastSyncTime,

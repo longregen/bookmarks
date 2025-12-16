@@ -1,3 +1,10 @@
+import {
+  SIMILARITY_THRESHOLD_EXCELLENT,
+  SIMILARITY_THRESHOLD_GOOD,
+  SIMILARITY_THRESHOLD_FAIR,
+  SIMILARITY_THRESHOLD_POOR
+} from './constants';
+
 /**
  * Compute cosine similarity between two vectors.
  */
@@ -128,11 +135,11 @@ export function findTopK<T>(
       validScored: validScored.length,
       errored: errors.length,
       scoreDistribution: {
-        above90: validScored.filter(s => s.score >= 0.9).length,
-        '70to90': validScored.filter(s => s.score >= 0.7 && s.score < 0.9).length,
-        '50to70': validScored.filter(s => s.score >= 0.5 && s.score < 0.7).length,
-        '30to50': validScored.filter(s => s.score >= 0.3 && s.score < 0.5).length,
-        below30: validScored.filter(s => s.score < 0.3).length,
+        excellent: validScored.filter(s => s.score >= SIMILARITY_THRESHOLD_EXCELLENT).length,
+        good: validScored.filter(s => s.score >= SIMILARITY_THRESHOLD_GOOD && s.score < SIMILARITY_THRESHOLD_EXCELLENT).length,
+        fair: validScored.filter(s => s.score >= SIMILARITY_THRESHOLD_FAIR && s.score < SIMILARITY_THRESHOLD_GOOD).length,
+        poor: validScored.filter(s => s.score >= SIMILARITY_THRESHOLD_POOR && s.score < SIMILARITY_THRESHOLD_FAIR).length,
+        veryPoor: validScored.filter(s => s.score < SIMILARITY_THRESHOLD_POOR).length,
       },
     });
   }

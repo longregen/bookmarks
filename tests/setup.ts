@@ -10,6 +10,11 @@ global.chrome = {
   },
 } as any;
 
+// Mock build-time constants
+(globalThis as any).__IS_FIREFOX__ = false;
+(globalThis as any).__IS_CHROME__ = true;
+(globalThis as any).__DEBUG_EMBEDDINGS__ = false;
+
 // crypto.randomUUID is available natively in jsdom, no need to mock
 
 // Set up Dexie for in-memory testing

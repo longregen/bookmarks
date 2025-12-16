@@ -1,4 +1,5 @@
 import { db, Job, JobType, JobStatus } from '../db/schema';
+import { broadcastEvent } from './events';
 
 // Re-export Job type for consumers
 export type { Job };
@@ -90,6 +91,9 @@ export async function updateJob(
   }
 
   await db.jobs.update(jobId, updatedJob);
+
+  // Broadcast event when job is updated
+  await broadcastEvent('JOB_UPDATED', { jobId, updates: updatedJob });
 }
 
 /**
@@ -113,6 +117,9 @@ export async function completeJob(
     updatedAt: new Date(),
     completedAt: new Date(),
   });
+
+  // Broadcast event when job completes
+  await broadcastEvent('JOB_UPDATED', { jobId, status: JobStatus.COMPLETED });
 }
 
 /**
@@ -142,6 +149,9 @@ export async function failJob(
     updatedAt: new Date(),
     completedAt: new Date(),
   });
+
+  // Broadcast event when job fails
+  await broadcastEvent('JOB_UPDATED', { jobId, status: JobStatus.FAILED });
 }
 
 /**
@@ -206,7 +216,7 @@ export async function getRecentJobs(options?: {
   let query = db.jobs.orderBy('createdAt').reverse();
 
   if (options?.limit) {
-    query = query.limit(options.limit) as any;
+    query = query.limit(options.limit);
   }
 
   let jobs = await query.toArray();
@@ -434,4 +444,7 @@ export async function incrementParentJobProgress(
     job.progress = Math.round((completed / total) * 100);
     job.updatedAt = new Date();
   });
+
+  // Broadcast event when parent job progress is updated
+  await broadcastEvent('JOB_UPDATED', { jobId: parentJobId });
 }

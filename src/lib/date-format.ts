@@ -1,16 +1,25 @@
+import {
+  TIME_SECONDS_PER_MINUTE,
+  TIME_MINUTES_PER_HOUR,
+  TIME_HOURS_PER_DAY,
+  TIME_MS_PER_DAY,
+  DATE_RELATIVE_TIME_THRESHOLD_DAYS,
+  DATE_FULL_DATE_THRESHOLD_DAYS
+} from './constants';
+
 /**
  * Format a date as relative time (e.g., "2h ago", "3 days ago")
  */
 function formatRelativeTime(date: Date, now = new Date()): string {
   const diffMs = now.getTime() - date.getTime();
   const seconds = Math.floor(diffMs / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
+  const minutes = Math.floor(seconds / TIME_SECONDS_PER_MINUTE);
+  const hours = Math.floor(minutes / TIME_MINUTES_PER_HOUR);
+  const days = Math.floor(hours / TIME_HOURS_PER_DAY);
 
-  if (seconds < 60) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
+  if (seconds < TIME_SECONDS_PER_MINUTE) return 'just now';
+  if (minutes < TIME_MINUTES_PER_HOUR) return `${minutes}m ago`;
+  if (hours < TIME_HOURS_PER_DAY) return `${hours}h ago`;
   return `${days} day${days > 1 ? 's' : ''} ago`;
 }
 
@@ -22,11 +31,11 @@ function formatRelativeTime(date: Date, now = new Date()): string {
  */
 export function formatDateByAge(date: Date, now = new Date()): string {
   const diffMs = now.getTime() - date.getTime();
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  const diffDays = diffMs / TIME_MS_PER_DAY;
 
-  if (diffDays < 14) {
+  if (diffDays < DATE_RELATIVE_TIME_THRESHOLD_DAYS) {
     return formatRelativeTime(date, now);
-  } else if (diffDays < 365) {
+  } else if (diffDays < DATE_FULL_DATE_THRESHOLD_DAYS) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   } else {
     return date.toISOString().split('T')[0];

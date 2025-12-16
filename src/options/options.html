@@ -277,6 +277,10 @@
                 <small class="help-text">
                   Full WebDAV endpoint URL. For Nextcloud: <code>https://your-server/remote.php/dav/files/USERNAME</code>
                 </small>
+                <div id="webdavUrlWarning" class="security-warning hidden">
+                  <strong>Security Warning:</strong> HTTP connections send credentials in plain text.
+                  Please use HTTPS, or enable "Allow insecure connections" below if you understand the risks.
+                </div>
               </div>
 
               <!-- Username -->
@@ -336,6 +340,17 @@
                 />
                 <small class="help-text">
                   How often to automatically sync (0 to disable auto-sync)
+                </small>
+              </div>
+
+              <!-- Allow Insecure Connections -->
+              <div class="form-group">
+                <label class="toggle-label">
+                  <input type="checkbox" id="webdavAllowInsecure" name="webdavAllowInsecure" />
+                  <span class="toggle-text">Allow insecure connections (HTTP)</span>
+                </label>
+                <small class="help-text security-help">
+                  Only enable this for development or testing. HTTP connections send your credentials in plain text, which is a security risk.
                 </small>
               </div>
 
