@@ -433,17 +433,22 @@ describe('Service Worker Core Functionality', () => {
   describe('Edge cases and error handling', () => {
     it('should handle missing required fields gracefully', async () => {
       // TypeScript would prevent this, but test runtime behavior
+      // IndexedDB doesn't validate non-indexed fields, so this will actually succeed
       const invalidBookmark: any = {
         id: 'invalid-1',
         url: 'https://example.com',
-        // missing title
+        // missing title - IndexedDB allows this since title is not an indexed field
         html: '<html></html>',
         status: 'pending',
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      await expect(db.bookmarks.add(invalidBookmark)).rejects.toThrow();
+      // IndexedDB will accept this since it only validates keys/indices
+      await db.bookmarks.add(invalidBookmark);
+      const retrieved = await db.bookmarks.get('invalid-1');
+      expect(retrieved).toBeDefined();
+      expect(retrieved?.title).toBeUndefined();
     });
 
     it('should handle duplicate IDs', async () => {
@@ -489,18 +494,21 @@ describe('Service Worker Core Functionality', () => {
       });
     });
 
-    it('should handle response callback pattern', (done) => {
-      // Simulate async response pattern
-      const sendResponse = (response: any) => {
-        expect(response).toBeDefined();
-        expect(response.success).toBeDefined();
-        done();
-      };
+    it('should handle response callback pattern', async () => {
+      // Simulate async response pattern using Promise
+      const response = await new Promise<any>((resolve) => {
+        const sendResponse = (response: any) => {
+          resolve(response);
+        };
 
-      // Simulate handler
-      Promise.resolve({ success: true, bookmarkId: 'test-1' })
-        .then(result => sendResponse(result))
-        .catch(error => sendResponse({ success: false, error: error.message }));
+        // Simulate handler
+        Promise.resolve({ success: true, bookmarkId: 'test-1' })
+          .then(result => sendResponse(result))
+          .catch(error => sendResponse({ success: false, error: error.message }));
+      });
+
+      expect(response).toBeDefined();
+      expect(response.success).toBeDefined();
     });
   });
 });

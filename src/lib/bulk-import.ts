@@ -90,7 +90,7 @@ export function validateSingleUrl(url: string): UrlValidation {
   }
 
   let normalized = url;
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+  if (!url.includes('://')) {
     normalized = 'https://' + url;
   }
 

@@ -165,10 +165,7 @@ export async function getRecentJobs(options?: {
 }): Promise<Job[]> {
   let query = db.jobs.orderBy('createdAt').reverse();
 
-  if (options?.limit) {
-    query = query.limit(options.limit);
-  }
-
+  // Get all jobs first (we'll filter and limit after)
   let jobs = await query.toArray();
 
   if (options?.type) {
@@ -183,6 +180,7 @@ export async function getRecentJobs(options?: {
     jobs = jobs.filter(job => job.parentJobId === options.parentJobId);
   }
 
+  // Apply limit after filtering
   return jobs.slice(0, options?.limit || 100);
 }
 
