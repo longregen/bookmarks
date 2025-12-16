@@ -94,16 +94,17 @@ async function extractMarkdownViaOffscreen(html: string, url: string): Promise<E
 }
 
 /**
- * Extract markdown from HTML - async version that works on both browsers
+ * Extract markdown from HTML - async version that works on all platforms
  * Build-time constants ensure only the relevant code path is included in each build:
+ * - Web: Uses native DOMParser (always available in browser context)
  * - Firefox: Uses native DOMParser directly in service worker
  * - Chrome: Routes to offscreen document where DOMParser is available
  */
 export async function extractMarkdownAsync(html: string, url: string): Promise<ExtractedContent> {
-  // Build-time branching: __IS_FIREFOX__ is replaced with true/false at build time
+  // Build-time branching: __IS_WEB__ and __IS_FIREFOX__ are replaced with true/false at build time
   // Bundler eliminates the dead code path during minification
-  if (__IS_FIREFOX__) {
-    // Firefox has DOMParser in service workers - use it directly
+  if (__IS_WEB__ || __IS_FIREFOX__) {
+    // Web and Firefox have DOMParser available - use it directly
     return extractMarkdownNative(html, url);
   } else {
     // Chrome needs to use offscreen document (no DOMParser in service workers)
