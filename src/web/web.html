@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bookmarks by Localforge - Web Demo</title>
+  <link rel="stylesheet" href="web.css">
+</head>
+<body class="app-layout">
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="app-header__brand">
+      <h1 class="app-header__title">Bookmarks by Localforge</h1>
+      <span class="demo-badge">Web Demo</span>
+    </div>
+    <nav class="app-header__nav">
+      <a href="#" id="navAdd" class="app-header__nav-link active">
+        <span class="app-header__nav-icon">+</span>
+        <span>Add</span>
+      </a>
+      <a href="#" id="navExplore" class="app-header__nav-link">
+        <span class="app-header__nav-icon">*</span>
+        <span>Explore</span>
+      </a>
+      <a href="#" id="navSettings" class="app-header__nav-link">
+        <span class="app-header__nav-icon">@</span>
+        <span>Settings</span>
+      </a>
+    </nav>
+    <div class="app-header__actions"></div>
+  </header>
+
+  <div class="app-layout__content">
+    <div class="container">
+
+      <!-- Add View -->
+      <div id="addView" class="view active">
+        <div class="add-section">
+          <h2>Add a Webpage</h2>
+          <p class="section-description">
+            Enter a URL to fetch via CORS proxy, or paste HTML content directly.
+          </p>
+
+          <!-- URL Input -->
+          <div class="form-group">
+            <label class="form-label" for="urlInput">URL</label>
+            <div class="url-input-group">
+              <input
+                type="url"
+                id="urlInput"
+                class="input"
+                placeholder="https://example.com/article"
+              />
+              <button id="fetchBtn" class="btn btn-primary">Fetch</button>
+            </div>
+            <span class="form-help">
+              Uses CORS proxy to fetch. Some sites may not work due to security restrictions.
+            </span>
+          </div>
+
+          <!-- OR Divider -->
+          <div class="divider">
+            <span>or</span>
+          </div>
+
+          <!-- HTML Paste -->
+          <div class="form-group">
+            <label class="form-label" for="htmlInput">Paste HTML</label>
+            <textarea
+              id="htmlInput"
+              class="textarea"
+              rows="8"
+              placeholder="Paste the full HTML source code here..."
+            ></textarea>
+            <span class="form-help">
+              Copy the page source (Ctrl+U or View Source) and paste it here.
+            </span>
+          </div>
+
+          <!-- Title override -->
+          <div class="form-group">
+            <label class="form-label" for="titleInput">Title (optional)</label>
+            <input
+              type="text"
+              id="titleInput"
+              class="input"
+              placeholder="Override the page title"
+            />
+          </div>
+
+          <div class="button-group">
+            <button id="saveBtn" class="btn btn-primary" disabled>Save Bookmark</button>
+            <button id="previewBtn" class="btn btn-secondary" disabled>Preview</button>
+          </div>
+
+          <!-- Status Messages -->
+          <div id="addStatus" class="status-message hidden"></div>
+        </div>
+
+        <!-- Preview Panel -->
+        <div id="previewPanel" class="preview-panel hidden">
+          <div class="preview-header">
+            <h3>Preview</h3>
+            <button id="closePreviewBtn" class="btn btn-secondary btn--sm">Close</button>
+          </div>
+          <div id="previewContent" class="preview-content">
+            <iframe id="previewFrame" sandbox="allow-same-origin"></iframe>
+          </div>
+        </div>
+      </div>
+
+      <!-- Explore View -->
+      <div id="exploreView" class="view">
+        <div class="search-section">
+          <div class="search-box">
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="Search your bookmarks semantically..."
+              class="search-input"
+            />
+            <button id="searchBtn" class="btn btn-primary">Search</button>
+          </div>
+        </div>
+
+        <main>
+          <div class="view-toggle">
+            <button id="listViewBtn" class="toggle-btn active">Recent</button>
+            <button id="searchViewBtn" class="toggle-btn">Search Results</button>
+          </div>
+
+          <div id="listSubview" class="subview active">
+            <div class="section-header">
+              <h2>Recent Bookmarks</h2>
+              <span id="bookmarkCount" class="count-badge">0</span>
+            </div>
+            <div id="bookmarkList" class="bookmark-list">
+              <div class="empty-state">
+                <div class="empty-state__icon">[ ]</div>
+                <div class="empty-state__title">No bookmarks yet</div>
+                <div class="empty-state__description">
+                  Add your first bookmark using the Add tab above.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="searchSubview" class="subview">
+            <div class="section-header">
+              <h2>Search Results</h2>
+              <span id="searchCount" class="count-badge">0</span>
+            </div>
+            <div id="searchResults" class="search-results">
+              <div class="empty-state">
+                Enter a search query to find bookmarks
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      <!-- Settings View -->
+      <div id="settingsView" class="view">
+        <h2>Settings</h2>
+        <p class="section-description">
+          Configure your API settings for Q&A generation and semantic search.
+        </p>
+
+        <div class="settings-card">
+          <div class="form-group">
+            <label class="form-label" for="apiBaseUrl">API Base URL</label>
+            <input
+              type="url"
+              id="apiBaseUrl"
+              class="input"
+              placeholder="https://api.openai.com/v1"
+            />
+            <span class="form-help">OpenAI-compatible API endpoint</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="apiKey">API Key</label>
+            <input
+              type="password"
+              id="apiKey"
+              class="input"
+              placeholder="sk-..."
+            />
+            <span class="form-help">Your API key (stored locally in browser)</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="chatModel">Chat Model</label>
+            <input
+              type="text"
+              id="chatModel"
+              class="input"
+              placeholder="gpt-4o-mini"
+            />
+            <span class="form-help">Model for Q&A generation</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="embeddingModel">Embedding Model</label>
+            <input
+              type="text"
+              id="embeddingModel"
+              class="input"
+              placeholder="text-embedding-3-small"
+            />
+            <span class="form-help">Model for semantic search embeddings</span>
+          </div>
+
+          <div class="button-group">
+            <button id="saveSettingsBtn" class="btn btn-primary">Save Settings</button>
+          </div>
+
+          <div id="settingsStatus" class="status-message hidden"></div>
+        </div>
+
+        <div class="settings-card">
+          <h3>Data Management</h3>
+          <div class="button-group" style="margin-top: var(--space-4);">
+            <button id="exportBtn" class="btn btn-secondary">Export Data</button>
+            <label class="btn btn-secondary">
+              Import Data
+              <input type="file" id="importFile" accept=".json" hidden />
+            </label>
+            <button id="clearDataBtn" class="btn btn-danger">Clear All Data</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detail View Slide Panel -->
+      <div id="detailBackdrop" class="detail-backdrop"></div>
+      <div id="detailView" class="detail-view">
+        <div class="detail-header">
+          <button id="closeDetailBtn" class="btn btn-secondary">Back</button>
+          <div class="detail-actions">
+            <button id="processBtn" class="btn btn-secondary">Process</button>
+            <button id="deleteBtn" class="btn btn-danger">Delete</button>
+          </div>
+        </div>
+        <div id="detailContent" class="detail-content"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="web.ts" type="module"></script>
+</body>
+</html>
