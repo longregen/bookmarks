@@ -2,6 +2,7 @@ node_modules/
 dist/
 dist-chrome/
 dist-firefox/
+dist-web/
 .DS_Store
 *.log
 .vite/
