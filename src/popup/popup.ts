@@ -80,9 +80,6 @@ saveBtn.addEventListener('click', async () => {
 });
 
 function showSuccessWithCTA(bookmarkId: string) {
-  // Hide the save button and show success state in its place
-  saveBtn.style.display = 'none';
-
   statusDiv.className = 'status success success-with-cta';
   statusDiv.innerHTML = '';
 
