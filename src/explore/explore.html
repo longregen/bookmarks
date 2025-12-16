@@ -3,19 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Explore Bookmarks - Bookmark RAG</title>
+  <title>Explore - Bookmarks by Localforge</title>
   <link rel="stylesheet" href="explore.css">
 </head>
-<body>
-  <div class="container">
-    <header>
-      <h1>Bookmark RAG</h1>
-      <div class="header-actions">
-        <button id="exportAllBtn" class="btn btn-secondary" title="Export All Bookmarks">Export All</button>
-        <button id="settingsBtn" class="btn btn-icon" title="Settings">⚙️</button>
-      </div>
-    </header>
+<body class="app-layout">
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="app-header__brand">
+      <h1 class="app-header__title">Bookmarks by Localforge</h1>
+    </div>
+    <nav class="app-header__nav">
+      <a href="#" id="navExplore" class="app-header__nav-link active">
+        <span class="app-header__nav-icon">🔍</span>
+        <span>Explore</span>
+      </a>
+      <a href="#" id="navSettings" class="app-header__nav-link">
+        <span class="app-header__nav-icon">⚙️</span>
+        <span>Settings</span>
+      </a>
+    </nav>
+    <div class="app-header__actions"></div>
+  </header>
 
+  <div class="app-layout__content">
+  <div class="container">
     <div class="search-section">
       <div class="search-box">
         <input
@@ -58,20 +69,23 @@
         </div>
       </div>
 
-      <div id="detailView" class="detail-view hidden">
-        <div class="detail-header">
-          <button id="closeDetailBtn" class="btn btn-secondary">← Back</button>
-          <div class="detail-actions">
-            <button id="debugHtmlBtn" class="btn btn-secondary">Debug HTML</button>
-            <button id="exportBtn" class="btn btn-secondary">Export</button>
-            <button id="retryBtn" class="btn btn-secondary hidden">Retry</button>
-            <button id="deleteBtn" class="btn btn-danger">Delete</button>
-          </div>
-        </div>
-
-        <div id="detailContent" class="detail-content"></div>
-      </div>
     </main>
+
+    <!-- Detail View Slide Panel -->
+    <div id="detailBackdrop" class="detail-backdrop"></div>
+    <div id="detailView" class="detail-view">
+      <div class="detail-header">
+        <button id="closeDetailBtn" class="btn btn-secondary">← Back</button>
+        <div class="detail-actions">
+          <button id="debugHtmlBtn" class="btn btn-secondary">Debug HTML</button>
+          <button id="exportBtn" class="btn btn-secondary">Export</button>
+          <button id="retryBtn" class="btn btn-secondary hidden">Retry</button>
+          <button id="deleteBtn" class="btn btn-danger">Delete</button>
+        </div>
+      </div>
+      <div id="detailContent" class="detail-content"></div>
+    </div>
+  </div>
   </div>
 
   <script src="explore.ts" type="module"></script>
