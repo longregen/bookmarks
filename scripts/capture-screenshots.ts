@@ -269,7 +269,7 @@ async function captureExplore(browser: Browser, extensionId: string): Promise<vo
 
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 800 });
-  await page.goto(getExtensionUrl(extensionId, '/src/explore/explore.html'));
+  await page.goto(getExtensionUrl(extensionId, '/src/library/library.html'));
 
   // Wait for page structure
   await page.waitForSelector('#bookmarkList', { timeout: 5000 });
@@ -295,7 +295,7 @@ async function captureSearch(browser: Browser, extensionId: string): Promise<voi
 
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 800 });
-  await page.goto(getExtensionUrl(extensionId, '/src/explore/explore.html'));
+  await page.goto(getExtensionUrl(extensionId, '/src/library/library.html'));
 
   // Wait for page structure
   await page.waitForSelector('#searchInput', { timeout: 5000 });

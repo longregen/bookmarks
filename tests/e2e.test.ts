@@ -261,14 +261,14 @@ async function main(): Promise<void> {
     // Test 3: Create a test page and save as bookmark via service worker
     await runTest('Save bookmark via content script simulation', async () => {
       // Open explore page to interact with database
-      const explorePage = await browser!.newPage();
-      await explorePage.goto(getExtensionUrl(extensionId, '/src/explore/explore.html'));
+      const libraryPage = await browser!.newPage();
+      await libraryPage.goto(getExtensionUrl(extensionId, '/src/library/library.html'));
 
       // Wait for page to load
-      await explorePage.waitForSelector('#bookmarkList', { timeout: 5000 });
+      await libraryPage.waitForSelector('#bookmarkList', { timeout: 5000 });
 
       // Get initial bookmark count
-      const initialCountText = await explorePage.$eval('#bookmarkCount', el => el.textContent);
+      const initialCountText = await libraryPage.$eval('#bookmarkCount', el => el.textContent);
       const initialCount = parseInt(initialCountText || '0');
 
       // Navigate to a real page where we can capture content
@@ -306,14 +306,14 @@ async function main(): Promise<void> {
       await new Promise(resolve => setTimeout(resolve, 3000));
 
       // Refresh explore page and check if bookmark was added
-      await explorePage.reload({ waitUntil: 'domcontentloaded' });
-      await explorePage.waitForSelector('#bookmarkCount', { timeout: 5000 });
+      await libraryPage.reload({ waitUntil: 'domcontentloaded' });
+      await libraryPage.waitForSelector('#bookmarkCount', { timeout: 5000 });
 
       // Wait for stats to update
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Verify the bookmark count increased
-      const finalCountText = await explorePage.$eval('#bookmarkCount', el => el.textContent);
+      const finalCountText = await libraryPage.$eval('#bookmarkCount', el => el.textContent);
       const finalCount = parseInt(finalCountText || '0');
 
       if (finalCount <= initialCount) {
@@ -321,13 +321,13 @@ async function main(): Promise<void> {
       }
 
       // Verify the bookmark appears in the list
-      const bookmarkCards = await explorePage.$$('.bookmark-card');
+      const bookmarkCards = await libraryPage.$$('.bookmark-card');
       if (bookmarkCards.length === 0) {
         throw new Error('No bookmark cards found in list');
       }
 
       // Check if example.com appears in any bookmark card
-      const hasExampleBookmark = await explorePage.evaluate(() => {
+      const hasExampleBookmark = await libraryPage.evaluate(() => {
         const cards = document.querySelectorAll('.bookmark-card');
         return Array.from(cards).some(card => {
           // Prefer anchor links, fall back to searching for valid URLs in text
@@ -359,13 +359,13 @@ async function main(): Promise<void> {
       }
 
       await testPage.close();
-      await explorePage.close();
+      await libraryPage.close();
     });
 
     // Test 4: Verify bookmark appears in list
     await runTest('Bookmark appears in explore list', async () => {
       const page = await browser!.newPage();
-      await page.goto(getExtensionUrl(extensionId, '/src/explore/explore.html'));
+      await page.goto(getExtensionUrl(extensionId, '/src/library/library.html'));
 
       await page.waitForSelector('#bookmarkList', { timeout: 5000 });
 
@@ -389,7 +389,7 @@ async function main(): Promise<void> {
     // Test 5: Wait for bookmark processing (if bookmark exists)
     await runTest('Wait for bookmark processing', async () => {
       const page = await browser!.newPage();
-      await page.goto(getExtensionUrl(extensionId, '/src/explore/explore.html'));
+      await page.goto(getExtensionUrl(extensionId, '/src/library/library.html'));
 
       await page.waitForSelector('#bookmarkList', { timeout: 5000 });
 
@@ -505,12 +505,12 @@ async function main(): Promise<void> {
 
       // Send bookmark data to service worker via the extension's message system
       // We'll use the explore page to access the database and extension APIs
-      const explorePage = await browser!.newPage();
-      await explorePage.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
-      await explorePage.waitForSelector('#bookmarkList', { timeout: 5000 });
+      const libraryPage = await browser!.newPage();
+      await libraryPage.goto(`chrome-extension://${extensionId}/src/library/library.html`);
+      await libraryPage.waitForSelector('#bookmarkList', { timeout: 5000 });
 
       // Inject the bookmark via the service worker
-      const saveResult = await explorePage.evaluate(async (data) => {
+      const saveResult = await libraryPage.evaluate(async (data) => {
         // Send message to service worker to save the bookmark
         return new Promise((resolve) => {
           chrome.runtime.sendMessage(
@@ -533,10 +533,10 @@ async function main(): Promise<void> {
 
       while (Date.now() - startTime < maxWait) {
         await new Promise(resolve => setTimeout(resolve, 3000));
-        await explorePage.reload({ waitUntil: 'domcontentloaded' });
+        await libraryPage.reload({ waitUntil: 'domcontentloaded' });
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        const bookmarkStatus = await explorePage.evaluate(async () => {
+        const bookmarkStatus = await libraryPage.evaluate(async () => {
           // Use the exposed test helper to access the database
           if (!window.__testHelpers) {
             throw new Error('Test helpers not available on window object');
@@ -607,13 +607,13 @@ async function main(): Promise<void> {
         throw new Error('Bookmark did not complete processing within timeout period');
       }
 
-      await explorePage.close();
+      await libraryPage.close();
     });
 
     // Test 7: Test search functionality
     await runTest('Search for bookmarks', async () => {
       const page = await browser!.newPage();
-      await page.goto(getExtensionUrl(extensionId, '/src/explore/explore.html'));
+      await page.goto(getExtensionUrl(extensionId, '/src/search/search.html'));
 
       await page.waitForSelector('#searchInput', { timeout: 5000 });
 
@@ -627,50 +627,46 @@ async function main(): Promise<void> {
       await page.waitForFunction(
         () => {
           const btn = document.querySelector('#searchBtn') as HTMLButtonElement;
-          return btn && !btn.disabled && btn.textContent === 'Search';
+          return btn && !btn.disabled && btn.textContent?.includes('Search');
         },
         { timeout: 60000 }
       );
 
       // Check search results
-      const searchResults = await page.$('#searchResults');
-      if (!searchResults) {
+      const resultsList = await page.$('#resultsList');
+      if (!resultsList) {
         throw new Error('Search results container not found');
       }
 
-      // Verify we switched to search view
-      const searchViewActive = await page.$eval('#searchViewBtn', el => el.classList.contains('active'));
-      if (!searchViewActive) {
-        // It might not have results if processing didn't complete
-        console.log('  (Search view not active - may not have processed bookmarks)');
-      }
+      // Check result count
+      const count = await page.$eval('#resultCount', el => el.textContent);
+      console.log(`  (Found ${count} search results)`);
 
       await page.close();
     });
 
-    // Test 8: View switching
-    await runTest('View switching between list and search', async () => {
+    // Test 8: Navigation between pages
+    await runTest('Navigation between library and search pages', async () => {
       const page = await browser!.newPage();
-      await page.goto(getExtensionUrl(extensionId, '/src/explore/explore.html'));
+      await page.goto(getExtensionUrl(extensionId, '/src/library/library.html'));
 
-      await page.waitForSelector('#listViewBtn', { timeout: 5000 });
+      // Wait for library page to load
+      await page.waitForSelector('#bookmarkList', { timeout: 5000 });
 
-      // Click search view
-      await page.click('#searchViewBtn');
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const searchActive = await page.$eval('#searchView', el => el.classList.contains('active'));
-      if (!searchActive) {
-        throw new Error('Search view should be active');
+      // Verify we're on library page
+      const libraryNavActive = await page.$eval('.app-header__nav-link[href="library.html"]', el => el.classList.contains('active'));
+      if (!libraryNavActive) {
+        throw new Error('Library navigation should be active');
       }
 
-      // Click list view
-      await page.click('#listViewBtn');
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Navigate to search page
+      await page.click('.app-header__nav-link[href="../search/search.html"]');
+      await page.waitForSelector('#searchInput', { timeout: 5000 });
 
-      const listActive = await page.$eval('#listView', el => el.classList.contains('active'));
-      if (!listActive) {
-        throw new Error('List view should be active');
+      // Verify we're on search page
+      const searchNavActive = await page.$eval('.app-header__nav-link[href="search.html"]', el => el.classList.contains('active'));
+      if (!searchNavActive) {
+        throw new Error('Search navigation should be active');
       }
 
       await page.close();

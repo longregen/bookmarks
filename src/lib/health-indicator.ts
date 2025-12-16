@@ -89,23 +89,9 @@ export function createHealthIndicator(container: HTMLElement): () => void {
   // Create the indicator element
   const indicator = document.createElement('div');
   indicator.className = 'health-indicator';
-  indicator.style.cssText = `
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 6px;
-    transition: background 200ms ease;
-  `;
 
   const dot = document.createElement('span');
   dot.className = 'health-indicator-dot';
-  dot.style.cssText = `
-    font-size: 12px;
-    line-height: 1;
-    user-select: none;
-  `;
 
   indicator.appendChild(dot);
   container.appendChild(indicator);
@@ -113,23 +99,6 @@ export function createHealthIndicator(container: HTMLElement): () => void {
   // Tooltip element
   const tooltip = document.createElement('div');
   tooltip.className = 'health-indicator-tooltip';
-  tooltip.style.cssText = `
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin-top: 8px;
-    padding: 8px 12px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
-    border-radius: 6px;
-    box-shadow: var(--shadow-lg);
-    font-size: 13px;
-    white-space: nowrap;
-    z-index: 1000;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 150ms ease;
-  `;
   container.style.position = 'relative';
   container.appendChild(tooltip);
 

@@ -17,13 +17,11 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
 
   const section = createElement('div', { className: 'tag-editor' });
   section.appendChild(createElement('h3', {
-    textContent: 'TAGS',
-    style: { fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)', marginBottom: 'var(--space-2)' }
+    textContent: 'TAGS'
   }));
 
   const tagsContainer = createElement('div', {
-    className: 'tag-editor-tags',
-    style: { display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }
+    className: 'tag-editor-tags'
   });
 
   for (const tag of tags) {
@@ -37,33 +35,11 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
 
   const input = createElement('input', {
     attributes: { type: 'text', placeholder: 'Type to add tag...' },
-    style: {
-      width: '100%',
-      padding: 'var(--space-2) var(--space-3)',
-      border: '1px solid var(--border-primary)',
-      borderRadius: 'var(--radius-md)',
-      background: 'var(--bg-secondary)',
-      color: 'var(--text-primary)',
-      fontSize: 'var(--text-sm)'
-    }
+    className: 'input'
   }) as HTMLInputElement;
 
   const dropdown = createElement('div', {
-    className: 'tag-dropdown',
-    style: {
-      position: 'absolute',
-      top: '100%',
-      left: '0',
-      right: '0',
-      background: 'var(--bg-primary)',
-      border: '1px solid var(--border-primary)',
-      borderRadius: 'var(--radius-md)',
-      boxShadow: 'var(--shadow-lg)',
-      display: 'none',
-      zIndex: '100',
-      maxHeight: '150px',
-      overflowY: 'auto'
-    }
+    className: 'tag-dropdown'
   });
 
   input.addEventListener('input', () => {
@@ -83,11 +59,7 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
     for (const match of matches) {
       const item = createElement('div', {
         textContent: `#${match}`,
-        style: {
-          padding: 'var(--space-2) var(--space-3)',
-          cursor: 'pointer',
-          fontSize: 'var(--text-sm)'
-        }
+        className: 'tag-dropdown-item'
       });
       item.addEventListener('mouseenter', () => item.style.background = 'var(--bg-secondary)');
       item.addEventListener('mouseleave', () => item.style.background = 'transparent');
@@ -98,14 +70,12 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
     if (!allTags.includes(value) && value.length > 0) {
       const createItem = createElement('div', {
         textContent: `Create "#${value}"`,
-        style: {
-          padding: 'var(--space-2) var(--space-3)',
-          cursor: 'pointer',
-          fontSize: 'var(--text-sm)',
-          borderTop: matches.length > 0 ? '1px solid var(--border-primary)' : 'none',
-          color: 'var(--accent-link)'
-        }
+        className: 'tag-dropdown-item create'
       });
+      if (matches.length > 0) {
+        createItem.style.borderTop = '1px solid var(--border-primary)';
+      }
+      createItem.style.color = 'var(--accent-link)';
       createItem.addEventListener('mouseenter', () => createItem.style.background = 'var(--bg-secondary)');
       createItem.addEventListener('mouseleave', () => createItem.style.background = 'transparent');
       createItem.addEventListener('click', () => addTag(value, bookmarkId, container, onTagsChange));
@@ -139,31 +109,13 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
 
 function createTagPill(tagName: string, bookmarkId: string, onTagsChange?: () => void): HTMLElement {
   const pill = createElement('span', {
-    className: 'tag-pill',
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 'var(--space-1)',
-      padding: 'var(--space-1) var(--space-2)',
-      background: 'var(--bg-tertiary)',
-      borderRadius: 'var(--radius-sm)',
-      fontSize: 'var(--text-sm)'
-    }
+    className: 'tag-pill'
   });
 
   pill.appendChild(createElement('span', { textContent: `#${tagName}` }));
 
   const removeBtn = createElement('button', {
-    textContent: '×',
-    style: {
-      background: 'none',
-      border: 'none',
-      cursor: 'pointer',
-      padding: '0 2px',
-      fontSize: 'var(--text-base)',
-      color: 'var(--text-secondary)',
-      lineHeight: '1'
-    }
+    textContent: '×'
   });
 
   removeBtn.addEventListener('click', async () => {

@@ -4,54 +4,35 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Settings - Bookmarks by Localforge</title>
-  <link rel="stylesheet" href="options.css">
+  <link rel="stylesheet" href="../shared/app.css">
 </head>
-<body class="app-layout">
-  <!-- App Header -->
+<body class="layout">
   <header class="app-header">
+    <nav class="app-header__nav">
+      <a href="../library/library.html" class="app-header__nav-link">Library</a>
+      <a href="../search/search.html" class="app-header__nav-link">Search</a>
+      <a href="../stumble/stumble.html" class="app-header__nav-link">Stumble</a>
+      <a href="options.html" class="app-header__nav-link active">Settings</a>
+    </nav>
     <div class="app-header__brand">
+      <div id="healthIndicator"></div>
       <h1 class="app-header__title">Bookmarks by Localforge</h1>
     </div>
-    <nav class="app-header__nav">
-      <a href="#" id="navLibrary" class="app-header__nav-link">
-        <span class="app-header__nav-icon">📚</span>
-        <span>Library</span>
-      </a>
-      <a href="#" id="navSearch" class="app-header__nav-link">
-        <span class="app-header__nav-icon">🔍</span>
-        <span>Search</span>
-      </a>
-      <a href="#" id="navStumble" class="app-header__nav-link">
-        <span class="app-header__nav-icon">🎲</span>
-        <span>Stumble</span>
-      </a>
-      <a href="#" id="navSettings" class="app-header__nav-link active">
-        <span class="app-header__nav-icon">⚙️</span>
-        <span>Settings</span>
-      </a>
-    </nav>
-    <div class="app-header__actions"></div>
   </header>
 
-  <div class="app-layout__content">
-  <div class="settings-layout">
-    <!-- Sidebar Navigation (Desktop only) -->
-    <aside class="settings-sidebar">
+  <div class="main-content">
+    <aside class="sidebar">
       <nav class="sidebar-nav">
         <a href="#appearance" class="nav-item active" data-section="appearance">
-          <span class="nav-icon">🎨</span>
           <span class="nav-label">Appearance</span>
         </a>
         <a href="#api-config" class="nav-item" data-section="api-config">
-          <span class="nav-icon">🔑</span>
           <span class="nav-label">API Configuration</span>
         </a>
         <a href="#bulk-import" class="nav-item" data-section="bulk-import">
-          <span class="nav-icon">📥</span>
           <span class="nav-label">Bulk Import</span>
         </a>
         <a href="#import-export" class="nav-item" data-section="import-export">
-          <span class="nav-icon">💾</span>
           <span class="nav-label">Import / Export</span>
         </a>
         <a href="#webdav-sync" class="nav-item" data-section="webdav-sync">
@@ -63,19 +44,16 @@
           <span class="nav-label">WebDAV Sync</span>
         </a>
         <a href="#jobs" class="nav-item" data-section="jobs">
-          <span class="nav-icon">📊</span>
           <span class="nav-label">Jobs Dashboard</span>
         </a>
         <a href="#about" class="nav-item" data-section="about">
-          <span class="nav-icon">ℹ️</span>
           <span class="nav-label">About</span>
         </a>
       </nav>
     </aside>
 
-    <!-- Main Content -->
-    <div class="settings-content">
-      <main>
+    <main class="middle">
+      <div class="settings-content">
         <div id="status" class="status hidden"></div>
 
         <section id="appearance" class="settings-section">
@@ -415,9 +393,8 @@
         </p>
           </div>
         </section>
-      </main>
-    </div>
-  </div>
+      </div>
+    </main>
   </div>
 
   <script src="options.ts" type="module"></script>

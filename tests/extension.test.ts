@@ -200,14 +200,14 @@ async function testChromeExtension(): Promise<void> {
       await page.close();
     });
 
-    // Test 3: Explore page loads
-    await runTest('Explore page loads', async () => {
+    // Test 3: Library page loads
+    await runTest('Library page loads', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await page.goto(`chrome-extension://${extensionId}/src/library/library.html`);
 
-      await page.waitForSelector('#searchInput', { timeout: 5000 });
-      await page.waitForSelector('#searchBtn', { timeout: 5000 });
       await page.waitForSelector('#bookmarkList', { timeout: 5000 });
+      await page.waitForSelector('#tagList', { timeout: 5000 });
+      await page.waitForSelector('#sortSelect', { timeout: 5000 });
 
       await page.close();
     });
@@ -282,13 +282,13 @@ async function testChromeExtension(): Promise<void> {
 
       // Verify bookmark appears in explore page
       const verifyPage = await browser!.newPage();
-      await verifyPage.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await verifyPage.goto(`chrome-extension://${extensionId}/src/library/library.html`);
       await verifyPage.waitForSelector('#bookmarkList', { timeout: 5000 });
 
       // Wait for bookmarks to load
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      const bookmarkTitles = await verifyPage.$$eval('.bookmark-card .bookmark-title',
+      const bookmarkTitles = await verifyPage.$$eval('.bookmark-card .card-title',
         elements => elements.map(el => el.textContent?.trim())
       );
 
@@ -335,10 +335,10 @@ async function testChromeExtension(): Promise<void> {
       await page.close();
     });
 
-    // Test 7: Search UI functionality
-    await runTest('Search UI is functional', async () => {
+    // Test 7: Search page functionality
+    await runTest('Search page is functional', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await page.goto(`chrome-extension://${extensionId}/src/search/search.html`);
 
       await page.waitForSelector('#searchInput', { timeout: 5000 });
 
@@ -354,26 +354,32 @@ async function testChromeExtension(): Promise<void> {
       await page.close();
     });
 
-    // Test 8: View switching works
-    await runTest('View switching works', async () => {
+    // Test 8: Navigation between pages works
+    await runTest('Navigation between pages works', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await page.goto(`chrome-extension://${extensionId}/src/library/library.html`);
 
-      await page.waitForSelector('#listViewBtn', { timeout: 5000 });
-      await page.waitForSelector('#searchViewBtn', { timeout: 5000 });
+      // Check that library page loaded correctly
+      await page.waitForSelector('#bookmarkList', { timeout: 5000 });
 
-      // Check list view is active by default
-      const listViewActive = await page.$eval('#listViewBtn', el => el.classList.contains('active'));
-      if (!listViewActive) {
-        throw new Error('List view should be active by default');
+      // Check library link is active
+      const libraryLinkActive = await page.$eval('.app-header__nav-link[href="library.html"]',
+        el => el.classList.contains('active')
+      );
+      if (!libraryLinkActive) {
+        throw new Error('Library link should be active on library page');
       }
 
-      // Switch to search view
-      await page.click('#searchViewBtn');
+      // Navigate to search page
+      await page.click('.app-header__nav-link[href="../search/search.html"]');
+      await page.waitForSelector('#searchInput', { timeout: 5000 });
 
-      const searchViewActive = await page.$eval('#searchViewBtn', el => el.classList.contains('active'));
-      if (!searchViewActive) {
-        throw new Error('Search view should be active after clicking');
+      // Check search link is active
+      const searchLinkActive = await page.$eval('.app-header__nav-link[href="search.html"]',
+        el => el.classList.contains('active')
+      );
+      if (!searchLinkActive) {
+        throw new Error('Search link should be active on search page');
       }
 
       await page.close();
