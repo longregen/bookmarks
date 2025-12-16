@@ -171,7 +171,7 @@ declare global {
 window.__testHelpers = {
   async getBookmarkStatus() {
     const bookmarks = await db.bookmarks.toArray();
-    const markdown = await db.markdownContents.toArray();
+    const markdown = await db.markdown.toArray();
 
     return {
       bookmarks: bookmarks.map(b => ({
