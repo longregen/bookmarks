@@ -30,6 +30,9 @@ export interface TestAdapter {
   // Platform info
   platformName: string;
 
+  // Whether this is a browser extension (vs web app)
+  isExtension: boolean;
+
   // Setup/teardown
   setup(): Promise<void>;
   teardown(): Promise<void>;
@@ -182,6 +185,27 @@ export interface TestOptions {
 
 export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, options: TestOptions = {}): Promise<void> {
   console.log('\n--- MOCKED API TESTS ---\n');
+
+  // Test: Popup page loads (extension-only)
+  if (adapter.isExtension) {
+    await runner.runTest('Popup page loads', async () => {
+      const page = await adapter.newPage();
+      await page.goto(adapter.getPageUrl('popup'));
+
+      // Check for essential popup elements (nav buttons and save button)
+      await page.waitForSelector('#saveBtn');
+      await page.waitForSelector('#navLibrary');
+      await page.waitForSelector('#navSearch');
+      await page.waitForSelector('#navStumble');
+
+      const title = await page.evaluate(`document.title`);
+      if (!title.includes('Bookmark')) {
+        throw new Error(`Unexpected title: ${title}`);
+      }
+
+      await page.close();
+    });
+  }
 
   // Test 1: Configure API settings (with mock server)
   await runner.runTest('Configure API settings', async () => {
@@ -456,6 +480,82 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
 
     await page.close();
   });
+
+  // Test: Save bookmark via extension messaging (extension-only)
+  if (adapter.isExtension) {
+    await runner.runTest('Save bookmark via runtime messaging', async () => {
+      const testUrl = 'https://example.com/e2e-test-article';
+      const testTitle = 'E2E Test Article About AI';
+      const testHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head><title>${testTitle}</title></head>
+        <body>
+          <h1>E2E Test Article</h1>
+          <article>
+            <p>This is a test article about artificial intelligence and machine learning.</p>
+            <p>It contains important information about neural networks and deep learning.</p>
+          </article>
+        </body>
+        </html>
+      `;
+
+      // Open popup page to get access to chrome.runtime
+      const savePage = await adapter.newPage();
+      await savePage.goto(adapter.getPageUrl('popup'));
+      await savePage.waitForSelector('#saveBtn');
+
+      // Send SAVE_BOOKMARK message via chrome.runtime.sendMessage
+      const result = await savePage.evaluate(`
+        new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            {
+              type: 'SAVE_BOOKMARK',
+              data: {
+                url: '${testUrl}',
+                title: '${testTitle}',
+                html: ${JSON.stringify(testHtml)}
+              }
+            },
+            (response) => resolve(response)
+          );
+        })
+      `);
+
+      await savePage.close();
+
+      // Verify the save was successful
+      if (!(result as any)?.success) {
+        throw new Error(`Failed to save bookmark: ${(result as any)?.error || 'Unknown error'}`);
+      }
+
+      // Verify bookmark appears in library
+      const verifyPage = await adapter.newPage();
+      await verifyPage.goto(adapter.getPageUrl('library'));
+      await verifyPage.waitForSelector('#bookmarkList');
+
+      // Wait for bookmarks to load
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      const bookmarkFound = await verifyPage.evaluate(`
+        (() => {
+          const cards = document.querySelectorAll('.bookmark-card .card-title');
+          for (const card of cards) {
+            if (card.textContent?.trim() === '${testTitle}') {
+              return true;
+            }
+          }
+          return false;
+        })()
+      `);
+
+      if (!bookmarkFound) {
+        throw new Error(`Saved bookmark "${testTitle}" not found in library`);
+      }
+
+      await verifyPage.close();
+    });
+  }
 
   // ========================================================================
   // ONE REAL API TEST

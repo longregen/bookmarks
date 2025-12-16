@@ -21,6 +21,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export class WebAdapter implements TestAdapter {
   platformName = 'Web App';
+  isExtension = false;
 
   private browser: Browser | null = null;
   private mockServer: http.Server | null = null;

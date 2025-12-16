@@ -22,6 +22,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export class ChromeAdapter implements TestAdapter {
   platformName = 'Chrome Extension';
+  isExtension = true;
 
   private browser: Browser | null = null;
   private extensionId: string = '';
