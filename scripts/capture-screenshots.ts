@@ -142,64 +142,121 @@ function getExtensionUrl(extensionId: string, pagePath: string): string {
   return `chrome-extension://${extensionId}${pagePath}`;
 }
 
+async function setTheme(page: Page, theme: string): Promise<void> {
+  // Set the theme via data-theme attribute
+  await page.evaluate((themeName) => {
+    document.documentElement.setAttribute('data-theme', themeName);
+  }, theme);
+}
+
 async function injectDemoData(page: Page): Promise<void> {
-  // Inject demo bookmarks for screenshot purposes
+  // Inject demo bookmarks using raw IndexedDB (avoids dynamic import issues)
   await page.evaluate(async () => {
-    const { db } = await import('/src/db/schema.js');
+    const DB_NAME = 'BookmarkRAG';
+    const DB_VERSION = 3;
+
+    // Open database directly
+    const openDb = (): Promise<IDBDatabase> => {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+        request.onupgradeneeded = (event) => {
+          const db = (event.target as IDBOpenDBRequest).result;
+          // Create stores if they don't exist (matching schema.ts)
+          if (!db.objectStoreNames.contains('bookmarks')) {
+            db.createObjectStore('bookmarks', { keyPath: 'id' });
+          }
+          if (!db.objectStoreNames.contains('markdown')) {
+            db.createObjectStore('markdown', { keyPath: 'id' });
+          }
+          if (!db.objectStoreNames.contains('questionsAnswers')) {
+            db.createObjectStore('questionsAnswers', { keyPath: 'id' });
+          }
+        };
+      });
+    };
+
+    const putRecord = (db: IDBDatabase, storeName: string, record: unknown): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        const request = store.put(record);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve();
+      });
+    };
+
+    const clearStore = (db: IDBDatabase, storeName: string): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        const request = store.clear();
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve();
+      });
+    };
+
+    const db = await openDb();
 
     // Clear existing data
-    await db.bookmarks.clear();
-    await db.markdown.clear();
-    await db.questionAnswers.clear();
+    await clearStore(db, 'bookmarks');
+    await clearStore(db, 'markdown');
+    await clearStore(db, 'questionsAnswers');
 
     const demoBookmarks = [
       {
         id: 'demo-1',
         url: 'https://developer.mozilla.org/docs/Web/JavaScript/Guide',
         title: 'JavaScript Guide - MDN Web Docs',
-        status: 'complete' as const,
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+        html: '',
+        status: 'complete',
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
         updatedAt: new Date(),
       },
       {
         id: 'demo-2',
         url: 'https://react.dev/learn',
         title: 'Quick Start - React Documentation',
-        status: 'complete' as const,
-        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
+        html: '',
+        status: 'complete',
+        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
         updatedAt: new Date(),
       },
       {
         id: 'demo-3',
         url: 'https://www.typescriptlang.org/docs/handbook',
         title: 'TypeScript Handbook',
-        status: 'complete' as const,
-        createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+        html: '',
+        status: 'complete',
+        createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
         updatedAt: new Date(),
       },
       {
         id: 'demo-4',
         url: 'https://nodejs.org/en/learn/getting-started',
         title: 'Introduction to Node.js',
-        status: 'processing' as const,
-        createdAt: new Date(Date.now() - 5 * 60 * 1000), // 5 minutes ago
+        html: '',
+        status: 'processing',
+        createdAt: new Date(Date.now() - 5 * 60 * 1000),
         updatedAt: new Date(),
       },
       {
         id: 'demo-5',
         url: 'https://css-tricks.com/guides/flexbox',
         title: 'A Complete Guide to Flexbox',
-        status: 'complete' as const,
-        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 1 week ago
+        html: '',
+        status: 'complete',
+        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
         updatedAt: new Date(),
       },
     ];
 
     for (const bookmark of demoBookmarks) {
-      await db.bookmarks.put(bookmark);
+      await putRecord(db, 'bookmarks', bookmark);
 
       if (bookmark.status === 'complete') {
-        await db.markdown.put({
+        await putRecord(db, 'markdown', {
           id: `md-${bookmark.id}`,
           bookmarkId: bookmark.id,
           content: `# ${bookmark.title}\n\nThis is sample content for the demo bookmark.`,
@@ -207,29 +264,34 @@ async function injectDemoData(page: Page): Promise<void> {
           updatedAt: bookmark.updatedAt,
         });
 
-        await db.questionAnswers.bulkPut([
-          {
-            id: `qa-${bookmark.id}-1`,
-            bookmarkId: bookmark.id,
-            question: 'What is this article about?',
-            answer: `This article covers ${bookmark.title.toLowerCase()}.`,
-            embedding: new Float32Array(1536).fill(0),
-            createdAt: bookmark.createdAt,
-            updatedAt: bookmark.updatedAt,
-          },
-          {
-            id: `qa-${bookmark.id}-2`,
-            bookmarkId: bookmark.id,
-            question: 'What are the key concepts?',
-            answer: 'The key concepts include core fundamentals and best practices.',
-            embedding: new Float32Array(1536).fill(0),
-            createdAt: bookmark.createdAt,
-            updatedAt: bookmark.updatedAt,
-          },
-        ]);
+        // Add Q&A pairs
+        await putRecord(db, 'questionsAnswers', {
+          id: `qa-${bookmark.id}-1`,
+          bookmarkId: bookmark.id,
+          question: 'What is this article about?',
+          answer: `This article covers ${bookmark.title.toLowerCase()}.`,
+          embeddingQuestion: Array(1536).fill(0),
+          embeddingAnswer: Array(1536).fill(0),
+          embeddingBoth: Array(1536).fill(0),
+          createdAt: bookmark.createdAt,
+          updatedAt: bookmark.updatedAt,
+        });
+
+        await putRecord(db, 'questionsAnswers', {
+          id: `qa-${bookmark.id}-2`,
+          bookmarkId: bookmark.id,
+          question: 'What are the key concepts?',
+          answer: 'The key concepts include core fundamentals and best practices.',
+          embeddingQuestion: Array(1536).fill(0),
+          embeddingAnswer: Array(1536).fill(0),
+          embeddingBoth: Array(1536).fill(0),
+          createdAt: bookmark.createdAt,
+          updatedAt: bookmark.updatedAt,
+        });
       }
     }
 
+    db.close();
     console.log('Demo data injected successfully');
   });
 }
@@ -243,6 +305,9 @@ async function capturePopup(browser: Browser, extensionId: string): Promise<void
 
   // Wait for content to load
   await page.waitForSelector('#saveBtn', { timeout: 5000 });
+
+  // Set terminal theme for screenshots
+  await setTheme(page, 'terminal');
   await new Promise(resolve => setTimeout(resolve, 1000));
 
   // Update stats display for demo
@@ -280,6 +345,9 @@ async function captureExplore(browser: Browser, extensionId: string): Promise<vo
   // Reload to show the data
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#bookmarkList', { timeout: 5000 });
+
+  // Set terminal theme for screenshots
+  await setTheme(page, 'terminal');
   await new Promise(resolve => setTimeout(resolve, 2000));
 
   await page.screenshot({
@@ -304,6 +372,9 @@ async function captureSearch(browser: Browser, extensionId: string): Promise<voi
   await injectDemoData(page);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#searchInput', { timeout: 5000 });
+
+  // Set terminal theme for screenshots
+  await setTheme(page, 'terminal');
   await new Promise(resolve => setTimeout(resolve, 1000));
 
   // Set search query
