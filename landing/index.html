@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Localforge.org's Bookmarks Extension</title>
-<meta name="description" content="Bookmark manager with semantic search. Save pages, extract content, and search by meaning.">
+<title>Bookmarks by Localforge</title>
+<meta name="description" content="Transform your bookmarks into a knowledge discovery tool. Save pages, organize with tags, and rediscover forgotten knowledge through semantic search and random stumbling.">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{
@@ -15,7 +15,7 @@ body{
   min-height:100vh;
   padding:40px 20px;
 }
-.container{max-width:800px;margin:0 auto}
+.container{max-width:900px;margin:0 auto}
 h1{
   color:#0f0;
   font-size:2em;
@@ -71,13 +71,45 @@ h3{
   color:#000;
 }
 
+/* Four Experiences Grid */
+.experiences{
+  display:grid;
+  grid-template-columns:repeat(4, 1fr);
+  gap:15px;
+  margin:30px 0;
+}
+.experience{
+  padding:20px 15px;
+  border:1px solid #333;
+  background:#0a0a0a;
+  text-align:center;
+}
+.experience:hover{
+  border-color:#0f0;
+}
+.experience-icon{
+  font-size:28px;
+  margin-bottom:10px;
+}
+.experience-name{
+  color:#0f0;
+  font-weight:bold;
+  margin-bottom:8px;
+  font-size:14px;
+}
+.experience-desc{
+  color:#888;
+  font-size:12px;
+  line-height:1.4;
+}
+
 .screenshots{
-  display:flex;
+  display:grid;
+  grid-template-columns:repeat(3, 1fr);
   gap:10px;
   margin:20px 0;
 }
 .screenshot{
-  flex:1;
   border:1px solid #333;
   padding:5px;
   background:#0a0a0a;
@@ -86,6 +118,12 @@ h3{
   width:100%;
   height:auto;
   display:block;
+}
+.screenshot-label{
+  color:#666;
+  font-size:11px;
+  text-align:center;
+  margin-top:5px;
 }
 
 .features{
@@ -128,22 +166,28 @@ h3{
   font-size:14px;
 }
 
-.specs{
+.design-principles{
   margin:30px 0;
   padding:20px;
   background:#0a0a0a;
   border:1px solid #333;
 }
-.spec-row{
+.principle{
   display:flex;
-  justify-content:space-between;
-  padding:8px 0;
-  border-bottom:1px solid #222;
+  gap:10px;
+  margin:10px 0;
   font-size:13px;
 }
-.spec-row:last-child{border-bottom:none}
-.spec-label{color:#888}
-.spec-value{color:#0f0}
+.principle-num{
+  color:#0f0;
+  min-width:20px;
+}
+.principle-text{
+  color:#ccc;
+}
+.principle-text strong{
+  color:#fff;
+}
 
 .privacy{
   margin:30px 0;
@@ -174,29 +218,49 @@ footer a{
 }
 footer a:hover{text-decoration:underline}
 
+@media (max-width:800px){
+  .experiences{grid-template-columns:repeat(2, 1fr)}
+  .screenshots{grid-template-columns:1fr}
+}
 @media (max-width:600px){
   h1{font-size:1.5em}
   .downloads{flex-direction:column}
   .download-btn{text-align:center}
+  .experiences{grid-template-columns:1fr}
   .step{flex-direction:column;gap:5px}
-  .spec-row{flex-direction:column;gap:5px}
 }
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>Localforge.org's Bookmarks Extension</h1>
-  <p class="tagline">Semantic search for saved web pages</p>
+  <h1>Bookmarks by Localforge</h1>
+  <p class="tagline">A knowledge discovery tool for your saved web pages</p>
 
   <div class="highlights">
-    <p><span class="highlight">></span> Search by meaning.</p>
-    <p><span class="highlight">></span> 100% local storage.</p>
-    <p><span class="highlight">></span> Works with any OpenAI-compatible API, including local LLMs.</p>
+    <p><span class="highlight">&gt;</span> Uses your browser to capture a snapshot of the DOM and process it with Mozilla's readability.js</p>
+    <p><span class="highlight">&gt;</span> Semantic search powered by embeddings</p>
+    <p><span class="highlight">&gt;</span> 100% local storage. Works with any OpenAI-compatible API.</p>
   </div>
 
   <div class="downloads">
     <a href="https://github.com/longregen/bookmarks/releases" class="download-btn">Download for Firefox</a>
     <a href="https://github.com/longregen/bookmarks/releases" class="download-btn secondary">Download for Chrome</a>
+  </div>
+
+  <h2>Screenshots</h2>
+  <div class="screenshots">
+    <div class="screenshot">
+      <img src="screenshot-popup.png" alt="Popup - Quick capture">
+      <div class="screenshot-label">Popup</div>
+    </div>
+    <div class="screenshot">
+      <img src="screenshot-explore.png" alt="Library - Browse bookmarks">
+      <div class="screenshot-label">Library</div>
+    </div>
+    <div class="screenshot">
+      <img src="screenshot-search.png" alt="Search - Semantic queries">
+      <div class="screenshot-label">Search</div>
+    </div>
   </div>
 
   <h2>Features</h2>
@@ -206,16 +270,24 @@ footer a:hover{text-decoration:underline}
       <div class="feature-desc">Converts HTML to clean Markdown using Mozilla's Readability engine</div>
     </div>
     <div class="feature">
-      <div class="feature-title">AI-Generated Q&A Pairs</div>
+      <div class="feature-title">AI-Generated Q&amp;A Pairs</div>
       <div class="feature-desc">LLM generates 5-10 smart question-answer pairs about each bookmark for RAG search</div>
     </div>
     <div class="feature">
-      <div class="feature-title">Bulk Import</div>
-      <div class="feature-desc">Import multiple URLs at once.</div>
+      <div class="feature-title">Tag-Based Organization</div>
+      <div class="feature-desc">Flat organization with tags. Click to filter, type to create new tags instantly.</div>
     </div>
     <div class="feature">
-      <div class="feature-title">Export & Backup</div>
-      <div class="feature-desc">Export the full collection or individual entries.</div>
+      <div class="feature-title">System Health Indicator</div>
+      <div class="feature-desc">Visual status in header shows processing state. Click to see diagnostics and job history.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-title">Bulk Import</div>
+      <div class="feature-desc">Import multiple URLs at once with validation and progress tracking.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-title">Export &amp; Backup</div>
+      <div class="feature-desc">Export your full collection or individual entries.</div>
     </div>
   </div>
 
@@ -231,24 +303,24 @@ footer a:hover{text-decoration:underline}
     </div>
     <div class="step">
       <span class="step-num">3.</span>
-      <span class="step-text"><strong>Generate</strong> — The configured LLM creates Q&A pairs about the content.</span>
+      <span class="step-text"><strong>Generate</strong> — The configured LLM creates Q&amp;A pairs about the content.</span>
     </div>
     <div class="step">
       <span class="step-num">4.</span>
-      <span class="step-text"><strong>Embed</strong> — Each Q&A pair is converted to vector embeddings for semantic search.</span>
+      <span class="step-text"><strong>Embed</strong> — Each Q&amp;A pair is converted to vector embeddings for semantic search.</span>
     </div>
     <div class="step">
       <span class="step-num">5.</span>
-      <span class="step-text"><strong>Search</strong> — Query with natural language. Results ranked by semantic similarity.</span>
+      <span class="step-text"><strong>Discover</strong> — Search by meaning, browse by tags, or stumble upon forgotten gems.</span>
     </div>
   </div>
 
   <h2>Privacy First</h2>
   <div class="privacy">
-    <p><span class="highlight">></span> All bookmarks stored in your browser's IndexedDB — never uploaded to any server.</p>
-    <p><span class="highlight">></span> Only extracted Markdown is sent to your configured API for processing.</p>
-    <p><span class="highlight">></span> You control the API endpoint — we recommend using local models with vLLM or llama.cpp</p>
-    <p><span class="highlight">></span> No default queries to any server, and no telemetry.</p>
+    <p><span class="highlight">&gt;</span> All bookmarks stored in your browser's IndexedDB — never uploaded to any server.</p>
+    <p><span class="highlight">&gt;</span> Only extracted Markdown is sent to your configured API for processing.</p>
+    <p><span class="highlight">&gt;</span> You control the API endpoint — use local models with vLLM or llama.cpp for full privacy.</p>
+    <p><span class="highlight">&gt;</span> No default queries to any server, and no telemetry.</p>
   </div>
 
   <footer>

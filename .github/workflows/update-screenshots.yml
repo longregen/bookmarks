@@ -1,0 +1,68 @@
+name: Update Landing Screenshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_message:
+        description: 'Commit message for screenshot update'
+        required: false
+        default: 'chore: update landing page screenshots'
+
+permissions:
+  contents: write
+
+jobs:
+  capture-screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Chrome extension
+        run: npm run build:chrome
+
+      - name: Install Chromium and xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser xvfb
+          chromium-browser --version
+
+      - name: Capture screenshots
+        env:
+          BROWSER_PATH: /usr/bin/chromium-browser
+          EXTENSION_PATH: dist-chrome
+          OUTPUT_DIR: landing
+        run: xvfb-run --auto-servernum npx tsx scripts/capture-screenshots.ts
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          git diff --quiet landing/ || echo "changes=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push screenshots
+        if: steps.check_changes.outputs.changes == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add landing/*.png
+          git commit -m "${{ github.event.inputs.commit_message }}"
+          git push
+
+      - name: No changes detected
+        if: steps.check_changes.outputs.changes != 'true'
+        run: echo "No screenshot changes detected, skipping commit."
+
+      - name: Upload screenshots as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: landing-screenshots
+          path: landing/*.png
+          retention-days: 7
