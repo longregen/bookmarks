@@ -1,9 +1,10 @@
 import { db, BookmarkTag, QuestionAnswer } from '../db/schema';
 import { createElement } from '../lib/dom';
-import { formatTimeAgoShort } from '../lib/time';
+import { formatDateByAge } from '../lib/date-format';
 import { generateEmbeddings } from '../lib/api';
 import { findTopK } from '../lib/similarity';
 import { exportSingleBookmark, downloadExport } from '../lib/export';
+import { createTagEditor } from '../lib/tag-editor';
 import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
 
 let selectedTags: Set<string> = new Set();
@@ -150,7 +151,7 @@ async function performSearch() {
       const url = createElement('a', { className: 'card-url', href: bookmark.url, textContent: new URL(bookmark.url).hostname });
       url.onclick = (e) => e.stopPropagation();
       meta.appendChild(url);
-      meta.appendChild(document.createTextNode(` · ${formatTimeAgoShort(bookmark.createdAt)}`));
+      meta.appendChild(document.createTextNode(` · ${formatDateByAge(bookmark.createdAt)}`));
       card.appendChild(meta);
 
       const qaPreview = createElement('div', { className: 'qa-preview' });
@@ -184,8 +185,14 @@ async function showDetail(bookmarkId: string) {
   const meta = createElement('div', { style: { marginBottom: 'var(--space-6)', color: 'var(--text-tertiary)' } });
   const url = createElement('a', { href: bookmark.url, target: '_blank', textContent: bookmark.url, style: { color: 'var(--accent-link)' } });
   meta.appendChild(url);
-  meta.appendChild(document.createTextNode(` · ${formatTimeAgoShort(bookmark.createdAt)} · ${bookmark.status}`));
+  meta.appendChild(document.createTextNode(` · ${formatDateByAge(bookmark.createdAt)} · ${bookmark.status}`));
   detailContent.appendChild(meta);
+
+  const tagEditorContainer = createElement('div', { style: { marginBottom: 'var(--space-6)' } });
+  detailContent.appendChild(tagEditorContainer);
+  await createTagEditor({ bookmarkId, container: tagEditorContainer, onTagsChange: () => loadFilters() });
+
+  detailContent.appendChild(createElement('hr', { style: { border: 'none', borderTop: '1px solid var(--border-primary)', margin: 'var(--space-6) 0' } }));
 
   if (markdown) {
     const content = createElement('div', { className: 'markdown-content' });

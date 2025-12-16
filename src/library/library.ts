@@ -1,7 +1,8 @@
 import { db, BookmarkTag } from '../db/schema';
 import { createElement } from '../lib/dom';
-import { formatTimeAgoShort } from '../lib/time';
+import { formatDateByAge } from '../lib/date-format';
 import { exportSingleBookmark, downloadExport } from '../lib/export';
+import { createTagEditor } from '../lib/tag-editor';
 import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
 
 let selectedTag = 'All';
@@ -114,7 +115,7 @@ async function loadBookmarks() {
     const url = createElement('a', { className: 'card-url', href: bookmark.url, textContent: new URL(bookmark.url).hostname });
     url.onclick = (e) => e.stopPropagation();
     meta.appendChild(url);
-    meta.appendChild(document.createTextNode(` · ${formatTimeAgoShort(bookmark.createdAt)}`));
+    meta.appendChild(document.createTextNode(` · ${formatDateByAge(bookmark.createdAt)}`));
     card.appendChild(meta);
 
     if (tags.length > 0) {
@@ -136,7 +137,6 @@ async function showDetail(bookmarkId: string) {
 
   const markdown = await db.markdown.where('bookmarkId').equals(bookmarkId).first();
   const qaPairs = await db.questionsAnswers.where('bookmarkId').equals(bookmarkId).toArray();
-  const tags = await db.bookmarkTags.where('bookmarkId').equals(bookmarkId).toArray() || [];
 
   detailContent.innerHTML = '';
   detailContent.appendChild(createElement('h1', { textContent: bookmark.title, style: { marginTop: '0' } }));
@@ -144,19 +144,12 @@ async function showDetail(bookmarkId: string) {
   const meta = createElement('div', { style: { marginBottom: 'var(--space-6)', color: 'var(--text-tertiary)' } });
   const url = createElement('a', { href: bookmark.url, target: '_blank', textContent: bookmark.url, style: { color: 'var(--accent-link)' } });
   meta.appendChild(url);
-  meta.appendChild(document.createTextNode(` · ${formatTimeAgoShort(bookmark.createdAt)} · ${bookmark.status}`));
+  meta.appendChild(document.createTextNode(` · ${formatDateByAge(bookmark.createdAt)} · ${bookmark.status}`));
   detailContent.appendChild(meta);
 
-  if (tags.length > 0) {
-    const tagSection = createElement('div', { style: { marginBottom: 'var(--space-6)' } });
-    tagSection.appendChild(createElement('h3', { textContent: 'TAGS', style: { fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)' } }));
-    const tagContainer = createElement('div', { className: 'card-tags' });
-    for (const tag of tags) {
-      tagContainer.appendChild(createElement('span', { className: 'tag-badge', textContent: `#${tag.tagName}` }));
-    }
-    tagSection.appendChild(tagContainer);
-    detailContent.appendChild(tagSection);
-  }
+  const tagEditorContainer = createElement('div', { style: { marginBottom: 'var(--space-6)' } });
+  detailContent.appendChild(tagEditorContainer);
+  await createTagEditor({ bookmarkId, container: tagEditorContainer, onTagsChange: () => { loadTags(); loadBookmarks(); } });
 
   detailContent.appendChild(createElement('hr', { style: { border: 'none', borderTop: '1px solid var(--border-primary)', margin: 'var(--space-6) 0' } }));
 
