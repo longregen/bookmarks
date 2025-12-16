@@ -1,8 +1,660 @@
-# UX Redesign Notes
+# UX Redesign
 
-## Overview
+## Vision
 
-This document captures the UX/design considerations, decisions, and implementation notes from the redesign of the Bookmarks by Localforge browser extension.
+Transform **Bookmarks by Localforge** into a knowledge discovery tool with four unified experiences: **Library**, **Search**, **Stumble**, and **Settings**. All pages share consistent visual hierarchy, layout patterns, and a unified detail panel.
+
+---
+
+## Design Principles
+
+1. **Consistent structure** - Every page follows Sidebar + Content + Detail Panel
+2. **Flat organization** - Tags, not folders
+3. **Discovery-first** - Stumble resurfaces forgotten knowledge
+4. **Unified interaction** - Same detail panel slides in across all listing pages
+5. **Progressive disclosure** - Summary in list, full content in panel
+
+---
+
+## Information Architecture
+
+```
+                              ┌─────────────┐
+                              │   POPUP     │
+                              │  (capture)  │
+                              └──────┬──────┘
+                                     │
+        ┌────────────┬───────────────┼───────────────┬────────────┐
+        ▼            ▼               ▼               ▼            │
+   ┌─────────┐  ┌─────────┐    ┌─────────┐    ┌─────────┐         │
+   │ LIBRARY │  │ SEARCH  │    │ STUMBLE │    │SETTINGS │         │
+   │         │  │         │    │         │    │         │         │
+   │ Browse  │  │ Semantic│    │ Random  │    │ Config  │         │
+   │ + Tags  │  │ Query   │    │ Discover│    │ + Data  │         │
+   └─────────┘  └─────────┘    └─────────┘    └─────────┘         │
+        │            │               │               │            │
+        └────────────┴───────┬───────┴───────────────┘            │
+                             │                                    │
+                    ┌────────┴────────┐                           │
+                    │  DETAIL PANEL   │ ◄─────────────────────────┘
+                    │ (shared across  │
+                    │  all listings)  │
+                    └─────────────────┘
+```
+
+---
+
+## Global Header
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌──────────┐    Bookmarks by       │
+│  │ Library │ │ Search  │ │ Stumble │ │ Settings │      Localforge       │
+│  └─────────┘ └─────────┘ └─────────┘ └──────────┘                       │
+│   ▔▔▔▔▔▔▔▔▔                                                             │
+│   (active)                                                              │
+└─────────────────────────────────────────────────────────────────────────┘
+       56px height, 16px horizontal padding
+```
+
+Navigation follows F-pattern reading with left-aligned nav tabs and right-aligned brand.
+
+---
+
+## 1. POPUP (Capture)
+
+Minimal popup focused on the primary action. Processing status is shown in Library, not here.
+
+```
+┌─────────────────────────────────────┐
+│  Bookmarks by Localforge            │   48px
+├─────────────────────────────────────┤
+│                                     │
+│  ┌─────────────────────────────┐    │
+│  │                             │    │
+│  │   📌  Save This Page        │    │   56px
+│  │                             │    │
+│  └─────────────────────────────┘    │
+│                                     │
+├─────────────────────────────────────┤
+│  ┌───────┐┌───────┐┌───────┐┌───┐   │
+│  │Library││Search ││Stumble││ ⚙️ │   │   40px
+│  └───────┘└───────┘└───────┘└───┘   │
+└─────────────────────────────────────┘
+         Width: 320px
+         Height: ~180px
+```
+
+---
+
+## 2. LIBRARY (Browse & Organize)
+
+### Layout
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  [Library] [Search] [Stumble] [Settings]             Bookmarks by Localforge│
+├────────────┬────────────────────────────────┬───────────────────────────────┤
+│            │                                │                               │
+│  TAGS      │  BOOKMARKS              Sort ▼ │  DETAIL PANEL                 │
+│            │                                │                               │
+│  All   156 │ ┌────────────────────────────┐ │  Article Title                │
+│  Untagged  │ │ Title of Article        ●  │ │  ───────────────────────────  │
+│        23  │ │ example.com · #work #learn │ │  example.com                  │
+│  ────────  │ └────────────────────────────┘ │  2 hours ago · Complete       │
+│  #work  24 │                                │                               │
+│  #learn 18 │ ┌────────────────────────────┐ │  TAGS                         │
+│  #read  45 │ │ Another Article        ◐67%│ │  ┌──────┐ ┌──────────┐        │
+│  #ref   32 │ │ github.com · #tutorial     │ │  │#work │ │#learning │        │
+│            │ └────────────────────────────┘ │  └──────┘ └──────────┘        │
+│            │                                │  (click to edit, type to add) │
+│            │ ┌────────────────────────────┐ │                               │
+│            │ │ Research Paper          ○  │ │  ───────────────────────────  │
+│            │ │ arxiv.org                  │ │                               │
+│            │ └────────────────────────────┘ │  Markdown content rendered    │
+│            │                                │  with proper typography...    │
+│            │                                │                               │
+│            │                                │  ───────────────────────────  │
+│            │                                │                               │
+│            │                                │  Q&A PAIRS (5)                │
+│            │                                │                               │
+│            │                                │  Q: What is the main idea?    │
+│            │                                │  A: The article explains...   │
+│            │                                │                               │
+│            │                                │  ───────────────────────────  │
+│            │                                │  [Debug] [Export] [Delete]    │
+│   200px    │           350px                │  flex: 1 (max width 960px)    │
+└────────────┴────────────────────────────────┴───────────────────────────────┘
+```
+
+### Sidebar: Tags
+
+```
+TAGS
+
+All                156
+Untagged            23
+────────────────────────
+#work               24
+#learning           18
+#reading            45
+#reference          32
+#tutorial           14
+```
+
+- **All**: Every bookmark
+- **Untagged**: Bookmarks with no tags (helps organization)
+- **User tags**: Alphabetically sorted
+
+### Bookmark Card (Desktop)
+
+Optimized horizontal space with status right-aligned on title row:
+
+```
+┌──────────────────────────────────────────────┐
+│ Title of the Article                      ●  │  ← Status right-aligned
+│ example.com · 2h · #work #learning           │  ← URL, time, tags inline
+└──────────────────────────────────────────────┘
+```
+
+**Status indicators:**
+- `○` Pending (gray)
+- `◐` Processing with % (blue)
+- `●` Complete (green)
+- `✕` Error (red)
+
+### Bookmark Card (Mobile)
+
+When space is constrained, stack vertically:
+
+```
+┌────────────────────────────────┐
+│ Title of the Article        ●  │  ← Color dot only
+│ example.com · Oct 12           │
+│ #work #learning                │
+└────────────────────────────────┘
+```
+
+### Tag Editing in Detail Panel
+
+Click on tags section to enter edit mode. Type to filter existing tags or create new ones:
+
+```
+TAGS
+┌─────────────────────────────────────────┐
+│#work | #learning | type to add...       │
+└─────────────────────────────────────────┘
+                              │
+                              ▼ (autocomplete dropdown)
+                      ┌─────────────────────────┐
+                      │ #tutorial               │
+                      │ #reference              │
+                      │ ─────────────────────── │
+                      │ Create "newtagname"     │
+                      └─────────────────────────┘
+```
+
+- Type in input to filter/create
+- Normal input erasing with backspace drops tags
+- Enter or click to add
+- Creates tag automatically if doesn't exist
+
+---
+
+## 3. SEARCH (Semantic Query)
+
+### Layout
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  [Library] [Search] [Stumble] [Settings]            Bookmarks by Localforge │
+├────────────┬────────────────────────────────┬───────────────────────────────┤
+│            │                                │                               │
+│  FILTERS   │  ┌──────────────────────────┐  │  DETAIL PANEL                 │
+│            │  │ Ask anything...       🔍 │  │                               │
+│  Tags:     │  └──────────────────────────┘  │  (same as Library)            │
+│  ☑ Select All │                             │                               │
+│  ☐ #work   │                                │                               │
+│  ☐ #learn  │  12 results · Relevance ▼      │                               │
+│  ☐ #read   │                                │                               │
+│  ☐ #ref    │ ┌────────────────────────────┐ │                               │
+│            │ │ 94%  Neural Networks    ●  │ │                               │
+│  ────────  │ │ arxiv.org · #research #ml  │ │                               │
+│            │ │                            │ │                               │
+│  Status:   │ │ Q: What are the components │ │                               │
+│  ☑ Select all│ │    of neural networks?     │ │                               │
+│  ☐ Complete│ │ A: Neural networks consist │ │                               │
+│  ☐ Processing │ │    of layers of nodes...   │ │                               │
+│  ☐ Error   │ └────────────────────────────┘ │                               │
+│            │                                │                               │
+│            │ ┌────────────────────────────┐ │                               │
+│            │ │ 87%  Deep Learning      ●  │ │                               │
+│            │ │ deeplearning.ai · #tutorial│ │                               │
+│            │ │                             │ │                               │
+│            │ │ Q: How does gradient       │ │                               │
+│            │ │    descent work?           │ │                               │
+│            │ │ A: Gradient descent        │ │                               │
+│            │ │    iteratively adjusts...  │ │                               │
+│            │ └────────────────────────────┘ │                               │
+│            │                                │                               │
+│   200px    │           flex: 1              │         flex: 1 (max 680px)   │
+└────────────┴────────────────────────────────┴───────────────────────────────┘
+```
+
+### Sidebar: Filters
+
+```
+FILTERS
+
+Tags:
+☐ Select all
+☐ #work
+☐ #learning
+☐ #reading
+☐ #reference
+☐ #tutorial
+
+────────────────────────
+
+Status:
+☑ Select All
+☐ Complete
+☐ Pending
+☐ Error
+```
+
+Checkboxes for multi-select filtering. Matches Library sidebar pattern. Select all toggling/untoggling clears all the rest
+
+### Search Result Card
+
+Shows relevance percentage and best matching Q&A:
+
+```
+┌──────────────────────────────────────────────────┐
+│ 94%  Introduction to Neural Networks          ●  │
+│ arxiv.org · #research #ml ·  2022-03-14          │
+│                                                  │
+│ Q: What are the fundamental components?          │
+│ A: Neural networks consist of interconnected     │
+│    layers of nodes including input, hidden...    │
+└──────────────────────────────────────────────────┘
+```
+
+Click card to open detail panel (same panel as Library).
+
+### Search History
+
+- Stored in database
+- only shown as  autocomplete 
+- setting to enable/disable autocomplete suggestions, erase history
+
+---
+
+## 4. STUMBLE (Random Discovery)
+
+### Layout
+
+Matches Library structure exactly. Simple shuffle action at top, in line with shuffle button, shuffle button on right align, show results on left align
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  [Library] [Search] [Stumble] [Settings]             Bookmarks by Localforge│
+├────────────┬────────────────────────────────┬───────────────────────────────┤
+│            │                                │                               │
+│  FILTER    │  ┌──────────────────────────┐  │  DETAIL PANEL                 │
+│            │  │  ↻ Shuffle               │  │                               │
+│  Tags:     │  └──────────────────────────┘  │  (same as Library)            │
+│  ☐ #work   │  Showing 10 random bookmarks   │                               │
+│  ☐ #learn  │                                │                               │
+│  ☐ #read   │ ┌────────────────────────────┐ │                               │
+│  ☐ #ref    │ │ WebSockets Guide        ●  │ │                               │
+│  ☐ #tutor  │ │ mozilla.org · #reference   │ │                               │
+│            │ │ Saved 3 months ago          │ │                               │
+│            │ │                             │ │                               │
+│            │ │ Q: When use WebSockets vs   │ │                               │
+│            │ │    HTTP polling?            │ │                               │
+│            │ │ A: WebSockets are ideal for │ │                               │
+│            │ │    real-time bidirectional..│ │                               │
+│            │ └────────────────────────────┘ │                               │
+│            │                                │                               │
+│            │ ┌────────────────────────────┐ │                               │
+│            │ │ Readable Code           ●  │ │                               │
+│            │ │ oreilly.com · #reading     │ │                               │
+│            │ │ Saved 6 months ago          │ │                               │
+│            │ │                             │ │                               │
+│            │ │ Q: What is the "newspaper" │ │                               │
+│            │ │    code organization?       │ │                               │
+│            │ │ A: Like a newspaper, code   │ │                               │
+│            │ │    should have important... │ │                               │
+│            │ └────────────────────────────┘ │                               │
+│            │                                │                               │
+│   200px    │           flex: 1              │         flex: 1 (max 680px)   │
+└────────────┴────────────────────────────────┴───────────────────────────────┘
+```
+
+### Sidebar: Filter
+
+```
+FILTER
+
+Tags:
+☐ Select all
+☐ #work
+☐ #learning
+☐ #reading
+☐ #reference
+☐ #tutorial
+```
+
+Same checkbox pattern as Search. Filter limits random selection to checked tags. Selecting all clears all the rest. No
+
+### Stumble Card
+
+Shows "Saved X ago" instead of relevance, plus one random Q&A:
+
+```
+┌──────────────────────────────────────────────────┐
+│ Understanding WebSockets                      ●  │
+│ developer.mozilla.org · #reference #webdev       │
+│ Saved 3 months ago                               │
+│                                                  │
+│ Q: When should you use WebSockets?               │
+│ A: WebSockets are ideal for real-time            │
+│    bidirectional communication...                │
+└──────────────────────────────────────────────────┘
+```
+
+Click card to open detail panel.
+
+### Algorithm
+
+```typescript
+async function getStumbleBookmarks(
+  selectedTags: string[],
+  count: number = 10
+): Promise<StumbleItem[]> {
+  let bookmarks = await db.bookmarks
+    .where('status').equals('complete')
+    .toArray();
+
+  // Filter by selected tags if any
+  if (selectedTags.length > 0) {
+    const taggedBookmarkIds = await db.bookmarkTags
+      .where('tagId').anyOf(selectedTags)
+      .primaryKeys()
+      .then(keys => [...new Set(keys.map(k => k[0]))]);
+    bookmarks = bookmarks.filter(b => taggedBookmarkIds.includes(b.id));
+  }
+
+  // Fisher-Yates shuffle
+  for (let i = bookmarks.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [bookmarks[i], bookmarks[j]] = [bookmarks[j], bookmarks[i]];
+  }
+
+  const selected = bookmarks.slice(0, count);
+
+  // Get one random Q&A for each
+  return Promise.all(selected.map(async (bookmark) => {
+    const qaPairs = await db.questionAnswers
+      .where('bookmarkId').equals(bookmark.id)
+      .toArray();
+    const randomQA = qaPairs[Math.floor(Math.random() * qaPairs.length)];
+    return { bookmark, qa: randomQA };
+  }));
+}
+```
+
+---
+
+## 5. SETTINGS (Configuration)
+
+### Layout
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  [Library] [Search] [Stumble] [Settings]             Bookmarks by Localforge│
+├────────────┬────────────────────────────────────────────────────────────────┤
+│            │                                                                │
+│  SECTIONS  │  APPEARANCE                                                    │
+│            │  ───────────────────────────────────────────────────────────   │
+│  ● Appear. │                                                                │
+│  ○ API     │  Theme                                                         │
+│  ○ Data    │                                                                │
+│  ○ About   │  Choose your preferred appearance.                             │
+│            │                                                                │
+│            │  ┌────────┐ ┌────────┐ ┌────────┐ ┌──────────┐ ┌────────┐     │
+│            │  │  Auto  │ │ Light  │ │  Dark  │ │ Terminal │ │ Tufte  │     │
+│            │  └────────┘ └────────┘ └────────┘ └──────────┘ └────────┘     │
+│            │      ●          ○          ○            ○           ○          │
+│            │                                                                │
+│            │                                                                │
+│            │                                                                │
+│            │                                                                │
+│            │                                                                │
+│   200px    │                        flex: 1 (max 680px)                     │
+└────────────┴────────────────────────────────────────────────────────────────┘
+```
+
+### Sections
+
+**Appearance**
+```
+APPEARANCE
+───────────────────────────────────────────────────
+
+Theme
+
+Choose your preferred appearance. Auto follows system.
+
+┌────────┐ ┌────────┐ ┌────────┐ ┌──────────┐ ┌────────┐
+│  Auto  │ │ Light  │ │  Dark  │ │ Terminal │ │ Tufte  │
+└────────┘ └────────┘ └────────┘ └──────────┘ └────────┘
+    ●          ○          ○            ○           ○
+
+───────────────────────────────────────────────────
+
+Search
+
+☐ Enable search autocomplete suggestions
+  (uses recent search history)
+```
+
+**API Configuration**
+```
+API CONFIGURATION
+───────────────────────────────────────────────────
+
+API Base URL
+┌───────────────────────────────────────────────┐
+│ https://api.openai.com/v1                     │
+└───────────────────────────────────────────────┘
+
+API Key
+┌───────────────────────────────────────────────┐
+│ sk-••••••••••••••••••••••••••••••••           │
+└───────────────────────────────────────────────┘
+
+┌─────────────────────┐  ┌─────────────────────┐
+│ Chat Model          │  │ Embedding Model     │
+│ gpt-4o-mini         │  │ text-embedding-3-sm │
+└─────────────────────┘  └─────────────────────┘
+
+[Save Settings]  [Test Connection]
+```
+
+**Data Management**
+```
+DATA MANAGEMENT
+───────────────────────────────────────────────────
+
+Import
+
+┌─────────────────────┐  ┌─────────────────────┐
+│ 📁 Import from File │  │ 🔗 Import URLs      │
+└─────────────────────┘  └─────────────────────┘
+
+Export 
+
+┌─────────────────────┐  ┌─────────────────────┐
+│ () Export All       │  │ () Export Settings  │
+└─────────────────────┘  └─────────────────────┘
+
+───────────────────────────────────────────────────
+
+Processing Queue
+
+2 items processing
+
+┌───────────────────────────────────────────────┐
+│ Article Title                        67% ████░│
+│ Generating Q&A pairs...                       │
+├───────────────────────────────────────────────┤
+│ Another Article                       Pending │
+└───────────────────────────────────────────────┘
+```
+
+**About**
+```
+ABOUT
+───────────────────────────────────────────────────
+
+Bookmarks by Localforge
+Version 3.4.0
+
+───────────────────────────────────────────────────
+
+Your bookmarks are stored locally. Only extracted
+content is sent to your configured API.
+
+[Website]  [Source code]  [Report Issue]
+```
+
+---
+
+## Shared Detail Panel
+
+The same detail panel component is used across Library, Search, and Stumble. It slides in from the right when a card is clicked.
+
+```
+┌─────────────────────────────────────────┐
+│  ← Back                                 │
+├─────────────────────────────────────────┤
+│                                         │
+│  Article Title                          │
+│  ─────────────────────────────────────  │
+│  example.com/path/to/article            │
+│  Saved 2 hours ago · Complete           │
+│                                         │
+│  TAGS                                   │
+│  ┌──────┐ ┌──────────┐ ┌─────────────┐  │
+│  │#work │ │#learning │ │ add tag...  │  │
+│  └──────┘ └──────────┘ └─────────────┘  │
+│                                         │
+│  ─────────────────────────────────────  │
+│                                         │
+│  ## Markdown Content                    │
+│                                         │
+│  Full article content rendered with     │
+│  proper typography and spacing...       │
+│                                         │
+│  ─────────────────────────────────────  │
+│                                         │
+│  Q&A PAIRS (5)                          │
+│                                         │
+│  Q: What is the main concept?           │
+│  A: The article explains...             │
+│                                         │
+│  Q: What are the benefits?              │
+│  A: Three main benefits include...      │
+│                                         │
+│  ─────────────────────────────────────  │
+│                                         │
+│  [Debug HTML]  [Export]  [Delete]       │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## Data Model
+
+### Tags Table
+
+```typescript
+interface Tag {
+  id: string;
+  name: string;        // Unique, lowercase, hyphens for spaces
+  color?: string;      // Optional hex color
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### BookmarkTags Table
+
+```typescript
+interface BookmarkTag {
+  bookmarkId: string;
+  tagName: string;
+  addedAt: Date;
+}
+```
+
+---
+
+## Responsive Breakpoints
+
+| Breakpoint | Width | Layout |
+|------------|-------|--------|
+| Desktop | ≥1200px | Sidebar (200) + List (350) + Detail (flex) |
+| Laptop | 900-1199px | Sidebar (180) + List (300) + Detail (flex) |
+| Tablet | 600-899px | Sidebar as drawer + List, Detail as overlay |
+| Mobile | <600px | Sidebar as dropdown, List full, Detail full screen |
+
+
+---
+
+## Testing Requirements
+
+Each advanced feature requires dedicated tests:
+
+### Tag Editor Tests
+```typescript
+describe('TagEditor', () => {
+  it('displays existing tags as chips');
+  it('removes tags as input gets cleared');
+  it('shows autocomplete dropdown on input focus');
+  it('filters autocomplete results while typing');
+  it('prevents duplicate tags on same bookmark');
+});
+```
+
+### Stumble Algorithm Tests
+```typescript
+describe('StumbleAlgorithm', () => {
+  it('returns exactly N bookmarks');
+  it('only includes complete bookmarks');
+  it('filters by selected tags');
+  it('returns different results on shuffle');
+  it('includes one random Q&A per bookmark');
+  it('handles empty bookmark collection');
+  it('handles bookmarks with no Q&A pairs');
+});
+```
+
+### Search Tests
+```typescript
+describe('Search', () => {
+  it('performs semantic search on query');
+  it('filters results by tag checkboxes');
+  it('filters results by status checkboxes');
+  it('sorts by relevance');
+  it('stores search in history (memory)');
+  it('limits history to 10 queries');
+});
+```
 
 ---
 
@@ -91,34 +743,8 @@ Added `--accent-text` variable for proper contrast on accent-colored backgrounds
 - No z-index hacks
 - Header never hides content
 - Clean separation of scrollable content
-
-```css
-.app-layout {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-}
-
-.app-layout__content {
-  flex: 1;
-  overflow-y: auto;
-}
-```
-
-### Scroll Behavior
-- Prevent default on anchor clicks
-- Use `scrollIntoView({ behavior: 'smooth' })` for sidebar nav
-- IntersectionObserver must use `.app-layout__content` as root (not viewport)
-
----
-
+- 
 ## Expert UX Notes
-
-### Layout Principles
-1. **Flex over sticky** - Flex layouts are more predictable and don't require magic numbers for heights
-2. **Scroll containers** - When using flex layouts with `overflow-y: auto`, remember that IntersectionObserver and native anchor scrolling need the correct root element
-3. **Same-tab navigation** - For related pages in an extension, same-tab navigation feels more app-like
 
 ### Accessibility Considerations
 - `--accent-text` ensures WCAG contrast on accent backgrounds
@@ -131,62 +757,3 @@ When adding new themes, ensure:
 2. `--accent-text` provides readable contrast on `--accent-primary`
 3. Status colors (success, error, warning, info) have appropriate bg/text/border
 
-### Component Patterns
-
-#### App Header
-```html
-<header class="app-header">
-  <div class="app-header__brand">
-    <h1 class="app-header__title">Brand Name</h1>
-  </div>
-  <nav class="app-header__nav">
-    <a class="app-header__nav-link active">Tab 1</a>
-    <a class="app-header__nav-link">Tab 2</a>
-  </nav>
-  <div class="app-header__actions">
-    <!-- Optional action buttons -->
-  </div>
-</header>
-```
-
-#### Page Layout
-```html
-<body class="app-layout">
-  <header class="app-header">...</header>
-  <div class="app-layout__content">
-    <!-- Scrollable content here -->
-  </div>
-</body>
-```
-
-### Future Considerations
-- Consider adding loading skeletons for async content
-- Toast notifications could replace alert() calls
-- Mobile breakpoints may need refinement
-- Keyboard navigation for sidebar could be improved
-- Consider reduced-motion media query for animations
-
----
-
-## Files Modified
-
-### Core Design System
-- `src/shared/theme.css` - Design tokens, unified components, theme variables
-
-### Explore Page
-- `src/explore/explore.html` - App layout wrapper, unified header
-- `src/explore/explore.css` - Design token integration
-- `src/explore/explore.ts` - Navigation handlers, removed export all
-
-### Settings Page
-- `src/options/options.html` - App layout wrapper, unified header
-- `src/options/options.css` - Design token integration, layout fixes
-- `src/options/options.ts` - Navigation handlers, scroll behavior fixes
-
-### Popup
-- `src/popup/popup.html` - Updated branding, removed settings button
-- `src/popup/popup.css` - Design token integration
-- `src/popup/popup.ts` - Removed settings button handler
-
-### Tests
-- `tests/extension.test.ts` - Removed settingsBtn selector check
