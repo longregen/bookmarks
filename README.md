@@ -190,33 +190,6 @@ When you search:
 - WebDAV sync sends encrypted bookmark data to your own server
 - Export your data anytime as JSON files
 
-## Troubleshooting
-
-### Extension doesn't load
-- Make sure you ran `npm run build`
-- Check that the `dist` folder exists
-- Verify you're loading the correct folder
-
-### Bookmarks stuck in "Pending"
-- Check your API settings in Options
-- Click "Test Connection" to verify
-- Check the browser console for errors
-
-### Search returns no results
-- Wait for bookmarks to finish processing (status: "Complete")
-- Try different search terms
-- Check that embeddings were generated (view bookmark details)
-
-### API errors
-- Verify your API key is correct
-- Check API base URL format (should end with `/v1`)
-- Ensure you have API credits available
-
-### WebDAV sync issues
-- Verify your WebDAV server URL and credentials
-- HTTPS is required by default; enable "Allow insecure" for HTTP
-- Check that the sync folder exists or can be created
-
 ## Development
 
 ```bash
