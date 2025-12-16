@@ -64,12 +64,23 @@ export function getEffectiveTheme(theme: Theme): 'light' | 'dark' | 'terminal' |
 
 /**
  * Listen for theme changes from storage (for syncing across pages)
+ * In web context, uses localStorage storage event; in extension context, uses chrome.storage
  */
 export function onThemeChange(callback: (theme: Theme) => void): void {
-  chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === 'local' && changes[THEME_STORAGE_KEY]) {
-      const newTheme = changes[THEME_STORAGE_KEY].newValue as Theme;
-      callback(newTheme);
-    }
-  });
+  if (__IS_WEB__) {
+    // Web: listen for localStorage changes from other tabs
+    window.addEventListener('storage', (event) => {
+      if (event.key === THEME_STORAGE_KEY && event.newValue) {
+        callback(event.newValue as Theme);
+      }
+    });
+  } else {
+    // Extension: listen for chrome.storage changes
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local' && changes[THEME_STORAGE_KEY]) {
+        const newTheme = changes[THEME_STORAGE_KEY].newValue as Theme;
+        callback(newTheme);
+      }
+    });
+  }
 }

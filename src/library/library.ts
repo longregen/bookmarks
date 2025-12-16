@@ -1,7 +1,9 @@
 import { db, BookmarkTag } from '../db/schema';
 import { createElement } from '../lib/dom';
 import { formatDateByAge } from '../lib/date-format';
-import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
+import { onThemeChange, applyTheme } from '../shared/theme';
+import { initExtension } from '../lib/init-extension';
+import { initWeb } from '../web/init-web';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
 import { createHealthIndicator } from '../lib/health-indicator';
 import { BookmarkDetailManager } from '../lib/bookmark-detail';
@@ -153,7 +155,12 @@ async function loadBookmarks() {
   }
 }
 
-initTheme();
+// Initialize platform and theme
+if (__IS_WEB__) {
+  initWeb();
+} else {
+  initExtension();
+}
 onThemeChange((theme) => applyTheme(theme));
 loadTags();
 loadBookmarks();

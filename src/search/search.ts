@@ -3,7 +3,9 @@ import { createElement } from '../lib/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { generateEmbeddings } from '../lib/api';
 import { findTopK } from '../lib/similarity';
-import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
+import { onThemeChange, applyTheme } from '../shared/theme';
+import { initExtension } from '../lib/init-extension';
+import { initWeb } from '../web/init-web';
 import { createHealthIndicator } from '../lib/health-indicator';
 import { BookmarkDetailManager } from '../lib/bookmark-detail';
 import { loadTagFilters } from '../lib/tag-filter';
@@ -272,7 +274,12 @@ async function performSearch() {
   }
 }
 
-initTheme();
+// Initialize platform and theme
+if (__IS_WEB__) {
+  initWeb();
+} else {
+  initExtension();
+}
 onThemeChange((theme) => applyTheme(theme));
 loadFilters();
 

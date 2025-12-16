@@ -46,15 +46,15 @@ export async function fetchWithTimeout(url: string, timeoutMs: number = FETCH_TI
 }
 
 /**
- * Browser-agnostic fetch that works in both Chrome and Firefox
+ * Browser-agnostic fetch that works in Chrome, Firefox, and web contexts
  * Build-time branching ensures only the relevant implementation is included.
  * @param url URL to fetch
  * @param timeoutMs Timeout in milliseconds
  * @returns HTML content
  */
 export async function browserFetch(url: string, timeoutMs: number = FETCH_TIMEOUT_MS): Promise<string> {
-  if (__IS_FIREFOX__) {
-    // Firefox MV3 service workers can fetch directly
+  if (__IS_WEB__ || __IS_FIREFOX__) {
+    // Web and Firefox can fetch directly (no CORS restrictions for direct fetch)
     return fetchWithTimeout(url, timeoutMs);
   } else {
     // Chrome needs to use offscreen document

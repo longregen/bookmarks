@@ -29,18 +29,26 @@ jobs:
       - name: Build Chrome extension
         run: npm run build:chrome
 
-      - name: Install Chromium and xvfb
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y chromium-browser xvfb
-          chromium-browser --version
+      # Cache Puppeteer's Chromium download (same as test-extension.yml)
+      - name: Cache Chromium
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/puppeteer
+          key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium via Puppeteer
+        run: npx @puppeteer/browsers install chromium@latest
+
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
 
       - name: Capture screenshots
         env:
-          BROWSER_PATH: /usr/bin/chromium-browser
           EXTENSION_PATH: dist-chrome
           OUTPUT_DIR: landing
-        run: xvfb-run --auto-servernum npx tsx scripts/capture-screenshots.ts
+        run: |
+          CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
+          BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npx tsx scripts/capture-screenshots.ts
 
       - name: Check for changes
         id: check_changes
