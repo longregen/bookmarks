@@ -295,6 +295,131 @@ async function hasClass(element: WebElement, className: string): Promise<boolean
   return classes.split(' ').includes(className);
 }
 
+/**
+ * Helper function to wait for service worker to be ready before sending messages.
+ * This checks if the background script is active and can receive messages (Firefox uses background scripts).
+ */
+async function waitForServiceWorkerReady(driver: WebDriver, timeout = 30000): Promise<void> {
+  const startTime = Date.now();
+  console.log('  Waiting for background script to be ready...');
+
+  while (Date.now() - startTime < timeout) {
+    try {
+      // Try to ping the background script with a simple message
+      const isReady = await driver.executeScript(async () => {
+        return new Promise<boolean>((resolve) => {
+          const checkTimeout = setTimeout(() => resolve(false), 1000);
+
+          try {
+            const api = (window as any).browser || (window as any).chrome;
+            if (!api || !api.runtime || !api.runtime.sendMessage) {
+              resolve(false);
+              return;
+            }
+
+            api.runtime.sendMessage({ type: 'PING' }, (response: any) => {
+              clearTimeout(checkTimeout);
+              // Background script responded (even with undefined is ok - it means it's alive)
+              resolve(true);
+            });
+          } catch (error) {
+            clearTimeout(checkTimeout);
+            resolve(false);
+          }
+        });
+      }) as boolean;
+
+      if (isReady) {
+        console.log('  ✓ Background script is ready');
+        return;
+      }
+    } catch (error) {
+      // Continue waiting
+    }
+
+    // Wait before next retry
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  throw new Error('Background script did not become ready within timeout period');
+}
+
+/**
+ * Helper function to send a message to the background script with retry logic and exponential backoff.
+ * This handles transient connection failures that are common in CI environments.
+ */
+async function sendMessageWithRetry(
+  driver: WebDriver,
+  message: any,
+  maxRetries = 5,
+  initialDelay = 1000
+): Promise<any> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const delay = initialDelay * Math.pow(2, attempt);
+
+      if (attempt > 0) {
+        console.log(`  Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+
+      // Wait for background script to be ready before sending
+      await waitForServiceWorkerReady(driver, 30000);
+
+      // Send the message with extended timeout
+      const result = await driver.executeScript(async (msg: any) => {
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Message response timeout after 30 seconds'));
+          }, 30000);
+
+          try {
+            const api = (window as any).browser || (window as any).chrome;
+            if (!api || !api.runtime || !api.runtime.sendMessage) {
+              clearTimeout(timeout);
+              reject(new Error('Extension API not available'));
+              return;
+            }
+
+            api.runtime.sendMessage(msg, (response: any) => {
+              clearTimeout(timeout);
+              const error = api.runtime.lastError || (window as any).chrome?.runtime?.lastError;
+              if (error) {
+                reject(new Error(error.message));
+              } else {
+                resolve(response);
+              }
+            });
+          } catch (error) {
+            clearTimeout(timeout);
+            reject(error);
+          }
+        });
+      }, message);
+
+      console.log('  ✓ Message sent successfully');
+      return result;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.log(`  ✗ Attempt ${attempt + 1} failed: ${lastError.message}`);
+
+      // Don't retry if it's not a connection/timing error
+      if (!lastError.message.includes('Could not establish connection') &&
+          !lastError.message.includes('Receiving end does not exist') &&
+          !lastError.message.includes('timed out') &&
+          !lastError.message.includes('timeout') &&
+          !lastError.message.includes('Background script') &&
+          !lastError.message.includes('Extension API')) {
+        throw lastError;
+      }
+    }
+  }
+
+  throw new Error(`Failed to send message after ${maxRetries} attempts. Last error: ${lastError?.message}`);
+}
+
 async function main(): Promise<void> {
   console.log('='.repeat(60));
   console.log('Firefox E2E Browser Extension Tests (Selenium)');
@@ -391,20 +516,11 @@ async function main(): Promise<void> {
       await driver!.get(getExtensionUrl('/src/popup/popup.html'));
       await waitForElement(driver!, '#saveBtn', 5000);
 
-      // Wait a bit for service worker to be ready
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Use extension's message system to save bookmark (Firefox uses browser API)
-      await driver!.executeScript(async (data: any) => {
-        const api = (window as any).browser || (window as any).chrome;
-        if (!api || !api.runtime || !api.runtime.sendMessage) {
-          throw new Error('Extension API not available');
-        }
-        await api.runtime.sendMessage({
-          type: 'SAVE_BOOKMARK',
-          data: data
-        });
-      }, pageData);
+      // Use extension's message system to save bookmark with retry logic
+      await sendMessageWithRetry(driver!, {
+        type: 'SAVE_BOOKMARK',
+        data: pageData
+      });
 
       // Wait for save to process
       await new Promise(resolve => setTimeout(resolve, 3000));
@@ -550,19 +666,11 @@ async function main(): Promise<void> {
 </html>`
       };
 
-      // Send bookmark via extension messaging (Firefox uses browser API)
-      const saveResult = await driver!.executeScript(async (data: any) => {
-        const api = (window as any).browser || (window as any).chrome;
-        if (!api || !api.runtime || !api.runtime.sendMessage) {
-          return { success: false, error: 'Extension API not available' };
-        }
-        return new Promise((resolve) => {
-          api.runtime.sendMessage(
-            { type: 'SAVE_BOOKMARK', data },
-            (response: any) => resolve(response)
-          );
-        });
-      }, pageData);
+      // Send bookmark via extension messaging with retry logic
+      const saveResult = await sendMessageWithRetry(driver!, {
+        type: 'SAVE_BOOKMARK',
+        data: pageData
+      });
 
       if (!saveResult || !(saveResult as any).success) {
         throw new Error('Failed to save bookmark: ' + JSON.stringify(saveResult));
