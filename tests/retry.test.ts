@@ -17,14 +17,10 @@ describe('Retry Utility', () => {
   });
 
   describe('sleep', () => {
-    it('should sleep for specified milliseconds', async () => {
+    it('should resolve after specified milliseconds', async () => {
       const sleepPromise = sleep(1000);
-
-      // Fast-forward time
       vi.advanceTimersByTime(1000);
-
       await sleepPromise;
-      expect(true).toBe(true); // If we get here, sleep completed
     });
   });
 

@@ -1,10 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-/**
- * Test tag editor logic without database dependency
- * Tests the core tag manipulation functions
- */
-
 // Tag normalization function (extracted logic from tag-editor.ts)
 function normalizeTagName(input: string): string {
   return input.trim().toLowerCase().replace(/\s+/g, '-');

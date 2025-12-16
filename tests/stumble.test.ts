@@ -1,9 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 
-/**
- * Extract the Fisher-Yates shuffle logic from stumble.ts for testing
- * This is the same algorithm used in src/stumble/stumble.ts lines 78-82
- */
 function fisherYatesShuffle<T>(array: T[]): T[] {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
