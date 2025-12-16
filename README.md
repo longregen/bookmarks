@@ -83,7 +83,7 @@ Or try the hosted demo at [bookmarks.localforge.org](https://bookmarks.localforg
 
 ### Using Local Models
 
-The extension works with any OpenAI-compatible API server (LM Studio, Ollama, vLLM, llama.cpp, etc.):
+The extension works with any OpenAI-compatible API server (vLLM, llama.cpp, etc.):
 
 1. Set **API Base URL** to your local endpoint (e.g., `http://localhost:1234/v1`)
 2. Set **API Key** to any non-empty string (many local servers don't require a key)
