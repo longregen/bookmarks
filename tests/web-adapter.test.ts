@@ -1,27 +1,26 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { webAdapter } from '../src/lib/adapters/web';
-import type { ApiSettings } from '../src/lib/platform';
 
-// Mock localStorage
+/**
+ * Web Adapter Tests
+ *
+ * Note: Settings tests are in extension-adapter.test.ts since both adapters
+ * now use the same IndexedDB (Dexie) implementation for settings.
+ *
+ * These tests focus on web-specific functionality:
+ * - Theme storage (localStorage instead of chrome.storage)
+ * - Content fetching (CORS proxies)
+ */
+
+// Mock localStorage for theme tests
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
 
   return {
-    getItem: (key: string) => {
-      return store[key] || null;
-    },
-    setItem: (key: string, value: string) => {
-      store[key] = value;
-    },
-    clear: () => {
-      store = {};
-    },
-    removeItem: (key: string) => {
-      delete store[key];
-    },
-    get _store() {
-      return store;
-    },
+    getItem: (key: string) => store[key] || null,
+    setItem: (key: string, value: string) => { store[key] = value; },
+    clear: () => { store = {}; },
+    removeItem: (key: string) => { delete store[key]; },
+    get _store() { return store; },
   };
 })();
 
@@ -31,66 +30,25 @@ Object.defineProperty(global, 'localStorage', {
   configurable: true,
 });
 
-describe.sequential('Web Adapter', () => {
-  beforeEach(() => {
-    // Explicitly clear the localStorage mock
+// Mock fetch for CORS proxy tests
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
+// Import adapter after mocks are set up
+// We need to use dynamic import to avoid db module initialization issues
+describe('Web Adapter', () => {
+  let webAdapter: typeof import('../src/lib/adapters/web').webAdapter;
+
+  beforeEach(async () => {
     localStorageMock.clear();
-    // Verify it's cleared
-    expect(localStorageMock._store).toEqual({});
-    vi.clearAllMocks();
+    mockFetch.mockReset();
+
+    // Dynamic import to get fresh module
+    const module = await import('../src/lib/adapters/web');
+    webAdapter = module.webAdapter;
   });
 
-  describe('Settings', () => {
-    it('should return default settings when localStorage is empty', async () => {
-      const settings = await webAdapter.getSettings();
-
-      expect(settings).toEqual({
-        apiBaseUrl: 'https://api.openai.com/v1',
-        apiKey: '',
-        chatModel: 'gpt-4o-mini',
-        embeddingModel: 'text-embedding-3-small',
-      });
-    });
-
-    it('should save and retrieve settings', async () => {
-      await webAdapter.saveSetting('apiKey', 'test-key-123');
-      await webAdapter.saveSetting('chatModel', 'gpt-4');
-
-      const settings = await webAdapter.getSettings();
-      expect(settings.apiKey).toBe('test-key-123');
-      expect(settings.chatModel).toBe('gpt-4');
-    });
-
-    it('should merge saved settings with defaults', async () => {
-      await webAdapter.saveSetting('apiKey', 'my-key');
-
-      const settings = await webAdapter.getSettings();
-      expect(settings.apiKey).toBe('my-key');
-      expect(settings.apiBaseUrl).toBe('https://api.openai.com/v1'); // default
-      expect(settings.chatModel).toBe('gpt-4o-mini'); // default
-    });
-
-    it('should handle malformed JSON in localStorage gracefully', async () => {
-      // Verify localStorage is clear first
-      expect(localStorageMock.getItem('bookmark-rag-settings')).toBeNull();
-
-      // Set malformed JSON
-      localStorageMock.setItem('bookmark-rag-settings', 'invalid-json{');
-
-      // Verify it's set
-      expect(localStorageMock.getItem('bookmark-rag-settings')).toBe('invalid-json{');
-
-      const settings = await webAdapter.getSettings();
-      expect(settings).toEqual({
-        apiBaseUrl: 'https://api.openai.com/v1',
-        apiKey: '',
-        chatModel: 'gpt-4o-mini',
-        embeddingModel: 'text-embedding-3-small',
-      });
-    });
-  });
-
-  describe('Theme', () => {
+  describe('Theme (localStorage)', () => {
     it('should return auto as default theme', async () => {
       const theme = await webAdapter.getTheme();
       expect(theme).toBe('auto');
@@ -111,6 +69,11 @@ describe.sequential('Web Adapter', () => {
         expect(retrieved).toBe(themeValue);
       }
     });
+
+    it('should persist theme in localStorage', async () => {
+      await webAdapter.setTheme('terminal');
+      expect(localStorageMock.getItem('bookmark-rag-theme')).toBe('terminal');
+    });
   });
 
   describe('Fetch Content', () => {
@@ -119,7 +82,60 @@ describe.sequential('Web Adapter', () => {
       expect(typeof webAdapter.fetchContent).toBe('function');
     });
 
-    // Note: Full fetchContent testing would require mocking fetch and CORS proxies
-    // which is beyond the scope of basic unit tests. E2E tests would be more appropriate.
+    it('should try direct fetch first', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        url: 'https://example.com',
+        text: () => Promise.resolve('<html><body>Hello</body></html>'),
+      });
+
+      const result = await webAdapter.fetchContent!('https://example.com');
+
+      expect(result.html).toBe('<html><body>Hello</body></html>');
+      expect(mockFetch).toHaveBeenCalledWith('https://example.com');
+    });
+
+    it('should fall back to CORS proxy on direct fetch failure', async () => {
+      // Direct fetch fails
+      mockFetch.mockRejectedValueOnce(new Error('CORS error'));
+      // First proxy succeeds
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve('<html>Proxied content</html>'),
+      });
+
+      const result = await webAdapter.fetchContent!('https://example.com');
+
+      expect(result.html).toBe('<html>Proxied content</html>');
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      // Second call should be to corsproxy.io
+      expect(mockFetch.mock.calls[1][0]).toContain('corsproxy.io');
+    });
+
+    it('should try multiple proxies if first fails', async () => {
+      // Direct fetch fails
+      mockFetch.mockRejectedValueOnce(new Error('CORS error'));
+      // First proxy fails
+      mockFetch.mockRejectedValueOnce(new Error('Proxy error'));
+      // Second proxy succeeds
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve('<html>Second proxy</html>'),
+      });
+
+      const result = await webAdapter.fetchContent!('https://example.com');
+
+      expect(result.html).toBe('<html>Second proxy</html>');
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+      // Third call should be to allorigins
+      expect(mockFetch.mock.calls[2][0]).toContain('allorigins');
+    });
+
+    it('should throw error if all methods fail', async () => {
+      mockFetch.mockRejectedValue(new Error('All failed'));
+
+      await expect(webAdapter.fetchContent!('https://example.com'))
+        .rejects.toThrow('Failed to fetch content');
+    });
   });
 });
