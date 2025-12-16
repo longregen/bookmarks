@@ -9,6 +9,8 @@ const navLibrary = document.getElementById('navLibrary') as HTMLButtonElement;
 const navSearch = document.getElementById('navSearch') as HTMLButtonElement;
 const navStumble = document.getElementById('navStumble') as HTMLButtonElement;
 const navSettings = document.getElementById('navSettings') as HTMLButtonElement;
+const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+const searchBtn = document.getElementById('searchBtn') as HTMLButtonElement;
 
 
 saveBtn.addEventListener('click', async () => {
@@ -114,6 +116,35 @@ navStumble.addEventListener('click', () => {
 navSettings.addEventListener('click', () => {
   openExtensionPage('src/options/options.html');
 });
+
+// Search functionality
+function performSearch() {
+  const query = searchInput.value.trim();
+  if (query) {
+    openExtensionPage(`src/search/search.html?q=${encodeURIComponent(query)}`);
+  } else {
+    openExtensionPage('src/search/search.html');
+  }
+}
+
+searchBtn.addEventListener('click', performSearch);
+
+searchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    performSearch();
+  }
+});
+
+// Ctrl+K shortcut to focus search
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    searchInput.focus();
+  }
+});
+
+// Focus search input on popup open
+searchInput.focus();
 
 // Initialize theme
 initExtension();

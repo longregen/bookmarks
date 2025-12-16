@@ -241,6 +241,39 @@ body {
   font-size: var(--text-xs);
 }
 
+/* ===== Search Page Layout ===== */
+.search-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.search-page.search-page--centered {
+  justify-content: center;
+  align-items: center;
+  min-height: 100%;
+}
+
+.search-page--centered .search-box {
+  max-width: 600px;
+  width: 100%;
+}
+
+.search-hero {
+  text-align: center;
+  margin-bottom: var(--space-6);
+}
+
+.search-hero.hidden {
+  display: none;
+}
+
+.search-hero-title {
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+
 /* ===== Search Results (Search) ===== */
 .search-box {
   display: flex;
@@ -257,6 +290,34 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--space-4);
+}
+
+.result-header.hidden {
+  display: none;
+}
+
+.result-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.result-status .spinner {
+  display: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-secondary);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: result-spin 0.8s linear infinite;
+}
+
+.result-status.loading .spinner {
+  display: inline-block;
+}
+
+@keyframes result-spin {
+  to { transform: rotate(360deg); }
 }
 
 .result-card {

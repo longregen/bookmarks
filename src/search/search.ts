@@ -23,7 +23,13 @@ const searchInput = document.getElementById('searchInput') as HTMLInputElement;
 const searchBtn = document.getElementById('searchBtn') as HTMLButtonElement;
 const autocompleteDropdown = document.getElementById('autocompleteDropdown')!;
 const resultsList = document.getElementById('resultsList')!;
-const resultCount = document.getElementById('resultCount')!;
+const resultStatus = document.getElementById('resultStatus')!;
+const searchPage = document.getElementById('searchPage')!;
+const searchHero = document.getElementById('searchHero')!;
+const resultHeader = document.getElementById('resultHeader')!;
+
+// Start in centered mode
+searchPage.classList.add('search-page--centered');
 
 // Initialize bookmark detail manager
 const detailManager = new BookmarkDetailManager({
@@ -175,14 +181,29 @@ async function loadFilters() {
   });
 }
 
+function showResultsMode() {
+  searchPage.classList.remove('search-page--centered');
+  searchHero.classList.add('hidden');
+  resultHeader.classList.remove('hidden');
+  resultStatus.innerHTML = '<span class="spinner"></span> Searching...';
+  resultStatus.classList.add('loading');
+}
+
+function showCenteredMode() {
+  searchPage.classList.add('search-page--centered');
+  searchHero.classList.remove('hidden');
+  resultHeader.classList.add('hidden');
+}
+
 async function performSearch() {
   const query = searchInput.value.trim();
   if (!query) {
+    showCenteredMode();
     resultsList.innerHTML = '';
-    resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'Enter a search query' }));
     return;
   }
 
+  showResultsMode();
   searchBtn.disabled = true;
   searchBtn.textContent = 'Searching...';
 
@@ -199,8 +220,10 @@ async function performSearch() {
     ]).filter(({ embedding }) => Array.isArray(embedding) && embedding.length === queryEmbedding.length);
 
     if (!items.length) {
+      resultStatus.classList.remove('loading');
+      resultStatus.textContent = 'No bookmarks indexed yet';
       resultsList.innerHTML = '';
-      resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'No embeddings found' }));
+      resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'Save some bookmarks first to enable search' }));
       return;
     }
 
@@ -243,11 +266,15 @@ async function performSearch() {
       filteredResults.push({ bookmark, qaResults });
     }
 
-    resultCount.textContent = filteredResults.length.toString();
+    const count = filteredResults.length;
+    resultStatus.classList.remove('loading');
+    resultStatus.textContent = count === 0
+      ? 'No results found'
+      : `${count} result${count === 1 ? '' : 's'}`;
     resultsList.innerHTML = '';
 
     if (!filteredResults.length) {
-      resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'No results found' }));
+      resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'Try a different search term or check your filters' }));
       await saveSearchHistory(query, 0);
       return;
     }
@@ -263,8 +290,10 @@ async function performSearch() {
     }
   } catch (error) {
     console.error('Search error:', error);
+    resultStatus.classList.remove('loading');
+    resultStatus.textContent = 'Search failed';
     resultsList.innerHTML = '';
-    resultsList.appendChild(createElement('div', { className: 'error-message', textContent: `Search failed: ${error}` }));
+    resultsList.appendChild(createElement('div', { className: 'error-message', textContent: `${error}` }));
   } finally {
     searchBtn.disabled = false;
     searchBtn.textContent = '🔍 Search';
@@ -279,6 +308,25 @@ if (__IS_WEB__) {
 }
 onThemeChange((theme) => applyTheme(theme));
 loadFilters();
+
+// Check for query parameter and auto-search
+const urlParams = new URLSearchParams(window.location.search);
+const initialQuery = urlParams.get('q');
+if (initialQuery) {
+  searchInput.value = initialQuery;
+  performSearch();
+}
+
+// Focus search input on page load
+searchInput.focus();
+
+// Ctrl+K shortcut to focus search
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    searchInput.focus();
+  }
+});
 
 // Initialize health indicator
 const healthIndicatorContainer = document.getElementById('healthIndicator');

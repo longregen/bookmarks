@@ -28,7 +28,10 @@
       <div id="tagFilters"></div>
     </aside>
 
-    <main class="middle">
+    <main class="middle search-page" id="searchPage">
+      <div class="search-hero" id="searchHero">
+        <div class="search-hero-title">Search your bookmarks</div>
+      </div>
       <div class="search-box">
         <div class="autocomplete-container">
           <input type="text" id="searchInput" class="input search-input" placeholder="Ask anything...">
@@ -36,8 +39,10 @@
         </div>
         <button id="searchBtn" class="btn btn-primary">🔍 Search</button>
       </div>
-      <div class="result-header">
-        <h2 style="margin: 0; font-size: var(--text-lg);"><span id="resultCount">0</span> results</h2>
+      <div class="result-header hidden" id="resultHeader">
+        <h2 id="resultStatus" class="result-status" style="margin: 0; font-size: var(--text-lg);">
+          <span class="spinner"></span> Searching...
+        </h2>
       </div>
       <div id="resultsList"></div>
     </main>
