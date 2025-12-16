@@ -260,9 +260,9 @@ async function main(): Promise<void> {
 
     // Test 3: Create a test page and save as bookmark via service worker
     await runTest('Save bookmark via content script simulation', async () => {
-      // Open explore page to interact with database
+      // Open library page to interact with database
       const explorePage = await browser!.newPage();
-      await explorePage.goto(getExtensionUrl(extensionId, '/src/explore/explore.html'));
+      await explorePage.goto(getExtensionUrl(extensionId, '/src/library/library.html'));
 
       // Wait for page to load
       await explorePage.waitForSelector('#bookmarkList', { timeout: 5000 });
@@ -305,7 +305,7 @@ async function main(): Promise<void> {
       // Wait for save to process
       await new Promise(resolve => setTimeout(resolve, 3000));
 
-      // Refresh explore page and check if bookmark was added
+      // Refresh library page and check if bookmark was added
       await explorePage.reload({ waitUntil: 'domcontentloaded' });
       await explorePage.waitForSelector('#bookmarkCount', { timeout: 5000 });
 
@@ -321,14 +321,14 @@ async function main(): Promise<void> {
       }
 
       // Verify the bookmark appears in the list
-      const bookmarkCards = await explorePage.$$('.bookmark-card');
+      const bookmarkCards = await explorePage.$$('.library-bookmark-card');
       if (bookmarkCards.length === 0) {
         throw new Error('No bookmark cards found in list');
       }
 
       // Check if example.com appears in any bookmark card
       const hasExampleBookmark = await explorePage.evaluate(() => {
-        const cards = document.querySelectorAll('.bookmark-card');
+        const cards = document.querySelectorAll('.library-bookmark-card');
         return Array.from(cards).some(card => {
           // Prefer anchor links, fall back to searching for valid URLs in text
           const link = card.querySelector('a[href]');
@@ -363,9 +363,9 @@ async function main(): Promise<void> {
     });
 
     // Test 4: Verify bookmark appears in list
-    await runTest('Bookmark appears in explore list', async () => {
+    await runTest('Bookmark appears in library list', async () => {
       const page = await browser!.newPage();
-      await page.goto(getExtensionUrl(extensionId, '/src/explore/explore.html'));
+      await page.goto(getExtensionUrl(extensionId, '/src/library/library.html'));
 
       await page.waitForSelector('#bookmarkList', { timeout: 5000 });
 
@@ -374,7 +374,7 @@ async function main(): Promise<void> {
 
       // Check if there's at least one bookmark card or empty state
       const hasBookmarks = await page.evaluate(() => {
-        const cards = document.querySelectorAll('.bookmark-card');
+        const cards = document.querySelectorAll('.library-bookmark-card');
         const emptyState = document.querySelector('.empty-state');
         return cards.length > 0 || emptyState !== null;
       });
@@ -389,12 +389,12 @@ async function main(): Promise<void> {
     // Test 5: Wait for bookmark processing (if bookmark exists)
     await runTest('Wait for bookmark processing', async () => {
       const page = await browser!.newPage();
-      await page.goto(getExtensionUrl(extensionId, '/src/explore/explore.html'));
+      await page.goto(getExtensionUrl(extensionId, '/src/library/library.html'));
 
       await page.waitForSelector('#bookmarkList', { timeout: 5000 });
 
       // Check if there are any bookmarks
-      const bookmarkCount = await page.$$eval('.bookmark-card', cards => cards.length);
+      const bookmarkCount = await page.$$eval('.library-bookmark-card', cards => cards.length);
 
       if (bookmarkCount === 0) {
         console.log('  (No bookmarks to process)');
@@ -504,9 +504,9 @@ async function main(): Promise<void> {
       await testPage.close();
 
       // Send bookmark data to service worker via the extension's message system
-      // We'll use the explore page to access the database and extension APIs
+      // We'll use the library page to access the database and extension APIs
       const explorePage = await browser!.newPage();
-      await explorePage.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await explorePage.goto(`chrome-extension://${extensionId}/src/library/library.html`);
       await explorePage.waitForSelector('#bookmarkList', { timeout: 5000 });
 
       // Inject the bookmark via the service worker
@@ -613,7 +613,7 @@ async function main(): Promise<void> {
     // Test 7: Test search functionality
     await runTest('Search for bookmarks', async () => {
       const page = await browser!.newPage();
-      await page.goto(getExtensionUrl(extensionId, '/src/explore/explore.html'));
+      await page.goto(getExtensionUrl(extensionId, '/src/search/search.html'));
 
       await page.waitForSelector('#searchInput', { timeout: 5000 });
 
@@ -623,88 +623,39 @@ async function main(): Promise<void> {
       // Click search
       await page.click('#searchBtn');
 
-      // Wait for search to complete (button becomes enabled again)
+      // Wait for search to complete (button becomes enabled again or shows Search text)
       await page.waitForFunction(
         () => {
           const btn = document.querySelector('#searchBtn') as HTMLButtonElement;
-          return btn && !btn.disabled && btn.textContent === 'Search';
+          return btn && !btn.disabled;
         },
         { timeout: 60000 }
       );
 
-      // Check search results
+      // Check search results container exists
       const searchResults = await page.$('#searchResults');
       if (!searchResults) {
         throw new Error('Search results container not found');
       }
 
-      // Verify we switched to search view
-      const searchViewActive = await page.$eval('#searchViewBtn', el => el.classList.contains('active'));
-      if (!searchViewActive) {
-        // It might not have results if processing didn't complete
-        console.log('  (Search view not active - may not have processed bookmarks)');
-      }
+      // Note: Results may be empty if no bookmarks have been processed yet
+      console.log('  (Search completed - results depend on processed bookmarks)');
 
       await page.close();
     });
 
-    // Test 8: View switching
-    await runTest('View switching between list and search', async () => {
-      const page = await browser!.newPage();
-      await page.goto(getExtensionUrl(extensionId, '/src/explore/explore.html'));
+    // Test 8: Popup stats display (removed - stats no longer displayed in redesigned popup)
 
-      await page.waitForSelector('#listViewBtn', { timeout: 5000 });
-
-      // Click search view
-      await page.click('#searchViewBtn');
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const searchActive = await page.$eval('#searchView', el => el.classList.contains('active'));
-      if (!searchActive) {
-        throw new Error('Search view should be active');
-      }
-
-      // Click list view
-      await page.click('#listViewBtn');
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const listActive = await page.$eval('#listView', el => el.classList.contains('active'));
-      if (!listActive) {
-        throw new Error('List view should be active');
-      }
-
-      await page.close();
-    });
-
-    // Test 9: Popup stats display
-    await runTest('Popup displays stats correctly', async () => {
-      const page = await browser!.newPage();
-      await page.goto(getExtensionUrl(extensionId, '/src/popup/popup.html'));
-
-      await page.waitForSelector('#totalCount', { timeout: 5000 });
-
-      // Wait for stats to load
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      const totalCount = await page.$eval('#totalCount', el => el.textContent);
-      const pendingCount = await page.$eval('#pendingCount', el => el.textContent);
-      const completeCount = await page.$eval('#completeCount', el => el.textContent);
-
-      // Verify stats are numbers
-      if (isNaN(parseInt(totalCount || '')) ||
-          isNaN(parseInt(pendingCount || '')) ||
-          isNaN(parseInt(completeCount || ''))) {
-        throw new Error('Stats are not valid numbers');
-      }
-
-        await page.close();
-    });
-
-    // Test 10: Bulk URL Import
+    // Test 9: Bulk URL Import
     await runTest('Bulk URL import creates jobs and bookmarks', async () => {
       const page = await browser!.newPage();
       await page.goto(getExtensionUrl(extensionId, '/src/options/options.html'));
 
+      // Click the show bulk import button to reveal the bulk import section
+      await page.waitForSelector('#showBulkImport', { timeout: 5000 });
+      await page.click('#showBulkImport');
+
+      // Wait for bulk import section to appear
       await page.waitForSelector('#bulkUrlsInput', { timeout: 5000 });
 
       // Enter test URLs
@@ -814,7 +765,7 @@ async function main(): Promise<void> {
       const page = await browser!.newPage();
       await page.goto(getExtensionUrl(extensionId, '/src/options/options.html'));
 
-      await page.waitForSelector('#exportBtn', { timeout: 5000 });
+      await page.waitForSelector('#exportAllBtn', { timeout: 5000 });
 
       // Set up download listener
       let downloadStarted = false;
@@ -825,7 +776,7 @@ async function main(): Promise<void> {
       });
 
       // Click export button
-      await page.click('#exportBtn');
+      await page.click('#exportAllBtn');
 
       // Wait a moment for potential download
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -860,6 +811,11 @@ async function main(): Promise<void> {
       const page = await browser!.newPage();
       await page.goto(getExtensionUrl(extensionId, '/src/options/options.html'));
 
+      // Click the show bulk import button to reveal the bulk import section
+      await page.waitForSelector('#showBulkImport', { timeout: 5000 });
+      await page.click('#showBulkImport');
+
+      // Wait for bulk import section to appear
       await page.waitForSelector('#bulkUrlsInput', { timeout: 5000 });
 
       // Enter mix of valid and invalid URLs
