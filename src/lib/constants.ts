@@ -3,7 +3,16 @@
  *
  * This file contains all magic numbers and configuration values used throughout the application.
  * Grouping constants by category makes them easier to maintain and modify.
+ *
+ * NOTE: These are default values. To respect user overrides from the Advanced Config page,
+ * use `getConfigValue()` from config-registry.ts instead of importing these directly.
+ * The config-registry automatically falls back to these defaults when no override is set.
  */
+
+import { getConfigValue, ensureConfigLoaded } from './config-registry';
+
+// Re-export config registry functions for convenience
+export { getConfigValue, ensureConfigLoaded };
 
 // ============================================================================
 // FETCHER CONFIGURATION

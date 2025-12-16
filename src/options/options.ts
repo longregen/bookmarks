@@ -11,12 +11,13 @@ import { initImportExportModule } from './modules/import-export';
 import { initBulkImportModule } from './modules/bulk-import';
 import { initThemeModule } from './modules/theme';
 import { initNavigationModule } from './modules/navigation';
+import { initAdvancedConfigModule } from './modules/advanced-config';
 
 // Store cleanup functions
 const cleanupFunctions: (() => void)[] = [];
 
 // Initialize all modules
-function initializeModules() {
+async function initializeModules() {
   // Initialize theme first to apply correct styles
   initThemeModule();
 
@@ -36,6 +37,9 @@ function initializeModules() {
   // Initialize bulk import module (returns cleanup function)
   const bulkImportCleanup = initBulkImportModule();
   if (bulkImportCleanup) cleanupFunctions.push(bulkImportCleanup);
+
+  // Initialize advanced config module (async - loads config from IndexedDB)
+  await initAdvancedConfigModule();
 }
 
 // Cleanup on page unload
