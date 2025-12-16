@@ -316,10 +316,21 @@ async function main(): Promise<void> {
       // Check that our test bookmark is in the list
       const hasTestBookmark = await page.evaluate(() => {
         const cards = document.querySelectorAll('.bookmark-card');
-        return Array.from(cards).some(card =>
-          card.textContent?.includes('Web Technologies') ||
-          card.textContent?.includes('test-article.example.com')
-        );
+        return Array.from(cards).some(card => {
+          const text = card.textContent || "";
+          // Check for article title as before
+          if (text.includes('Web Technologies')) return true;
+          // Try to extract URLs and check the hostname
+          // (Assume the full URL is present in text; otherwise, look for a link)
+          try {
+            // Find an anchor element if present, else use the full text
+            const a = card.querySelector('a');
+            let urlText = a ? a.href : text.trim();
+            if (!/^https?:\/\//.test(urlText)) return false; // Not a URL
+            const url = new URL(urlText);
+            return url.hostname === 'test-article.example.com';
+          } catch { return false; }
+        });
       });
 
       if (!hasTestBookmark) {
