@@ -34,11 +34,19 @@ export const sharedOutput: OutputOptions = {
       return 'vendor';
     }
     // Bundle all shared library code into a single chunk
+    // This includes: src/lib/, src/shared/, src/db/, and platform initialization
     if (id.includes('/src/lib/')) {
       return 'shared';
     }
-    // Bundle shared theme/utilities
     if (id.includes('/src/shared/')) {
+      return 'shared';
+    }
+    // Database schema must be in shared to avoid circular dependencies
+    if (id.includes('/src/db/')) {
+      return 'shared';
+    }
+    // Web initialization (used by both extension and web builds)
+    if (id.includes('/src/web/init-web')) {
       return 'shared';
     }
     // Bundle options modules together
