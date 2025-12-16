@@ -1,10 +1,11 @@
 import { db } from '../../db/schema';
 import type { PlatformAdapter, ApiSettings, Theme } from '../platform';
+import { DEFAULT_API_BASE_URL } from '../constants';
 
 const THEME_KEY = 'bookmark-rag-theme';
 
 const DEFAULTS: ApiSettings = {
-  apiBaseUrl: 'https://api.openai.com/v1',
+  apiBaseUrl: DEFAULT_API_BASE_URL,
   apiKey: '',
   chatModel: 'gpt-4o-mini',
   embeddingModel: 'text-embedding-3-small',
