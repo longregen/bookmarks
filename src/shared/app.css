@@ -40,6 +40,7 @@ body {
   border-right: 1px solid var(--border-primary);
   padding: var(--space-6);
   overflow-y: auto;
+  min-height: 0; /* Allow flex item to shrink for scrolling */
 }
 
 .sidebar-title {
@@ -60,6 +61,7 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: var(--space-6);
+  min-height: 0; /* Allow flex item to shrink for scrolling */
 }
 
 /* ===== Common Controls ===== */
@@ -117,6 +119,23 @@ body {
 .filter-item:hover {
   background: var(--bg-hover);
   border-radius: var(--radius-sm);
+}
+
+/* Clear selection button - small and unobtrusive */
+.clear-selection-btn {
+  background: none;
+  border: none;
+  color: var(--accent-link);
+  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-2);
+  margin-bottom: var(--space-2);
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color var(--transition-fast);
+}
+
+.clear-selection-btn:hover {
+  color: var(--text-primary);
 }
 
 /* ===== Bookmark Cards (Library) ===== */
@@ -606,6 +625,7 @@ body {
     border-right: 1px solid var(--border-primary);
     padding: var(--space-6) 0;
     overflow-y: auto;
+    min-height: 0; /* Allow flex item to shrink for scrolling */
   }
 
   .sidebar-nav {
