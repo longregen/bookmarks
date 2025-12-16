@@ -62,6 +62,17 @@ Navigation follows F-pattern reading with left-aligned nav tabs and right-aligne
 
 ---
 
+## Date Formatting Rules
+
+Dates are displayed contextually based on age:
+- **< 2 weeks**: Relative time (e.g., "2h ago", "3 days ago")
+- **< 12 months**: Month and day (e.g., "Oct 12")
+- **≥ 12 months**: Full date (e.g., "2024-12-24")
+
+This applies consistently across Library cards, Search results, Stumble cards, and Detail panels.
+
+---
+
 ## 1. POPUP (Capture)
 
 Minimal popup focused on the primary action. Processing status is shown in Library, not here.
@@ -98,7 +109,7 @@ Minimal popup focused on the primary action. Processing status is shown in Libra
 ├────────────┬────────────────────────────────┬───────────────────────────────┤
 │            │                                │                               │
 │  TAGS      │  BOOKMARKS              Sort ▼ │  DETAIL PANEL                 │
-│            │                                │                               │
+│            │                                │  (only if item is selected)   │
 │  All   156 │ ┌────────────────────────────┐ │  Article Title                │
 │  Untagged  │ │ Title of Article        ●  │ │  ───────────────────────────  │
 │        23  │ │ example.com · #work #learn │ │  example.com                  │
@@ -154,7 +165,7 @@ Optimized horizontal space with status right-aligned on title row:
 ```
 ┌──────────────────────────────────────────────┐
 │ Title of the Article                      ●  │  ← Status right-aligned
-│ example.com · 2h · #work #learning           │  ← URL, time, tags inline
+│ example.com · 2h ago · #work #learning       │  ← URL, time, tags inline
 └──────────────────────────────────────────────┘
 ```
 
@@ -221,16 +232,18 @@ TAGS
 │  ☐ #ref    │ ┌────────────────────────────┐ │                               │
 │            │ │ 94%  Neural Networks    ●  │ │                               │
 │  ────────  │ │ arxiv.org · #research #ml  │ │                               │
-│            │ │                            │ │                               │
-│  Status:   │ │ Q: What are the components │ │                               │
-│  ☑ Select all│ │    of neural networks?     │ │                               │
-│  ☐ Complete│ │ A: Neural networks consist │ │                               │
-│  ☐ Processing │ │    of layers of nodes...   │ │                               │
-│  ☐ Error   │ └────────────────────────────┘ │                               │
+│            │ │ Oct 12                      │ │                               │
+│  Status:   │ │                            │ │                               │
+│  ☑ Select all│ │ Q: What are the components │ │                               │
+│  ☐ Complete│ │    of neural networks?     │ │                               │
+│  ☐ Pending │ │ A: Neural networks consist │ │                               │
+│  ☐ Error   │ │    of layers of nodes...   │ │                               │
+│            │ └────────────────────────────┘ │                               │
 │            │                                │                               │
 │            │ ┌────────────────────────────┐ │                               │
 │            │ │ 87%  Deep Learning      ●  │ │                               │
 │            │ │ deeplearning.ai · #tutorial│ │                               │
+│            │ │ 3 days ago                  │ │                               │
 │            │ │                             │ │                               │
 │            │ │ Q: How does gradient       │ │                               │
 │            │ │    descent work?           │ │                               │
@@ -248,7 +261,7 @@ TAGS
 FILTERS
 
 Tags:
-☐ Select all
+☑ Select all
 ☐ #work
 ☐ #learning
 ☐ #reading
@@ -258,22 +271,22 @@ Tags:
 ────────────────────────
 
 Status:
-☑ Select All
+☑ Select all
 ☐ Complete
 ☐ Pending
 ☐ Error
 ```
 
-Checkboxes for multi-select filtering. Matches Library sidebar pattern. Select all toggling/untoggling clears all the rest
+Checkboxes for multi-select filtering. Matches Library sidebar pattern. Select all toggling/untoggling clears all the rest.
 
 ### Search Result Card
 
-Shows relevance percentage and best matching Q&A:
+Shows relevance percentage, date, and best matching Q&A:
 
 ```
 ┌──────────────────────────────────────────────────┐
 │ 94%  Introduction to Neural Networks          ●  │
-│ arxiv.org · #research #ml ·  2022-03-14          │
+│ arxiv.org · #research #ml · Oct 12               │
 │                                                  │
 │ Q: What are the fundamental components?          │
 │ A: Neural networks consist of interconnected     │
@@ -286,8 +299,8 @@ Click card to open detail panel (same panel as Library).
 ### Search History
 
 - Stored in database
-- only shown as  autocomplete 
-- setting to enable/disable autocomplete suggestions, erase history
+- Only shown as autocomplete
+- Setting to enable/disable autocomplete suggestions, erase history
 
 ---
 
@@ -305,12 +318,12 @@ Matches Library structure exactly. Simple shuffle action at top, in line with sh
 │  FILTER    │  ┌──────────────────────────┐  │  DETAIL PANEL                 │
 │            │  │  ↻ Shuffle               │  │                               │
 │  Tags:     │  └──────────────────────────┘  │  (same as Library)            │
-│  ☐ #work   │  Showing 10 random bookmarks   │                               │
-│  ☐ #learn  │                                │                               │
-│  ☐ #read   │ ┌────────────────────────────┐ │                               │
-│  ☐ #ref    │ │ WebSockets Guide        ●  │ │                               │
-│  ☐ #tutor  │ │ mozilla.org · #reference   │ │                               │
-│            │ │ Saved 3 months ago          │ │                               │
+│  ☑ Select all │  Showing 10 random bookmarks   │                            │
+│  ☐ #work   │                                │                               │
+│  ☐ #learn  │ ┌────────────────────────────┐ │                               │
+│  ☐ #read   │ │ WebSockets Guide        ●  │ │                               │
+│  ☐ #ref    │ │ mozilla.org · #reference   │ │                               │
+│  ☐ #tutor  │ │ Saved 3 months ago          │ │                               │
 │            │ │                             │ │                               │
 │            │ │ Q: When use WebSockets vs   │ │                               │
 │            │ │    HTTP polling?            │ │                               │
@@ -339,7 +352,7 @@ Matches Library structure exactly. Simple shuffle action at top, in line with sh
 FILTER
 
 Tags:
-☐ Select all
+☑ Select all
 ☐ #work
 ☐ #learning
 ☐ #reading
@@ -347,7 +360,7 @@ Tags:
 ☐ #tutorial
 ```
 
-Same checkbox pattern as Search. Filter limits random selection to checked tags. Selecting all clears all the rest. No
+Same checkbox pattern as Search. Filter limits random selection to checked tags. Selecting all clears all the rest.
 
 ### Stumble Card
 
@@ -381,7 +394,7 @@ async function getStumbleBookmarks(
   // Filter by selected tags if any
   if (selectedTags.length > 0) {
     const taggedBookmarkIds = await db.bookmarkTags
-      .where('tagId').anyOf(selectedTags)
+      .where('tagName').anyOf(selectedTags)
       .primaryKeys()
       .then(keys => [...new Set(keys.map(k => k[0]))]);
     bookmarks = bookmarks.filter(b => taggedBookmarkIds.includes(b.id));
@@ -495,7 +508,7 @@ Import
 │ 📁 Import from File │  │ 🔗 Import URLs      │
 └─────────────────────┘  └─────────────────────┘
 
-Export 
+Export
 
 ┌─────────────────────┐  ┌─────────────────────┐
 │ () Export All       │  │ () Export Settings  │
@@ -580,26 +593,41 @@ The same detail panel component is used across Library, Search, and Stumble. It 
 
 ## Data Model
 
-### Tags Table
-
-```typescript
-interface Tag {
-  id: string;
-  name: string;        // Unique, lowercase, hyphens for spaces
-  color?: string;      // Optional hex color
-  createdAt: Date;
-  updatedAt: Date;
-}
-```
-
 ### BookmarkTags Table
+
+Tags are stored directly in the BookmarkTags table (no separate Tags table):
 
 ```typescript
 interface BookmarkTag {
   bookmarkId: string;
-  tagName: string;
+  tagName: string;     // Tag stored directly, lowercase, hyphens for spaces
   addedAt: Date;
 }
+```
+
+### SearchHistory Table
+
+```typescript
+interface SearchHistory {
+  id: string;
+  query: string;
+  resultCount: number;
+  createdAt: Date;
+}
+```
+
+### Schema v3
+
+```typescript
+db.version(3).stores({
+  bookmarks: 'id, url, status, createdAt, updatedAt',
+  markdown: 'id, bookmarkId, createdAt, updatedAt',
+  questionAnswers: 'id, bookmarkId, createdAt, updatedAt',
+  jobs: 'id, bookmarkId, parentJobId, status, type, [parentJobId+status], [bookmarkId+type]',
+  settings: 'key, createdAt, updatedAt',
+  bookmarkTags: '[bookmarkId+tagName], bookmarkId, tagName, addedAt',
+  searchHistory: 'id, query, createdAt'
+});
 ```
 
 ---
@@ -621,40 +649,33 @@ interface BookmarkTag {
 Each advanced feature requires dedicated tests:
 
 ### Tag Editor Tests
-```typescript
-describe('TagEditor', () => {
-  it('displays existing tags as chips');
-  it('removes tags as input gets cleared');
-  it('shows autocomplete dropdown on input focus');
-  it('filters autocomplete results while typing');
-  it('prevents duplicate tags on same bookmark');
-});
-```
+- Display existing tags
+- Remove tags via backspace
+- Show autocomplete dropdown
+- Filter autocomplete results
+- Prevent duplicate tags
 
 ### Stumble Algorithm Tests
-```typescript
-describe('StumbleAlgorithm', () => {
-  it('returns exactly N bookmarks');
-  it('only includes complete bookmarks');
-  it('filters by selected tags');
-  it('returns different results on shuffle');
-  it('includes one random Q&A per bookmark');
-  it('handles empty bookmark collection');
-  it('handles bookmarks with no Q&A pairs');
-});
-```
+- Return exactly N bookmarks
+- Only include complete bookmarks
+- Filter by selected tags
+- Return different results on shuffle
+- Include one random Q&A per bookmark
+- Handle empty collection
+- Handle bookmarks with no Q&A pairs
 
 ### Search Tests
-```typescript
-describe('Search', () => {
-  it('performs semantic search on query');
-  it('filters results by tag checkboxes');
-  it('filters results by status checkboxes');
-  it('sorts by relevance');
-  it('stores search in history (memory)');
-  it('limits history to 10 queries');
-});
-```
+- Perform semantic search
+- Filter by tag checkboxes
+- Filter by status checkboxes
+- Sort by relevance
+- Store search in history
+- Limit history entries
+
+### Select All Toggle Tests
+- Toggle clears/selects all options
+- State persists across sessions
+- Works independently for tags and status
 
 ---
 
@@ -743,7 +764,9 @@ Added `--accent-text` variable for proper contrast on accent-colored backgrounds
 - No z-index hacks
 - Header never hides content
 - Clean separation of scrollable content
-- 
+
+---
+
 ## Expert UX Notes
 
 ### Accessibility Considerations
@@ -757,3 +780,194 @@ When adding new themes, ensure:
 2. `--accent-text` provides readable contrast on `--accent-primary`
 3. Status colors (success, error, warning, info) have appropriate bg/text/border
 
+---
+
+# Information Architecture Improvements:
+
+The following proposals address gaps in the current design, with particular focus on how job status inspection should feel like "looking under the hood" — a diagnostic view that ideally shows everything as complete, not a primary navigation concern.
+
+---
+
+## Improvement 1: System Health Indicator Instead of Jobs Dashboard
+
+**Problem**: The current design buries jobs in Settings > Data Management, making it neither discoverable for debugging nor hidden enough for the "everything should work" scenario.
+
+**Proposal**: Replace the prominent "Jobs Dashboard" with a **System Health Indicator** in the global header.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│  [Library] [Search] [Stumble] [Settings]      ●  Bookmarks by Localforge│
+│                                               ↑                         │
+│                                        Health indicator                 │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Health States:**
+- `●` Green: All systems healthy, no pending jobs
+- `◐` Blue pulse: Processing in progress (click to see details)
+- `○` Gray: Idle, nothing processing
+- `✕` Red: Errors need attention (click to see)
+
+**Clicking the indicator** opens a "System Status" modal/drawer — the "under the hood" view.
+
+---
+
+## Improvement 2: "Under the Hood" Diagnostic Panel
+
+**Problem**: Jobs dashboard is too detailed for casual users but lacks context for debugging.
+
+**Proposal**: Create a dedicated **Diagnostics Panel** accessible only via the health indicator. This is the "mechanic's view."
+
+```
+┌───────────────────────────────────────────────────────┐
+│  ⚙️ System Diagnostics                          ✕    │
+├───────────────────────────────────────────────────────┤
+│                                                       │
+│  HEALTH SUMMARY                                       │
+│  ─────────────────────────────────────────────────   │
+│  - API Connection: Healthy                           │
+│  - Local Storage: 234 MB used                        │
+│  - Processing Queue: Empty                           │
+│                                                       │
+│  ─────────────────────────────────────────────────   │
+│                                                       │
+│  Full Job history                                    │
+-   -----------------------                             |
+-   (list of jobs, similar to lists of bookmarks)       |
+│                                                       │
+└───────────────────────────────────────────────────────┘
+```
+
+**Key insight**: The default view is a **health summary**, with a full list of jobs. Detailed job history is one click deeper.
+
+---
+
+## Improvement 3: Progressive Disclosure for Job Details
+
+**Problem**: Current jobs dashboard shows all job types equally, creating noise.
+
+**Proposal**: Three-tier progressive disclosure:
+
+```
+Level 1: Health indicator (global header)
+    ↓ click
+Level 2: Health summary and List of jobs
+    ↓ click on one job
+Level 3: Full job details on right sidepanel
+```
+
+**Level 3 Layout:**
+
+```
+┌───────────────────────────────────────────────────────┐
+│  ← Back to Summary                                    │
+├───────────────────────────────────────────────────────┤
+│                                                       │
+│  JOB TIMELINE                         
+|
+│  14:42  ✓ Processing done
+|         ▶ Details 
+│  14:41  ✓ Embeddings stored
+|         ▶ Details 
+│  14:41  ✓ Q/A Generated 
+|         ▶ Details 
+│  14:40  ✓ Transformed to Markdown
+|         ▶ Details 
+│  14:32  ✓ Captured page 
+|         ▶ Details 
+└───────────────────────────────────────────────────────┘
+```
+
+Job details are shown by time decreasing, collapsed by default, showing time + status. Expand for details.
+
+---
+
+## Improvement 4: Contextual Job Information in Detail Panel
+
+**Problem**: Bookmark detail panel lacks processing metadata.
+
+**Proposal**: Add an expandable "Processing Info" section at the bottom of the detail panel (collapsed by default).
+
+```
+┌─────────────────────────────────────────┐
+│  ...                                    │
+│                                         │
+│  ─────────────────────────────────────  │
+│                                         │
+│  [Debug HTML]  [Export]  [Delete]       │
+│                                         │
+│  ▶ Processing Info                      │  ← Collapsed by default
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+**Expanded:**
+
+```
+│  ▼ Processing Info                      │
+│  ─────────────────────────────────────  │
+│  Captured: Dec 15, 2024 at 2:32 PM      │
+│  HTML: 25,324 bytes                     |
+│  Markdown: 2,340 characters             │
+│  Q&A pairs: 5 generated                 │
+│  Embeddings: 1536 dimensions            │
+│  Status: Complete ✓                     │
+```
+
+This is the "under the hood" info for a specific bookmark.
+
+---
+
+## Improvement 5: Bulk Import as a Wizard
+
+**Step 1: Input**
+```
+┌───────────────────────────────────────────────────────┐
+│  Import URLs                                    ✕     │
+├───────────────────────────────────────────────────────┤
+│                                                       │
+│  Paste URLs (one per line)                           │
+│  ┌─────────────────────────────────────────────────┐ │
+│  │ https://example.com/article1                    │ │
+│  │ https://example.com/article2                    │ │
+│  │ ...                                             │ │
+│  └─────────────────────────────────────────────────┘ │
+│                                                       │
+│  ✓ 15 valid URLs · 2 duplicates will be skipped      │
+│                                                       │
+│  [Cancel]                        [Import 15 URLs →]  │
+│                                                       │
+└───────────────────────────────────────────────────────┘
+```
+
+**Step 2: Progress (same modal)**
+```
+┌───────────────────────────────────────────────────────┐
+│  Importing URLs                                 ✕     │
+├───────────────────────────────────────────────────────┤
+│                                                       │
+│  Progress: 8 of 15                                   │
+│  ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░  53%         │
+│                                                       │
+│  ✓ example.com/article1                              │
+│  ✓ example.com/article2                              │
+│  ✓ example.com/article3                              │
+│  ● example.com/article4 (fetching...)               │
+│  ○ example.com/article5                              │
+│  ...                                                 │
+│                                                       │
+│  [Run in Background]                    [Cancel]     │
+│                                                       │
+└───────────────────────────────────────────────────────┘
+```
+
+**Step 3: Complete**
+```
+│  ✓ Import Complete!                                  │
+│                                                       │
+│  Successfully imported: 14                           │
+│  Failed: 1 (network error)                           │
+│                                                       │
+│  [View in Library]              [Import More]        │
+```
