@@ -15,8 +15,12 @@ env:
   GECKODRIVER_VERSION: '0.36.0'
 
 jobs:
+  # Build Chrome and Firefox in parallel using matrix strategy
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        browser: [chrome, firefox]
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
@@ -29,24 +33,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Chrome extension
-        run: npm run build:chrome
+      - name: Build ${{ matrix.browser }} extension
+        run: npm run build:${{ matrix.browser }}
 
-      - name: Build Firefox extension
-        run: npm run build:firefox
-
-      - name: Upload Chrome build artifact
+      - name: Upload ${{ matrix.browser }} build artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: extension-chrome
-          path: dist-chrome/
-          retention-days: 1
-
-      - name: Upload Firefox build artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: extension-firefox
-          path: dist-firefox/
+          name: extension-${{ matrix.browser }}
+          path: dist-${{ matrix.browser }}/
           retention-days: 1
 
   test-chrome:
@@ -70,25 +64,30 @@ jobs:
           name: extension-chrome
           path: dist-chrome/
 
-      # Use Chromium instead of Google Chrome because Google Chrome blocks
-      # the --load-extension and --disable-extensions-except flags for security.
-      # Chromium (the open-source base) allows these flags for testing.
-      - name: Install Chromium
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y chromium-browser xvfb
-          chromium-browser --version
+      # Cache Puppeteer's Chromium download
+      - name: Cache Chromium
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/puppeteer
+          key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium via Puppeteer
+        run: npx @puppeteer/browsers install chromium@latest
+
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
 
       - name: Run Chrome extension tests
         env:
           BROWSER_TYPE: chrome
-          BROWSER_PATH: /usr/bin/chromium-browser
+          BROWSER_PATH: ${{ github.workspace }}/chromium/linux-*/chrome-linux*/chrome
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EXTENSION_PATH: dist-chrome
-        run: xvfb-run --auto-servernum npx tsx tests/extension.test.ts
+        run: |
+          CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
+          BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npx tsx tests/extension.test.ts
 
   # Lint and package Firefox extension
-  # Note: Real Firefox E2E testing is done in the test-e2e-firefox job using Selenium
   lint-firefox:
     needs: build
     runs-on: ubuntu-latest
@@ -114,11 +113,6 @@ jobs:
         run: npm install -g web-ext
 
       - name: Lint extension for Firefox
-        # web-ext lint exits with non-zero on errors (fails the build)
-        # Warnings are displayed but don't fail the build - this is expected behavior
-        # The UNSAFE_VAR_ASSIGNMENT warnings for innerHTML come from @mozilla/readability,
-        # Mozilla's own library for extracting article content. These are false positives
-        # as the library uses innerHTML on controlled content, not user input.
         run: web-ext lint -s dist-firefox --ignore-files "*.map"
 
       - name: Build Firefox extension package
@@ -158,21 +152,28 @@ jobs:
           name: extension-chrome
           path: dist-chrome/
 
-      # Use Chromium instead of Google Chrome because Google Chrome blocks
-      # the --load-extension and --disable-extensions-except flags for security.
-      - name: Install Chromium
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y chromium-browser xvfb
+      # Cache Puppeteer's Chromium download
+      - name: Cache Chromium
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/puppeteer
+          key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium via Puppeteer
+        run: npx @puppeteer/browsers install chromium@latest
+
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
 
       - name: Run E2E tests with API
         if: env.HAS_API_KEY == 'true'
         env:
           BROWSER_TYPE: chrome
-          BROWSER_PATH: /usr/bin/chromium-browser
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EXTENSION_PATH: dist-chrome
-        run: xvfb-run --auto-servernum npx tsx tests/e2e.test.ts
+        run: |
+          CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
+          BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npx tsx tests/e2e.test.ts
 
       - name: Skip E2E tests (no API key)
         if: env.HAS_API_KEY != 'true'
@@ -201,7 +202,6 @@ jobs:
           name: extension-firefox
           path: dist-firefox/
 
-      # Cache Firefox browser download
       - name: Cache Firefox
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         id: cache-firefox
@@ -215,18 +215,12 @@ jobs:
           firefox-version: ${{ env.FIREFOX_VERSION }}
         id: setup-firefox
 
-      # Cache GeckoDriver download
-      - name: Cache GeckoDriver
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        id: cache-geckodriver
-        with:
-          path: ${{ runner.tool_cache }}/geckodriver
-          key: geckodriver-${{ runner.os }}-${{ env.GECKODRIVER_VERSION }}
-
+      # Install GeckoDriver directly from Mozilla releases (action is broken)
       - name: Install GeckoDriver
-        uses: browser-actions/setup-geckodriver@5ef1526ed36211ab6cb531ec1cfb11f924ca2dee # latest
-        with:
-          geckodriver-version: ${{ env.GECKODRIVER_VERSION }}
+        run: |
+          GECKODRIVER_URL="https://github.com/mozilla/geckodriver/releases/download/v${{ env.GECKODRIVER_VERSION }}/geckodriver-v${{ env.GECKODRIVER_VERSION }}-linux64.tar.gz"
+          curl -sL "$GECKODRIVER_URL" | sudo tar xz -C /usr/local/bin
+          geckodriver --version
 
       - name: Install xvfb and zip
         run: sudo apt-get update && sudo apt-get install -y xvfb zip
