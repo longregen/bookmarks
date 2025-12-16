@@ -391,9 +391,16 @@ async function main(): Promise<void> {
       await driver!.get(getExtensionUrl('/src/popup/popup.html'));
       await waitForElement(driver!, '#saveBtn', 5000);
 
-      // Use extension's message system to save bookmark
+      // Wait a bit for service worker to be ready
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Use extension's message system to save bookmark (Firefox uses browser API)
       await driver!.executeScript(async (data: any) => {
-        await (window as any).chrome.runtime.sendMessage({
+        const api = (window as any).browser || (window as any).chrome;
+        if (!api || !api.runtime || !api.runtime.sendMessage) {
+          throw new Error('Extension API not available');
+        }
+        await api.runtime.sendMessage({
           type: 'SAVE_BOOKMARK',
           data: data
         });
@@ -543,10 +550,14 @@ async function main(): Promise<void> {
 </html>`
       };
 
-      // Send bookmark via extension messaging
+      // Send bookmark via extension messaging (Firefox uses browser API)
       const saveResult = await driver!.executeScript(async (data: any) => {
+        const api = (window as any).browser || (window as any).chrome;
+        if (!api || !api.runtime || !api.runtime.sendMessage) {
+          return { success: false, error: 'Extension API not available' };
+        }
         return new Promise((resolve) => {
-          (window as any).chrome.runtime.sendMessage(
+          api.runtime.sendMessage(
             { type: 'SAVE_BOOKMARK', data },
             (response: any) => resolve(response)
           );
