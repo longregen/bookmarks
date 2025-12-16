@@ -22,10 +22,10 @@ jobs:
       matrix:
         browser: [chrome, firefox]
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -37,22 +37,20 @@ jobs:
         run: npm run build:${{ matrix.browser }}
 
       - name: Upload ${{ matrix.browser }} build artifact
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: extension-${{ matrix.browser }}
           path: dist-${{ matrix.browser }}/
           retention-days: 1
 
-  # Chrome tests use ubuntu-20.04 which has apt-installable Chromium
-  # (ubuntu-22.04+ uses snap which doesn't work in CI)
   test-chrome:
     needs: build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -61,33 +59,43 @@ jobs:
         run: npm ci
 
       - name: Download Chrome build artifact
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: extension-chrome
           path: dist-chrome/
 
-      - name: Install Chromium
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y chromium-browser xvfb
+      # Cache Puppeteer's Chromium download
+      - name: Cache Chromium
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/puppeteer
+          key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium via Puppeteer
+        run: npx @puppeteer/browsers install chromium@latest
+
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
 
       - name: Run Chrome extension tests
         env:
           BROWSER_TYPE: chrome
-          BROWSER_PATH: /usr/bin/chromium-browser
+          BROWSER_PATH: ${{ github.workspace }}/chromium/linux-*/chrome-linux*/chrome
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EXTENSION_PATH: dist-chrome
-        run: xvfb-run --auto-servernum npx tsx tests/extension.test.ts
+        run: |
+          CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
+          BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npx tsx tests/extension.test.ts
 
   # Lint and package Firefox extension
   lint-firefox:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -96,7 +104,7 @@ jobs:
         run: npm ci
 
       - name: Download Firefox build artifact
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: extension-firefox
           path: dist-firefox/
@@ -114,7 +122,7 @@ jobs:
           ls -la web-ext-artifacts/ || echo "No artifacts created"
 
       - name: Upload Firefox package
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: firefox-extension-xpi
           path: dist-firefox/web-ext-artifacts/
@@ -123,14 +131,14 @@ jobs:
 
   test-e2e-chrome:
     needs: build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     env:
       HAS_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -139,24 +147,33 @@ jobs:
         run: npm ci
 
       - name: Download Chrome build artifact
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: extension-chrome
           path: dist-chrome/
 
-      - name: Install Chromium
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y chromium-browser xvfb
+      # Cache Puppeteer's Chromium download
+      - name: Cache Chromium
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/puppeteer
+          key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium via Puppeteer
+        run: npx @puppeteer/browsers install chromium@latest
+
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
 
       - name: Run E2E tests with API
         if: env.HAS_API_KEY == 'true'
         env:
           BROWSER_TYPE: chrome
-          BROWSER_PATH: /usr/bin/chromium-browser
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EXTENSION_PATH: dist-chrome
-        run: xvfb-run --auto-servernum npx tsx tests/e2e.test.ts
+        run: |
+          CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
+          BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npx tsx tests/e2e.test.ts
 
       - name: Skip E2E tests (no API key)
         if: env.HAS_API_KEY != 'true'
@@ -168,10 +185,10 @@ jobs:
     env:
       HAS_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -180,20 +197,20 @@ jobs:
         run: npm ci
 
       - name: Download Firefox build artifact
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: extension-firefox
           path: dist-firefox/
 
       - name: Cache Firefox
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         id: cache-firefox
         with:
           path: ${{ runner.tool_cache }}/firefox
           key: firefox-${{ runner.os }}-${{ env.FIREFOX_VERSION }}
 
       - name: Install Firefox
-        uses: browser-actions/setup-firefox@eb4d4fb885d9ce2a5b629588b498bda3e8a7a78c # v1.5.2
+        uses: browser-actions/setup-firefox@157fcc923ae034d53d4d5b9c7584005fd97e7275 # v1.7.0
         with:
           firefox-version: ${{ env.FIREFOX_VERSION }}
         id: setup-firefox
