@@ -867,11 +867,20 @@
 .app-header {
   flex-shrink: 0;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-4) var(--space-6);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-primary);
+}
+
+@media (min-width: 768px) {
+  .app-header {
+    flex-wrap: nowrap;
+    padding: var(--space-4) var(--space-6);
+  }
 }
 
 .app-header__brand {
@@ -883,9 +892,16 @@
 }
 
 .app-header__title {
+  display: none;
   font-size: var(--text-lg);
   font-weight: var(--font-bold);
   margin: 0;
+}
+
+@media (min-width: 768px) {
+  .app-header__title {
+    display: block;
+  }
 }
 
 .app-header__nav {
@@ -901,13 +917,20 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   font-weight: var(--font-medium);
   color: var(--text-tertiary);
   text-decoration: none;
   transition: all var(--transition-base);
+}
+
+@media (min-width: 768px) {
+  .app-header__nav-link {
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--text-base);
+  }
 }
 
 .app-header__nav-link:hover {
@@ -931,56 +954,12 @@
 }
 
 /* ===== Page-Specific Layouts ===== */
-
-/* Three-column Layout for Library/Search/Stumble */
-.page-layout {
-  display: flex;
-  height: 100%;
-  overflow: hidden;
-}
-
-.sidebar {
-  width: 200px;
-  flex-shrink: 0;
-  background: var(--bg-secondary);
-  border-right: 1px solid var(--border-primary);
-  overflow-y: auto;
-  padding: var(--space-6) 0;
-}
+/* Note: Sidebar and content area styles are in app.css */
 
 .content-area {
   flex: 1;
   overflow-y: auto;
   padding: var(--space-6);
-}
-
-/* Detail panel styles moved to individual page stylesheets */
-/* Each page (library, search, stumble) has its own implementation */
-
-/* Mobile responsive */
-@media (max-width: 768px) {
-  .sidebar {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    z-index: 10;
-    transform: translateX(-100%);
-    transition: transform var(--transition-base);
-  }
-
-  .sidebar--open {
-    transform: translateX(0);
-  }
-
-  .detail-panel--open {
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: 100%;
-    z-index: 20;
-  }
 }
 
 /* Tag Sidebar */

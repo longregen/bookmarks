@@ -35,12 +35,21 @@ body {
 
 /* ===== Sidebar (Common across Library, Search, Stumble) ===== */
 .sidebar {
+  display: none; /* Hidden on mobile by default */
   width: 200px;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-primary);
   padding: var(--space-6);
   overflow-y: auto;
   min-height: 0; /* Allow flex item to shrink for scrolling */
+  flex-shrink: 0;
+}
+
+/* Show sidebar on tablet and up */
+@media (min-width: 768px) {
+  .sidebar {
+    display: block;
+  }
 }
 
 .sidebar-title {
@@ -60,8 +69,19 @@ body {
 .middle {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-6);
+  padding: var(--space-4);
   min-height: 0; /* Allow flex item to shrink for scrolling */
+}
+
+@media (min-width: 768px) {
+  .middle {
+    padding: var(--space-6);
+  }
+}
+
+/* When middle contains settings-content, remove padding (settings-content handles its own) */
+.middle:has(.settings-content) {
+  padding: 0;
 }
 
 /* ===== Common Controls ===== */
@@ -586,114 +606,74 @@ body {
   font-size: var(--text-sm);
 }
 
-/* ===== Options/Settings Page Styles (from options.css) ===== */
+/* ===== Options/Settings Page Styles ===== */
 
-/* Settings Layout */
-.settings-layout {
-  min-height: 100%;
+/* Settings Navigation in Sidebar */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
-.settings-sidebar {
-  display: none;
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  font-weight: var(--font-medium);
+  transition: all var(--transition-base);
 }
 
+.nav-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.nav-item.active {
+  background: var(--accent-primary);
+  color: var(--accent-text);
+}
+
+.nav-label {
+  flex: 1;
+}
+
+/* Settings Content Area */
 .settings-content {
   max-width: 800px;
   margin: 0 auto;
-  padding: var(--space-8) var(--space-6);
+  padding: var(--space-4);
 }
 
-.mobile-header {
-  margin-bottom: var(--space-7);
+/* Tablet: Better padding */
+@media (min-width: 768px) {
+  .settings-content {
+    padding: var(--space-6);
+  }
 }
 
-/* Desktop: Sidebar + Content layout */
+/* Desktop: Larger content width */
 @media (min-width: 1024px) {
-  .settings-layout {
-    display: grid;
-    grid-template-columns: 280px 1fr;
-  }
-
-  .settings-sidebar {
-    display: flex;
-    flex-direction: column;
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    max-height: 100vh;
-    background: var(--bg-secondary);
-    border-right: 1px solid var(--border-primary);
-    padding: var(--space-6) 0;
-    overflow-y: auto;
-    min-height: 0; /* Allow flex item to shrink for scrolling */
-  }
-
-  .sidebar-nav {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    padding: 0 var(--space-3);
-  }
-
-  .nav-item {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    border-radius: var(--radius-lg);
-    text-decoration: none;
-    color: var(--text-secondary);
-    font-size: var(--text-base);
-    font-weight: var(--font-medium);
-    transition: all var(--transition-base);
-  }
-
-  .nav-item:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-
-  .nav-item.active {
-    background: var(--accent-primary);
-    color: var(--accent-text);
-  }
-
-  .nav-icon {
-    font-size: 18px;
-    width: var(--space-6);
-    text-align: center;
-  }
-
-  .nav-label {
-    flex: 1;
-  }
-
   .settings-content {
     max-width: 900px;
-    margin: 0;
-    padding: var(--space-8) var(--space-9);
-  }
-
-  .mobile-header {
-    display: none;
-  }
-
-  .settings-section {
-    scroll-margin-top: var(--space-6);
+    padding: var(--space-8);
   }
 }
 
-/* Large desktop: Wider content area */
+/* Large desktop */
 @media (min-width: 1400px) {
-  .settings-layout {
-    grid-template-columns: 300px 1fr;
-  }
-
   .settings-content {
     max-width: 1000px;
-    padding: var(--space-9) var(--space-10);
   }
+}
+
+/* Settings sections smooth scroll */
+.settings-section {
+  scroll-margin-top: var(--space-6);
 }
 
 /* Typography */
