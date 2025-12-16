@@ -176,7 +176,12 @@ async function testChromeExtension(): Promise<void> {
 
       // Check for essential elements
       await page.waitForSelector('#saveBtn', { timeout: 5000 });
-      await page.waitForSelector('#exploreBtn', { timeout: 5000 });
+
+      // Check for bottom navigation buttons
+      await page.waitForSelector('#libraryBtn', { timeout: 5000 });
+      await page.waitForSelector('#searchBtn', { timeout: 5000 });
+      await page.waitForSelector('#stumbleBtn', { timeout: 5000 });
+      await page.waitForSelector('#settingsBtn', { timeout: 5000 });
 
       const title = await page.title();
       if (!title.includes('Bookmark')) {
@@ -198,14 +203,14 @@ async function testChromeExtension(): Promise<void> {
       await page.close();
     });
 
-    // Test 3: Explore page loads
-    await runTest('Explore page loads', async () => {
+    // Test 3: Library page loads
+    await runTest('Library page loads', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await page.goto(`chrome-extension://${extensionId}/src/library/library.html`);
 
-      await page.waitForSelector('#searchInput', { timeout: 5000 });
-      await page.waitForSelector('#searchBtn', { timeout: 5000 });
       await page.waitForSelector('#bookmarkList', { timeout: 5000 });
+      await page.waitForSelector('#sortSelect', { timeout: 5000 });
+      await page.waitForSelector('#bookmarkCount', { timeout: 5000 });
 
       await page.close();
     });
@@ -301,14 +306,14 @@ async function testChromeExtension(): Promise<void> {
         throw new Error(`Expected count to increase by 1 (from ${initialCount} to ${initialCount + 1}), but got ${newCount}`);
       }
 
-      // Verify bookmark appears in explore page
-      await verifyPage.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      // Verify bookmark appears in library page
+      await verifyPage.goto(`chrome-extension://${extensionId}/src/library/library.html`);
       await verifyPage.waitForSelector('#bookmarkList', { timeout: 5000 });
 
       // Wait for bookmarks to load
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      const bookmarkTitles = await verifyPage.$$eval('.bookmark-card .bookmark-title',
+      const bookmarkTitles = await verifyPage.$$eval('.library-bookmark-card__title',
         elements => elements.map(el => el.textContent?.trim())
       );
 
@@ -355,46 +360,36 @@ async function testChromeExtension(): Promise<void> {
       await page.close();
     });
 
-    // Test 7: Search UI functionality
-    await runTest('Search UI is functional', async () => {
+    // Test 7: Search page loads
+    await runTest('Search page loads', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await page.goto(`chrome-extension://${extensionId}/src/search/search.html`);
 
       await page.waitForSelector('#searchInput', { timeout: 5000 });
+      await page.waitForSelector('#searchBtn', { timeout: 5000 });
+      await page.waitForSelector('#searchResults', { timeout: 5000 });
+      await page.waitForSelector('#sortSelect', { timeout: 5000 });
 
       // Type a search query
       await page.type('#searchInput', 'test query');
 
-      // Verify search button is present
-      const searchBtnText = await page.$eval('#searchBtn', el => el.textContent);
-      if (!searchBtnText?.includes('Search')) {
-        throw new Error('Search button not found');
+      // Verify input has the test query
+      const inputValue = await page.$eval('#searchInput', el => (el as HTMLInputElement).value);
+      if (inputValue !== 'test query') {
+        throw new Error('Search input value not set correctly');
       }
 
       await page.close();
     });
 
-    // Test 8: View switching works
-    await runTest('View switching works', async () => {
+    // Test 8: Stumble page loads
+    await runTest('Stumble page loads', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await page.goto(`chrome-extension://${extensionId}/src/stumble/stumble.html`);
 
-      await page.waitForSelector('#listViewBtn', { timeout: 5000 });
-      await page.waitForSelector('#searchViewBtn', { timeout: 5000 });
-
-      // Check list view is active by default
-      const listViewActive = await page.$eval('#listViewBtn', el => el.classList.contains('active'));
-      if (!listViewActive) {
-        throw new Error('List view should be active by default');
-      }
-
-      // Switch to search view
-      await page.click('#searchViewBtn');
-
-      const searchViewActive = await page.$eval('#searchViewBtn', el => el.classList.contains('active'));
-      if (!searchViewActive) {
-        throw new Error('Search view should be active after clicking');
-      }
+      await page.waitForSelector('#stumbleList', { timeout: 5000 });
+      await page.waitForSelector('#shuffleButton', { timeout: 5000 });
+      await page.waitForSelector('#stumbleCount', { timeout: 5000 });
 
       await page.close();
     });
