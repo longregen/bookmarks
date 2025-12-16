@@ -374,7 +374,7 @@ async function captureSearch(browser: Browser, extensionId: string): Promise<voi
 
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 800 });
-  await page.goto(getExtensionUrl(extensionId, '/src/library/library.html'));
+  await page.goto(getExtensionUrl(extensionId, '/src/search/search.html'));
 
   // Wait for page structure
   await page.waitForSelector('#searchInput', { timeout: 5000 });
@@ -390,16 +390,13 @@ async function captureSearch(browser: Browser, extensionId: string): Promise<voi
 
   // Set search query
   await page.type('#searchInput', 'javascript fundamentals');
-
-  // Switch to search view
-  await page.click('#searchViewBtn');
   await new Promise(resolve => setTimeout(resolve, 500));
 
   // Inject fake search results
   await page.evaluate(() => {
-    const searchResults = document.querySelector('#searchResults');
-    if (searchResults) {
-      searchResults.innerHTML = `
+    const resultsList = document.querySelector('#resultsList');
+    if (resultsList) {
+      resultsList.innerHTML = `
         <div class="search-result bookmark-card" style="padding: 16px; border: 1px solid var(--border-primary); border-radius: 8px; margin-bottom: 12px; background: var(--bg-secondary);">
           <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
@@ -442,9 +439,9 @@ async function captureSearch(browser: Browser, extensionId: string): Promise<voi
       `;
     }
 
-    // Update search count
-    const searchCount = document.querySelector('#searchCount');
-    if (searchCount) searchCount.textContent = '3';
+    // Update result count
+    const resultCount = document.querySelector('#resultCount');
+    if (resultCount) resultCount.textContent = '3';
   });
 
   await new Promise(resolve => setTimeout(resolve, 500));
