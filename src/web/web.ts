@@ -757,9 +757,9 @@ function setupEventHandlers(): void {
       // Extract title from HTML if not provided
       let title = customTitle;
       if (!title) {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        title = doc.title || new URL(url).hostname;
+        // Extract <title> content via RegExp instead of DOMParser
+        const match = html.match(/<title[^>]*>\s*([^<]*)\s*<\/title>/i);
+        title = match ? match[1].trim() : new URL(url).hostname;
       }
 
       // Check for duplicate
