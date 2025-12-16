@@ -31,7 +31,7 @@ export async function getHealthStatus(): Promise<HealthStatus> {
     if (failedCount > 0) {
       return {
         state: 'error',
-        message: `${failedCount} failed job${failedCount > 1 ? 's' : ''} need attention`,
+        message: `${failedCount} failed job${failedCount > 1 ? 's' : ''} need${failedCount === 1 ? 's' : ''} attention`,
         details
       };
     }

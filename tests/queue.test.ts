@@ -39,7 +39,9 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark);
 
-      const processMock = vi.spyOn(processor, 'processBookmark').mockResolvedValue(undefined);
+      const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(async (bookmark) => {
+        await db.bookmarks.update(bookmark.id, { status: 'complete' });
+      });
 
       await startProcessingQueue();
 
@@ -65,7 +67,10 @@ describe('Queue Management', () => {
       await db.bookmarks.add(bookmark);
 
       const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(
-        () => new Promise(resolve => setTimeout(resolve, 100))
+        async (bookmark) => {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          await db.bookmarks.update(bookmark.id, { status: 'complete' });
+        }
       );
 
       // Start first processing
@@ -109,6 +114,7 @@ describe('Queue Management', () => {
       const processedOrder: string[] = [];
       const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(async (bookmark) => {
         processedOrder.push(bookmark.id);
+        await db.bookmarks.update(bookmark.id, { status: 'complete' });
       });
 
       await startProcessingQueue();
@@ -131,11 +137,18 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(stuckBookmark);
 
-      const processMock = vi.spyOn(processor, 'processBookmark').mockResolvedValue(undefined);
+      // Mock getNextRetryTime to return a date in the past so retry happens immediately
+      const retryModule = await import('../src/lib/retry');
+      const getNextRetryTimeSpy = vi.spyOn(retryModule, 'getNextRetryTime').mockReturnValue(new Date(Date.now() - 1000));
+
+      const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(async (bookmark) => {
+        // Update bookmark status to 'complete' to break the loop
+        await db.bookmarks.update(bookmark.id, { status: 'complete', updatedAt: new Date() });
+      });
 
       await startProcessingQueue();
 
-      // Check that the bookmark was reset to pending and then processed
+      // Check that the bookmark was marked as error, then retried and processed
       expect(processMock).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'stuck-1',
@@ -144,6 +157,8 @@ describe('Queue Management', () => {
 
       const updatedBookmark = await db.bookmarks.get('stuck-1');
       expect(updatedBookmark?.status).toBe('complete');
+
+      getNextRetryTimeSpy.mockRestore();
     });
 
     it('should not reset recently processing bookmarks', async () => {
@@ -193,9 +208,20 @@ describe('Queue Management', () => {
       await db.bookmarks.add(bookmark1);
       await db.bookmarks.add(bookmark2);
 
-      const processMock = vi.spyOn(processor, 'processBookmark')
-        .mockRejectedValueOnce(new Error('Processing failed'))
-        .mockResolvedValueOnce(undefined);
+      const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(async (bookmark) => {
+        if (bookmark.id === 'test-1') {
+          // Mark as error with no retry to prevent infinite loop
+          await db.bookmarks.update(bookmark.id, {
+            status: 'error',
+            errorMessage: 'Processing failed',
+            nextRetryAt: new Date(Date.now() + 1000000) // Far future to prevent retry
+          });
+          throw new Error('Processing failed');
+        } else {
+          // Update other bookmarks to complete
+          await db.bookmarks.update(bookmark.id, { status: 'complete', updatedAt: new Date() });
+        }
+      });
 
       await startProcessingQueue();
 
@@ -204,7 +230,9 @@ describe('Queue Management', () => {
     });
 
     it('should handle empty queue', async () => {
-      const processMock = vi.spyOn(processor, 'processBookmark');
+      const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(async (bookmark) => {
+        await db.bookmarks.update(bookmark.id, { status: 'complete' });
+      });
 
       await startProcessingQueue();
 
@@ -235,7 +263,9 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark);
 
-      const processMock = vi.spyOn(processor, 'processBookmark');
+      const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(async (bookmark) => {
+        await db.bookmarks.update(bookmark.id, { status: 'complete' });
+      });
 
       await startProcessingQueue();
 
@@ -256,7 +286,9 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark);
 
-      const processMock = vi.spyOn(processor, 'processBookmark');
+      const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(async (bookmark) => {
+        await db.bookmarks.update(bookmark.id, { status: 'complete' });
+      });
 
       await startProcessingQueue();
 
@@ -278,7 +310,9 @@ describe('Queue Management', () => {
         await db.bookmarks.add(bookmark);
       }
 
-      const processMock = vi.spyOn(processor, 'processBookmark').mockResolvedValue(undefined);
+      const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(async (bookmark) => {
+        await db.bookmarks.update(bookmark.id, { status: 'complete' });
+      });
 
       await startProcessingQueue();
 
@@ -298,7 +332,9 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark);
 
-      const processMock = vi.spyOn(processor, 'processBookmark').mockResolvedValue(undefined);
+      const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(async (bookmark) => {
+        await db.bookmarks.update(bookmark.id, { status: 'complete' });
+      });
 
       await startProcessingQueue();
 
@@ -334,7 +370,10 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark);
 
-      const processMock = vi.spyOn(processor, 'processBookmark').mockRejectedValue(new Error('Test error'));
+      const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(async (bookmark) => {
+        await db.bookmarks.update(bookmark.id, { status: 'error', errorMessage: 'Test error' });
+        throw new Error('Test error');
+      });
 
       await startProcessingQueue();
 
@@ -351,7 +390,9 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark2);
 
-      processMock.mockResolvedValue(undefined);
+      processMock.mockImplementation(async (bookmark) => {
+        await db.bookmarks.update(bookmark.id, { status: 'complete' });
+      });
 
       await startProcessingQueue();
 
@@ -376,9 +417,10 @@ describe('Queue Management', () => {
 
       let processCount = 0;
       const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(
-        async () => {
+        async (bookmark) => {
           processCount++;
           await new Promise(resolve => setTimeout(resolve, 100));
+          await db.bookmarks.update(bookmark.id, { status: 'complete' });
         }
       );
 
@@ -411,7 +453,9 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark);
 
-      const processMock = vi.spyOn(processor, 'processBookmark').mockResolvedValue(undefined);
+      const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(async (bookmark) => {
+        await db.bookmarks.update(bookmark.id, { status: 'complete' });
+      });
 
       await startProcessingQueue();
 
@@ -433,7 +477,9 @@ describe('Queue Management', () => {
         await db.bookmarks.add(bookmark);
       }
 
-      const processMock = vi.spyOn(processor, 'processBookmark').mockResolvedValue(undefined);
+      const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(async (bookmark) => {
+        await db.bookmarks.update(bookmark.id, { status: 'complete' });
+      });
 
       // Start queue processing multiple times in rapid succession
       await startProcessingQueue();
@@ -457,7 +503,9 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark);
 
-      const processMock = vi.spyOn(processor, 'processBookmark').mockResolvedValue(undefined);
+      const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(async (bookmark) => {
+        await db.bookmarks.update(bookmark.id, { status: 'complete' });
+      });
 
       // First processing
       await startProcessingQueue();
@@ -494,9 +542,22 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark);
 
-      const processMock = vi.spyOn(processor, 'processBookmark')
-        .mockRejectedValueOnce(new Error('Processing failed'))
-        .mockResolvedValueOnce(undefined);
+      let test1CallCount = 0;
+      const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(async (bookmark) => {
+        if (bookmark.id === 'test-1') {
+          test1CallCount++;
+          if (test1CallCount === 1) {
+            // First call: fail with error and set nextRetryAt far in future
+            await db.bookmarks.update(bookmark.id, {
+              status: 'error',
+              errorMessage: 'Processing failed',
+              nextRetryAt: new Date(Date.now() + 1000000) // Far future to prevent retry in this test
+            });
+            throw new Error('Processing failed');
+          }
+        }
+        await db.bookmarks.update(bookmark.id, { status: 'complete' });
+      });
 
       // First processing (will fail)
       await startProcessingQueue();
@@ -516,6 +577,7 @@ describe('Queue Management', () => {
 
       // Second processing should work (state was properly cleaned up despite error)
       await startProcessingQueue();
+      // Total calls: test-1 fails (1), test-2 succeeds (2)
       expect(processMock).toHaveBeenCalledTimes(2);
     });
   });

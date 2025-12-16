@@ -43,6 +43,24 @@ jobs:
           path: dist-${{ matrix.browser }}/
           retention-days: 1
 
+  # Run unit tests (vitest) - no build artifacts needed
+  test-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:unit
+
   # Lint and package Firefox extension
   lint-firefox:
     needs: build
