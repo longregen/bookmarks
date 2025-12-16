@@ -1,4 +1,4 @@
-import { db, BookmarkTag, QuestionAnswer } from '../db/schema';
+import { db, BookmarkTag, QuestionAnswer, SearchHistory } from '../db/schema';
 import { createElement } from '../lib/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { generateEmbeddings } from '../lib/api';
@@ -6,6 +6,7 @@ import { findTopK } from '../lib/similarity';
 import { exportSingleBookmark, downloadExport } from '../lib/export';
 import { createTagEditor } from '../lib/tag-editor';
 import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
+import { createHealthIndicator } from '../lib/health-indicator';
 
 let selectedTags: Set<string> = new Set();
 let selectedStatuses: Set<string> = new Set(['complete', 'pending', 'processing', 'error']);
@@ -15,6 +16,7 @@ const tagFilters = document.getElementById('tagFilters')!;
 const statusFilters = document.getElementById('statusFilters')!;
 const searchInput = document.getElementById('searchInput') as HTMLInputElement;
 const searchBtn = document.getElementById('searchBtn') as HTMLButtonElement;
+const autocompleteDropdown = document.getElementById('autocompleteDropdown')!;
 const resultsList = document.getElementById('resultsList')!;
 const resultCount = document.getElementById('resultCount')!;
 const detailPanel = document.getElementById('detailPanel')!;
@@ -27,11 +29,105 @@ const debugBtn = document.getElementById('debugBtn') as HTMLButtonElement;
 
 searchBtn.addEventListener('click', performSearch);
 searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSearch(); });
+searchInput.addEventListener('input', showAutocomplete);
+searchInput.addEventListener('focus', showAutocomplete);
+searchInput.addEventListener('blur', () => setTimeout(hideAutocomplete, 200));
 closeDetailBtn.addEventListener('click', closeDetail);
 detailBackdrop.addEventListener('click', closeDetail);
 deleteBtn.addEventListener('click', deleteCurrentBookmark);
 exportBtn.addEventListener('click', exportCurrentBookmark);
 debugBtn.addEventListener('click', debugCurrentBookmark);
+
+const MAX_SEARCH_HISTORY = 50;
+
+async function getSearchAutocompleteSetting(): Promise<boolean> {
+  const setting = await db.settings.get('searchAutocomplete');
+  return setting?.value ?? true;
+}
+
+async function saveSearchHistory(query: string, resultCount: number) {
+  try {
+    const id = crypto.randomUUID();
+    const createdAt = new Date();
+
+    await db.searchHistory.add({
+      id,
+      query,
+      resultCount,
+      createdAt,
+    });
+
+    const allHistory = await db.searchHistory.orderBy('createdAt').toArray();
+    if (allHistory.length > MAX_SEARCH_HISTORY) {
+      const toDelete = allHistory.slice(0, allHistory.length - MAX_SEARCH_HISTORY);
+      await Promise.all(toDelete.map(h => db.searchHistory.delete(h.id)));
+    }
+  } catch (error) {
+    console.error('Failed to save search history:', error);
+  }
+}
+
+async function showAutocomplete() {
+  const autocompleteEnabled = await getSearchAutocompleteSetting();
+  if (!autocompleteEnabled) {
+    hideAutocomplete();
+    return;
+  }
+
+  const query = searchInput.value.trim().toLowerCase();
+
+  if (!query) {
+    hideAutocomplete();
+    return;
+  }
+
+  const allHistory = await db.searchHistory
+    .orderBy('createdAt')
+    .reverse()
+    .toArray();
+
+  const matchingHistory = allHistory.filter(h =>
+    h.query.toLowerCase().includes(query) && h.query.toLowerCase() !== query
+  ).slice(0, 10);
+
+  if (!matchingHistory.length) {
+    hideAutocomplete();
+    return;
+  }
+
+  autocompleteDropdown.innerHTML = '';
+
+  for (const history of matchingHistory) {
+    const item = createElement('div', { className: 'autocomplete-item' });
+
+    const querySpan = createElement('span', {
+      className: 'autocomplete-query',
+      textContent: history.query
+    });
+
+    const countSpan = createElement('span', {
+      className: 'autocomplete-count',
+      textContent: `${history.resultCount} result${history.resultCount !== 1 ? 's' : ''}`
+    });
+
+    item.appendChild(querySpan);
+    item.appendChild(countSpan);
+
+    item.onclick = () => {
+      searchInput.value = history.query;
+      hideAutocomplete();
+      performSearch();
+    };
+
+    autocompleteDropdown.appendChild(item);
+  }
+
+  autocompleteDropdown.classList.add('active');
+}
+
+function hideAutocomplete() {
+  autocompleteDropdown.classList.remove('active');
+}
 
 async function loadFilters() {
   const bookmarks = await db.bookmarks.toArray();
@@ -134,8 +230,11 @@ async function performSearch() {
 
     if (!filteredResults.length) {
       resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'No results found' }));
+      await saveSearchHistory(query, 0);
       return;
     }
+
+    await saveSearchHistory(query, filteredResults.length);
 
     for (const { bookmark, qaResults } of filteredResults) {
       const maxScore = Math.max(...qaResults.map(r => r.score));
@@ -255,3 +354,9 @@ async function debugCurrentBookmark() {
 initTheme();
 onThemeChange((theme) => applyTheme(theme));
 loadFilters();
+
+// Initialize health indicator
+const healthIndicatorContainer = document.getElementById('healthIndicator');
+if (healthIndicatorContainer) {
+  createHealthIndicator(healthIndicatorContainer);
+}

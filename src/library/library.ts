@@ -4,6 +4,7 @@ import { formatDateByAge } from '../lib/date-format';
 import { exportSingleBookmark, downloadExport } from '../lib/export';
 import { createTagEditor } from '../lib/tag-editor';
 import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
+import { createHealthIndicator } from '../lib/health-indicator';
 
 let selectedTag = 'All';
 let sortBy = 'newest';
@@ -231,3 +232,9 @@ onThemeChange((theme) => applyTheme(theme));
 loadTags();
 loadBookmarks();
 setInterval(() => { loadTags(); loadBookmarks(); }, 5000);
+
+// Initialize health indicator
+const healthIndicatorContainer = document.getElementById('healthIndicator');
+if (healthIndicatorContainer) {
+  createHealthIndicator(healthIndicatorContainer);
+}

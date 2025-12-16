@@ -1204,3 +1204,17 @@
 .panel-slide--exit {
   animation: slideOutRight var(--transition-slow);
 }
+
+/* Health Indicator */
+@keyframes health-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.health-indicator.processing {
+  animation: health-pulse 2s ease-in-out infinite;
+}
+
+.health-indicator:hover {
+  background: var(--bg-hover);
+}

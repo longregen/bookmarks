@@ -46,6 +46,14 @@
     .markdown-content p { margin-bottom: var(--space-4); }
     .markdown-content code { background: var(--bg-code); padding: 2px 6px; border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: var(--text-sm); }
     .markdown-content pre { background: var(--bg-code-block); color: var(--text-code-block); padding: var(--space-4); border-radius: var(--radius-md); overflow-x: auto; margin-bottom: var(--space-4); }
+    .autocomplete-container { position: relative; flex: 1; }
+    .autocomplete-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: var(--radius-md); margin-top: var(--space-1); max-height: 300px; overflow-y: auto; z-index: 100; box-shadow: var(--shadow-lg); display: none; }
+    .autocomplete-dropdown.active { display: block; }
+    .autocomplete-item { padding: var(--space-3) var(--space-4); cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-primary); }
+    .autocomplete-item:last-child { border-bottom: none; }
+    .autocomplete-item:hover { background: var(--bg-hover); }
+    .autocomplete-query { color: var(--text-primary); font-size: var(--text-sm); }
+    .autocomplete-count { color: var(--text-tertiary); font-size: var(--text-xs); }
   </style>
 </head>
 <body class="layout">
@@ -57,6 +65,7 @@
       <a href="../options/options.html" class="app-header__nav-link">Settings</a>
     </nav>
     <div class="app-header__brand">
+      <div id="healthIndicator"></div>
       <h1 class="app-header__title">Bookmarks by Localforge</h1>
     </div>
   </header>
@@ -72,7 +81,10 @@
 
     <main class="middle">
       <div class="search-box">
-        <input type="text" id="searchInput" class="input search-input" placeholder="Ask anything...">
+        <div class="autocomplete-container">
+          <input type="text" id="searchInput" class="input search-input" placeholder="Ask anything...">
+          <div id="autocompleteDropdown" class="autocomplete-dropdown"></div>
+        </div>
         <button id="searchBtn" class="btn btn-primary">🔍 Search</button>
       </div>
       <div class="result-header">

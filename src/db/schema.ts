@@ -45,6 +45,13 @@ export interface BookmarkTag {
   addedAt: Date;
 }
 
+export interface SearchHistory {
+  id: string;
+  query: string;
+  resultCount: number;
+  createdAt: Date;
+}
+
 export enum JobType {
   MANUAL_ADD = 'manual_add',
   MARKDOWN_GENERATION = 'markdown_generation',
@@ -135,6 +142,7 @@ export class BookmarkDatabase extends Dexie {
   settings!: Table<Settings>;
   jobs!: Table<Job>;
   bookmarkTags!: Table<BookmarkTag>;
+  searchHistory!: Table<SearchHistory>;
 
   constructor() {
     super('BookmarkRAG');
@@ -165,6 +173,17 @@ export class BookmarkDatabase extends Dexie {
       settings: 'key, createdAt, updatedAt',
       jobs: 'id, bookmarkId, parentJobId, status, type, createdAt, updatedAt, [parentJobId+status], [bookmarkId+type]',
       bookmarkTags: '[bookmarkId+tagName], bookmarkId, tagName, addedAt',
+    });
+
+    // Version 4: Add searchHistory table for search autocomplete
+    this.version(4).stores({
+      bookmarks: 'id, url, status, createdAt, updatedAt',
+      markdown: 'id, bookmarkId, createdAt, updatedAt',
+      questionsAnswers: 'id, bookmarkId, createdAt, updatedAt',
+      settings: 'key, createdAt, updatedAt',
+      jobs: 'id, bookmarkId, parentJobId, status, type, createdAt, updatedAt, [parentJobId+status], [bookmarkId+type]',
+      bookmarkTags: '[bookmarkId+tagName], bookmarkId, tagName, addedAt',
+      searchHistory: 'id, query, createdAt',
     });
   }
 }
