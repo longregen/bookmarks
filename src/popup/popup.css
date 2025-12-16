@@ -39,14 +39,17 @@ h1 {
 
 /* ===== Status Messages ===== */
 .status {
+  position: absolute;
+  inset: var(--space-4);
   padding: var(--space-3);
   border-radius: var(--radius-lg);
-  margin-bottom: var(--space-4);
   font-size: var(--text-base);
   font-weight: var(--font-medium);
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
+  text-align: center;
 }
 
 .status.hidden {
@@ -71,6 +74,16 @@ h1 {
   border: 1px solid var(--warning-border);
 }
 
+.status.success-with-cta {
+  padding: var(--space-4);
+  justify-content: space-between;
+}
+
+.status.success-with-cta .btn-cta {
+  width: auto;
+  flex-shrink: 0;
+}
+
 /* ===== Main ===== */
 main {
   flex: 1;
@@ -78,6 +91,7 @@ main {
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
+  position: relative;
 }
 
 /* ===== Actions ===== */

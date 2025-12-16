@@ -80,12 +80,12 @@ saveBtn.addEventListener('click', async () => {
 });
 
 function showSuccessWithCTA(bookmarkId: string) {
-  statusDiv.className = 'status success';
+  statusDiv.className = 'status success success-with-cta';
   statusDiv.innerHTML = '';
 
-  const message = document.createElement('div');
+  const message = document.createElement('span');
+  message.className = 'success-message';
   message.textContent = 'Bookmark saved!';
-  message.style.marginBottom = 'var(--space-2)';
 
   const ctaBtn = document.createElement('button');
   ctaBtn.className = 'btn-cta';
