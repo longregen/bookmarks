@@ -138,7 +138,13 @@ async function loadFilters() {
   await loadTagFilters({
     container: tagFilters,
     selectedTags,
-    onChange: () => loadFilters()
+    onChange: () => {
+      loadFilters();
+      // Re-run search if there's a query to reflect tag filter changes
+      if (searchInput.value.trim()) {
+        performSearch();
+      }
+    }
   });
 }
 
