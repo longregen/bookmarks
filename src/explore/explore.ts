@@ -4,7 +4,8 @@ import { findTopK } from '../lib/similarity';
 import { exportSingleBookmark, exportAllBookmarks, downloadExport } from '../lib/export';
 import { createElement } from '../lib/dom';
 import { formatTimeAgoShort } from '../lib/time';
-import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
+import { onThemeChange, applyTheme } from '../shared/theme';
+import { initExtension } from '../lib/init-extension';
 
 // Constants
 const RESULTS_PER_PAGE = 10;
@@ -729,7 +730,7 @@ function marked(markdown: string): string {
 }
 
 // Initialize theme
-initTheme();
+initExtension();
 onThemeChange((theme) => applyTheme(theme));
 
 // Initialize

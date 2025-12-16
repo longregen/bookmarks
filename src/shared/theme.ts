@@ -1,4 +1,5 @@
 // Theme management utilities
+import { getPlatformAdapter } from '../lib/platform';
 
 export type Theme = 'auto' | 'light' | 'dark' | 'terminal' | 'tufte';
 
@@ -8,19 +9,14 @@ const THEME_STORAGE_KEY = 'bookmark-rag-theme';
  * Get the current theme preference from storage
  */
 export async function getTheme(): Promise<Theme> {
-  try {
-    const result = await chrome.storage.local.get(THEME_STORAGE_KEY);
-    return (result[THEME_STORAGE_KEY] as Theme) || 'auto';
-  } catch {
-    return 'auto';
-  }
+  return getPlatformAdapter().getTheme();
 }
 
 /**
  * Set the theme preference in storage and apply it
  */
 export async function setTheme(theme: Theme): Promise<void> {
-  await chrome.storage.local.set({ [THEME_STORAGE_KEY]: theme });
+  await getPlatformAdapter().setTheme(theme);
   applyTheme(theme);
 }
 

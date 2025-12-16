@@ -1,3 +1,4 @@
+import { getPlatformAdapter } from './platform';
 import { getSettings } from './settings';
 
 interface QAPair {
@@ -17,7 +18,7 @@ Respond with JSON only, no other text. Format:
 {"pairs": [{"question": "...", "answer": "..."}, ...]}`;
 
 export async function generateQAPairs(markdownContent: string): Promise<QAPair[]> {
-  const settings = await getSettings();
+  const settings = await getPlatformAdapter().getSettings();
 
   if (!settings.apiKey) {
     throw new Error('API key not configured. Please set your API key in the extension options.');
@@ -60,7 +61,7 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
 }
 
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
-  const settings = await getSettings();
+  const settings = await getPlatformAdapter().getSettings();
 
   if (__DEBUG_EMBEDDINGS__) {
     console.log('[Embeddings API] Starting embedding generation', {
