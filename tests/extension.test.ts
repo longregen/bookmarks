@@ -203,7 +203,7 @@ async function testChromeExtension(): Promise<void> {
     // Test 3: Explore page loads
     await runTest('Explore page loads', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await page.goto(`chrome-extension://${extensionId}/src/library/library.html`);
 
       await page.waitForSelector('#searchInput', { timeout: 5000 });
       await page.waitForSelector('#searchBtn', { timeout: 5000 });
@@ -282,7 +282,7 @@ async function testChromeExtension(): Promise<void> {
 
       // Verify bookmark appears in explore page
       const verifyPage = await browser!.newPage();
-      await verifyPage.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await verifyPage.goto(`chrome-extension://${extensionId}/src/library/library.html`);
       await verifyPage.waitForSelector('#bookmarkList', { timeout: 5000 });
 
       // Wait for bookmarks to load
@@ -338,7 +338,7 @@ async function testChromeExtension(): Promise<void> {
     // Test 7: Search UI functionality
     await runTest('Search UI is functional', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await page.goto(`chrome-extension://${extensionId}/src/library/library.html`);
 
       await page.waitForSelector('#searchInput', { timeout: 5000 });
 
@@ -357,7 +357,7 @@ async function testChromeExtension(): Promise<void> {
     // Test 8: View switching works
     await runTest('View switching works', async () => {
       const page = await browser!.newPage();
-      await page.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
+      await page.goto(`chrome-extension://${extensionId}/src/library/library.html`);
 
       await page.waitForSelector('#listViewBtn', { timeout: 5000 });
       await page.waitForSelector('#searchViewBtn', { timeout: 5000 });

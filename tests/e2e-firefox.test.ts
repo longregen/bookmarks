@@ -369,7 +369,7 @@ async function main(): Promise<void> {
     // Test 3: Save bookmark via content script simulation
     await runTest('Save bookmark via extension messaging', async () => {
       // Open explore page first to get initial count
-      await driver!.get(getExtensionUrl('/src/explore/explore.html'));
+      await driver!.get(getExtensionUrl('/src/library/library.html'));
       await waitForElement(driver!, '#bookmarkList', 5000);
 
       // Get initial bookmark count
@@ -403,7 +403,7 @@ async function main(): Promise<void> {
       await new Promise(resolve => setTimeout(resolve, 3000));
 
       // Refresh explore page and check count
-      await driver!.get(getExtensionUrl('/src/explore/explore.html'));
+      await driver!.get(getExtensionUrl('/src/library/library.html'));
       await waitForElement(driver!, '#bookmarkCount', 5000);
       await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -453,7 +453,7 @@ async function main(): Promise<void> {
 
     // Test 4: Verify bookmark appears in list
     await runTest('Bookmark appears in explore list', async () => {
-      await driver!.get(getExtensionUrl('/src/explore/explore.html'));
+      await driver!.get(getExtensionUrl('/src/library/library.html'));
       await waitForElement(driver!, '#bookmarkList', 5000);
       await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -471,7 +471,7 @@ async function main(): Promise<void> {
 
     // Test 5: Wait for bookmark processing
     await runTest('Wait for bookmark processing', async () => {
-      await driver!.get(getExtensionUrl('/src/explore/explore.html'));
+      await driver!.get(getExtensionUrl('/src/library/library.html'));
       await waitForElement(driver!, '#bookmarkList', 5000);
 
       // Check if there are any bookmarks
@@ -513,7 +513,7 @@ async function main(): Promise<void> {
     // Test 6: Verify readability content extraction
     await runTest('Readability extracts content correctly', async () => {
       // Navigate to explore page
-      await driver!.get(getExtensionUrl('/src/explore/explore.html'));
+      await driver!.get(getExtensionUrl('/src/library/library.html'));
       await waitForElement(driver!, '#bookmarkList', 5000);
 
       // Create test content
@@ -627,7 +627,7 @@ async function main(): Promise<void> {
 
     // Test 7: Test search functionality
     await runTest('Search for bookmarks', async () => {
-      await driver!.get(getExtensionUrl('/src/explore/explore.html'));
+      await driver!.get(getExtensionUrl('/src/library/library.html'));
       await waitForElement(driver!, '#searchInput', 5000);
 
       // Set search query
@@ -654,7 +654,7 @@ async function main(): Promise<void> {
 
     // Test 8: View switching
     await runTest('View switching between list and search', async () => {
-      await driver!.get(getExtensionUrl('/src/explore/explore.html'));
+      await driver!.get(getExtensionUrl('/src/library/library.html'));
       await waitForElement(driver!, '#listViewBtn', 5000);
 
       // Click search view

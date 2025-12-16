@@ -16,7 +16,6 @@ export default defineConfig({
       input: {
         popup: 'src/popup/popup.html',
         options: 'src/options/options.html',
-        explore: 'src/explore/explore.html',
         library: 'src/library/library.html',
         search: 'src/search/search.html',
         stumble: 'src/stumble/stumble.html',
