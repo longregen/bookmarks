@@ -109,7 +109,7 @@ Minimal popup focused on the primary action. Processing status is shown in Libra
 ├────────────┬────────────────────────────────┬───────────────────────────────┤
 │            │                                │                               │
 │  TAGS      │  BOOKMARKS              Sort ▼ │  DETAIL PANEL                 │
-│            │                                │                               │
+│            │                                │  (only if item is selected)   │
 │  All   156 │ ┌────────────────────────────┐ │  Article Title                │
 │  Untagged  │ │ Title of Article        ●  │ │  ───────────────────────────  │
 │        23  │ │ example.com · #work #learn │ │  example.com                  │
@@ -828,25 +828,20 @@ The following proposals address gaps in the current design, with particular focu
 │                                                       │
 │  HEALTH SUMMARY                                       │
 │  ─────────────────────────────────────────────────   │
-│  ✓ API Connection: Healthy                           │
-│  ✓ Local Storage: 234 MB used                        │
-│  ✓ Processing Queue: Empty                           │
+│  - API Connection: Healthy                           │
+│  - Local Storage: 234 MB used                        │
+│  - Processing Queue: Empty                           │
 │                                                       │
 │  ─────────────────────────────────────────────────   │
 │                                                       │
-│  RECENT ACTIVITY (last 24h)                          │
-│  ─────────────────────────────────────────────────   │
-│  ✓ 12 bookmarks processed successfully               │
-│  ✓ 0 failures                                        │
-│                                                       │
-│  ─────────────────────────────────────────────────   │
-│                                                       │
-│  ▶ Show detailed job history                         │
+│  Full Job history                                    │
+-   -----------------------                             |
+-   (list of jobs, similar to lists of bookmarks)       |
 │                                                       │
 └───────────────────────────────────────────────────────┘
 ```
 
-**Key insight**: The default view is a **health summary**, not a job list. Detailed job history is one click deeper ("Show detailed job history"), reinforcing that this is diagnostic territory.
+**Key insight**: The default view is a **health summary**, with a full list of jobs. Detailed job history is one click deeper.
 
 ---
 
@@ -859,9 +854,9 @@ The following proposals address gaps in the current design, with particular focu
 ```
 Level 1: Health indicator (global header)
     ↓ click
-Level 2: Health summary (what you see above)
-    ↓ "Show detailed job history"
-Level 3: Full job timeline (the current jobs dashboard, but cleaner)
+Level 2: Health summary and List of jobs
+    ↓ click on one job
+Level 3: Full job details on right sidepanel
 ```
 
 **Level 3 Layout:**
@@ -871,53 +866,22 @@ Level 3: Full job timeline (the current jobs dashboard, but cleaner)
 │  ← Back to Summary                                    │
 ├───────────────────────────────────────────────────────┤
 │                                                       │
-│  JOB TIMELINE                          Filter ▼      │
-│                                                       │
-│  Today                                                │
-│  ─────────────────────────────────────────────────   │
-│  14:32  ✓ Understanding React Hooks                  │
-│            Processed in 4.2s                         │
-│                                                       │
-│  14:30  ✓ CSS Grid Complete Guide                    │
-│            Processed in 3.8s                         │
-│                                                       │
-│  Yesterday                                            │
-│  ─────────────────────────────────────────────────   │
-│  ...                                                  │
-│                                                       │
+│  JOB TIMELINE                         
+|
+│  14:42  ✓ Processing done
+|         ▶ Details 
+│  14:41  ✓ Embeddings stored
+|         ▶ Details 
+│  14:41  ✓ Q/A Generated 
+|         ▶ Details 
+│  14:40  ✓ Transformed to Markdown
+|         ▶ Details 
+│  14:32  ✓ Captured page 
+|         ▶ Details 
 └───────────────────────────────────────────────────────┘
 ```
 
-Jobs are grouped by date, collapsed by default, showing only title + time + status. Expand for details.
-
----
-
-## Improvement 4: Inline Processing Status in Library Cards
-
-**Problem**: Users must navigate to Jobs Dashboard to see what's processing.
-
-**Proposal**: Processing status is **inline** in Library, but details are "under the hood."
-
-```
-┌──────────────────────────────────────────────────┐
-│ Understanding React Hooks                   ◐ 67%│
-│ reactjs.org · 2m ago                             │
-│ Generating Q&A pairs...                          │  ← Inline step indicator
-└──────────────────────────────────────────────────┘
-```
-
-**Click the processing indicator (◐)** to see the bookmark's job details in a tooltip or mini-panel — not a full page navigation.
-
-```
-┌────────────────────────────────┐
-│ Processing: 67%                │
-│ ─────────────────────────────  │
-│ ✓ Page captured                │
-│ ✓ Content extracted (2,340 ch) │
-│ ● Generating Q&A pairs...      │
-│ ○ Creating embeddings          │
-└────────────────────────────────┘
-```
+Job details are shown by time decreasing, collapsed by default, showing time + status. Expand for details.
 
 ---
 
@@ -946,8 +910,8 @@ Jobs are grouped by date, collapsed by default, showing only title + time + stat
 │  ▼ Processing Info                      │
 │  ─────────────────────────────────────  │
 │  Captured: Dec 15, 2024 at 2:32 PM      │
-│  Processing time: 4.2 seconds           │
-│  Content: 2,340 characters              │
+│  HTML: 25,324 bytes                     |
+│  Markdown: 2,340 characters             │
 │  Q&A pairs: 5 generated                 │
 │  Embeddings: 1536 dimensions            │
 │  Status: Complete ✓                     │
@@ -969,7 +933,7 @@ This is the "under the hood" info for a specific bookmark.
 ┌──────────────────────────────────────────────────┐
 │ Article That Failed                          ✕   │
 │ example.com · 2h ago                             │
-│ ⚠️ Processing failed · [Retry] [View Details]    │
+│ ⚠️ Markdown processing failed · [Retry] [View Details]    │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -982,20 +946,20 @@ This is the "under the hood" info for a specific bookmark.
 │                                                       │
 │  ┌─────────────────────────────────────────────────┐ │
 │  │ Article That Failed                             │ │
-│  │ API rate limit exceeded                         │ │
-│  │ [Retry Now]  [Retry All]  [Dismiss]            │ │
+│  │ QA Generation: API key not found             │ │
+│  │ [Retry Now]  [Dismiss]            │ │
 │  └─────────────────────────────────────────────────┘ │
 │                                                       │
 │  ┌─────────────────────────────────────────────────┐ │
 │  │ Another Failed Article                          │ │
-│  │ Network timeout                                  │ │
+│  │ Embedding: Network timeout                                  │ │
 │  │ [Retry Now]  [Dismiss]                          │ │
 │  └─────────────────────────────────────────────────┘ │
 │                                                       │
 └───────────────────────────────────────────────────────┘
 ```
 
-Errors are **actionable**, not just informational.
+Errors are **actionable**, not just informational. Also, the UX must make clear which step of the processing failed.
 
 ---
 
@@ -1055,101 +1019,3 @@ Errors are **actionable**, not just informational.
 │                                                       │
 │  [View in Library]              [Import More]        │
 ```
-
----
-
-## Improvement 8: Status Filter as a Secondary Concern in Library
-
-**Problem**: Current design has status filters in Search sidebar, but not Library.
-
-**Proposal**: Add a subtle **status filter** in Library, but default to "All" (including processing).
-
-```
-TAGS                              │  BOOKMARKS        All ▼  Sort ▼
-                                  │
-All               156             │  ┌─ All ──────────────────────┐
-Untagged           23             │  │ ✓ All (156)                │
-────────────────────              │  │   Complete (142)           │
-#work              24             │  │   Processing (3)           │
-#learning          18             │  │   Pending (8)              │
-...                               │  │   Errors (3)               │
-                                  │  └─────────────────────────────┘
-```
-
-This keeps the focus on content (tags) while allowing status filtering when needed.
-
----
-
-## Improvement 9: Activity Feed in Popup for Quick Glance
-
-**Problem**: Popup only shows save action and stats. Users open the full UI to check status.
-
-**Proposal**: Add a minimal **activity feed** to the popup.
-
-```
-┌─────────────────────────────────────┐
-│  Bookmarks by Localforge            │
-├─────────────────────────────────────┤
-│                                     │
-│  ┌─────────────────────────────┐    │
-│  │   📌  Save This Page        │    │
-│  └─────────────────────────────┘    │
-│                                     │
-│  RECENT ACTIVITY                    │
-│  ─────────────────────────────────  │
-│  ✓ React Hooks Guide        · 2m   │
-│  ◐ CSS Grid Tutorial    67% · now  │
-│                                     │
-├─────────────────────────────────────┤
-│  [Library] [Search] [Stumble] [⚙️]  │
-└─────────────────────────────────────┘
-```
-
-This gives a **quick glance** at what's happening without leaving the popup.
-
----
-
-## Improvement 10: Unified "Activity" Mental Model
-
-**Problem**: Jobs, processing status, and recent bookmarks are separate concepts in the current design.
-
-**Proposal**: Unify under an **"Activity"** mental model with these states:
-
-| State | Icon | Meaning | Where Visible |
-|-------|------|---------|---------------|
-| Saving | ◌ | Being captured | Popup activity |
-| Pending | ○ | Queued for processing | Library cards, Popup |
-| Processing | ◐ | AI is working | Library cards, Popup, Health indicator |
-| Complete | ● | Ready to search | Library cards (default) |
-| Error | ✕ | Needs attention | Health indicator, Library cards |
-
-**Key insight**: "Jobs" is an implementation detail. Users think in terms of "What's happening to my bookmark?" The activity model answers that question at every touchpoint.
-
----
-
-## Summary: The "Under the Hood" Paradigm
-
-These improvements follow a core principle: **When everything works, the machinery should be invisible.**
-
-1. **Health indicator** (global) — Ambient awareness
-2. **Inline status** (Library cards) — Context-aware progress
-3. **Diagnostics panel** (via health indicator) — Intentional deep dive
-4. **Detail panel processing info** (collapsed) — Bookmark-specific details
-5. **Error recovery flow** — Actionable, not just informational
-
-The Jobs Dashboard transforms from a primary navigation destination into a **diagnostic tool** that power users can access when they need to debug. For most users, they'll see the green health indicator and never think about jobs at all.
-
-```
-USER JOURNEY (happy path):
-  Save page → See ◐ in Library → Wait → See ● → Search!
-
-USER JOURNEY (debugging):
-  See ✕ in header → Click → "2 items need attention" →
-  [Retry All] → See ◐ → Wait → See ● → Problem solved!
-
-USER JOURNEY (power user):
-  Want to know details → Click health indicator →
-  "Show detailed job history" → Full timeline view
-```
-
-This is "looking under the hood" — you lift it when something sounds wrong, not as part of daily driving.
