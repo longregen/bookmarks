@@ -36,10 +36,10 @@
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^27.3.0",
     "puppeteer-core": "^24.33.0",
-    "selenium-webdriver": "^4.27.0",
+    "selenium-webdriver": "^4.39.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vite": "^7.2.7",
-    "vitest": "^4.0.15"
+    "vite": "^7.3.0",
+    "vitest": "^4.0.16"
   }
 }
