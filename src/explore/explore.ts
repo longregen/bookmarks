@@ -6,6 +6,8 @@ import { createElement } from '../lib/dom';
 import { formatTimeAgoShort } from '../lib/time';
 import { onThemeChange, applyTheme } from '../shared/theme';
 import { initExtension } from '../lib/init-extension';
+import { openExtensionPage } from '../lib/tabs';
+import { parseMarkdown } from '../lib/markdown';
 
 // Constants
 const RESULTS_PER_PAGE = 10;
@@ -688,7 +690,7 @@ exportBtn.addEventListener('click', exportCurrentBookmark);
 debugHtmlBtn.addEventListener('click', debugCurrentBookmarkHtml);
 navSettings.addEventListener('click', (e) => {
   e.preventDefault();
-  window.location.href = chrome.runtime.getURL('src/options/options.html');
+  openExtensionPage('src/options/options.html');
 });
 searchBtn.addEventListener('click', performSearch);
 
@@ -705,28 +707,9 @@ searchInput.addEventListener('keypress', (e) => {
   }
 });
 
-// Simple markdown renderer (basic implementation)
+// Markdown renderer - uses shared markdown utility with marked library
 function marked(markdown: string): string {
-  let html = markdown
-    // Headers
-    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-    // Bold
-    .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-    // Italic
-    .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-    // Links
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank">$1</a>')
-    // Code blocks
-    .replace(/```([\s\S]*?)```/gim, '<pre><code>$1</code></pre>')
-    // Inline code
-    .replace(/`([^`]+)`/gim, '<code>$1</code>')
-    // Paragraphs
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/\n/g, '<br>');
-
-  return `<p>${html}</p>`;
+  return parseMarkdown(markdown);
 }
 
 // Initialize theme
