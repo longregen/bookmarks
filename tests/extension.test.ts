@@ -174,9 +174,11 @@ async function testChromeExtension(): Promise<void> {
       const page = await browser!.newPage();
       await page.goto(`chrome-extension://${extensionId}/src/popup/popup.html`);
 
-      // Check for essential elements
+      // Check for essential elements (redesigned popup has nav buttons)
       await page.waitForSelector('#saveBtn', { timeout: 5000 });
-      await page.waitForSelector('#exploreBtn', { timeout: 5000 });
+      await page.waitForSelector('#navLibrary', { timeout: 5000 });
+      await page.waitForSelector('#navSearch', { timeout: 5000 });
+      await page.waitForSelector('#navStumble', { timeout: 5000 });
 
       const title = await page.title();
       if (!title.includes('Bookmark')) {
@@ -242,14 +244,6 @@ async function testChromeExtension(): Promise<void> {
 
     // Test 5: Save a bookmark
     await runTest('Save a bookmark from test page', async () => {
-      // Get initial bookmark count
-      const popupPage = await browser!.newPage();
-      await popupPage.goto(`chrome-extension://${extensionId}/src/popup/popup.html`);
-      await popupPage.waitForSelector('#totalCount', { timeout: 5000 });
-      const initialCountText = await popupPage.$eval('#totalCount', el => el.textContent);
-      const initialCount = parseInt(initialCountText || '0', 10);
-      await popupPage.close();
-
       // Send SAVE_BOOKMARK message from a page context
       const testUrl = 'https://example.com/test-article';
       const testTitle = 'Test Article About AI';
@@ -286,22 +280,8 @@ async function testChromeExtension(): Promise<void> {
         throw new Error(`Failed to save bookmark: ${(result as any).error || 'Unknown error'}`);
       }
 
-      // Verify bookmark was saved by checking updated count
-      const verifyPage = await browser!.newPage();
-      await verifyPage.goto(`chrome-extension://${extensionId}/src/popup/popup.html`);
-      await verifyPage.waitForSelector('#totalCount', { timeout: 5000 });
-
-      // Wait a bit for stats to update
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const newCountText = await verifyPage.$eval('#totalCount', el => el.textContent);
-      const newCount = parseInt(newCountText || '0', 10);
-
-      if (newCount !== initialCount + 1) {
-        throw new Error(`Expected count to increase by 1 (from ${initialCount} to ${initialCount + 1}), but got ${newCount}`);
-      }
-
       // Verify bookmark appears in explore page
+      const verifyPage = await browser!.newPage();
       await verifyPage.goto(`chrome-extension://${extensionId}/src/explore/explore.html`);
       await verifyPage.waitForSelector('#bookmarkList', { timeout: 5000 });
 
