@@ -1,9 +1,6 @@
 import { db, JobType, JobStatus } from '../db/schema';
 import { createJob, updateJob, completeJob } from './jobs';
 
-/**
- * Validation result for a single URL
- */
 export interface UrlValidation {
   original: string;
   normalized: string;
@@ -11,20 +8,12 @@ export interface UrlValidation {
   error?: string;
 }
 
-/**
- * Result of URL validation
- */
 export interface ValidationResult {
   validUrls: string[];
   invalidUrls: UrlValidation[];
   duplicates: string[];
 }
 
-/**
- * Validate and normalize a list of URLs
- * @param urlsText Raw text containing URLs (one per line)
- * @returns Validation result with valid, invalid, and duplicate URLs
- */
 export function validateUrls(urlsText: string): ValidationResult {
   const lines = urlsText
     .split('\n')
@@ -44,7 +33,6 @@ export function validateUrls(urlsText: string): ValidationResult {
       continue;
     }
 
-    // Check for duplicates
     if (seenUrls.has(validation.normalized)) {
       duplicates.push(validation.normalized);
       continue;
@@ -61,18 +49,10 @@ export function validateUrls(urlsText: string): ValidationResult {
   };
 }
 
-/**
- * Validate and normalize a single URL
- * @param url URL to validate
- * @returns Validation result
- */
 export function validateSingleUrl(url: string): UrlValidation {
   const original = url;
-
-  // Normalize for scheme checks
   const trimmedLower = url.trim().toLowerCase();
 
-  // Reject dangerous URL schemes
   if (trimmedLower.startsWith('javascript:')) {
     return {
       original,
@@ -109,17 +89,14 @@ export function validateSingleUrl(url: string): UrlValidation {
     };
   }
 
-  // Add https:// if no protocol specified
   let normalized = url;
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     normalized = 'https://' + url;
   }
 
-  // Try to parse as URL
   try {
     const urlObj = new URL(normalized);
 
-    // Only allow http and https
     if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
       return {
         original,
@@ -129,7 +106,6 @@ export function validateSingleUrl(url: string): UrlValidation {
       };
     }
 
-    // Ensure there's a host
     if (!urlObj.host) {
       return {
         original,
@@ -154,13 +130,7 @@ export function validateSingleUrl(url: string): UrlValidation {
   }
 }
 
-/**
- * Create bulk import job and child jobs for each URL
- * @param urls List of validated URLs to import
- * @returns Parent job ID
- */
 export async function createBulkImportJob(urls: string[]): Promise<string> {
-  // Create parent job
   const parentJob = await createJob({
     type: JobType.BULK_URL_IMPORT,
     status: JobStatus.IN_PROGRESS,
@@ -172,8 +142,7 @@ export async function createBulkImportJob(urls: string[]): Promise<string> {
     },
   });
 
-  // Create child job for each URL
-  const childJobs = await Promise.all(
+  await Promise.all(
     urls.map(url =>
       createJob({
         type: JobType.URL_FETCH,
@@ -187,11 +156,6 @@ export async function createBulkImportJob(urls: string[]): Promise<string> {
   return parentJob.id;
 }
 
-/**
- * Decode common HTML entities to their text representation
- * @param text Text with HTML entities
- * @returns Decoded text
- */
 function decodeHtmlEntities(text: string): string {
   return text
     .replace(/&lt;/g, '<')
@@ -205,25 +169,14 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&amp;/g, '&');
 }
 
-/**
- * Extract title from HTML string
- * @param html HTML content
- * @returns Extracted title or empty string
- */
 export function extractTitleFromHtml(html: string): string {
   const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
   if (titleMatch && titleMatch[1]) {
-    // Decode HTML entities using regex-based approach (CSP-safe)
     return decodeHtmlEntities(titleMatch[1]).trim();
   }
   return '';
 }
 
-/**
- * Check if a URL already exists in the bookmarks
- * @param url URL to check
- * @returns True if bookmark exists
- */
 export async function bookmarkExists(url: string): Promise<boolean> {
   const existing = await db.bookmarks.where('url').equals(url).first();
   return !!existing;
