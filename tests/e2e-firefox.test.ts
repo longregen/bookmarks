@@ -680,20 +680,30 @@ async function main(): Promise<void> {
       }
     });
 
-    // Test 9: Popup stats display
-    await runTest('Popup displays stats correctly', async () => {
+    // Test 9: Popup page loads with navigation
+    await runTest('Popup page loads with navigation buttons', async () => {
       await driver!.get(getExtensionUrl('/src/popup/popup.html'));
-      await waitForElement(driver!, '#totalCount', 5000);
-      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      const totalCount = await getElementText(driver!, '#totalCount');
-      const pendingCount = await getElementText(driver!, '#pendingCount');
-      const completeCount = await getElementText(driver!, '#completeCount');
+      // Wait for save button to load
+      await waitForElement(driver!, '#saveBtn', 5000);
 
-      if (isNaN(parseInt(totalCount || '')) ||
-          isNaN(parseInt(pendingCount || '')) ||
-          isNaN(parseInt(completeCount || ''))) {
-        throw new Error('Stats are not valid numbers');
+      // Wait for navigation buttons to load
+      await waitForElement(driver!, '#navLibrary', 5000);
+      await waitForElement(driver!, '#navSearch', 5000);
+      await waitForElement(driver!, '#navStumble', 5000);
+      await waitForElement(driver!, '#navSettings', 5000);
+
+      // Verify buttons are present
+      const saveBtnElements = await driver!.findElements(By.id('saveBtn'));
+      const navLibraryElements = await driver!.findElements(By.id('navLibrary'));
+      const navSearchElements = await driver!.findElements(By.id('navSearch'));
+      const navStumbleElements = await driver!.findElements(By.id('navStumble'));
+      const navSettingsElements = await driver!.findElements(By.id('navSettings'));
+
+      if (saveBtnElements.length === 0 || navLibraryElements.length === 0 ||
+          navSearchElements.length === 0 || navStumbleElements.length === 0 ||
+          navSettingsElements.length === 0) {
+        throw new Error('Popup navigation buttons not found');
       }
     });
 

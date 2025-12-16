@@ -676,28 +676,32 @@ async function main(): Promise<void> {
       await page.close();
     });
 
-    // Test 9: Popup stats display
-    await runTest('Popup displays stats correctly', async () => {
+    // Test 9: Popup page loads with navigation
+    await runTest('Popup page loads with navigation buttons', async () => {
       const page = await browser!.newPage();
       await page.goto(getExtensionUrl(extensionId, '/src/popup/popup.html'));
 
-      await page.waitForSelector('#totalCount', { timeout: 5000 });
+      // Wait for save button to load
+      await page.waitForSelector('#saveBtn', { timeout: 5000 });
 
-      // Wait for stats to load
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Wait for navigation buttons to load
+      await page.waitForSelector('#navLibrary', { timeout: 5000 });
+      await page.waitForSelector('#navSearch', { timeout: 5000 });
+      await page.waitForSelector('#navStumble', { timeout: 5000 });
+      await page.waitForSelector('#navSettings', { timeout: 5000 });
 
-      const totalCount = await page.$eval('#totalCount', el => el.textContent);
-      const pendingCount = await page.$eval('#pendingCount', el => el.textContent);
-      const completeCount = await page.$eval('#completeCount', el => el.textContent);
+      // Verify buttons are present and clickable
+      const saveBtn = await page.$('#saveBtn');
+      const navLibrary = await page.$('#navLibrary');
+      const navSearch = await page.$('#navSearch');
+      const navStumble = await page.$('#navStumble');
+      const navSettings = await page.$('#navSettings');
 
-      // Verify stats are numbers
-      if (isNaN(parseInt(totalCount || '')) ||
-          isNaN(parseInt(pendingCount || '')) ||
-          isNaN(parseInt(completeCount || ''))) {
-        throw new Error('Stats are not valid numbers');
+      if (!saveBtn || !navLibrary || !navSearch || !navStumble || !navSettings) {
+        throw new Error('Popup navigation buttons not found');
       }
 
-        await page.close();
+      await page.close();
     });
 
     // Test 10: Bulk URL Import
