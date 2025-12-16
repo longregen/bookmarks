@@ -1,4 +1,4 @@
-# UX Redesign: Final Specification
+# UX Redesign
 
 ## Vision
 
@@ -34,7 +34,7 @@ Transform **Bookmarks by Localforge** into a knowledge discovery tool with four 
    └─────────┘  └─────────┘    └─────────┘    └─────────┘         │
         │            │               │               │            │
         └────────────┴───────┬───────┴───────────────┘            │
-                             │                                     │
+                             │                                    │
                     ┌────────┴────────┐                           │
                     │  DETAIL PANEL   │ ◄─────────────────────────┘
                     │ (shared across  │
@@ -49,16 +49,27 @@ Transform **Bookmarks by Localforge** into a knowledge discovery tool with four 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                                                                         │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌──────────┐    Bookmarks by      │
-│  │ Library │ │ Search  │ │ Stumble │ │ Settings │      Localforge      │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌──────────┐    Bookmarks by       │
+│  │ Library │ │ Search  │ │ Stumble │ │ Settings │      Localforge       │
 │  └─────────┘ └─────────┘ └─────────┘ └──────────┘                       │
 │   ▔▔▔▔▔▔▔▔▔                                                             │
-│   (active)                                                               │
+│   (active)                                                              │
 └─────────────────────────────────────────────────────────────────────────┘
        56px height, 16px horizontal padding
 ```
 
 Navigation follows F-pattern reading with left-aligned nav tabs and right-aligned brand.
+
+---
+
+## Date Formatting Rules
+
+Dates are displayed contextually based on age:
+- **< 2 weeks**: Relative time (e.g., "2h ago", "3 days ago")
+- **< 12 months**: Month and day (e.g., "Oct 12")
+- **≥ 12 months**: Full date (e.g., "2024-12-24")
+
+This applies consistently across Library cards, Search results, Stumble cards, and Detail panels.
 
 ---
 
@@ -124,7 +135,7 @@ Minimal popup focused on the primary action. Processing status is shown in Libra
 │            │                                │                               │
 │            │                                │  ───────────────────────────  │
 │            │                                │  [Debug] [Export] [Delete]    │
-│   200px    │           350px                │         flex: 1 (max 680px)   │
+│   200px    │           350px                │  flex: 1 (max width 960px)    │
 └────────────┴────────────────────────────────┴───────────────────────────────┘
 ```
 
@@ -154,7 +165,7 @@ Optimized horizontal space with status right-aligned on title row:
 ```
 ┌──────────────────────────────────────────────┐
 │ Title of the Article                      ●  │  ← Status right-aligned
-│ example.com · 2h · #work #learning           │  ← URL, time, tags inline
+│ example.com · 2h ago · #work #learning       │  ← URL, time, tags inline
 └──────────────────────────────────────────────┘
 ```
 
@@ -169,11 +180,11 @@ Optimized horizontal space with status right-aligned on title row:
 When space is constrained, stack vertically:
 
 ```
-┌────────────────────────────────────┐
-│ Title of the Article            ●  │  ← Color dot only
-│ example.com · 2h                   │
-│ #work #learning                    │
-└────────────────────────────────────┘
+┌────────────────────────────────┐
+│ Title of the Article        ●  │  ← Color dot only
+│ example.com · Oct 12           │
+│ #work #learning                │
+└────────────────────────────────┘
 ```
 
 ### Tag Editing in Detail Panel
@@ -182,9 +193,9 @@ Click on tags section to enter edit mode. Type to filter existing tags or create
 
 ```
 TAGS
-┌──────┐ ┌──────────┐ ┌─────────────────────────┐
-│#work │ │#learning │ │ type to add...          │
-└──────┘ └──────────┘ └─────────────────────────┘
+┌─────────────────────────────────────────┐
+│#work | #learning | type to add...       │
+└─────────────────────────────────────────┘
                               │
                               ▼ (autocomplete dropdown)
                       ┌─────────────────────────┐
@@ -195,8 +206,8 @@ TAGS
                       └─────────────────────────┘
 ```
 
-- Click tag chip `×` to remove
 - Type in input to filter/create
+- Normal input erasing with backspace drops tags
 - Enter or click to add
 - Creates tag automatically if doesn't exist
 
@@ -208,21 +219,23 @@ TAGS
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  [Library] [Search] [Stumble] [Settings]             Bookmarks by Localforge│
+│  [Library] [Search] [Stumble] [Settings]            Bookmarks by Localforge │
 ├────────────┬────────────────────────────────┬───────────────────────────────┤
 │            │                                │                               │
 │  FILTERS   │  ┌──────────────────────────┐  │  DETAIL PANEL                 │
 │            │  │ Ask anything...       🔍 │  │                               │
 │  Tags:     │  └──────────────────────────┘  │  (same as Library)            │
+│  ☑ Select All │                             │                               │
 │  ☐ #work   │                                │                               │
 │  ☐ #learn  │  12 results · Relevance ▼      │                               │
 │  ☐ #read   │                                │                               │
 │  ☐ #ref    │ ┌────────────────────────────┐ │                               │
 │            │ │ 94%  Neural Networks    ●  │ │                               │
 │  ────────  │ │ arxiv.org · #research #ml  │ │                               │
-│            │ │                             │ │                               │
-│  Status:   │ │ Q: What are the components │ │                               │
-│  ☑ Complete│ │    of neural networks?     │ │                               │
+│            │ │ Oct 12                      │ │                               │
+│  Status:   │ │                            │ │                               │
+│  ☑ Select all│ │ Q: What are the components │ │                               │
+│  ☐ Complete│ │    of neural networks?     │ │                               │
 │  ☐ Pending │ │ A: Neural networks consist │ │                               │
 │  ☐ Error   │ │    of layers of nodes...   │ │                               │
 │            │ └────────────────────────────┘ │                               │
@@ -230,6 +243,7 @@ TAGS
 │            │ ┌────────────────────────────┐ │                               │
 │            │ │ 87%  Deep Learning      ●  │ │                               │
 │            │ │ deeplearning.ai · #tutorial│ │                               │
+│            │ │ 3 days ago                  │ │                               │
 │            │ │                             │ │                               │
 │            │ │ Q: How does gradient       │ │                               │
 │            │ │    descent work?           │ │                               │
@@ -247,6 +261,7 @@ TAGS
 FILTERS
 
 Tags:
+☑ Select all
 ☐ #work
 ☐ #learning
 ☐ #reading
@@ -256,21 +271,22 @@ Tags:
 ────────────────────────
 
 Status:
-☑ Complete
+☑ Select all
+☐ Complete
 ☐ Pending
 ☐ Error
 ```
 
-Checkboxes for multi-select filtering. Matches Library sidebar pattern.
+Checkboxes for multi-select filtering. Matches Library sidebar pattern. Select all toggling/untoggling clears all the rest.
 
 ### Search Result Card
 
-Shows relevance percentage and best matching Q&A:
+Shows relevance percentage, date, and best matching Q&A:
 
 ```
 ┌──────────────────────────────────────────────────┐
 │ 94%  Introduction to Neural Networks          ●  │
-│ arxiv.org · #research #ml                        │
+│ arxiv.org · #research #ml · Oct 12               │
 │                                                  │
 │ Q: What are the fundamental components?          │
 │ A: Neural networks consist of interconnected     │
@@ -282,9 +298,9 @@ Click card to open detail panel (same panel as Library).
 
 ### Search History
 
-- Stored in memory
-- only shown as  autocomplete
-- setting to enable/disable autocomplete suggestions, erase history
+- Stored in database
+- Only shown as autocomplete
+- Setting to enable/disable autocomplete suggestions, erase history
 
 ---
 
@@ -302,12 +318,12 @@ Matches Library structure exactly. Simple shuffle action at top, in line with sh
 │  FILTER    │  ┌──────────────────────────┐  │  DETAIL PANEL                 │
 │            │  │  ↻ Shuffle               │  │                               │
 │  Tags:     │  └──────────────────────────┘  │  (same as Library)            │
-│  ☐ #work   │  Showing 10 random bookmarks   │                               │
-│  ☐ #learn  │                                │                               │
-│  ☐ #read   │ ┌────────────────────────────┐ │                               │
-│  ☐ #ref    │ │ WebSockets Guide        ●  │ │                               │
-│  ☐ #tutor  │ │ mozilla.org · #reference   │ │                               │
-│            │ │ Saved 3 months ago          │ │                               │
+│  ☑ Select all │  Showing 10 random bookmarks   │                            │
+│  ☐ #work   │                                │                               │
+│  ☐ #learn  │ ┌────────────────────────────┐ │                               │
+│  ☐ #read   │ │ WebSockets Guide        ●  │ │                               │
+│  ☐ #ref    │ │ mozilla.org · #reference   │ │                               │
+│  ☐ #tutor  │ │ Saved 3 months ago          │ │                               │
 │            │ │                             │ │                               │
 │            │ │ Q: When use WebSockets vs   │ │                               │
 │            │ │    HTTP polling?            │ │                               │
@@ -336,6 +352,7 @@ Matches Library structure exactly. Simple shuffle action at top, in line with sh
 FILTER
 
 Tags:
+☑ Select all
 ☐ #work
 ☐ #learning
 ☐ #reading
@@ -343,7 +360,7 @@ Tags:
 ☐ #tutorial
 ```
 
-Same checkbox pattern as Search. Filter limits random selection to checked tags.
+Same checkbox pattern as Search. Filter limits random selection to checked tags. Selecting all clears all the rest.
 
 ### Stumble Card
 
@@ -377,7 +394,7 @@ async function getStumbleBookmarks(
   // Filter by selected tags if any
   if (selectedTags.length > 0) {
     const taggedBookmarkIds = await db.bookmarkTags
-      .where('tagId').anyOf(selectedTags)
+      .where('tagName').anyOf(selectedTags)
       .primaryKeys()
       .then(keys => [...new Set(keys.map(k => k[0]))]);
     bookmarks = bookmarks.filter(b => taggedBookmarkIds.includes(b.id));
@@ -485,13 +502,17 @@ API Key
 DATA MANAGEMENT
 ───────────────────────────────────────────────────
 
-Import & Export
+Import
 
 ┌─────────────────────┐  ┌─────────────────────┐
 │ 📁 Import from File │  │ 🔗 Import URLs      │
 └─────────────────────┘  └─────────────────────┘
 
-[Export All Bookmarks]
+Export
+
+┌─────────────────────┐  ┌─────────────────────┐
+│ () Export All       │  │ () Export Settings  │
+└─────────────────────┘  └─────────────────────┘
 
 ───────────────────────────────────────────────────
 
@@ -520,7 +541,7 @@ Version 3.4.0
 Your bookmarks are stored locally. Only extracted
 content is sent to your configured API.
 
-[Documentation]  [Report Issue]  [Privacy]
+[Website]  [Source code]  [Report Issue]
 ```
 
 ---
@@ -572,25 +593,26 @@ The same detail panel component is used across Library, Search, and Stumble. It 
 
 ## Data Model
 
-### Tags Table
-
-```typescript
-interface Tag {
-  id: string;
-  name: string;        // Unique, lowercase, hyphens for spaces
-  color?: string;      // Optional hex color
-  createdAt: Date;
-  updatedAt: Date;
-}
-```
-
 ### BookmarkTags Table
+
+Tags are stored directly in the BookmarkTags table (no separate Tags table):
 
 ```typescript
 interface BookmarkTag {
   bookmarkId: string;
-  tagId: string;
+  tagName: string;     // Tag stored directly, lowercase, hyphens for spaces
   addedAt: Date;
+}
+```
+
+### SearchHistory Table
+
+```typescript
+interface SearchHistory {
+  id: string;
+  query: string;
+  resultCount: number;
+  createdAt: Date;
 }
 ```
 
@@ -603,8 +625,8 @@ db.version(3).stores({
   questionAnswers: 'id, bookmarkId, createdAt, updatedAt',
   jobs: 'id, bookmarkId, parentJobId, status, type, [parentJobId+status], [bookmarkId+type]',
   settings: 'key, createdAt, updatedAt',
-  tags: 'id, &name, createdAt, updatedAt',
-  bookmarkTags: '[bookmarkId+tagId], bookmarkId, tagId, addedAt'
+  bookmarkTags: '[bookmarkId+tagName], bookmarkId, tagName, addedAt',
+  searchHistory: 'id, query, createdAt'
 });
 ```
 
@@ -627,43 +649,136 @@ db.version(3).stores({
 Each advanced feature requires dedicated tests:
 
 ### Tag Editor Tests
-```typescript
-describe('TagEditor', () => {
-  it('displays existing tags as chips');
-  it('removes tag when chip × is clicked');
-  it('shows autocomplete dropdown on input focus');
-  it('filters autocomplete results while typing');
-  it('adds existing tag on selection');
-  it('creates new tag when typing non-existent name');
-  it('prevents duplicate tags on same bookmark');
-  it('handles empty tag name gracefully');
-});
-```
+- Display existing tags
+- Remove tags via backspace
+- Show autocomplete dropdown
+- Filter autocomplete results
+- Prevent duplicate tags
 
 ### Stumble Algorithm Tests
-```typescript
-describe('StumbleAlgorithm', () => {
-  it('returns exactly N bookmarks');
-  it('only includes complete bookmarks');
-  it('filters by selected tags');
-  it('returns different results on shuffle');
-  it('includes one random Q&A per bookmark');
-  it('handles empty bookmark collection');
-  it('handles bookmarks with no Q&A pairs');
-});
-```
+- Return exactly N bookmarks
+- Only include complete bookmarks
+- Filter by selected tags
+- Return different results on shuffle
+- Include one random Q&A per bookmark
+- Handle empty collection
+- Handle bookmarks with no Q&A pairs
 
 ### Search Tests
-```typescript
-describe('Search', () => {
-  it('performs semantic search on query');
-  it('filters results by tag checkboxes');
-  it('filters results by status checkboxes');
-  it('sorts by relevance');
-  it('stores search in history (memory)');
-  it('limits history to 10 queries');
-});
+- Perform semantic search
+- Filter by tag checkboxes
+- Filter by status checkboxes
+- Sort by relevance
+- Store search in history
+- Limit history entries
+
+### Select All Toggle Tests
+- Toggle clears/selects all options
+- State persists across sessions
+- Works independently for tags and status
+
+---
+
+## Original Analysis
+
+### Identified Issues
+
+#### Spacing Inconsistencies
+- Inconsistent padding across pages (16px, 20px, 24px used interchangeably)
+- No unified spacing scale
+- Margins varied without clear system
+
+#### Typography Problems
+- H1 sizes varied: 28px (explore), 32px (options), 18px (popup)
+- Inconsistent font weights across similar elements
+- No defined type scale
+
+#### Button Styling Variations
+- Different padding, border-radius, and hover states
+- Primary/secondary distinction unclear in some contexts
+
+#### Card/Section Styling
+- Borders, shadows, and backgrounds varied between pages
+- No unified "card" component
+
+#### Navigation Patterns
+- Settings accessed differently from different pages
+- Back button behavior inconsistent
+- No unified header/nav pattern
+
+---
+
+## Design System Implementation
+
+### Spacing Scale (4px base unit)
+```css
+--space-1: 4px;
+--space-2: 8px;
+--space-3: 12px;
+--space-4: 16px;
+--space-5: 20px;
+--space-6: 24px;
+--space-7: 32px;
+--space-8: 40px;
+--space-9: 48px;
+--space-10: 64px;
 ```
+
+### Typography Scale
+```css
+--text-xs: 11px;
+--text-sm: 13px;
+--text-base: 14px;
+--text-md: 16px;
+--text-lg: 20px;
+--text-xl: 24px;
+--text-2xl: 28px;
+```
+
+### Theme-Aware Accent Text
+Added `--accent-text` variable for proper contrast on accent-colored backgrounds:
+- Light/Dark/Tufte themes: `#ffffff` (white on blue/red)
+- Terminal theme: `#000000` (black on bright green)
+
+---
+
+## User Instructions & Decisions
+
+### Branding
+- Brand name: **"Bookmarks by Localforge"**
+- Applied consistently across all page titles, headers, and about section
+
+### Navigation
+- Unified header navigation between Explore and Settings pages
+- Segmented control style tabs (Explore | Settings)
+- Navigation happens in **same tab** (not new tab)
+- Removed settings button from popup entirely
+
+### Removed Features
+- "Export All" button removed from explore page header
+- Back buttons removed from settings sidebar (redundant with unified nav)
+
+### Layout Approach
+**Use flex layout, not sticky positioning:**
+- Avoids height calculations
+- No z-index hacks
+- Header never hides content
+- Clean separation of scrollable content
+
+---
+
+## Expert UX Notes
+
+### Accessibility Considerations
+- `--accent-text` ensures WCAG contrast on accent backgrounds
+- Smooth scrolling respects user preferences via CSS
+- Focus states should remain visible (uses `--shadow-focus`)
+
+### Theme Support
+When adding new themes, ensure:
+1. All color variables are defined
+2. `--accent-text` provides readable contrast on `--accent-primary`
+3. Status colors (success, error, warning, info) have appropriate bg/text/border
 
 ---
 
@@ -671,7 +786,7 @@ describe('Search', () => {
 
 # Information Architecture Improvements: 10 Proposals
 
-The following proposals address gaps in the current REDESIGN.md, with particular focus on how job status inspection should feel like "looking under the hood" — a diagnostic view that ideally shows everything as complete, not a primary navigation concern.
+The following proposals address gaps in the current design, with particular focus on how job status inspection should feel like "looking under the hood" — a diagnostic view that ideally shows everything as complete, not a primary navigation concern.
 
 ---
 
