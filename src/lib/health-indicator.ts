@@ -1,5 +1,6 @@
 import { db, JobStatus } from '../db/schema';
 import { HEALTH_REFRESH_INTERVAL_MS } from './constants';
+import { openExtensionPage } from './tabs';
 
 export type HealthState = 'healthy' | 'processing' | 'idle' | 'error';
 
@@ -112,10 +113,23 @@ export function createHealthIndicator(container: HTMLElement): () => void {
     tooltip.style.opacity = '0';
   });
 
+  // Track current health state for click handling
+  let currentHealthState: HealthState = 'idle';
+
+  // Click handler to navigate to settings when in error state
+  indicator.addEventListener('click', () => {
+    if (currentHealthState === 'error') {
+      openExtensionPage('src/options/options.html');
+    }
+  });
+
   // Update function
   async function updateIndicator() {
     const health = await getHealthStatus();
     const style = getHealthIndicatorStyle(health.state);
+
+    // Update current health state
+    currentHealthState = health.state;
 
     // Update dot
     dot.textContent = style.symbol;
@@ -123,6 +137,9 @@ export function createHealthIndicator(container: HTMLElement): () => void {
 
     // Update classes for animation
     indicator.className = `health-indicator ${style.className}`;
+
+    // Make cursor pointer when in error state to indicate clickability
+    indicator.style.cursor = health.state === 'error' ? 'pointer' : 'default';
 
     // Update tooltip
     tooltip.textContent = health.message;
