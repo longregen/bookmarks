@@ -91,12 +91,13 @@ export class WebAdapter implements TestAdapter {
     return new PuppeteerPageHandle(page);
   }
 
-  getPageUrl(pageName: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index'): string {
+  getPageUrl(pageName: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs'): string {
     const paths: Record<string, string> = {
       library: '/src/library/library.html',
       search: '/src/search/search.html',
       options: '/src/options/options.html',
       stumble: '/src/stumble/stumble.html',
+      jobs: '/src/jobs/jobs.html',
       popup: '/src/web/index.html', // Web app doesn't have popup
       index: '/src/web/index.html',
     };
