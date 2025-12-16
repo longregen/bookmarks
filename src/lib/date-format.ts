@@ -1,10 +1,5 @@
 /**
- * Date formatting utilities for the redesigned UX
- */
-
-/**
  * Format a date as relative time (e.g., "2h ago", "3 days ago")
- * Used for dates less than 14 days old
  */
 function formatRelativeTime(date: Date, now = new Date()): string {
   const diffMs = now.getTime() - date.getTime();
