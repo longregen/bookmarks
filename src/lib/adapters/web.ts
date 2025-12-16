@@ -14,6 +14,10 @@ const DEFAULTS: ApiSettings = {
   webdavPassword: '',
   webdavPath: '/bookmarks',
   webdavEnabled: false,
+  // WebDAV sync state defaults
+  webdavSyncInterval: 15, // 15 minutes default
+  webdavLastSyncTime: '',
+  webdavLastSyncError: '',
 };
 
 const CORS_PROXIES = [
@@ -50,10 +54,14 @@ export const webAdapter: PlatformAdapter = {
       webdavPassword: map.webdavPassword ?? DEFAULTS.webdavPassword,
       webdavPath: map.webdavPath ?? DEFAULTS.webdavPath,
       webdavEnabled: map.webdavEnabled ?? DEFAULTS.webdavEnabled,
+      // WebDAV sync state
+      webdavSyncInterval: map.webdavSyncInterval ?? DEFAULTS.webdavSyncInterval,
+      webdavLastSyncTime: map.webdavLastSyncTime ?? DEFAULTS.webdavLastSyncTime,
+      webdavLastSyncError: map.webdavLastSyncError ?? DEFAULTS.webdavLastSyncError,
     };
   },
 
-  async saveSetting(key: keyof ApiSettings, value: string | boolean): Promise<void> {
+  async saveSetting(key: keyof ApiSettings, value: string | boolean | number): Promise<void> {
     // Use IndexedDB via Dexie - same as extension adapter
     const now = new Date();
     const existing = await db.settings.get(key);

@@ -1,5 +1,6 @@
 import { db } from '../db/schema';
 import { processBookmark } from './processor';
+import { triggerSyncIfEnabled } from '../lib/webdav-sync';
 
 let isProcessing = false;
 
@@ -45,6 +46,10 @@ export async function startProcessingQueue() {
 
       if (allPending.length === 0) {
         console.log('No pending bookmarks to process');
+        // Trigger sync when processing queue is empty
+        triggerSyncIfEnabled().catch(err => {
+          console.error('WebDAV sync after queue empty failed:', err);
+        });
         break;
       }
 

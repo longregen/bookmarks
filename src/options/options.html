@@ -321,6 +321,22 @@
                 </small>
               </div>
 
+              <!-- Sync Interval -->
+              <div class="form-group">
+                <label for="webdavSyncInterval">Auto-sync Interval (minutes)</label>
+                <input
+                  type="number"
+                  id="webdavSyncInterval"
+                  name="webdavSyncInterval"
+                  min="0"
+                  max="1440"
+                  placeholder="15"
+                />
+                <small class="help-text">
+                  How often to automatically sync (0 to disable auto-sync)
+                </small>
+              </div>
+
               <!-- Connection Status -->
               <div id="webdavConnectionStatus" class="connection-status hidden">
                 <span class="status-indicator"></span>
@@ -334,6 +350,18 @@
                 </button>
                 <button type="button" id="testWebdavBtn" class="btn btn-secondary">
                   Test Connection
+                </button>
+              </div>
+
+              <!-- Sync Status Section -->
+              <div id="syncStatusSection" class="sync-status-section">
+                <h4>Sync Status</h4>
+                <div id="syncStatusIndicator" class="sync-status-indicator">
+                  <span class="sync-status-icon"></span>
+                  <span class="sync-status-text">Not synced yet</span>
+                </div>
+                <button type="button" id="syncNowBtn" class="btn btn-secondary">
+                  Sync Now
                 </button>
               </div>
             </div>

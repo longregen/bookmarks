@@ -7,11 +7,40 @@ import { ensureOffscreenDocument } from '../lib/offscreen';
 import { resumeInterruptedJobs } from './job-resumption';
 import { setPlatformAdapter } from '../lib/platform';
 import { extensionAdapter } from '../lib/adapters/extension';
+import { triggerSyncIfEnabled } from '../lib/webdav-sync';
+import { getSettings } from '../lib/settings';
 
 // Initialize platform adapter immediately (required for API calls)
 setPlatformAdapter(extensionAdapter);
 
 console.log('Bookmark RAG service worker loaded');
+
+const WEBDAV_SYNC_ALARM = 'webdav-sync';
+
+/**
+ * Set up or update the WebDAV sync alarm based on settings
+ */
+async function setupSyncAlarm(): Promise<void> {
+  try {
+    const settings = await getSettings();
+
+    // Clear existing alarm
+    await chrome.alarms.clear(WEBDAV_SYNC_ALARM);
+
+    // Only set up alarm if WebDAV is enabled and interval > 0
+    if (settings.webdavEnabled && settings.webdavSyncInterval > 0) {
+      await chrome.alarms.create(WEBDAV_SYNC_ALARM, {
+        periodInMinutes: settings.webdavSyncInterval,
+        delayInMinutes: 1, // First sync after 1 minute
+      });
+      console.log(`WebDAV sync alarm set for every ${settings.webdavSyncInterval} minutes`);
+    } else {
+      console.log('WebDAV sync alarm disabled');
+    }
+  } catch (error) {
+    console.error('Error setting up sync alarm:', error);
+  }
+}
 
 /**
  * Initialize the extension - check for interrupted jobs and start processing
@@ -29,6 +58,14 @@ async function initializeExtension() {
 
     // Then start the bookmark processing queue
     startProcessingQueue();
+
+    // Set up WebDAV sync alarm
+    await setupSyncAlarm();
+
+    // Trigger initial sync if configured
+    triggerSyncIfEnabled().catch(err => {
+      console.error('Initial WebDAV sync failed:', err);
+    });
   } catch (error) {
     console.error('Error during initialization:', error);
     // Still try to start the processing queue even if job recovery fails
@@ -51,6 +88,14 @@ chrome.runtime.onStartup.addListener(() => {
 // Also initialize immediately when the service worker loads
 // This handles cases where the service worker was killed and restarted
 initializeExtension();
+
+// Handle alarm for periodic WebDAV sync
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === WEBDAV_SYNC_ALARM) {
+    console.log('WebDAV sync alarm triggered');
+    await triggerSyncIfEnabled();
+  }
+});
 
 // Handle messages from content scripts and popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -102,6 +147,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // This message should be forwarded to offscreen document
     // The offscreen document will handle it and respond
     return false;
+  }
+
+  // WebDAV sync handlers
+  if (message.type === 'TRIGGER_SYNC') {
+    import('../lib/webdav-sync').then(({ performSync }) => {
+      performSync(true).then(result => sendResponse(result));
+    });
+    return true;
+  }
+
+  if (message.type === 'GET_SYNC_STATUS') {
+    import('../lib/webdav-sync').then(({ getSyncStatus }) => {
+      getSyncStatus().then(status => sendResponse(status));
+    });
+    return true;
+  }
+
+  if (message.type === 'UPDATE_SYNC_SETTINGS') {
+    // Re-setup the alarm when sync settings change
+    setupSyncAlarm().then(() => sendResponse({ success: true }));
+    return true;
   }
 
   return false;
