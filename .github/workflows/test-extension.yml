@@ -264,3 +264,28 @@ jobs:
       - name: Skip Firefox E2E tests (no API key)
         if: env.HAS_API_KEY != 'true'
         run: echo "Skipping Firefox E2E tests - OPENAI_API_KEY secret not configured"
+
+  test-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium and xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser xvfb
+          chromium-browser --version
+
+      - name: Run web modality tests
+        env:
+          BROWSER_PATH: /usr/bin/chromium-browser
+        run: xvfb-run --auto-servernum npx tsx tests/web.test.ts
