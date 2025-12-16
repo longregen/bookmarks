@@ -1,17 +1,29 @@
-# Bookmark RAG Browser Extension
+# Bookmarks by Localforge
 
-A browser extension for Chrome and Firefox that captures web pages as bookmarks, extracts readable content, and enables semantic search across your bookmark collection using RAG (Retrieval-Augmented Generation).
+A browser extension for Chrome and Firefox that captures web pages as bookmarks, extracts readable content, and enables semantic search using RAG (Retrieval-Augmented Generation). All data is stored locally in your browser.
+
+**[Try the web demo](https://bookmarks.localforge.org)**
+
+## Screenshots
+
+| Popup | Library | Search |
+|-------|---------|--------|
+| ![Popup](landing/screenshot-popup.png) | ![Library](landing/screenshot-explore.png) | ![Search](landing/screenshot-search.png) |
 
 ## Features
 
-- **One-click bookmark capture** — Save URL, title, and full DOM HTML
-- **Automatic content extraction** — Converts HTML to Markdown using Mozilla's Readability
+- **One-click capture** — Save URL, title, and full DOM HTML with a click or keyboard shortcut
+- **Content extraction** — Converts HTML to Markdown using Mozilla's Readability
 - **Q&A generation** — LLM generates question-answer pairs for each bookmark
-- **Embedding-based search** — Semantically search your bookmarks
-- **Configurable API** — Use your own OpenAI-compatible endpoint
-- **Bulk URL import** — Import multiple bookmarks at once from a list of URLs
-- **Jobs tracking system** — Monitor processing jobs for all bookmarks and imports
-- **Import/Export** — Backup and restore your bookmarks as JSON files
+- **Semantic search** — Search bookmarks by meaning using embeddings
+- **Tag organization** — Flat organization with tags; click to filter, type to create
+- **Stumble mode** — Randomly surface bookmarks you may have forgotten
+- **Health indicator** — Visual status shows processing state; click for diagnostics
+- **Jobs dashboard** — Monitor processing jobs with status and progress
+- **Bulk URL import** — Import multiple bookmarks at once with validation
+- **Import/Export** — Backup and restore bookmarks as JSON files
+- **WebDAV sync** — Sync bookmarks across devices using your own WebDAV server
+- **Configurable API** — Use OpenAI or any compatible endpoint (local models included)
 
 ## Installation
 
@@ -33,7 +45,7 @@ A browser extension for Chrome and Firefox that captures web pages as bookmarks,
    npm run build
    ```
 
-   This will create a `dist/` folder with the built extension.
+   This creates a `dist/` folder with the built extension.
 
 ### Load in Chrome
 
@@ -48,12 +60,22 @@ A browser extension for Chrome and Firefox that captures web pages as bookmarks,
 2. Click "Load Temporary Add-on"
 3. Navigate to the `dist` folder and select `manifest.json`
 
+### Web Version
+
+A standalone web version is available for testing without installing the extension:
+
+```bash
+npm run dev:web
+```
+
+Or try the hosted demo at [bookmarks.localforge.org](https://bookmarks.localforge.org).
+
 ## Configuration
 
-1. Click the extension icon and select "Settings" (or right-click > Options)
+1. Click the extension icon and select "Settings"
 2. Configure your API settings:
    - **API Base URL**: Default is `https://api.openai.com/v1`
-   - **API Key**: Your OpenAI API key (starts with `sk-`)
+   - **API Key**: Your OpenAI API key
    - **Chat Model**: Model for Q&A generation (e.g., `gpt-4o-mini`)
    - **Embedding Model**: Model for embeddings (e.g., `text-embedding-3-small`)
 3. Click "Test Connection" to verify your settings
@@ -61,11 +83,11 @@ A browser extension for Chrome and Firefox that captures web pages as bookmarks,
 
 ### Using Local Models
 
-You can use local LLM servers that are OpenAI-compatible (like LM Studio, Ollama with OpenAI compatibility, etc.):
+The extension works with any OpenAI-compatible API server (LM Studio, Ollama, vLLM, llama.cpp, etc.):
 
 1. Set **API Base URL** to your local endpoint (e.g., `http://localhost:1234/v1`)
-2. Set **API Key** to any non-empty string (many local servers don't require a real key)
-3. Set appropriate model names that your local server supports
+2. Set **API Key** to any non-empty string (many local servers don't require a key)
+3. Set model names that your local server supports
 
 ## Usage
 
@@ -73,9 +95,8 @@ You can use local LLM servers that are OpenAI-compatible (like LM Studio, Ollama
 
 **Method 1: Extension Icon**
 1. Navigate to any web page
-2. Click the Bookmark RAG extension icon
+2. Click the extension icon
 3. Click "Save This Page"
-4. You'll see a confirmation message
 
 **Method 2: Keyboard Shortcut**
 - Windows/Linux: `Ctrl+Shift+B`
@@ -85,7 +106,7 @@ You can use local LLM servers that are OpenAI-compatible (like LM Studio, Ollama
 
 1. Click the extension icon
 2. Click "Explore Bookmarks"
-3. View your bookmarks with their processing status:
+3. View bookmarks with their processing status:
    - **Pending**: Waiting to be processed
    - **Processing**: Currently being processed
    - **Complete**: Ready to search
@@ -93,83 +114,81 @@ You can use local LLM servers that are OpenAI-compatible (like LM Studio, Ollama
 
 ### Searching Bookmarks
 
-1. Open the Explore view
-2. Enter a search query in the search box
-3. Click "Search"
-4. Results are ranked by semantic similarity
-5. Click any result to view the full bookmark details
+1. Open the Search view
+2. Enter a search query
+3. Results are ranked by semantic similarity
+4. Click any result to view the full bookmark details
+
+### Using Tags
+
+- Click any tag pill to filter bookmarks by that tag
+- In bookmark details, type in the tag input to add new tags
+- Tags are flat (no hierarchy) and use lowercase with hyphens
+
+### Stumble Mode
+
+1. Open the Stumble view
+2. See 10 random bookmarks with a Q&A preview
+3. Click "Shuffle" for a new random selection
+4. Filter by tags to stumble within a topic
 
 ### Bulk Importing URLs
 
-1. Click the extension icon and select "Settings"
-2. Scroll to the "Bulk Import URLs" section
-3. Paste a list of URLs (one per line) into the text area
-4. The extension will validate URLs in real-time
-5. Click "Import URLs" to start the bulk import
-6. Monitor progress in the progress bar
-7. Imported bookmarks will be automatically processed
+1. Open Settings
+2. Scroll to "Bulk Import URLs"
+3. Paste a list of URLs (one per line)
+4. Click "Import URLs"
+5. Monitor progress in the Jobs dashboard
 
-### Managing Jobs
+### WebDAV Sync
 
-1. Open Settings and scroll to the "Jobs Dashboard" section
-2. View all processing jobs with their status:
-   - **Pending**: Waiting to start
-   - **In Progress**: Currently running
-   - **Completed**: Successfully finished
-   - **Failed**: Encountered an error
-   - **Cancelled**: Manually stopped
-3. Filter jobs by type or status using the dropdown filters
-4. Click on any job to expand and view detailed metadata
-5. Jobs automatically refresh every 2 seconds when active
+1. Open Settings
+2. Enable WebDAV sync
+3. Enter your WebDAV server URL, username, and password
+4. Set a sync path (default: `/bookmarks`)
+5. Sync happens automatically when bookmarks change
 
 ### Import/Export Bookmarks
 
 **Export:**
 1. Open Settings
-2. Scroll to "Import / Export" section
-3. Click "Export All Bookmarks"
-4. A JSON file will be downloaded with all your bookmarks
+2. Click "Export All Bookmarks"
+3. A JSON file will be downloaded
 
 **Import:**
 1. Open Settings
 2. Click "Choose File to Import"
 3. Select a previously exported JSON file
-4. Click "Import"
-5. Duplicate URLs will be skipped automatically
+4. Duplicate URLs are skipped automatically
 
 ## How It Works
 
 ### Processing Pipeline
 
-When you save a bookmark, the following happens automatically:
+When you save a bookmark:
 
-1. **Capture**: The full page HTML is captured and saved locally
+1. **Capture**: Full page HTML is captured and saved locally
 2. **Extract**: Readability extracts the main content and converts to Markdown
-3. **Generate Q&A**: An LLM generates 5-10 question-answer pairs about the content
-4. **Embed**: Each Q&A pair is converted to three embeddings:
-   - Question only
-   - Answer only
-   - Question + Answer combined
-5. **Index**: Everything is stored in IndexedDB for fast local access
+3. **Generate Q&A**: LLM generates 5-10 question-answer pairs about the content
+4. **Embed**: Each Q&A pair is converted to embeddings (question, answer, and combined)
+5. **Index**: Everything is stored in IndexedDB
 
 ### Search Algorithm
 
 When you search:
 
-1. Your query is converted to an embedding using the same model
+1. Your query is converted to an embedding
 2. Cosine similarity is computed against all stored Q&A embeddings
 3. Results are ranked by similarity score
 4. Top results are grouped by bookmark and displayed
 
 ## Data Storage
 
-- All bookmarks are stored **locally** in your browser's IndexedDB
-- Jobs metadata is also stored locally for tracking purposes
-- Only the extracted Markdown content is sent to your configured API
-- Bulk URL imports fetch pages directly (no proxy servers)
+- All bookmarks are stored locally in your browser's IndexedDB
+- Only the extracted Markdown content is sent to your configured API for processing
 - No data is sent to any third-party servers (except your configured LLM API)
-- You control which API endpoint is used
-- Export your data anytime as JSON files for backup or migration
+- WebDAV sync sends encrypted bookmark data to your own server
+- Export your data anytime as JSON files
 
 ## Troubleshooting
 
@@ -192,20 +211,30 @@ When you search:
 - Verify your API key is correct
 - Check API base URL format (should end with `/v1`)
 - Ensure you have API credits available
-- Check rate limits on your API
 
-### Bulk import issues
-- Ensure URLs are valid and accessible
-- Check that URLs start with `http://` or `https://`
-- Invalid URLs will be shown in validation feedback
-- Failed fetches are tracked in the jobs dashboard
-- Large imports (>100 URLs) may take several minutes
+### WebDAV sync issues
+- Verify your WebDAV server URL and credentials
+- HTTPS is required by default; enable "Allow insecure" for HTTP
+- Check that the sync folder exists or can be created
 
-### Jobs not updating
-- Jobs dashboard auto-refreshes every 2 seconds when active
-- Click "Refresh" to manually update the jobs list
-- Check browser console for errors
-- Completed jobs older than 30 days are automatically cleaned up
+## Development
+
+```bash
+# Development mode (Chrome)
+npm run dev:chrome
+
+# Development mode (Firefox)
+npm run dev:firefox
+
+# Development mode (Web)
+npm run dev:web
+
+# Run unit tests
+npm run test:unit
+
+# Run all tests
+npm run test:all
+```
 
 ## License
 
