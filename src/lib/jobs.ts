@@ -1,4 +1,6 @@
 import { db, Job, JobType, JobStatus } from '../db/schema';
+import { broadcastJobUpdate } from './events';
+import { JOB_COMPLETE_PROGRESS, DEFAULT_JOBS_LIMIT, DEFAULT_JOB_RETENTION_DAYS } from './constants';
 
 // Re-export Job type for consumers
 export type { Job };
@@ -90,6 +92,19 @@ export async function updateJob(
   }
 
   await db.jobs.update(jobId, updatedJob);
+
+  // Broadcast job update
+  const updatedJobData = await db.jobs.get(jobId);
+  if (updatedJobData) {
+    await broadcastJobUpdate({
+      jobId: updatedJobData.id,
+      status: updatedJobData.status,
+      progress: updatedJobData.progress,
+      metadata: updatedJobData.metadata,
+    }).catch(err => {
+      console.error('Failed to broadcast job update:', err);
+    });
+  }
 }
 
 /**
@@ -108,11 +123,24 @@ export async function completeJob(
 
   await db.jobs.update(jobId, {
     status: JobStatus.COMPLETED,
-    progress: 100,
+    progress: JOB_COMPLETE_PROGRESS,
     metadata: metadata ? { ...job.metadata, ...metadata } : job.metadata,
     updatedAt: new Date(),
     completedAt: new Date(),
   });
+
+  // Broadcast job completion
+  const updatedJobData = await db.jobs.get(jobId);
+  if (updatedJobData) {
+    await broadcastJobUpdate({
+      jobId: updatedJobData.id,
+      status: updatedJobData.status,
+      progress: updatedJobData.progress,
+      metadata: updatedJobData.metadata,
+    }).catch(err => {
+      console.error('Failed to broadcast job completion:', err);
+    });
+  }
 }
 
 /**
@@ -142,6 +170,19 @@ export async function failJob(
     updatedAt: new Date(),
     completedAt: new Date(),
   });
+
+  // Broadcast job failure
+  const updatedJobData = await db.jobs.get(jobId);
+  if (updatedJobData) {
+    await broadcastJobUpdate({
+      jobId: updatedJobData.id,
+      status: updatedJobData.status,
+      progress: updatedJobData.progress,
+      metadata: updatedJobData.metadata,
+    }).catch(err => {
+      console.error('Failed to broadcast job failure:', err);
+    });
+  }
 }
 
 /**
@@ -205,8 +246,11 @@ export async function getRecentJobs(options?: {
 }): Promise<Job[]> {
   let query = db.jobs.orderBy('createdAt').reverse();
 
-  if (options?.limit) {
-    query = query.limit(options.limit) as any;
+  // Only apply database-level limit if no filters are set
+  // Otherwise we need to filter first, then limit
+  const hasFilters = options?.type || options?.status || options?.parentJobId !== undefined;
+  if (options?.limit && !hasFilters) {
+    query = query.limit(options.limit);
   }
 
   let jobs = await query.toArray();
@@ -224,7 +268,7 @@ export async function getRecentJobs(options?: {
     jobs = jobs.filter(job => job.parentJobId === options.parentJobId);
   }
 
-  return jobs.slice(0, options?.limit || 100);
+  return jobs.slice(0, options?.limit || DEFAULT_JOBS_LIMIT);
 }
 
 /**
@@ -232,7 +276,7 @@ export async function getRecentJobs(options?: {
  * @param daysOld Number of days (default: 30)
  * @returns Number of jobs deleted
  */
-export async function cleanupOldJobs(daysOld: number = 30): Promise<number> {
+export async function cleanupOldJobs(daysOld: number = DEFAULT_JOB_RETENTION_DAYS): Promise<number> {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
@@ -434,4 +478,17 @@ export async function incrementParentJobProgress(
     job.progress = Math.round((completed / total) * 100);
     job.updatedAt = new Date();
   });
+
+  // Broadcast parent job progress update
+  const updatedJobData = await db.jobs.get(parentJobId);
+  if (updatedJobData) {
+    await broadcastJobUpdate({
+      jobId: updatedJobData.id,
+      status: updatedJobData.status,
+      progress: updatedJobData.progress,
+      metadata: updatedJobData.metadata,
+    }).catch(err => {
+      console.error('Failed to broadcast parent job progress:', err);
+    });
+  }
 }

@@ -15,12 +15,12 @@ env:
   GECKODRIVER_VERSION: '0.36.0'
 
 jobs:
-  # Build Chrome, Firefox, and Web in parallel using matrix strategy
+  # Build Chrome and Firefox in parallel using matrix strategy
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        browser: [chrome, firefox, web]
+        browser: [chrome, firefox]
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
@@ -238,48 +238,3 @@ jobs:
       - name: Skip Firefox E2E tests (no API key)
         if: env.HAS_API_KEY != 'true'
         run: echo "Skipping Firefox E2E tests - OPENAI_API_KEY secret not configured"
-
-  test-e2e-web:
-    needs: build
-    runs-on: ubuntu-latest
-    env:
-      HAS_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Download Web build artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: extension-web
-          path: dist-web/
-
-      # Cache Puppeteer's Chromium download
-      - name: Cache Chromium
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ~/.cache/puppeteer
-          key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-
-      - name: Install Chromium via Puppeteer
-        run: npx @puppeteer/browsers install chromium@latest
-
-      - name: Run Web E2E tests with API
-        if: env.HAS_API_KEY == 'true'
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: |
-          CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
-          BROWSER_PATH="$CHROME_PATH" npx tsx tests/e2e-web.test.ts
-
-      - name: Skip Web E2E tests (no API key)
-        if: env.HAS_API_KEY != 'true'
-        run: echo "Skipping Web E2E tests - OPENAI_API_KEY secret not configured"

@@ -21,14 +21,13 @@ export async function ensureOffscreenDocument(): Promise<void> {
   }
 
   // Check for offscreen API (Chrome MV3 only)
-  const offscreenApi = (chrome as any).offscreen;
+  const offscreenApi = chrome.offscreen;
   if (!offscreenApi || typeof offscreenApi.createDocument !== 'function') {
     return; // Offscreen API not available (Firefox)
   }
 
   // Check for runtime.getContexts API (Chrome 116+)
-  const runtimeApi = chrome.runtime as any;
-  if (!runtimeApi.getContexts || typeof runtimeApi.getContexts !== 'function') {
+  if (!chrome.runtime.getContexts || typeof chrome.runtime.getContexts !== 'function') {
     // Fallback: try to create document without checking existing contexts
     // This may fail if document already exists, but that's acceptable
     try {
@@ -49,7 +48,7 @@ export async function ensureOffscreenDocument(): Promise<void> {
 
   try {
     // Check if offscreen document already exists
-    const existingContexts = await runtimeApi.getContexts({
+    const existingContexts = await chrome.runtime.getContexts({
       contextTypes: ['OFFSCREEN_DOCUMENT'],
     });
 

@@ -1,6 +1,6 @@
-import { beforeAll, afterAll } from 'vitest';
-import Dexie from 'dexie';
+import { beforeAll, afterAll, vi } from 'vitest';
 import 'fake-indexeddb/auto';
+import Dexie from 'dexie';
 
 // Mock Chrome API for unit tests
 global.chrome = {

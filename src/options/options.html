@@ -337,6 +337,24 @@
                 </small>
               </div>
 
+              <!-- Allow Insecure HTTP -->
+              <div class="form-group">
+                <label class="toggle-label">
+                  <input type="checkbox" id="webdavAllowInsecureHTTP" name="webdavAllowInsecureHTTP" />
+                  <span class="toggle-text">Allow Insecure HTTP (for local testing)</span>
+                </label>
+                <small class="help-text warning-text">
+                  WARNING: Only enable this for local network testing. HTTP connections send credentials in plain text and are vulnerable to interception.
+                </small>
+              </div>
+
+              <!-- HTTP Warning (shown when HTTP detected) -->
+              <div id="httpWarning" class="alert alert-warning hidden">
+                <strong>Security Warning:</strong> Your WebDAV URL uses HTTP instead of HTTPS.
+                Your credentials will be sent unencrypted and could be intercepted.
+                Please use HTTPS or enable "Allow Insecure HTTP" above if you're testing on a local network.
+              </div>
+
               <!-- Connection Status -->
               <div id="webdavConnectionStatus" class="connection-status hidden">
                 <span class="status-indicator"></span>

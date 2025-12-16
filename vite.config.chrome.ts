@@ -8,7 +8,6 @@ export default defineConfig({
     ...sharedDefine,
     __IS_CHROME__: JSON.stringify(true),
     __IS_FIREFOX__: JSON.stringify(false),
-    __IS_WEB__: JSON.stringify(false),
   },
   plugins: [crx({ manifest })],
   build: {

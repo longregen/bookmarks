@@ -8,6 +8,7 @@ export interface Bookmark {
   status: 'pending' | 'processing' | 'complete' | 'error';
   errorMessage?: string;
   errorStack?: string;         // Stack trace for debugging
+  retryCount?: number;         // Number of times processing has been retried
   createdAt: Date;
   updatedAt: Date;
 }

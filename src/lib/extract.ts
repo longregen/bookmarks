@@ -1,6 +1,7 @@
 import { Readability } from '@mozilla/readability';
 import TurndownService from 'turndown';
 import { isFirefox, ensureOffscreenDocument } from './offscreen';
+import { EXTRACTION_TIMEOUT_MS } from './constants';
 
 const turndown = new TurndownService({
   headingStyle: 'atx',
@@ -71,7 +72,7 @@ async function extractMarkdownViaOffscreen(html: string, url: string): Promise<E
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error('Extract timeout via offscreen document'));
-    }, 60000); // 60s timeout for extraction
+    }, EXTRACTION_TIMEOUT_MS);
 
     chrome.runtime.sendMessage(
       { type: 'EXTRACT_CONTENT', html, url },

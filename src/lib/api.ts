@@ -1,9 +1,26 @@
 import { getPlatformAdapter } from './platform';
 import { getSettings } from './settings';
+import { MAX_CONTENT_LENGTH, LLM_TEMPERATURE } from './constants';
 
 interface QAPair {
   question: string;
   answer: string;
+}
+
+interface EmbeddingResponseItem {
+  index: number;
+  embedding: number[];
+  object: string;
+}
+
+interface EmbeddingResponse {
+  data: EmbeddingResponseItem[];
+  model: string;
+  object: string;
+  usage: {
+    prompt_tokens: number;
+    total_tokens: number;
+  };
 }
 
 const QA_SYSTEM_PROMPT = `You are a helpful assistant that generates question-answer pairs for semantic search retrieval.
@@ -25,7 +42,7 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
   }
 
   // Truncate content to avoid exceeding context window
-  const truncatedContent = markdownContent.slice(0, 15000);
+  const truncatedContent = markdownContent.slice(0, MAX_CONTENT_LENGTH);
 
   const response = await fetch(`${settings.apiBaseUrl}/chat/completions`, {
     method: 'POST',
@@ -40,7 +57,7 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
         { role: 'user', content: truncatedContent },
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.7,
+      temperature: LLM_TEMPERATURE,
     }),
   });
 
@@ -99,7 +116,7 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
     throw new Error(`Embeddings API error: ${response.status} - ${error}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as EmbeddingResponse;
 
   if (__DEBUG_EMBEDDINGS__) {
     console.log('[Embeddings API] Raw API response', {
@@ -111,8 +128,8 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   }
 
   // Sort by index to ensure correct order
-  const sorted = data.data.sort((a: any, b: any) => a.index - b.index);
-  const embeddings = sorted.map((item: any) => item.embedding);
+  const sorted = data.data.sort((a, b) => a.index - b.index);
+  const embeddings = sorted.map((item) => item.embedding);
 
   if (__DEBUG_EMBEDDINGS__) {
     // Debug: Validate embeddings

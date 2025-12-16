@@ -15,6 +15,6 @@ export async function getSettings() {
  * Save a setting via platform adapter
  * @deprecated Use getPlatformAdapter().saveSetting() directly
  */
-export async function saveSetting(key: string, value: string | boolean | number) {
-  return getPlatformAdapter().saveSetting(key as any, value);
+export async function saveSetting(key: keyof ApiSettings, value: string | boolean | number) {
+  return getPlatformAdapter().saveSetting(key, value);
 }

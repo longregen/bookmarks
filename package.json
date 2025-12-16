@@ -18,9 +18,9 @@
     "test:unit:watch": "vitest",
     "test:unit:coverage": "vitest run --coverage",
     "test:e2e": "npx tsx tests/e2e.test.ts",
+    "test:e2e:chrome": "BROWSER_TYPE=chrome npx tsx tests/e2e.test.ts",
     "test:e2e:firefox": "npx tsx tests/e2e-firefox.test.ts",
-    "test:e2e:web": "npx tsx tests/e2e-web.test.ts",
-    "test:all": "npm run test:unit && npm run test && npm run test:e2e && npm run test:e2e:web",
+    "test:all": "npm run test:unit && npm run test && npm run test:e2e",
     "screenshots": "npx tsx scripts/capture-screenshots.ts"
   },
   "dependencies": {
@@ -36,10 +36,10 @@
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^27.3.0",
     "puppeteer-core": "^24.33.0",
-    "selenium-webdriver": "^4.39.0",
+    "selenium-webdriver": "^4.27.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vite": "^7.3.0",
-    "vitest": "^4.0.16"
+    "vite": "^7.2.7",
+    "vitest": "^4.0.15"
   }
 }

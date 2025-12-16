@@ -48,14 +48,71 @@ declare const __IS_CHROME__: boolean;
 declare const __IS_FIREFOX__: boolean;
 
 /**
- * True when building for Web (standalone web app).
- * Use this to conditionally include web-specific code that doesn't use
- * browser extension APIs like chrome.runtime.
- *
- * @example
- * if (__IS_WEB__) {
- *   // This code is eliminated from extension builds
- *   // Handle bulk import directly without service worker
- * }
+ * Chrome Offscreen API type definitions
+ * These are not yet in @types/chrome for Manifest V3
  */
-declare const __IS_WEB__: boolean;
+declare namespace chrome.offscreen {
+  export type Reason =
+    | 'AUDIO_PLAYBACK'
+    | 'BLOBS'
+    | 'CLIPBOARD'
+    | 'DOM_PARSER'
+    | 'DOM_SCRAPING'
+    | 'GEOLOCATION'
+    | 'IFRAME_SCRIPTING'
+    | 'LOCAL_STORAGE'
+    | 'MEDIA_STREAM'
+    | 'MICROPHONE'
+    | 'TESTING'
+    | 'USER_MEDIA'
+    | 'WEB_RTC'
+    | 'WORKERS';
+
+  export interface CreateParameters {
+    url: string;
+    reasons: Reason[];
+    justification: string;
+  }
+
+  export function createDocument(parameters: CreateParameters): Promise<void>;
+  export function closeDocument(): Promise<void>;
+  export function hasDocument(): Promise<boolean>;
+}
+
+/**
+ * Chrome Runtime API extensions for getContexts (Chrome 116+)
+ */
+declare namespace chrome.runtime {
+  export type ContextType =
+    | 'TAB'
+    | 'POPUP'
+    | 'BACKGROUND'
+    | 'OFFSCREEN_DOCUMENT'
+    | 'SIDE_PANEL'
+    | 'DEVELOPER_TOOLS';
+
+  export interface ContextFilter {
+    contextTypes?: ContextType[];
+    contextIds?: string[];
+    documentIds?: string[];
+    documentUrls?: string[];
+    frameIds?: number[];
+    incognito?: boolean;
+    tabIds?: number[];
+    windowIds?: number[];
+  }
+
+  export interface ExtensionContext {
+    contextType: ContextType;
+    contextId: string;
+    tabId: number;
+    windowId: number;
+    documentId?: string;
+    frameId: number;
+    documentUrl?: string;
+    documentOrigin?: string;
+    incognito: boolean;
+  }
+
+  export function getContexts(filter: ContextFilter): Promise<ExtensionContext[]>;
+}

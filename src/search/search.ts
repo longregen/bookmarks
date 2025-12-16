@@ -7,6 +7,7 @@ import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
 import { createHealthIndicator } from '../lib/health-indicator';
 import { BookmarkDetailManager } from '../lib/bookmark-detail';
 import { loadTagFilters } from '../lib/tag-filter';
+import { MAX_SEARCH_HISTORY, SEARCH_TOP_K, MAX_AUTOCOMPLETE_SUGGESTIONS } from '../lib/constants';
 
 let selectedTags: Set<string> = new Set();
 let selectedStatuses: Set<string> = new Set(['complete', 'pending', 'processing', 'error']);
@@ -37,8 +38,6 @@ searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') perform
 searchInput.addEventListener('input', showAutocomplete);
 searchInput.addEventListener('focus', showAutocomplete);
 searchInput.addEventListener('blur', () => setTimeout(hideAutocomplete, 200));
-
-const MAX_SEARCH_HISTORY = 50;
 
 async function getSearchAutocompleteSetting(): Promise<boolean> {
   const setting = await db.settings.get('searchAutocomplete');
@@ -88,7 +87,7 @@ async function showAutocomplete() {
 
   const matchingHistory = allHistory.filter(h =>
     h.query.toLowerCase().includes(query) && h.query.toLowerCase() !== query
-  ).slice(0, 10);
+  ).slice(0, MAX_AUTOCOMPLETE_SUGGESTIONS);
 
   if (!matchingHistory.length) {
     hideAutocomplete();
@@ -171,7 +170,19 @@ async function performSearch() {
     const [queryEmbedding] = await generateEmbeddings([query]);
     if (!queryEmbedding?.length) throw new Error('Failed to generate embedding');
 
-    const allQAs = await db.questionsAnswers.toArray();
+    // Pre-filter bookmarks by status to reduce Q&A pairs loaded into memory
+    const validBookmarks = await db.bookmarks
+      .where('status')
+      .anyOf(Array.from(selectedStatuses))
+      .toArray();
+    const validBookmarkIds = new Set(validBookmarks.map(b => b.id));
+
+    // Only load Q&A pairs for bookmarks that match the status filter
+    const allQAs = await db.questionsAnswers
+      .filter(qa => validBookmarkIds.has(qa.bookmarkId))
+      .toArray();
+
+    // Filter to only include items with valid embeddings
     const items = allQAs.flatMap(qa => [
       { item: qa, embedding: qa.embeddingQuestion, type: 'question' },
       { item: qa, embedding: qa.embeddingBoth, type: 'both' }
@@ -183,7 +194,7 @@ async function performSearch() {
       return;
     }
 
-    const topResults = findTopK(queryEmbedding, items, 200);
+    const topResults = findTopK(queryEmbedding, items, SEARCH_TOP_K);
     const bookmarkMap = new Map<string, { qa: QuestionAnswer; score: number }[]>();
 
     for (const result of topResults) {
@@ -195,13 +206,30 @@ async function performSearch() {
     const sortedResults = Array.from(bookmarkMap.entries())
       .sort((a, b) => Math.max(...b[1].map(r => r.score)) - Math.max(...a[1].map(r => r.score)));
 
+    // Batch load tags for all result bookmarks to avoid N+1 pattern
+    const resultBookmarkIds = sortedResults.map(([bookmarkId]) => bookmarkId);
+    const tagsByBookmarkId = new Map<string, BookmarkTag[]>();
+
+    if (selectedTags.size > 0) {
+      const relevantTags = await db.bookmarkTags
+        .filter(tag => resultBookmarkIds.includes(tag.bookmarkId))
+        .toArray();
+
+      for (const tag of relevantTags) {
+        if (!tagsByBookmarkId.has(tag.bookmarkId)) {
+          tagsByBookmarkId.set(tag.bookmarkId, []);
+        }
+        tagsByBookmarkId.get(tag.bookmarkId)!.push(tag);
+      }
+    }
+
     const filteredResults = [];
     for (const [bookmarkId, qaResults] of sortedResults) {
-      const bookmark = await db.bookmarks.get(bookmarkId);
-      if (!bookmark || !selectedStatuses.has(bookmark.status)) continue;
+      const bookmark = validBookmarks.find(b => b.id === bookmarkId);
+      if (!bookmark) continue;
 
       if (selectedTags.size > 0) {
-        const tags = await db.bookmarkTags.where('bookmarkId').equals(bookmarkId).toArray();
+        const tags = tagsByBookmarkId.get(bookmarkId) || [];
         if (!tags.some((t: BookmarkTag) => selectedTags.has(t.tagName))) continue;
       }
 

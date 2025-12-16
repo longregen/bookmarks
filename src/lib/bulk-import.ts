@@ -109,6 +109,18 @@ export function validateSingleUrl(url: string): UrlValidation {
     };
   }
 
+  // Reject other non-http(s) protocols (ftp, mailto, tel, etc.)
+  // Check if URL has a protocol by looking for "://"
+  const protocolMatch = trimmedLower.match(/^([a-z][a-z0-9+.-]*):\/\//);
+  if (protocolMatch && protocolMatch[1] !== 'http' && protocolMatch[1] !== 'https') {
+    return {
+      original,
+      normalized: '',
+      isValid: false,
+      error: 'Only HTTP and HTTPS URLs are allowed',
+    };
+  }
+
   // Add https:// if no protocol specified
   let normalized = url;
   if (!url.startsWith('http://') && !url.startsWith('https://')) {

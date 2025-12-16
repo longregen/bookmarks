@@ -4,6 +4,7 @@ import { formatDateByAge } from '../lib/date-format';
 import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
 import { createHealthIndicator } from '../lib/health-indicator';
 import { BookmarkDetailManager } from '../lib/bookmark-detail';
+import { onEvents, EventType } from '../lib/events';
 
 let selectedTag = 'All';
 let sortBy = 'newest';
@@ -41,11 +42,11 @@ async function loadTags() {
   const bookmarks = await db.bookmarks.toArray();
   const allTags: { [key: string]: number } = {};
 
-  for (const bookmark of bookmarks) {
-    const tags = await db.bookmarkTags.where('bookmarkId').equals(bookmark.id).toArray() || [];
-    for (const tag of tags) {
-      allTags[tag.tagName] = (allTags[tag.tagName] || 0) + 1;
-    }
+  // Batch load all tags in a single query to avoid N+1 pattern
+  const allBookmarkTags = await db.bookmarkTags.toArray();
+
+  for (const tag of allBookmarkTags) {
+    allTags[tag.tagName] = (allTags[tag.tagName] || 0) + 1;
   }
 
   const untaggedCount = bookmarks.length - Object.values(allTags).reduce((sum, count) => sum + count, 0);
@@ -108,8 +109,18 @@ async function loadBookmarks() {
     return;
   }
 
+  // Batch load all tags in a single query to avoid N+1 pattern
+  const allBookmarkTags = await db.bookmarkTags.toArray();
+  const tagsByBookmarkId = new Map<string, BookmarkTag[]>();
+  for (const tag of allBookmarkTags) {
+    if (!tagsByBookmarkId.has(tag.bookmarkId)) {
+      tagsByBookmarkId.set(tag.bookmarkId, []);
+    }
+    tagsByBookmarkId.get(tag.bookmarkId)!.push(tag);
+  }
+
   for (const bookmark of bookmarks) {
-    const tags = await db.bookmarkTags.where('bookmarkId').equals(bookmark.id).toArray() || [];
+    const tags = tagsByBookmarkId.get(bookmark.id) || [];
     const card = createElement('div', { className: 'bookmark-card' });
     card.onclick = () => detailManager.showDetail(bookmark.id);
 
@@ -141,7 +152,25 @@ initTheme();
 onThemeChange((theme) => applyTheme(theme));
 loadTags();
 loadBookmarks();
-setInterval(() => { loadTags(); loadBookmarks(); }, 5000);
+
+// Listen for bookmark and tag changes (event-driven, replaces polling)
+onEvents(
+  [
+    EventType.BOOKMARK_CREATED,
+    EventType.BOOKMARK_UPDATED,
+    EventType.BOOKMARK_DELETED,
+    EventType.TAG_CHANGED,
+  ],
+  () => {
+    // Reload UI when bookmarks or tags change
+    loadTags();
+    loadBookmarks();
+  }
+);
+
+// Fallback polling with much longer interval (60s) for reliability
+// in case events are missed due to service worker restarts
+setInterval(() => { loadTags(); loadBookmarks(); }, 60000);
 
 // Initialize health indicator
 const healthIndicatorContainer = document.getElementById('healthIndicator');

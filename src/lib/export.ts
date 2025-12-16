@@ -1,11 +1,7 @@
 import { db, Bookmark, Markdown, QuestionAnswer, JobType, JobStatus } from '../db/schema';
 import { createJob, updateJob, completeJob, failJob } from './jobs';
 import { encodeEmbedding, decodeEmbedding, isEncodedEmbedding } from './embedding-codec';
-
-// Export format version for future compatibility
-// v1: Original format with raw number[] embeddings
-// v2: Embeddings encoded as base64 strings (16-bit quantized)
-const EXPORT_VERSION = 2;
+import { EXPORT_VERSION, MAX_FILENAME_LENGTH, MAX_EXPORT_ERRORS } from './constants';
 
 export interface ExportedBookmark {
   id: string;
@@ -144,7 +140,7 @@ function sanitizeFilename(name: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .slice(0, 50);
+    .slice(0, MAX_FILENAME_LENGTH);
 }
 
 /**
@@ -338,7 +334,7 @@ export async function importBookmarks(data: BookmarkExport, fileName?: string): 
       importedCount: result.imported,
       skippedCount: result.skipped,
       errorCount: result.errors.length,
-      errors: result.errors.slice(0, 10).map(err => ({ url: '', error: err })), // Limit to 10 errors
+      errors: result.errors.slice(0, MAX_EXPORT_ERRORS).map(err => ({ url: '', error: err })),
     });
 
     return result;

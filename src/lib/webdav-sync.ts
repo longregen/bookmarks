@@ -1,11 +1,26 @@
 import { getSettings, saveSetting, type ApiSettings } from './settings';
 import { exportAllBookmarks, importBookmarks, type BookmarkExport } from './export';
 import { db } from '../db/schema';
+import { broadcastSyncStatus } from './events';
+import { LOCK_TIMEOUT_MS, SYNC_DEBOUNCE_MS } from './constants';
+import * as crypto from 'crypto';
+// Session ID to detect stale locks from previous service worker instances
+const SESSION_ID = `sync-session-${Date.now()}-${crypto.randomBytes(9).toString('base64url')}`;
 
-// Sync state
-let isSyncing = false;
+// Sync lock state with timestamp and session validation
+interface SyncLock {
+  isLocked: boolean;
+  timestamp: number;
+  sessionId: string;
+}
+
+let syncLock: SyncLock = {
+  isLocked: false,
+  timestamp: 0,
+  sessionId: SESSION_ID,
+};
+
 let lastSyncAttempt = 0;
-const SYNC_DEBOUNCE_MS = 5000; // Minimum 5 seconds between sync attempts
 
 export interface SyncResult {
   success: boolean;
@@ -22,6 +37,74 @@ export interface SyncStatus {
 }
 
 /**
+ * Check if the current sync lock is stale (timed out or from a previous session)
+ */
+function isSyncLockStale(lock: SyncLock): boolean {
+  // Lock is stale if it's from a different session
+  if (lock.sessionId !== SESSION_ID) {
+    console.log('Sync lock is from a different session, treating as stale');
+    return true;
+  }
+
+  // Lock is stale if it's been held for more than LOCK_TIMEOUT_MS
+  const lockAge = Date.now() - lock.timestamp;
+  if (lockAge > LOCK_TIMEOUT_MS) {
+    console.log(`Sync lock has timed out (${Math.round(lockAge / 1000)}s old), treating as stale`);
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Acquire the sync lock
+ */
+async function acquireSyncLock(): Promise<boolean> {
+  if (syncLock.isLocked && !isSyncLockStale(syncLock)) {
+    return false; // Lock is held and valid
+  }
+
+  // Acquire or reset the lock
+  syncLock = {
+    isLocked: true,
+    timestamp: Date.now(),
+    sessionId: SESSION_ID,
+  };
+
+  // Broadcast that syncing has started
+  const status = await getSyncStatus();
+  await broadcastSyncStatus(status).catch(err => {
+    console.error('Failed to broadcast sync status:', err);
+  });
+
+  return true;
+}
+
+/**
+ * Release the sync lock
+ */
+async function releaseSyncLock(): Promise<void> {
+  syncLock = {
+    isLocked: false,
+    timestamp: Date.now(),
+    sessionId: SESSION_ID,
+  };
+
+  // Broadcast that syncing has ended
+  const status = await getSyncStatus();
+  await broadcastSyncStatus(status).catch(err => {
+    console.error('Failed to broadcast sync status:', err);
+  });
+}
+
+/**
+ * Check if currently syncing (respecting stale lock detection)
+ */
+function isSyncingNow(): boolean {
+  return syncLock.isLocked && !isSyncLockStale(syncLock);
+}
+
+/**
  * Get current sync status from settings
  */
 export async function getSyncStatus(): Promise<SyncStatus> {
@@ -29,7 +112,7 @@ export async function getSyncStatus(): Promise<SyncStatus> {
   return {
     lastSyncTime: settings.webdavLastSyncTime || null,
     lastSyncError: settings.webdavLastSyncError || null,
-    isSyncing,
+    isSyncing: isSyncingNow(),
   };
 }
 
@@ -62,6 +145,27 @@ function buildFolderUrl(settings: ApiSettings): string {
   const baseUrl = settings.webdavUrl.replace(/\/$/, '');
   const path = settings.webdavPath.replace(/^\//, '').replace(/\/$/, '');
   return `${baseUrl}/${path}/`;
+}
+
+/**
+ * Validate that WebDAV URL uses HTTPS (or is explicitly allowed to use HTTP)
+ * @throws Error if URL uses HTTP and insecure HTTP is not allowed
+ */
+function validateHTTPS(settings: ApiSettings): void {
+  try {
+    const url = new URL(settings.webdavUrl);
+    if (url.protocol === 'http:' && !settings.webdavAllowInsecureHTTP) {
+      throw new Error(
+        'Security Error: WebDAV credentials cannot be sent over HTTP. ' +
+        'Please use HTTPS or enable "Allow Insecure HTTP" in settings if using a local network.'
+      );
+    }
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error('Invalid WebDAV URL format');
+    }
+    throw error;
+  }
 }
 
 /**
@@ -228,15 +332,6 @@ async function getLocalLastUpdate(): Promise<Date | null> {
  *    - Same: no action needed
  */
 export async function performSync(force = false): Promise<SyncResult> {
-  // Check if already syncing (debounce)
-  if (isSyncing) {
-    return {
-      success: true,
-      action: 'skipped',
-      message: 'Sync already in progress',
-    };
-  }
-
   // Debounce rapid sync requests
   const now = Date.now();
   if (!force && now - lastSyncAttempt < SYNC_DEBOUNCE_MS) {
@@ -249,8 +344,18 @@ export async function performSync(force = false): Promise<SyncResult> {
 
   lastSyncAttempt = now;
 
+  // Check if already syncing (with stale lock detection)
+  if (!(await acquireSyncLock())) {
+    return {
+      success: true,
+      action: 'skipped',
+      message: 'Sync already in progress',
+    };
+  }
+
   // Check configuration
   if (!await isWebDAVConfigured()) {
+    await releaseSyncLock();
     return {
       success: false,
       action: 'skipped',
@@ -258,10 +363,11 @@ export async function performSync(force = false): Promise<SyncResult> {
     };
   }
 
-  isSyncing = true;
-
   try {
     const settings = await getSettings();
+
+    // Validate HTTPS before syncing
+    validateHTTPS(settings);
 
     // Get remote metadata
     const remote = await getRemoteMetadata(settings);
@@ -368,7 +474,7 @@ export async function performSync(force = false): Promise<SyncResult> {
       message: errorMessage,
     };
   } finally {
-    isSyncing = false;
+    await releaseSyncLock();
   }
 }
 

@@ -119,14 +119,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'GET_CURRENT_TAB_INFO') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tab = tabs[0];
-      if (tab) {
-        sendResponse({
-          url: tab.url,
-          title: tab.title,
-        });
-      } else {
+      if (!tab) {
         sendResponse({ error: 'No active tab found' });
+        return;
       }
+
+      // Check if we have permission to access tab info (may be unavailable in incognito mode)
+      if (!tab.url || !tab.title) {
+        sendResponse({
+          error: 'Unable to access tab information. The extension may not have permission to access this tab (e.g., in incognito mode or on restricted pages).'
+        });
+        return;
+      }
+
+      sendResponse({
+        url: tab.url,
+        title: tab.title,
+      });
     });
     return true;
   }
@@ -188,7 +197,10 @@ chrome.commands.onCommand.addListener((command) => {
   if (command === 'save-bookmark') {
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
       const tab = tabs[0];
-      if (!tab.id) return;
+      if (!tab || !tab.id) {
+        console.error('No active tab found or tab ID is unavailable');
+        return;
+      }
 
       // Inject and execute the content script to capture the page
       try {

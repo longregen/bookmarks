@@ -2,6 +2,13 @@ import { db, Bookmark, JobType, JobStatus } from '../db/schema';
 import { extractMarkdownAsync } from '../lib/extract';
 import { generateQAPairs, generateEmbeddings } from '../lib/api';
 import { createJob, updateJob, completeJob, failJob } from '../lib/jobs';
+import {
+  HTML_PREVIEW_LENGTH,
+  CONTENT_PREVIEW_LENGTH,
+  SAMPLE_QA_PREVIEW_LENGTH,
+  QA_EMBEDDINGS_PROGRESS,
+  QA_SAVING_PROGRESS
+} from '../lib/constants';
 
 export async function processBookmark(bookmark: Bookmark): Promise<void> {
   let markdownJobId: string | undefined;
@@ -18,7 +25,7 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
     console.log(`[Processor] Extracting markdown for: ${bookmark.title}`, {
       url: bookmark.url,
       htmlLength: bookmark.html?.length ?? 0,
-      htmlPreview: bookmark.html?.slice(0, 200) ?? '',
+      htmlPreview: bookmark.html?.slice(0, HTML_PREVIEW_LENGTH) ?? '',
     });
 
     // Create MARKDOWN_GENERATION job
@@ -38,7 +45,7 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
     console.log(`[Processor] Saving markdown to database`, {
       bookmarkId: bookmark.id,
       contentLength: extracted.content?.length ?? 0,
-      contentPreview: extracted.content?.slice(0, 200) ?? '',
+      contentPreview: extracted.content?.slice(0, CONTENT_PREVIEW_LENGTH) ?? '',
     });
     await db.markdown.add({
       id: markdownId,
@@ -91,7 +98,7 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
     // Step 3: Generate embeddings for Q&A pairs
     await updateJob(qaJobId, {
       currentStep: 'Generating embeddings...',
-      progress: 33,
+      progress: QA_EMBEDDINGS_PROGRESS,
     });
     if (__DEBUG_EMBEDDINGS__) {
       console.log(`[Processor] Generating embeddings for ${qaPairs.length} Q&A pairs`);
@@ -107,8 +114,8 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
         questionCount: questions.length,
         answerCount: answers.length,
         combinedCount: combined.length,
-        sampleQuestion: questions[0]?.slice(0, 100),
-        sampleAnswer: answers[0]?.slice(0, 100),
+        sampleQuestion: questions[0]?.slice(0, SAMPLE_QA_PREVIEW_LENGTH),
+        sampleAnswer: answers[0]?.slice(0, SAMPLE_QA_PREVIEW_LENGTH),
       });
     }
 
@@ -124,7 +131,7 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
     // Update progress
     await updateJob(qaJobId, {
       currentStep: 'Saving Q&A pairs...',
-      progress: 66,
+      progress: QA_SAVING_PROGRESS,
     });
 
     if (__DEBUG_EMBEDDINGS__) {
