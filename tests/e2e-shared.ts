@@ -247,11 +247,11 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner): 
   await runner.runTest('Stumble page loads', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('stumble'));
-    await page.waitForSelector('#stumbleBtn');
+    await page.waitForSelector('#shuffleBtn');
 
-    const hasStumbleBtn = await page.$('#stumbleBtn');
-    if (!hasStumbleBtn) {
-      throw new Error('Stumble button not found');
+    const hasShuffleBtn = await page.$('#shuffleBtn');
+    if (!hasShuffleBtn) {
+      throw new Error('Shuffle button not found');
     }
 
     await page.close();
