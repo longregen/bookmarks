@@ -25,6 +25,9 @@ export const FETCH_OFFSCREEN_BUFFER_MS = 5000; // 5 seconds
 // API CONFIGURATION
 // ============================================================================
 
+/** Default API base URL for OpenAI-compatible endpoints */
+export const DEFAULT_API_BASE_URL = 'https://api.openai.com/v1';
+
 /** Maximum characters to send to the chat API for Q&A generation */
 export const API_CONTENT_MAX_CHARS = 15000;
 

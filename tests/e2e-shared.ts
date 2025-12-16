@@ -101,6 +101,23 @@ export function getMockModelsResponse(): object {
 }
 
 // ============================================================================
+// E2E TEST HELPERS
+// ============================================================================
+
+import { DEFAULT_API_BASE_URL, FETCH_OFFSCREEN_BUFFER_MS } from '../src/lib/constants';
+
+/**
+ * Wait for settings to load from IndexedDB.
+ * Checks that the apiBaseUrl input has been populated (non-empty value).
+ */
+export async function waitForSettingsLoad(page: PageHandle): Promise<void> {
+  await page.waitForFunction(
+    `document.getElementById('apiBaseUrl')?.value?.length > 0`,
+    FETCH_OFFSCREEN_BUFFER_MS
+  );
+}
+
+// ============================================================================
 // TEST RESULT TRACKING
 // ============================================================================
 
@@ -171,6 +188,7 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('options'));
     await page.waitForSelector('#apiKey');
+    await waitForSettingsLoad(page);
 
     // Clear and set API settings to use mock server
     await page.evaluate(`document.getElementById('apiBaseUrl').value = '${adapter.getMockApiUrl()}'`);
@@ -198,9 +216,7 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
       const page = await adapter.newPage();
       await page.goto(adapter.getPageUrl('options'));
       await page.waitForSelector('#testBtn');
-
-      // Wait for settings to load
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await waitForSettingsLoad(page);
 
       // Click test button
       await page.click('#testBtn');
@@ -408,9 +424,10 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
       const page = await adapter.newPage();
       await page.goto(adapter.getPageUrl('options'));
       await page.waitForSelector('#apiKey');
+      await waitForSettingsLoad(page);
 
       // Set real API settings
-      await page.evaluate(`document.getElementById('apiBaseUrl').value = 'https://api.openai.com/v1'`);
+      await page.evaluate(`document.getElementById('apiBaseUrl').value = '${DEFAULT_API_BASE_URL}'`);
       await page.evaluate(`document.getElementById('apiKey').value = '${adapter.getRealApiKey()}'`);
       await page.evaluate(`document.getElementById('chatModel').value = 'gpt-4o-mini'`);
       await page.evaluate(`document.getElementById('embeddingModel').value = 'text-embedding-3-small'`);
@@ -434,9 +451,7 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
       const page = await adapter.newPage();
       await page.goto(adapter.getPageUrl('options'));
       await page.waitForSelector('#testBtn');
-
-      // Wait for settings to load
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await waitForSettingsLoad(page);
 
       // Click test button
       await page.click('#testBtn');
