@@ -46,3 +46,16 @@ declare const __IS_CHROME__: boolean;
  * }
  */
 declare const __IS_FIREFOX__: boolean;
+
+/**
+ * True when building for Web (standalone web app).
+ * Use this to conditionally include web-specific code that doesn't use
+ * browser extension APIs like chrome.runtime.
+ *
+ * @example
+ * if (__IS_WEB__) {
+ *   // This code is eliminated from extension builds
+ *   // Handle bulk import directly without service worker
+ * }
+ */
+declare const __IS_WEB__: boolean;

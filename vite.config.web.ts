@@ -6,6 +6,7 @@ export default defineConfig({
     ...sharedDefine,
     __IS_CHROME__: JSON.stringify(false),
     __IS_FIREFOX__: JSON.stringify(false),
+    __IS_WEB__: JSON.stringify(true),
   },
   base: '/webapp/',
   build: {

@@ -2,11 +2,14 @@
  * Chrome E2E Tests using Puppeteer
  *
  * This file contains end-to-end tests for the Chrome extension using Puppeteer.
+ * Most tests use MOCKED OpenAI API responses to reduce costs and speed up tests.
+ * Only ONE test (the final comprehensive test) uses the real OpenAI API.
+ *
  * For Firefox extension testing, see e2e-firefox.test.ts which uses Selenium
  * with GeckoDriver (Puppeteer has limited Firefox extension support).
  */
 
-import puppeteer, { Browser, Page } from 'puppeteer-core';
+import puppeteer, { Browser, Page, HTTPRequest } from 'puppeteer-core';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -57,6 +60,219 @@ if (!BROWSER_PATH) {
   console.error('ERROR: BROWSER_PATH environment variable is required');
   process.exit(1);
 }
+
+// ============================================================================
+// MOCK OpenAI API RESPONSES
+// ============================================================================
+
+/**
+ * Generate a mock embedding vector (1536 dimensions for text-embedding-3-small)
+ */
+function generateMockEmbedding(): number[] {
+  return Array.from({ length: 1536 }, () => Math.random() * 2 - 1);
+}
+
+/**
+ * Generate mock Q&A pairs response from chat completions
+ */
+function getMockQAPairsResponse(): object {
+  return {
+    id: 'mock-chat-completion',
+    object: 'chat.completion',
+    created: Date.now(),
+    model: 'gpt-4o-mini',
+    choices: [{
+      index: 0,
+      message: {
+        role: 'assistant',
+        content: JSON.stringify({
+          pairs: [
+            { question: 'What is this page about?', answer: 'This is a test page for E2E testing.' },
+            { question: 'What is the main topic?', answer: 'The main topic is testing browser extensions.' },
+            { question: 'Who is this content for?', answer: 'This content is for developers testing their browser extensions.' },
+          ]
+        })
+      },
+      finish_reason: 'stop'
+    }],
+    usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 }
+  };
+}
+
+/**
+ * Generate mock embeddings response
+ */
+function getMockEmbeddingsResponse(inputCount: number): object {
+  return {
+    object: 'list',
+    data: Array.from({ length: inputCount }, (_, i) => ({
+      object: 'embedding',
+      index: i,
+      embedding: generateMockEmbedding()
+    })),
+    model: 'text-embedding-3-small',
+    usage: { prompt_tokens: inputCount * 10, total_tokens: inputCount * 10 }
+  };
+}
+
+/**
+ * Handle OpenAI API request interception
+ */
+function handleOpenAIRequest(request: HTTPRequest): void {
+  const url = request.url();
+  const postData = request.postData();
+
+  if (url.includes('/chat/completions')) {
+    // Mock chat completions (Q&A pair generation)
+    request.respond({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(getMockQAPairsResponse())
+    });
+  } else if (url.includes('/embeddings')) {
+    // Mock embeddings - parse input to get count
+    let inputCount = 1;
+    if (postData) {
+      try {
+        const body = JSON.parse(postData);
+        inputCount = Array.isArray(body.input) ? body.input.length : 1;
+      } catch {
+        // Default to 1
+      }
+    }
+    request.respond({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(getMockEmbeddingsResponse(inputCount))
+    });
+  } else {
+    // Let other OpenAI requests through (like model list, etc.)
+    request.continue();
+  }
+}
+
+/**
+ * Set up request interception on a page to mock OpenAI API calls
+ */
+async function setupMockAPI(page: Page): Promise<void> {
+  await page.setRequestInterception(true);
+  page.on('request', (request) => {
+    const url = request.url();
+    if (url.includes('api.openai.com')) {
+      handleOpenAIRequest(request);
+    } else {
+      request.continue();
+    }
+  });
+}
+
+/**
+ * Disable request interception on a page (for real API tests)
+ */
+async function disableMockAPI(page: Page): Promise<void> {
+  await page.setRequestInterception(false);
+}
+
+// ============================================================================
+// LOCAL MOCK SERVER
+// ============================================================================
+
+import http from 'http';
+
+let mockServer: http.Server | null = null;
+let mockServerPort = 0;
+
+/**
+ * Start a local mock server that mimics OpenAI API responses
+ */
+async function startMockServer(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    mockServer = http.createServer((req, res) => {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', () => {
+        // Set CORS headers
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.setHeader('Content-Type', 'application/json');
+
+        // Handle preflight
+        if (req.method === 'OPTIONS') {
+          res.statusCode = 200;
+          res.end();
+          return;
+        }
+
+        const url = req.url || '';
+
+        if (url.includes('/chat/completions')) {
+          res.statusCode = 200;
+          res.end(JSON.stringify(getMockQAPairsResponse()));
+        } else if (url.includes('/embeddings')) {
+          let inputCount = 1;
+          if (body) {
+            try {
+              const parsed = JSON.parse(body);
+              inputCount = Array.isArray(parsed.input) ? parsed.input.length : 1;
+            } catch {
+              // Default
+            }
+          }
+          res.statusCode = 200;
+          res.end(JSON.stringify(getMockEmbeddingsResponse(inputCount)));
+        } else if (url.includes('/models')) {
+          // Models list endpoint (used for testing connection)
+          res.statusCode = 200;
+          res.end(JSON.stringify({
+            object: 'list',
+            data: [
+              { id: 'gpt-4o-mini', object: 'model' },
+              { id: 'text-embedding-3-small', object: 'model' }
+            ]
+          }));
+        } else {
+          res.statusCode = 404;
+          res.end(JSON.stringify({ error: 'Not found' }));
+        }
+      });
+    });
+
+    mockServer.listen(0, '127.0.0.1', () => {
+      const addr = mockServer!.address();
+      if (addr && typeof addr === 'object') {
+        mockServerPort = addr.port;
+        const url = `http://127.0.0.1:${mockServerPort}`;
+        console.log(`Mock OpenAI server running at ${url}`);
+        resolve(url);
+      } else {
+        reject(new Error('Failed to get server address'));
+      }
+    });
+
+    mockServer.on('error', reject);
+  });
+}
+
+/**
+ * Stop the mock server
+ */
+async function stopMockServer(): Promise<void> {
+  return new Promise((resolve) => {
+    if (mockServer) {
+      mockServer.close(() => {
+        mockServer = null;
+        resolve();
+      });
+    } else {
+      resolve();
+    }
+  });
+}
+
+// Whether to use mock API (set to false for the ONE real API test)
+let useMockAPI = true;
+let mockAPIBaseUrl = '';
 
 interface TestResult {
   name: string;
@@ -300,26 +516,36 @@ async function main(): Promise<void> {
   console.log('Chrome E2E Browser Extension Tests (Puppeteer)');
   console.log('='.repeat(60));
   console.log(`API Key: ${OPENAI_API_KEY ? 'Provided' : 'Not provided'}`);
+  console.log('Mode: MOCK API (with 1 real API test at the end)');
   console.log('='.repeat(60));
 
   let browser: Browser | null = null;
   let extensionId: string = '';
 
   try {
+    // Start the mock server
+    mockAPIBaseUrl = await startMockServer();
+    console.log(`Mock server started at: ${mockAPIBaseUrl}\n`);
+
     browser = await launchBrowser();
     extensionId = await getExtensionId(browser);
     console.log(`\nExtension ID: ${extensionId}\n`);
 
-    // Test 1: Configure API settings
+    // ========================================================================
+    // MOCKED API TESTS - These use the mock server for fast, cheap testing
+    // ========================================================================
+    console.log('\n--- MOCKED API TESTS ---\n');
+
+    // Test 1: Configure API settings (with mock server URL)
     await runTest('Configure API settings', async () => {
       const page = await browser!.newPage();
       await page.goto(getExtensionUrl(extensionId, '/src/options/options.html'));
 
       await page.waitForSelector('#apiKey', { timeout: 5000 });
 
-      // Set all API settings directly
-      await page.$eval('#apiBaseUrl', (el: HTMLInputElement) => el.value = 'https://api.openai.com/v1');
-      await page.$eval('#apiKey', (el: HTMLInputElement, key: string) => el.value = key, OPENAI_API_KEY!);
+      // Set API settings to use mock server
+      await page.$eval('#apiBaseUrl', (el: HTMLInputElement, url: string) => el.value = url, mockAPIBaseUrl);
+      await page.$eval('#apiKey', (el: HTMLInputElement) => el.value = 'mock-api-key');
       await page.$eval('#chatModel', (el: HTMLInputElement) => el.value = 'gpt-4o-mini');
       await page.$eval('#embeddingModel', (el: HTMLInputElement) => el.value = 'text-embedding-3-small');
 
@@ -495,8 +721,8 @@ async function main(): Promise<void> {
       await page.close();
     });
 
-    // Test 5: Wait for bookmark processing (if bookmark exists)
-    await runTest('Wait for bookmark processing', async () => {
+    // Test 5: Wait for bookmark processing (FAST with mock API)
+    await runTest('Wait for bookmark processing (mocked)', async () => {
       const page = await browser!.newPage();
       await page.goto(getExtensionUrl(extensionId, '/src/library/library.html'));
 
@@ -511,13 +737,13 @@ async function main(): Promise<void> {
         return;
       }
 
-      // Wait up to 60 seconds for processing to complete
-      const maxWait = 60000;
+      // With mock API, processing should be very fast (10 seconds max)
+      const maxWait = 10000;
       const startTime = Date.now();
 
       while (Date.now() - startTime < maxWait) {
         await page.reload({ waitUntil: 'domcontentloaded' });
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         const statuses = await page.$$eval('.status-badge', badges =>
           badges.map(b => b.textContent?.toLowerCase())
@@ -527,7 +753,7 @@ async function main(): Promise<void> {
         const hasPending = statuses.some(s => s === 'pending' || s === 'processing');
 
         if (hasComplete && !hasPending) {
-          console.log('  (Bookmark processing complete)');
+          console.log('  (Bookmark processing complete - mock API)');
           break;
         }
 
@@ -540,8 +766,8 @@ async function main(): Promise<void> {
       await page.close();
     });
 
-    // Test 6: Verify readability content extraction
-    await runTest('Readability extracts content correctly', async () => {
+    // Test 6: Verify readability content extraction (FAST with mock API)
+    await runTest('Readability extracts content correctly (mocked)', async () => {
       // Create a simple test page with clear article content
       const testPage = await browser!.newPage();
 
@@ -567,30 +793,6 @@ async function main(): Promise<void> {
     <h2>Core Concepts</h2>
 
     <p>At its core, machine learning relies on statistical methods and computational algorithms. The process involves feeding data to algorithms that can identify patterns and relationships within the data. These patterns are then used to make predictions or decisions without being explicitly programmed for specific tasks.</p>
-
-    <p>Machine learning models improve their performance through experience. As they process more data, they refine their internal parameters to make better predictions. This iterative learning process is what distinguishes machine learning from traditional programming approaches.</p>
-
-    <h2>Types of Learning</h2>
-
-    <p>There are three main categories of machine learning approaches, each suited for different types of problems and data scenarios.</p>
-
-    <p>Supervised learning uses labeled data, where the algorithm learns from examples that include both input and desired output. This approach is commonly used for classification and regression tasks.</p>
-
-    <p>Unsupervised learning finds hidden patterns in unlabeled data, discovering structure without explicit guidance. Clustering and dimensionality reduction are common applications of this approach.</p>
-
-    <p>Reinforcement learning learns through trial and error, receiving rewards or penalties based on actions taken. This approach has proven particularly effective in game playing and robotics.</p>
-
-    <h2>Real-world Applications</h2>
-
-    <p>Machine learning powers recommendation systems that suggest products, movies, or content based on user preferences and behavior patterns. These systems analyze vast amounts of user interaction data to provide personalized experiences.</p>
-
-    <p>In finance, machine learning algorithms detect fraud by identifying unusual patterns in transaction data. These systems can process millions of transactions in real-time, flagging suspicious activities for further investigation.</p>
-
-    <p>Medical diagnosis has been revolutionized by machine learning, with algorithms analyzing medical images, patient records, and genetic data to assist doctors in identifying diseases and recommending treatments.</p>
-
-    <p>Autonomous vehicles rely heavily on machine learning for perception, decision-making, and control. These systems process data from sensors and cameras to navigate safely through complex environments.</p>
-
-    <p>Natural language processing systems use machine learning to understand and generate human language, enabling applications like virtual assistants, machine translation, and sentiment analysis.</p>
   </article>
 </body>
 </html>`;
@@ -606,49 +808,48 @@ async function main(): Promise<void> {
       });
 
       // Use a realistic article URL for Readability compatibility
-      // Avoid generic domains like example.com that Readability might filter
       pageData.url = 'https://techblog.example.org/2024/01/understanding-machine-learning-fundamentals';
 
       // Close the test page before opening popup
       await testPage.close();
 
       // Send bookmark data to service worker via the extension's message system
-      // We'll use the explore page to access the database and extension APIs
       const libraryPage = await browser!.newPage();
       await libraryPage.goto(`chrome-extension://${extensionId}/src/library/library.html`);
       await libraryPage.waitForSelector('#bookmarkList', { timeout: 5000 });
 
-      // Inject the bookmark via the service worker with retry logic
-      const saveResult = await sendMessageWithRetry(libraryPage, {
-        type: 'SAVE_BOOKMARK',
-        data: pageData
-      });
+      // Inject the bookmark via the service worker
+      const saveResult = await libraryPage.evaluate(async (data) => {
+        return new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            { type: 'SAVE_BOOKMARK', data },
+            (response) => resolve(response)
+          );
+        });
+      }, pageData);
 
       if (!saveResult || !(saveResult as any).success) {
         throw new Error('Failed to save bookmark: ' + JSON.stringify(saveResult));
       }
 
-      console.log('  Bookmark saved, waiting for processing...');
+      console.log('  Bookmark saved, waiting for processing (mock API - fast)...');
 
-      // Wait for bookmark to be processed (up to 90 seconds)
-      const maxWait = 90000;
+      // With mock API, processing should be very fast (15 seconds max)
+      const maxWait = 15000;
       const startTime = Date.now();
       let processed = false;
 
       while (Date.now() - startTime < maxWait) {
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 1000));
         await libraryPage.reload({ waitUntil: 'domcontentloaded' });
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         const bookmarkStatus = await libraryPage.evaluate(async () => {
-          // Use the exposed test helper to access the database
           if (!window.__testHelpers) {
             throw new Error('Test helpers not available on window object');
           }
           return await window.__testHelpers.getBookmarkStatus();
         });
-
-        console.log('  Status check:', JSON.stringify(bookmarkStatus, null, 2));
 
         const testBookmark = bookmarkStatus.bookmarks.find(
           (b: any) => b.title === 'Understanding Machine Learning Fundamentals'
@@ -668,38 +869,24 @@ async function main(): Promise<void> {
             }
 
             console.log(`  Markdown content length: ${bookmarkMarkdown.contentLength}`);
-            console.log(`  Markdown preview: ${bookmarkMarkdown.contentPreview}`);
 
             if (bookmarkMarkdown.contentLength === 0) {
-              throw new Error(
-                'Readability extracted empty content. This indicates an issue with content extraction.\n' +
-                `Bookmark URL: ${testBookmark.url}\n` +
-                'The HTML structure may not be compatible with Readability, or the URL format may be causing issues.'
-              );
+              throw new Error('Readability extracted empty content.');
             }
 
             const markdown = bookmarkMarkdown.contentPreview;
 
             // Check for key content that should be extracted by Readability
-            // Note: We only check the preview (first ~200 chars), so we can only verify
-            // content from the beginning of the extracted article
-            const expectedPhrases = [
-              'Machine learning',
-              'artificial intelligence',
-            ];
-
+            const expectedPhrases = ['Machine learning', 'artificial intelligence'];
             const missingPhrases = expectedPhrases.filter(phrase =>
               !markdown.toLowerCase().includes(phrase.toLowerCase())
             );
 
             if (missingPhrases.length > 0) {
-              throw new Error(
-                `Extracted content is missing expected phrases: ${missingPhrases.join(', ')}\n` +
-                `Markdown content preview (200 chars): ${markdown}`
-              );
+              throw new Error(`Extracted content is missing: ${missingPhrases.join(', ')}`);
             }
 
-            console.log('  ✓ Content extracted successfully with all expected phrases');
+            console.log('  ✓ Content extracted with mock Q&A generation');
             break;
           } else if (testBookmark.status === 'error') {
             throw new Error(`Bookmark processing failed: ${testBookmark.errorMessage}`);
@@ -708,14 +895,14 @@ async function main(): Promise<void> {
       }
 
       if (!processed) {
-        throw new Error('Bookmark did not complete processing within timeout period');
+        throw new Error('Bookmark did not complete processing within timeout');
       }
 
       await libraryPage.close();
     });
 
-    // Test 7: Test search functionality
-    await runTest('Search for bookmarks', async () => {
+    // Test 7: Test search functionality (mocked - just tests UI works)
+    await runTest('Search UI works (mocked)', async () => {
       const page = await browser!.newPage();
       await page.goto(getExtensionUrl(extensionId, '/src/search/search.html'));
 
@@ -727,24 +914,24 @@ async function main(): Promise<void> {
       // Click search
       await page.click('#searchBtn');
 
-      // Wait for search to complete (button becomes enabled again)
+      // Wait for search to complete (with mock API, should be fast)
       await page.waitForFunction(
         () => {
           const btn = document.querySelector('#searchBtn') as HTMLButtonElement;
           return btn && !btn.disabled && btn.textContent?.includes('Search');
         },
-        { timeout: 60000 }
+        { timeout: 15000 }
       );
 
-      // Check search results
+      // Check search results container exists
       const resultsList = await page.$('#resultsList');
       if (!resultsList) {
         throw new Error('Search results container not found');
       }
 
-      // Check result count
+      // Check result count (may be 0 or more with mock data)
       const count = await page.$eval('#resultCount', el => el.textContent);
-      console.log(`  (Found ${count} search results)`);
+      console.log(`  (Found ${count} search results with mock embeddings)`);
 
       await page.close();
     });
@@ -1016,9 +1203,157 @@ async function main(): Promise<void> {
       await page.close();
     });
 
+    // ========================================================================
+    // ONE REAL API TEST - This is the only test that uses real OpenAI API
+    // ========================================================================
+    console.log('\n--- REAL API TEST (1 test with actual OpenAI API) ---\n');
+
+    // Reconfigure to use real OpenAI API
+    await runTest('Configure real OpenAI API', async () => {
+      const page = await browser!.newPage();
+      await page.goto(getExtensionUrl(extensionId, '/src/options/options.html'));
+
+      await page.waitForSelector('#apiKey', { timeout: 5000 });
+
+      // Set API settings to use REAL OpenAI API
+      await page.$eval('#apiBaseUrl', (el: HTMLInputElement) => el.value = 'https://api.openai.com/v1');
+      await page.$eval('#apiKey', (el: HTMLInputElement, key: string) => el.value = key, OPENAI_API_KEY!);
+      await page.$eval('#chatModel', (el: HTMLInputElement) => el.value = 'gpt-4o-mini');
+      await page.$eval('#embeddingModel', (el: HTMLInputElement) => el.value = 'text-embedding-3-small');
+
+      // Save settings
+      await page.click('[type="submit"]');
+
+      // Wait for success
+      await page.waitForFunction(
+        () => {
+          const status = document.querySelector('.status');
+          return status && status.textContent?.includes('success');
+        },
+        { timeout: 10000 }
+      );
+
+      await page.close();
+    });
+
+    // The ONE real E2E test - full bookmark flow with real OpenAI API
+    await runTest('[REAL API] Full bookmark processing flow', async () => {
+      console.log('  🔴 Using REAL OpenAI API - this may take longer...');
+
+      // Create a test page with clear article content
+      const testPage = await browser!.newPage();
+
+      const testContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Real API Test Article</title>
+</head>
+<body>
+  <article>
+    <h1>Real API Test Article</h1>
+    <p>This is a test article for the real OpenAI API integration test.</p>
+    <p>The extension should extract this content, generate Q&A pairs using GPT-4o-mini, and create embeddings using text-embedding-3-small.</p>
+    <p>This verifies the full end-to-end flow with real API calls.</p>
+  </article>
+</body>
+</html>`;
+
+      await testPage.setContent(testContent, { waitUntil: 'domcontentloaded' });
+
+      const pageData = await testPage.evaluate(() => ({
+        html: document.documentElement.outerHTML,
+        title: document.title,
+      }));
+      pageData.url = 'https://test.example.org/real-api-test-' + Date.now();
+
+      await testPage.close();
+
+      // Save bookmark
+      const libraryPage = await browser!.newPage();
+      await libraryPage.goto(`chrome-extension://${extensionId}/src/library/library.html`);
+      await libraryPage.waitForSelector('#bookmarkList', { timeout: 5000 });
+
+      const saveResult = await libraryPage.evaluate(async (data) => {
+        return new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            { type: 'SAVE_BOOKMARK', data },
+            (response) => resolve(response)
+          );
+        });
+      }, pageData);
+
+      if (!saveResult || !(saveResult as any).success) {
+        throw new Error('Failed to save bookmark: ' + JSON.stringify(saveResult));
+      }
+
+      console.log('  Bookmark saved, waiting for REAL API processing...');
+
+      // Wait for processing with real API (up to 90 seconds)
+      const maxWait = 90000;
+      const startTime = Date.now();
+      let processed = false;
+
+      while (Date.now() - startTime < maxWait) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        await libraryPage.reload({ waitUntil: 'domcontentloaded' });
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        const bookmarkStatus = await libraryPage.evaluate(async () => {
+          if (!window.__testHelpers) {
+            throw new Error('Test helpers not available');
+          }
+          return await window.__testHelpers.getBookmarkStatus();
+        });
+
+        const testBookmark = bookmarkStatus.bookmarks.find(
+          (b: any) => b.title === 'Real API Test Article'
+        );
+
+        if (testBookmark) {
+          console.log(`  Status: ${testBookmark.status}`);
+
+          if (testBookmark.status === 'complete') {
+            processed = true;
+
+            // Verify Q&A pairs were generated
+            const qaCount = await libraryPage.evaluate(async (bookmarkId) => {
+              const db = (window as any).__testHelpers?.db;
+              if (db) {
+                const qaPairs = await db.questionsAnswers.where('bookmarkId').equals(bookmarkId).toArray();
+                return qaPairs.length;
+              }
+              return 0;
+            }, testBookmark.id);
+
+            console.log(`  ✓ Bookmark processed with real API`);
+            console.log(`  ✓ Q&A pairs generated: ${qaCount}`);
+
+            if (qaCount === 0) {
+              console.log('  ⚠ Warning: No Q&A pairs generated (may be due to short content)');
+            }
+
+            break;
+          } else if (testBookmark.status === 'error') {
+            throw new Error(`Real API processing failed: ${testBookmark.errorMessage}`);
+          }
+        }
+      }
+
+      if (!processed) {
+        throw new Error('Real API bookmark did not complete processing within timeout');
+      }
+
+      await libraryPage.close();
+    });
+
   } catch (error) {
     console.error('\nFatal error:', error);
   } finally {
+    // Stop mock server
+    await stopMockServer();
+    console.log('Mock server stopped');
+
     if (browser) {
       await browser.close();
     }

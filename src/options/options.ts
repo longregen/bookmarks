@@ -1,12 +1,16 @@
 import { getSettings, saveSetting } from '../lib/settings';
 import { exportAllBookmarks, downloadExport, readImportFile, importBookmarks } from '../lib/export';
-import { validateUrls } from '../lib/bulk-import';
+import { validateUrls, createBulkImportJob } from '../lib/bulk-import';
 import { getRecentJobs, type Job } from '../lib/jobs';
 import { db, JobType, JobStatus } from '../db/schema';
 import { createElement, showStatusMessage } from '../lib/dom';
 import { formatTimeAgo } from '../lib/time';
 import { onThemeChange, applyTheme, getTheme, setTheme, type Theme } from '../shared/theme';
 import { initExtension } from '../lib/init-extension';
+
+// Web-only imports for direct bulk import processing
+import { processBulkFetch } from '../background/fetcher';
+import { startProcessingQueue } from '../background/queue';
 
 const form = document.getElementById('settingsForm') as HTMLFormElement;
 const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
@@ -565,29 +569,40 @@ startBulkImportBtn.addEventListener('click', async () => {
     bulkImportProgressBar.style.width = '0%';
     bulkImportStatus.textContent = 'Starting import...';
 
-    // Send message to background script to start bulk import
-    const response = await chrome.runtime.sendMessage({
-      type: 'START_BULK_IMPORT',
-      urls: validation.validUrls,
-    });
+    let jobId: string;
 
-    if (!response.success) {
-      throw new Error(response.error || 'Failed to start bulk import');
+    if (__IS_WEB__) {
+      // Web: Call bulk import functions directly (no service worker)
+      jobId = await createBulkImportJob(validation.validUrls);
+      currentBulkImportJobId = jobId;
+
+      // Start processing in background (don't await)
+      processBulkFetch(jobId).catch(error => {
+        console.error('Error in bulk fetch processing:', error);
+      });
+    } else {
+      // Extension: Send message to background script to start bulk import
+      const response = await chrome.runtime.sendMessage({
+        type: 'START_BULK_IMPORT',
+        urls: validation.validUrls,
+      });
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to start bulk import');
+      }
+
+      jobId = response.jobId;
+      currentBulkImportJobId = jobId;
     }
 
-    currentBulkImportJobId = response.jobId;
-
-    // Start polling for progress
+    // Start polling for progress (works for both web and extension)
     bulkImportPollingInterval = window.setInterval(async () => {
       if (!currentBulkImportJobId) return;
 
-      const jobResponse = await chrome.runtime.sendMessage({
-        type: 'GET_JOB_STATUS',
-        jobId: currentBulkImportJobId,
-      });
+      // Get job status directly from database (works for both web and extension)
+      const job = await db.jobs.get(currentBulkImportJobId);
 
-      if (jobResponse.success && jobResponse.job) {
-        const job = jobResponse.job;
+      if (job) {
 
         // Update progress bar
         bulkImportProgressBar.style.width = `${job.progress}%`;
