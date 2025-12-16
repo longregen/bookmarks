@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stumble - Bookmarks by Localforge</title>
+  <link rel="stylesheet" href="../shared/theme.css">
+  <link rel="stylesheet" href="stumble.css">
+</head>
+<body>
+  <!-- Header Navigation (will be injected by JS) -->
+  <div id="headerNav"></div>
+
+  <!-- Main Layout: Sidebar + Content + Detail Panel -->
+  <div class="stumble-layout">
+    <!-- Filter Sidebar (will be injected by JS) -->
+    <aside id="filterSidebar" class="stumble-sidebar"></aside>
+
+    <!-- Stumble Content -->
+    <main class="stumble-content">
+      <div class="stumble-content__header">
+        <button id="shuffleButton" class="stumble-shuffle-btn">
+          <span class="stumble-shuffle-icon">↻</span>
+          Shuffle
+        </button>
+        <div class="stumble-content__count">
+          Showing <span id="stumbleCount">10</span> random bookmarks
+        </div>
+      </div>
+
+      <!-- Stumble Cards Container -->
+      <div id="stumbleList" class="stumble-cards">
+        <div class="loading">Loading bookmarks...</div>
+      </div>
+    </main>
+
+    <!-- Detail Panel (will be injected by JS when card is selected) -->
+    <div id="detailPanel" class="stumble-detail-panel"></div>
+  </div>
+
+  <script src="stumble.ts" type="module"></script>
+</body>
+</html>

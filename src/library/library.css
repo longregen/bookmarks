@@ -1,0 +1,351 @@
+/* Library Page Styles */
+
+/* ===== Layout ===== */
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.library-layout {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ===== Sidebar ===== */
+
+.library-sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-primary);
+  overflow-y: auto;
+}
+
+/* ===== Content Area ===== */
+
+.library-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-primary);
+  min-width: 350px;
+  max-width: 550px;
+}
+
+.library-content__header {
+  flex-shrink: 0;
+  padding: var(--space-6);
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+}
+
+.library-content__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.library-content__title {
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.library-content__sort {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.library-content__sort-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-tertiary);
+}
+
+.library-content__sort-select {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.library-content__sort-select:hover {
+  border-color: var(--border-focus);
+}
+
+.library-content__sort-select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+/* ===== Bookmark List ===== */
+
+.library-bookmarks {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Scrollbar styling */
+.library-bookmarks::-webkit-scrollbar {
+  width: 8px;
+}
+
+.library-bookmarks::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+}
+
+.library-bookmarks::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+  border-radius: 4px;
+}
+
+.library-bookmarks::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* ===== Bookmark Card ===== */
+
+.library-bookmark-card {
+  padding: var(--space-4);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.library-bookmark-card:hover {
+  border-color: var(--border-secondary);
+  box-shadow: var(--shadow-md);
+}
+
+.library-bookmark-card--selected {
+  border-color: var(--accent-primary);
+  background: var(--bg-hover);
+}
+
+/* Title row */
+.library-bookmark-card__title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.library-bookmark-card__title {
+  flex: 1;
+  font-size: var(--text-base);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+  line-height: var(--leading-tight);
+}
+
+.library-bookmark-card__status {
+  flex-shrink: 0;
+  font-size: var(--text-md);
+  line-height: 1;
+}
+
+.library-bookmark-card__status--pending {
+  color: var(--text-muted);
+}
+
+.library-bookmark-card__status--processing {
+  color: var(--info-text);
+}
+
+.library-bookmark-card__status--complete {
+  color: var(--success-text);
+}
+
+.library-bookmark-card__status--error {
+  color: var(--error-text);
+}
+
+/* Meta row */
+.library-bookmark-card__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+}
+
+.library-bookmark-card__url {
+  color: var(--text-secondary);
+}
+
+.library-bookmark-card__separator {
+  color: var(--text-muted);
+}
+
+.library-bookmark-card__time {
+  color: var(--text-secondary);
+}
+
+.library-bookmark-card__tags {
+  color: var(--accent-primary);
+}
+
+/* ===== Detail Panel ===== */
+
+.library-detail-panel {
+  display: none;
+  flex: 1;
+  max-width: 680px;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-primary);
+  overflow-y: auto;
+}
+
+.library-detail-panel--visible {
+  display: block;
+}
+
+/* Scrollbar styling */
+.library-detail-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.library-detail-panel::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+}
+
+.library-detail-panel::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+  border-radius: 4px;
+}
+
+.library-detail-panel::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* ===== Empty State ===== */
+
+.library-bookmarks .empty-state {
+  padding: var(--space-9) var(--space-6);
+}
+
+/* ===== Loading State ===== */
+
+.library-bookmarks .loading {
+  padding: var(--space-9) var(--space-6);
+}
+
+/* ===== Responsive Adjustments ===== */
+
+/* Laptop */
+@media (max-width: 1199px) {
+  .library-sidebar {
+    width: 180px;
+  }
+
+  .library-content {
+    min-width: 300px;
+    max-width: 480px;
+  }
+
+  .library-detail-panel {
+    max-width: 600px;
+  }
+}
+
+/* Tablet */
+@media (max-width: 899px) {
+  .library-layout {
+    flex-direction: column;
+  }
+
+  .library-sidebar {
+    width: 100%;
+    max-height: 200px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-primary);
+  }
+
+  .library-content {
+    min-width: 100%;
+    max-width: 100%;
+  }
+
+  .library-detail-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-width: 100%;
+    z-index: 1000;
+    border-left: none;
+  }
+
+  .library-detail-panel--visible {
+    display: block;
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .library-content__header {
+    padding: var(--space-4);
+  }
+
+  .library-content__title {
+    font-size: var(--text-lg);
+  }
+
+  .library-bookmarks {
+    padding: var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .library-bookmark-card {
+    padding: var(--space-3);
+  }
+
+  .library-bookmark-card__title {
+    font-size: var(--text-sm);
+  }
+
+  .library-bookmark-card__meta {
+    font-size: var(--text-xs);
+  }
+}
+
+/* ===== Error Message ===== */
+
+.error-message {
+  padding: var(--space-4);
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  text-align: center;
+}

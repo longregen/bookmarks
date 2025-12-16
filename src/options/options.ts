@@ -6,10 +6,14 @@ import { db, JobType, JobStatus } from '../db/schema';
 import { createElement, showStatusMessage } from '../lib/dom';
 import { formatTimeAgo } from '../lib/time';
 import { initTheme, onThemeChange, applyTheme, getTheme, setTheme, type Theme } from '../shared/theme';
+import { createHeaderNav, injectHeaderNavStyles } from '../shared/header-nav.js';
+import {
+  injectHealthIndicatorStyles,
+  createDiagnosticsModal
+} from '../shared/health-indicator.js';
 
 const form = document.getElementById('settingsForm') as HTMLFormElement;
 const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
-const navExplore = document.getElementById('navExplore') as HTMLAnchorElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
 
 const apiBaseUrlInput = document.getElementById('apiBaseUrl') as HTMLInputElement;
@@ -18,11 +22,14 @@ const chatModelInput = document.getElementById('chatModel') as HTMLInputElement;
 const embeddingModelInput = document.getElementById('embeddingModel') as HTMLInputElement;
 
 // Import/Export elements
-const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
+const exportAllBtn = document.getElementById('exportAllBtn') as HTMLButtonElement;
+const exportSettingsBtn = document.getElementById('exportSettingsBtn') as HTMLButtonElement;
 const importFile = document.getElementById('importFile') as HTMLInputElement;
 const importBtn = document.getElementById('importBtn') as HTMLButtonElement;
 const importFileName = document.getElementById('importFileName') as HTMLSpanElement;
 const importStatus = document.getElementById('importStatus') as HTMLDivElement;
+const showBulkImportBtn = document.getElementById('showBulkImport') as HTMLButtonElement;
+const bulkImportContainer = document.getElementById('bulkImportContainer') as HTMLDivElement;
 
 async function loadSettings() {
   try {
@@ -109,19 +116,25 @@ testBtn.addEventListener('click', async () => {
   }
 });
 
-// Navigate to explore page (same tab)
-navExplore.addEventListener('click', (e) => {
-  e.preventDefault();
-  window.location.href = chrome.runtime.getURL('src/explore/explore.html');
-});
-
 // Import/Export functionality
 let selectedFile: File | null = null;
 
-exportBtn.addEventListener('click', async () => {
+// Show/hide bulk import container
+showBulkImportBtn.addEventListener('click', () => {
+  const isHidden = bulkImportContainer.classList.contains('hidden');
+  if (isHidden) {
+    bulkImportContainer.classList.remove('hidden');
+    showBulkImportBtn.textContent = '🔗 Hide Import URLs';
+  } else {
+    bulkImportContainer.classList.add('hidden');
+    showBulkImportBtn.textContent = '🔗 Import URLs';
+  }
+});
+
+exportAllBtn.addEventListener('click', async () => {
   try {
-    exportBtn.disabled = true;
-    exportBtn.textContent = 'Exporting...';
+    exportAllBtn.disabled = true;
+    exportAllBtn.textContent = 'Exporting...';
 
     const exportData = await exportAllBookmarks();
 
@@ -136,8 +149,47 @@ exportBtn.addEventListener('click', async () => {
     console.error('Error exporting bookmarks:', error);
     showStatusMessage(statusDiv, 'Failed to export bookmarks', 'error', 5000);
   } finally {
-    exportBtn.disabled = false;
-    exportBtn.textContent = 'Export All Bookmarks';
+    exportAllBtn.disabled = false;
+    exportAllBtn.textContent = '⭕ Export All';
+  }
+});
+
+exportSettingsBtn.addEventListener('click', async () => {
+  try {
+    exportSettingsBtn.disabled = true;
+    exportSettingsBtn.textContent = 'Exporting...';
+
+    // Get current settings
+    const settings = await getSettings();
+
+    // Create settings export data
+    const settingsExport = {
+      version: '3.4.0',
+      exportDate: new Date().toISOString(),
+      settings: {
+        apiBaseUrl: settings.apiBaseUrl,
+        chatModel: settings.chatModel,
+        embeddingModel: settings.embeddingModel,
+        theme: await getTheme()
+      }
+    };
+
+    // Download as JSON
+    const blob = new Blob([JSON.stringify(settingsExport, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bookmarks-settings-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    showStatusMessage(statusDiv, 'Settings exported successfully!', 'success', 5000);
+  } catch (error) {
+    console.error('Error exporting settings:', error);
+    showStatusMessage(statusDiv, 'Failed to export settings', 'error', 5000);
+  } finally {
+    exportSettingsBtn.disabled = false;
+    exportSettingsBtn.textContent = '⭕ Export Settings';
   }
 });
 
@@ -638,10 +690,13 @@ const sections = document.querySelectorAll<HTMLElement>('.settings-section');
 
 function setActiveNavItem(sectionId: string) {
   navItems.forEach(item => {
+    const indicator = item.querySelector('.nav-indicator');
     if (item.dataset.section === sectionId) {
       item.classList.add('active');
+      if (indicator) indicator.textContent = '●';
     } else {
       item.classList.remove('active');
+      if (indicator) indicator.textContent = '○';
     }
   });
 }
@@ -695,6 +750,23 @@ window.addEventListener('resize', () => {
     setupScrollObserver();
   }
 });
+
+// Initialize header navigation
+injectHeaderNavStyles();
+injectHealthIndicatorStyles();
+const headerContainer = document.getElementById('headerNav');
+if (headerContainer) {
+  const header = createHeaderNav({
+    activePage: 'settings',
+    onHealthClick: () => {
+      const modal = createDiagnosticsModal(() => {
+        modal.remove();
+      });
+      document.body.appendChild(modal);
+    }
+  });
+  headerContainer.appendChild(header);
+}
 
 // Load settings on page load
 loadSettings();

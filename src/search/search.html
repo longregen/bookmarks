@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Search - Bookmarks by Localforge</title>
+  <link rel="stylesheet" href="../shared/theme.css">
+  <link rel="stylesheet" href="search.css">
+</head>
+<body>
+  <!-- Header Navigation (will be injected by JS) -->
+  <div id="headerNav"></div>
+
+  <!-- Main Layout: Sidebar + Content + Detail Panel -->
+  <div class="search-layout">
+    <!-- Filter Sidebar (will be injected by JS) -->
+    <aside id="filterSidebar" class="search-sidebar"></aside>
+
+    <!-- Search Content -->
+    <main class="search-content">
+      <!-- Search Box -->
+      <div class="search-content__search-box">
+        <input
+          type="text"
+          id="searchInput"
+          class="search-input"
+          placeholder="Ask anything..."
+          autocomplete="off"
+        />
+        <button id="searchBtn" class="search-btn" aria-label="Search">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM19 19l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Results Header -->
+      <div class="search-content__header">
+        <div class="search-content__count">
+          <span id="resultCount">0</span> results
+        </div>
+        <div class="search-content__sort">
+          <label for="sortSelect" class="search-content__sort-label">Sort:</label>
+          <select id="sortSelect" class="search-content__sort-select">
+            <option value="relevance">Relevance</option>
+            <option value="date-desc">Date (newest)</option>
+            <option value="date-asc">Date (oldest)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Search Results Container -->
+      <div id="searchResults" class="search-results">
+        <div class="empty-state">Enter a search query to find bookmarks</div>
+      </div>
+    </main>
+
+    <!-- Detail Panel (will be injected by JS when result is selected) -->
+    <div id="detailPanel" class="search-detail-panel"></div>
+  </div>
+
+  <script src="search.ts" type="module"></script>
+</body>
+</html>

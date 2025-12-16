@@ -1,27 +1,12 @@
-import { db } from '../db/schema';
 import { showStatusMessage } from '../lib/dom';
 import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
 
 const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement;
-const exploreBtn = document.getElementById('exploreBtn') as HTMLButtonElement;
+const libraryBtn = document.getElementById('libraryBtn') as HTMLButtonElement;
+const searchBtn = document.getElementById('searchBtn') as HTMLButtonElement;
+const stumbleBtn = document.getElementById('stumbleBtn') as HTMLButtonElement;
+const settingsBtn = document.getElementById('settingsBtn') as HTMLButtonElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
-const totalCount = document.getElementById('totalCount') as HTMLSpanElement;
-const pendingCount = document.getElementById('pendingCount') as HTMLSpanElement;
-const completeCount = document.getElementById('completeCount') as HTMLSpanElement;
-
-async function updateStats() {
-  try {
-    const all = await db.bookmarks.toArray();
-    const pending = all.filter(b => b.status === 'pending' || b.status === 'processing');
-    const complete = all.filter(b => b.status === 'complete');
-
-    totalCount.textContent = all.length.toString();
-    pendingCount.textContent = pending.length.toString();
-    completeCount.textContent = complete.length.toString();
-  } catch (error) {
-    console.error('Error updating stats:', error);
-  }
-}
 
 
 saveBtn.addEventListener('click', async () => {
@@ -52,7 +37,6 @@ saveBtn.addEventListener('click', async () => {
     });
 
     showStatusMessage(statusDiv, 'Bookmark saved!', 'success');
-    await updateStats();
   } catch (error) {
     console.error('Error saving bookmark:', error);
     showStatusMessage(statusDiv, 'Failed to save bookmark', 'error');
@@ -68,16 +52,23 @@ saveBtn.addEventListener('click', async () => {
   }
 });
 
-exploreBtn.addEventListener('click', () => {
-  chrome.tabs.create({ url: chrome.runtime.getURL('src/explore/explore.html') });
+// Navigation button handlers
+libraryBtn.addEventListener('click', () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL('src/library/library.html') });
+});
+
+searchBtn.addEventListener('click', () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL('src/search/search.html') });
+});
+
+stumbleBtn.addEventListener('click', () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL('src/stumble/stumble.html') });
+});
+
+settingsBtn.addEventListener('click', () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL('src/options/options.html') });
 });
 
 // Initialize theme
 initTheme();
 onThemeChange((theme) => applyTheme(theme));
-
-// Initial stats update
-updateStats();
-
-// Update stats every 2 seconds
-setInterval(updateStats, 2000);

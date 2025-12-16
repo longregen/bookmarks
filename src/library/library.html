@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Library - Bookmarks by Localforge</title>
+  <link rel="stylesheet" href="../shared/theme.css">
+  <link rel="stylesheet" href="library.css">
+</head>
+<body>
+  <!-- Header Navigation (will be injected by JS) -->
+  <div id="headerNav"></div>
+
+  <!-- Main Layout: Sidebar + Content + Detail Panel -->
+  <div class="library-layout">
+    <!-- Tag Sidebar (will be injected by JS) -->
+    <aside id="tagSidebar" class="library-sidebar"></aside>
+
+    <!-- Bookmark List -->
+    <main class="library-content">
+      <div class="library-content__header">
+        <div class="library-content__title-row">
+          <h1 class="library-content__title">Bookmarks</h1>
+          <span id="bookmarkCount" class="count-badge">0</span>
+        </div>
+        <div class="library-content__sort">
+          <label for="sortSelect" class="library-content__sort-label">Sort:</label>
+          <select id="sortSelect" class="library-content__sort-select">
+            <option value="date-desc">Date added (newest)</option>
+            <option value="date-asc">Date added (oldest)</option>
+            <option value="title-asc">Title (A-Z)</option>
+            <option value="title-desc">Title (Z-A)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Bookmark Cards Container -->
+      <div id="bookmarkList" class="library-bookmarks">
+        <div class="loading">Loading bookmarks...</div>
+      </div>
+    </main>
+
+    <!-- Detail Panel (will be injected by JS when bookmark is selected) -->
+    <div id="detailPanel" class="library-detail-panel"></div>
+  </div>
+
+  <script src="library.ts" type="module"></script>
+</body>
+</html>

@@ -6,6 +6,11 @@ import { createElement } from '../lib/dom';
 import { formatTimeAgoShort } from '../lib/time';
 import { initTheme, onThemeChange, applyTheme } from '../shared/theme';
 
+// Redirect to Library page (explore is deprecated)
+if (!window.location.search.includes('noredirect')) {
+  window.location.href = chrome.runtime.getURL('src/library/library.html');
+}
+
 // Constants
 const RESULTS_PER_PAGE = 10;
 

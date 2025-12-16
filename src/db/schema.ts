@@ -39,6 +39,19 @@ export interface Settings {
   updatedAt: Date;
 }
 
+export interface BookmarkTag {
+  bookmarkId: string;
+  tagName: string;     // Tag stored directly, lowercase, hyphens for spaces
+  addedAt: Date;
+}
+
+export interface SearchHistory {
+  id: string;
+  query: string;
+  resultCount: number;
+  createdAt: Date;
+}
+
 export enum JobType {
   MANUAL_ADD = 'manual_add',
   MARKDOWN_GENERATION = 'markdown_generation',
@@ -128,6 +141,8 @@ export class BookmarkDatabase extends Dexie {
   questionsAnswers!: Table<QuestionAnswer>;
   settings!: Table<Settings>;
   jobs!: Table<Job>;
+  bookmarkTags!: Dexie.Table<BookmarkTag, [string, string]>;
+  searchHistory!: Dexie.Table<SearchHistory, string>;
 
   constructor() {
     super('BookmarkRAG');
@@ -149,6 +164,17 @@ export class BookmarkDatabase extends Dexie {
     }).upgrade(async (tx) => {
       console.log('Upgraded database to version 2 with jobs table');
       // No data migration needed - starting fresh with jobs
+    });
+
+    // Version 3: Add bookmarkTags and searchHistory tables
+    this.version(3).stores({
+      bookmarks: 'id, url, status, createdAt, updatedAt',
+      markdown: 'id, bookmarkId, createdAt, updatedAt',
+      questionsAnswers: 'id, bookmarkId, createdAt, updatedAt',
+      jobs: 'id, bookmarkId, parentJobId, status, type, [parentJobId+status], [bookmarkId+type]',
+      settings: 'key, createdAt, updatedAt',
+      bookmarkTags: '[bookmarkId+tagName], bookmarkId, tagName, addedAt',
+      searchHistory: 'id, query, createdAt'
     });
   }
 }
