@@ -1,8 +1,5 @@
 import {
-  TIME_SECONDS_PER_MINUTE,
-  TIME_MINUTES_PER_HOUR,
-  TIME_HOURS_PER_DAY,
-  TIME_MS_PER_DAY,
+  TIME,
   DATE_RELATIVE_TIME_THRESHOLD_DAYS,
   DATE_FULL_DATE_THRESHOLD_DAYS
 } from './constants';
@@ -13,13 +10,13 @@ import {
 function formatRelativeTime(date: Date, now = new Date()): string {
   const diffMs = now.getTime() - date.getTime();
   const seconds = Math.floor(diffMs / 1000);
-  const minutes = Math.floor(seconds / TIME_SECONDS_PER_MINUTE);
-  const hours = Math.floor(minutes / TIME_MINUTES_PER_HOUR);
-  const days = Math.floor(hours / TIME_HOURS_PER_DAY);
+  const minutes = Math.floor(seconds / TIME.SECONDS_PER_MINUTE);
+  const hours = Math.floor(minutes / TIME.MINUTES_PER_HOUR);
+  const days = Math.floor(hours / TIME.HOURS_PER_DAY);
 
-  if (seconds < TIME_SECONDS_PER_MINUTE) return 'just now';
-  if (minutes < TIME_MINUTES_PER_HOUR) return `${minutes}m ago`;
-  if (hours < TIME_HOURS_PER_DAY) return `${hours}h ago`;
+  if (seconds < TIME.SECONDS_PER_MINUTE) return 'just now';
+  if (minutes < TIME.MINUTES_PER_HOUR) return `${minutes}m ago`;
+  if (hours < TIME.HOURS_PER_DAY) return `${hours}h ago`;
   return `${days} day${days > 1 ? 's' : ''} ago`;
 }
 
@@ -31,7 +28,7 @@ function formatRelativeTime(date: Date, now = new Date()): string {
  */
 export function formatDateByAge(date: Date, now = new Date()): string {
   const diffMs = now.getTime() - date.getTime();
-  const diffDays = diffMs / TIME_MS_PER_DAY;
+  const diffDays = diffMs / TIME.MS_PER_DAY;
 
   if (diffDays < DATE_RELATIVE_TIME_THRESHOLD_DAYS) {
     return formatRelativeTime(date, now);

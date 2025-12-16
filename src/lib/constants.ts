@@ -100,17 +100,26 @@ export const STUMBLE_COUNT = 10;
 // DATE FORMATTING CONFIGURATION
 // ============================================================================
 
+/** Time-related constants grouped for better organization */
+export const TIME = {
+  SECONDS_PER_MINUTE: 60,
+  MINUTES_PER_HOUR: 60,
+  HOURS_PER_DAY: 24,
+  MS_PER_DAY: 86400000,
+} as const;
+
+// Backward compatibility exports
 /** Seconds in a minute */
-export const TIME_SECONDS_PER_MINUTE = 60;
+export const TIME_SECONDS_PER_MINUTE = TIME.SECONDS_PER_MINUTE;
 
 /** Minutes in an hour */
-export const TIME_MINUTES_PER_HOUR = 60;
+export const TIME_MINUTES_PER_HOUR = TIME.MINUTES_PER_HOUR;
 
 /** Hours in a day */
-export const TIME_HOURS_PER_DAY = 24;
+export const TIME_HOURS_PER_DAY = TIME.HOURS_PER_DAY;
 
 /** Milliseconds in a day */
-export const TIME_MS_PER_DAY = 1000 * 60 * 60 * 24;
+export const TIME_MS_PER_DAY = TIME.MS_PER_DAY;
 
 /** Number of days to show relative time (e.g., "2 days ago") */
 export const DATE_RELATIVE_TIME_THRESHOLD_DAYS = 14;
@@ -129,14 +138,23 @@ export const HEALTH_REFRESH_INTERVAL_MS = 5000; // 5 seconds
 // SIMILARITY SCORE THRESHOLDS (for debugging/analysis)
 // ============================================================================
 
+/** Similarity score thresholds grouped for better organization */
+export const SIMILARITY_THRESHOLD = {
+  EXCELLENT: 0.9,
+  GOOD: 0.7,
+  FAIR: 0.5,
+  POOR: 0.3,
+} as const;
+
+// Backward compatibility exports
 /** Similarity score threshold for "excellent" matches */
-export const SIMILARITY_THRESHOLD_EXCELLENT = 0.9;
+export const SIMILARITY_THRESHOLD_EXCELLENT = SIMILARITY_THRESHOLD.EXCELLENT;
 
 /** Similarity score threshold for "good" matches */
-export const SIMILARITY_THRESHOLD_GOOD = 0.7;
+export const SIMILARITY_THRESHOLD_GOOD = SIMILARITY_THRESHOLD.GOOD;
 
 /** Similarity score threshold for "fair" matches */
-export const SIMILARITY_THRESHOLD_FAIR = 0.5;
+export const SIMILARITY_THRESHOLD_FAIR = SIMILARITY_THRESHOLD.FAIR;
 
 /** Similarity score threshold for "poor" matches */
-export const SIMILARITY_THRESHOLD_POOR = 0.3;
+export const SIMILARITY_THRESHOLD_POOR = SIMILARITY_THRESHOLD.POOR;

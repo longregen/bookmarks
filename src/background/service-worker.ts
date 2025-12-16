@@ -107,15 +107,27 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   }
 });
 
+// Dispatch table for simple async message handlers
+const asyncMessageHandlers: Record<string, (msg: any) => Promise<any>> = {
+  'SAVE_BOOKMARK': (msg) => handleSaveBookmark(msg.data),
+  'START_BULK_IMPORT': (msg) => handleBulkImport(msg.urls),
+  'GET_JOB_STATUS': (msg) => handleGetJobStatus(msg.jobId),
+  'TRIGGER_SYNC': () => import('../lib/webdav-sync').then(m => m.performSync(true)),
+  'GET_SYNC_STATUS': () => import('../lib/webdav-sync').then(m => m.getSyncStatus()),
+  'UPDATE_SYNC_SETTINGS': () => setupSyncAlarm().then(() => ({ success: true })),
+};
+
 // Handle messages from content scripts and popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'SAVE_BOOKMARK') {
-    handleSaveBookmark(message.data)
+  // Check dispatch table for simple async handlers
+  if (message.type in asyncMessageHandlers) {
+    asyncMessageHandlers[message.type](message)
       .then(result => sendResponse(result))
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true; // Keep message channel open for async response
   }
 
+  // Special handler: GET_CURRENT_TAB_INFO uses chrome.tabs.query callback
   if (message.type === 'GET_CURRENT_TAB_INFO') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tab = tabs[0];
@@ -138,20 +150,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.type === 'START_BULK_IMPORT') {
-    handleBulkImport(message.urls)
-      .then(result => sendResponse(result))
-      .catch(error => sendResponse({ success: false, error: error.message }));
-    return true;
-  }
-
-  if (message.type === 'GET_JOB_STATUS') {
-    handleGetJobStatus(message.jobId)
-      .then(result => sendResponse(result))
-      .catch(error => sendResponse({ success: false, error: error.message }));
-    return true;
-  }
-
+  // Special handler: START_PROCESSING is synchronous
   if (message.type === 'START_PROCESSING') {
     // Ping to restart processing queue
     startProcessingQueue();
@@ -159,32 +158,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // Handle FETCH_URL messages from offscreen document (Chrome only)
+  // Special handler: FETCH_URL forwarding logic for offscreen document (Chrome only)
   if (message.type === 'FETCH_URL' && !sender.tab) {
     // This message should be forwarded to offscreen document
     // The offscreen document will handle it and respond
     return false;
-  }
-
-  // WebDAV sync handlers
-  if (message.type === 'TRIGGER_SYNC') {
-    import('../lib/webdav-sync').then(({ performSync }) => {
-      performSync(true).then(result => sendResponse(result));
-    });
-    return true;
-  }
-
-  if (message.type === 'GET_SYNC_STATUS') {
-    import('../lib/webdav-sync').then(({ getSyncStatus }) => {
-      getSyncStatus().then(status => sendResponse(status));
-    });
-    return true;
-  }
-
-  if (message.type === 'UPDATE_SYNC_SETTINGS') {
-    // Re-setup the alarm when sync settings change
-    setupSyncAlarm().then(() => sendResponse({ success: true }));
-    return true;
   }
 
   return false;

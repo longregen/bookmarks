@@ -83,56 +83,50 @@ export async function updateJob(
   await broadcastEvent('JOB_UPDATED', { jobId, updates: updatedJob });
 }
 
+/**
+ * Generic internal helper to set a final status for a job
+ * Reduces duplication across completeJob, failJob, and cancelJob
+ */
+async function setJobFinalStatus(
+  jobId: string,
+  status: JobStatus,
+  extraMetadata?: Partial<Job['metadata']>
+): Promise<void> {
+  const job = await db.jobs.get(jobId);
+  if (!job) throw new Error(`Job not found: ${jobId}`);
+
+  await db.jobs.update(jobId, {
+    status,
+    progress: status === JobStatus.COMPLETED ? 100 : job.progress,
+    metadata: extraMetadata ? { ...job.metadata, ...extraMetadata } : job.metadata,
+    updatedAt: new Date(),
+    completedAt: new Date(),
+  });
+  await broadcastEvent('JOB_UPDATED', { jobId, status });
+}
+
 export async function completeJob(
   jobId: string,
   metadata?: Partial<Job['metadata']>
 ): Promise<void> {
-  const job = await db.jobs.get(jobId);
-  if (!job) {
-    throw new Error(`Job not found: ${jobId}`);
-  }
-
-  await db.jobs.update(jobId, {
-    status: JobStatus.COMPLETED,
-    progress: 100,
-    metadata: metadata ? { ...job.metadata, ...metadata } : job.metadata,
-    updatedAt: new Date(),
-    completedAt: new Date(),
-  });
-  await broadcastEvent('JOB_UPDATED', { jobId, status: JobStatus.COMPLETED });
+  await setJobFinalStatus(jobId, JobStatus.COMPLETED, metadata);
 }
 
 export async function failJob(
   jobId: string,
   error: Error | string
 ): Promise<void> {
-  const job = await db.jobs.get(jobId);
-  if (!job) {
-    throw new Error(`Job not found: ${jobId}`);
-  }
-
   const errorMessage = error instanceof Error ? error.message : error;
   const errorStack = error instanceof Error ? error.stack : undefined;
 
-  await db.jobs.update(jobId, {
-    status: JobStatus.FAILED,
-    metadata: {
-      ...job.metadata,
-      errorMessage,
-      errorStack,
-    },
-    updatedAt: new Date(),
-    completedAt: new Date(),
+  await setJobFinalStatus(jobId, JobStatus.FAILED, {
+    errorMessage,
+    errorStack,
   });
-  await broadcastEvent('JOB_UPDATED', { jobId, status: JobStatus.FAILED });
 }
 
 export async function cancelJob(jobId: string): Promise<void> {
-  await db.jobs.update(jobId, {
-    status: JobStatus.CANCELLED,
-    updatedAt: new Date(),
-    completedAt: new Date(),
-  });
+  await setJobFinalStatus(jobId, JobStatus.CANCELLED);
 }
 
 export async function getJobsByBookmark(bookmarkId: string): Promise<Job[]> {

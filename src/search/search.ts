@@ -133,6 +133,33 @@ function hideAutocomplete() {
   autocompleteDropdown.classList.remove('active');
 }
 
+function buildResultCard(
+  bookmark: { id: string; title: string; url: string; createdAt: Date },
+  maxScore: number,
+  bestQA: { question: string; answer: string },
+  onClick: () => void
+): HTMLElement {
+  const card = createElement('div', { className: 'result-card' });
+  card.onclick = onClick;
+
+  card.appendChild(createElement('div', { className: 'relevance', textContent: `${(maxScore * 100).toFixed(0)}% match` }));
+  card.appendChild(createElement('div', { className: 'card-title', textContent: bookmark.title }));
+
+  const meta = createElement('div', { className: 'card-meta' });
+  const url = createElement('a', { className: 'card-url', href: bookmark.url, textContent: new URL(bookmark.url).hostname });
+  url.onclick = (e) => e.stopPropagation();
+  meta.appendChild(url);
+  meta.appendChild(document.createTextNode(` · ${formatDateByAge(bookmark.createdAt)}`));
+  card.appendChild(meta);
+
+  const qaPreview = createElement('div', { className: 'qa-preview' });
+  qaPreview.appendChild(createElement('div', { className: 'qa-q', textContent: `Q: ${bestQA.question}` }));
+  qaPreview.appendChild(createElement('div', { className: 'qa-a', textContent: `A: ${bestQA.answer}` }));
+  card.appendChild(qaPreview);
+
+  return card;
+}
+
 async function loadFilters() {
   // Load tag filters using shared utility
   await loadTagFilters({
@@ -231,24 +258,7 @@ async function performSearch() {
       const maxScore = Math.max(...qaResults.map(r => r.score));
       const bestQA = qaResults[0].qa;
 
-      const card = createElement('div', { className: 'result-card' });
-      card.onclick = () => detailManager.showDetail(bookmark.id);
-
-      card.appendChild(createElement('div', { className: 'relevance', textContent: `${(maxScore * 100).toFixed(0)}% match` }));
-      card.appendChild(createElement('div', { className: 'card-title', textContent: bookmark.title }));
-
-      const meta = createElement('div', { className: 'card-meta' });
-      const url = createElement('a', { className: 'card-url', href: bookmark.url, textContent: new URL(bookmark.url).hostname });
-      url.onclick = (e) => e.stopPropagation();
-      meta.appendChild(url);
-      meta.appendChild(document.createTextNode(` · ${formatDateByAge(bookmark.createdAt)}`));
-      card.appendChild(meta);
-
-      const qaPreview = createElement('div', { className: 'qa-preview' });
-      qaPreview.appendChild(createElement('div', { className: 'qa-q', textContent: `Q: ${bestQA.question}` }));
-      qaPreview.appendChild(createElement('div', { className: 'qa-a', textContent: `A: ${bestQA.answer}` }));
-      card.appendChild(qaPreview);
-
+      const card = buildResultCard(bookmark, maxScore, bestQA, () => detailManager.showDetail(bookmark.id));
       resultsList.appendChild(card);
     }
   } catch (error) {
