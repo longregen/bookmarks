@@ -7,7 +7,6 @@ import { ensureOffscreenDocument } from '../lib/offscreen';
 import { resumeInterruptedJobs } from './job-resumption';
 import { setPlatformAdapter } from '../lib/platform';
 import { extensionAdapter } from '../lib/adapters/extension';
-import { triggerSyncIfEnabled } from '../lib/webdav-sync';
 import { getSettings } from '../lib/settings';
 
 // Initialize platform adapter immediately (required for API calls)
@@ -59,12 +58,18 @@ async function initializeExtension() {
     // Then start the bookmark processing queue
     startProcessingQueue();
 
-    // Set up WebDAV sync alarm
-    await setupSyncAlarm();
+    // Set up WebDAV sync alarm (don't await to prevent blocking)
+    setupSyncAlarm().catch(err => {
+      console.error('Error setting up sync alarm:', err);
+    });
 
-    // Trigger initial sync if configured
-    triggerSyncIfEnabled().catch(err => {
-      console.error('Initial WebDAV sync failed:', err);
+    // Trigger initial sync if configured (use dynamic import)
+    import('../lib/webdav-sync').then(({ triggerSyncIfEnabled }) => {
+      triggerSyncIfEnabled().catch(err => {
+        console.error('Initial WebDAV sync failed:', err);
+      });
+    }).catch(err => {
+      console.error('Failed to load webdav-sync module:', err);
     });
   } catch (error) {
     console.error('Error during initialization:', error);
@@ -93,7 +98,12 @@ initializeExtension();
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === WEBDAV_SYNC_ALARM) {
     console.log('WebDAV sync alarm triggered');
-    await triggerSyncIfEnabled();
+    try {
+      const { triggerSyncIfEnabled } = await import('../lib/webdav-sync');
+      await triggerSyncIfEnabled();
+    } catch (err) {
+      console.error('WebDAV sync alarm failed:', err);
+    }
   }
 });
 
