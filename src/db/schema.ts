@@ -165,18 +165,8 @@ export class BookmarkDatabase extends Dexie {
       console.log('Upgraded database to version 2 with jobs table');
     });
 
-    // Version 3: Add bookmarkTags table for the redesigned tag system
+    // Version 3: Add bookmarkTags table for the redesigned tag system and searchHistory table for search autocomplete
     this.version(3).stores({
-      bookmarks: 'id, url, status, createdAt, updatedAt',
-      markdown: 'id, bookmarkId, createdAt, updatedAt',
-      questionsAnswers: 'id, bookmarkId, createdAt, updatedAt',
-      settings: 'key, createdAt, updatedAt',
-      jobs: 'id, bookmarkId, parentJobId, status, type, createdAt, updatedAt, [parentJobId+status], [bookmarkId+type]',
-      bookmarkTags: '[bookmarkId+tagName], bookmarkId, tagName, addedAt',
-    });
-
-    // Version 4: Add searchHistory table for search autocomplete
-    this.version(4).stores({
       bookmarks: 'id, url, status, createdAt, updatedAt',
       markdown: 'id, bookmarkId, createdAt, updatedAt',
       questionsAnswers: 'id, bookmarkId, createdAt, updatedAt',
