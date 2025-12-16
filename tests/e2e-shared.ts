@@ -160,6 +160,7 @@ export class TestRunner {
 
 export interface TestOptions {
   skipRealApiTests?: boolean;
+  skipApiConnectionTest?: boolean;
 }
 
 export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, options: TestOptions = {}): Promise<void> {
@@ -190,34 +191,38 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
   });
 
   // Test 2: Test API connection (mock)
-  await runner.runTest('Test API connection (mocked)', async () => {
-    const page = await adapter.newPage();
-    await page.goto(adapter.getPageUrl('options'));
-    await page.waitForSelector('#testBtn');
+  if (options.skipApiConnectionTest) {
+    console.log('  (Skipping API connection test for this platform)');
+  } else {
+    await runner.runTest('Test API connection (mocked)', async () => {
+      const page = await adapter.newPage();
+      await page.goto(adapter.getPageUrl('options'));
+      await page.waitForSelector('#testBtn');
 
-    // Wait for settings to load
-    await new Promise(resolve => setTimeout(resolve, 1000));
+      // Wait for settings to load
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Click test button
-    await page.click('#testBtn');
+      // Click test button
+      await page.click('#testBtn');
 
-    // Wait for result
-    await page.waitForFunction(
-      `(() => {
-        const status = document.querySelector('.status');
-        return status && !status.classList.contains('hidden') &&
-               (status.textContent?.includes('successful') || status.textContent?.includes('failed'));
-      })()`,
-      30000
-    );
+      // Wait for result
+      await page.waitForFunction(
+        `(() => {
+          const status = document.querySelector('.status');
+          return status && !status.classList.contains('hidden') &&
+                 (status.textContent?.includes('successful') || status.textContent?.includes('failed'));
+        })()`,
+        30000
+      );
 
-    const statusText = await page.$eval<string>('.status', 'el => el.textContent');
-    if (!statusText?.toLowerCase().includes('successful')) {
-      throw new Error(`API test failed: ${statusText}`);
-    }
+      const statusText = await page.$eval<string>('.status', 'el => el.textContent');
+      if (!statusText?.toLowerCase().includes('successful')) {
+        throw new Error(`API test failed: ${statusText}`);
+      }
 
-    await page.close();
-  });
+      await page.close();
+    });
+  }
 
   // Test 3: Library page loads
   await runner.runTest('Library page loads', async () => {
