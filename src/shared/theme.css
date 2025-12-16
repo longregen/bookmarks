@@ -954,19 +954,8 @@
   padding: var(--space-6);
 }
 
-.detail-panel {
-  width: 0;
-  max-width: 680px;
-  flex-shrink: 0;
-  background: var(--bg-secondary);
-  border-left: 1px solid var(--border-primary);
-  overflow-y: auto;
-  transition: width var(--transition-slow);
-}
-
-.detail-panel--open {
-  width: 680px;
-}
+/* Detail panel styles moved to individual page stylesheets */
+/* Each page (library, search, stumble) has its own implementation */
 
 /* Mobile responsive */
 @media (max-width: 768px) {
