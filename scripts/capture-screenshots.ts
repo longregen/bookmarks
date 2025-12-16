@@ -155,7 +155,16 @@ async function injectDemoData(page: Page): Promise<void> {
   // which is not available in the browser context
   await page.evaluate(`(async () => {
     const DB_NAME = 'BookmarkRAG';
-    const DB_VERSION = 3;
+    const DB_VERSION = 1;
+
+    // Delete existing database first to avoid version conflicts
+    // (Dexie uses different version numbering than raw IndexedDB)
+    await new Promise((resolve, reject) => {
+      const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
+      deleteRequest.onsuccess = () => resolve();
+      deleteRequest.onerror = () => reject(deleteRequest.error);
+      deleteRequest.onblocked = () => resolve(); // Proceed even if blocked
+    });
 
     // Open database directly
     function openDb() {
