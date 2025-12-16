@@ -151,18 +151,20 @@ async function setTheme(page: Page, theme: string): Promise<void> {
 
 async function injectDemoData(page: Page): Promise<void> {
   // Inject demo bookmarks using raw IndexedDB (avoids dynamic import issues)
-  await page.evaluate(async () => {
+  // Note: We pass the code as a string to avoid esbuild adding __name helper
+  // which is not available in the browser context
+  await page.evaluate(`(async () => {
     const DB_NAME = 'BookmarkRAG';
     const DB_VERSION = 3;
 
     // Open database directly
-    const openDb = (): Promise<IDBDatabase> => {
+    function openDb() {
       return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
         request.onerror = () => reject(request.error);
         request.onsuccess = () => resolve(request.result);
         request.onupgradeneeded = (event) => {
-          const db = (event.target as IDBOpenDBRequest).result;
+          const db = event.target.result;
           // Create stores if they don't exist (matching schema.ts)
           if (!db.objectStoreNames.contains('bookmarks')) {
             db.createObjectStore('bookmarks', { keyPath: 'id' });
@@ -175,9 +177,9 @@ async function injectDemoData(page: Page): Promise<void> {
           }
         };
       });
-    };
+    }
 
-    const putRecord = (db: IDBDatabase, storeName: string, record: unknown): Promise<void> => {
+    function putRecord(db, storeName, record) {
       return new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
@@ -185,9 +187,9 @@ async function injectDemoData(page: Page): Promise<void> {
         request.onerror = () => reject(request.error);
         request.onsuccess = () => resolve();
       });
-    };
+    }
 
-    const clearStore = (db: IDBDatabase, storeName: string): Promise<void> => {
+    function clearStore(db, storeName) {
       return new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
@@ -195,7 +197,7 @@ async function injectDemoData(page: Page): Promise<void> {
         request.onerror = () => reject(request.error);
         request.onsuccess = () => resolve();
       });
-    };
+    }
 
     const db = await openDb();
 
@@ -257,19 +259,19 @@ async function injectDemoData(page: Page): Promise<void> {
 
       if (bookmark.status === 'complete') {
         await putRecord(db, 'markdown', {
-          id: `md-${bookmark.id}`,
+          id: 'md-' + bookmark.id,
           bookmarkId: bookmark.id,
-          content: `# ${bookmark.title}\n\nThis is sample content for the demo bookmark.`,
+          content: '# ' + bookmark.title + '\\n\\nThis is sample content for the demo bookmark.',
           createdAt: bookmark.createdAt,
           updatedAt: bookmark.updatedAt,
         });
 
         // Add Q&A pairs
         await putRecord(db, 'questionsAnswers', {
-          id: `qa-${bookmark.id}-1`,
+          id: 'qa-' + bookmark.id + '-1',
           bookmarkId: bookmark.id,
           question: 'What is this article about?',
-          answer: `This article covers ${bookmark.title.toLowerCase()}.`,
+          answer: 'This article covers ' + bookmark.title.toLowerCase() + '.',
           embeddingQuestion: Array(1536).fill(0),
           embeddingAnswer: Array(1536).fill(0),
           embeddingBoth: Array(1536).fill(0),
@@ -278,7 +280,7 @@ async function injectDemoData(page: Page): Promise<void> {
         });
 
         await putRecord(db, 'questionsAnswers', {
-          id: `qa-${bookmark.id}-2`,
+          id: 'qa-' + bookmark.id + '-2',
           bookmarkId: bookmark.id,
           question: 'What are the key concepts?',
           answer: 'The key concepts include core fundamentals and best practices.',
@@ -293,7 +295,7 @@ async function injectDemoData(page: Page): Promise<void> {
 
     db.close();
     console.log('Demo data injected successfully');
-  });
+  })()`);
 }
 
 async function capturePopup(browser: Browser, extensionId: string): Promise<void> {
