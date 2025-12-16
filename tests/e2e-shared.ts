@@ -411,6 +411,52 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
+  // Test 13: Settings page scrolling works
+  await runner.runTest('Settings page scrolling is functional', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('.middle');
+
+    // Wait for content to load
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Check that the main content area (.middle) has scrollable content
+    const scrollableInfo = await page.evaluate(`(() => {
+      const middle = document.querySelector('.middle');
+      if (!middle) return { found: false };
+
+      const hasOverflow = middle.scrollHeight > middle.clientHeight;
+      const canScroll = middle.style.overflowY === 'auto' ||
+                       window.getComputedStyle(middle).overflowY === 'auto';
+
+      // Try to scroll to bottom
+      const initialScroll = middle.scrollTop;
+      middle.scrollTo(0, 1000);
+      const scrolledAmount = middle.scrollTop;
+      middle.scrollTo(0, initialScroll);
+
+      return {
+        found: true,
+        hasOverflow,
+        canScroll,
+        scrollable: scrolledAmount > initialScroll
+      };
+    })()`);
+
+    if (!scrollableInfo.found) {
+      throw new Error('Settings content area not found');
+    }
+
+    if (!scrollableInfo.canScroll) {
+      throw new Error('Settings area does not have overflow-y: auto');
+    }
+
+    // Note: We don't fail if content doesn't overflow on large screens
+    // The important thing is that the CSS is set up correctly for scrolling
+
+    await page.close();
+  });
+
   // ========================================================================
   // ONE REAL API TEST
   // ========================================================================

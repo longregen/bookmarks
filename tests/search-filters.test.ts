@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 /**
  * Test search filtering logic without database dependency
- * Tests tag filtering, status filtering, and select-all behavior
+ * Tests tag filtering and clear selection behavior
  */
 
 interface MockBookmark {
@@ -29,27 +29,14 @@ function filterByTags(
   });
 }
 
-// Filter bookmarks by status
-function filterByStatus(
-  bookmarks: MockBookmark[],
-  selectedStatuses: Set<string>
-): MockBookmark[] {
-  return bookmarks.filter(bookmark => selectedStatuses.has(bookmark.status));
-}
-
 // Get all unique tags sorted alphabetically
 function getAllTags(tags: MockBookmarkTag[]): string[] {
   return [...new Set(tags.map(t => t.tagName))].sort();
 }
 
-// Check if Select All should be checked for tags
-function isTagSelectAllChecked(selectedTags: Set<string>): boolean {
-  return selectedTags.size === 0;
-}
-
-// Check if Select All should be checked for statuses
-function isStatusSelectAllChecked(selectedStatuses: Set<string>): boolean {
-  return selectedStatuses.size === 4; // all 4 statuses
+// Check if Clear selection button should be shown for tags
+function shouldShowClearSelection(selectedTags: Set<string>): boolean {
+  return selectedTags.size > 0;
 }
 
 describe('Search Filters Logic', () => {
@@ -71,7 +58,7 @@ describe('Search Filters Logic', () => {
   ];
 
   describe('filterByTags', () => {
-    it('should return all bookmarks when no tags are selected (Select All)', () => {
+    it('should return all bookmarks when no tags are selected (default behavior)', () => {
       const result = filterByTags(bookmarks, tags, new Set());
       expect(result.length).toBe(5);
     });
@@ -102,51 +89,6 @@ describe('Search Filters Logic', () => {
     });
   });
 
-  describe('filterByStatus', () => {
-    it('should filter by a single status', () => {
-      const result = filterByStatus(bookmarks, new Set(['complete']));
-      expect(result.length).toBe(2);
-      expect(result.every(b => b.status === 'complete')).toBe(true);
-    });
-
-    it('should filter by multiple statuses', () => {
-      const result = filterByStatus(bookmarks, new Set(['complete', 'pending']));
-      expect(result.length).toBe(3);
-    });
-
-    it('should return all when all statuses are selected', () => {
-      const result = filterByStatus(bookmarks, new Set(['complete', 'pending', 'processing', 'error']));
-      expect(result.length).toBe(5);
-    });
-
-    it('should exclude bookmarks not matching status', () => {
-      const result = filterByStatus(bookmarks, new Set(['error']));
-      expect(result.length).toBe(1);
-      expect(result[0].id).toBe('b4');
-    });
-  });
-
-  describe('Combined filtering', () => {
-    it('should filter by both tag and status', () => {
-      // First filter by tag
-      const tagFiltered = filterByTags(bookmarks, tags, new Set(['javascript']));
-      // Then filter by status
-      const result = filterByStatus(tagFiltered, new Set(['complete']));
-
-      expect(result.length).toBe(1);
-      expect(result[0].id).toBe('b1');
-    });
-
-    it('should return empty when filters do not overlap', () => {
-      // Filter by tag that only b1 and b3 have
-      const tagFiltered = filterByTags(bookmarks, tags, new Set(['javascript']));
-      // But only look for error status (b4)
-      const result = filterByStatus(tagFiltered, new Set(['error']));
-
-      expect(result.length).toBe(0);
-    });
-  });
-
   describe('getAllTags', () => {
     it('should return unique tags sorted alphabetically', () => {
       const result = getAllTags(tags);
@@ -169,38 +111,17 @@ describe('Search Filters Logic', () => {
     });
   });
 
-  describe('Select All behavior', () => {
-    describe('Tags Select All', () => {
-      it('should be checked when no tags are selected', () => {
-        expect(isTagSelectAllChecked(new Set())).toBe(true);
-      });
-
-      it('should be unchecked when any tag is selected', () => {
-        expect(isTagSelectAllChecked(new Set(['javascript']))).toBe(false);
-      });
-
-      it('should be unchecked when multiple tags are selected', () => {
-        expect(isTagSelectAllChecked(new Set(['javascript', 'python']))).toBe(false);
-      });
+  describe('Clear selection behavior', () => {
+    it('should not show clear button when no tags are selected', () => {
+      expect(shouldShowClearSelection(new Set())).toBe(false);
     });
 
-    describe('Status Select All', () => {
-      it('should be checked when all 4 statuses are selected', () => {
-        const allStatuses = new Set(['complete', 'pending', 'processing', 'error']);
-        expect(isStatusSelectAllChecked(allStatuses)).toBe(true);
-      });
+    it('should show clear button when any tag is selected', () => {
+      expect(shouldShowClearSelection(new Set(['javascript']))).toBe(true);
+    });
 
-      it('should be unchecked when not all statuses are selected', () => {
-        expect(isStatusSelectAllChecked(new Set(['complete', 'pending']))).toBe(false);
-      });
-
-      it('should be unchecked when only one status is selected', () => {
-        expect(isStatusSelectAllChecked(new Set(['complete']))).toBe(false);
-      });
-
-      it('should be unchecked when no statuses are selected', () => {
-        expect(isStatusSelectAllChecked(new Set())).toBe(false);
-      });
+    it('should show clear button when multiple tags are selected', () => {
+      expect(shouldShowClearSelection(new Set(['javascript', 'python']))).toBe(true);
     });
   });
 
