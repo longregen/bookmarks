@@ -185,7 +185,8 @@ function showResultsMode() {
   searchPage.classList.remove('search-page--centered');
   searchHero.classList.add('hidden');
   resultHeader.classList.remove('hidden');
-  resultStatus.textContent = 'Searching...';
+  resultStatus.innerHTML = '<span class="spinner"></span> Searching...';
+  resultStatus.classList.add('loading');
 }
 
 function showCenteredMode() {
@@ -219,8 +220,10 @@ async function performSearch() {
     ]).filter(({ embedding }) => Array.isArray(embedding) && embedding.length === queryEmbedding.length);
 
     if (!items.length) {
+      resultStatus.classList.remove('loading');
+      resultStatus.textContent = 'No bookmarks indexed yet';
       resultsList.innerHTML = '';
-      resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'No embeddings found' }));
+      resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'Save some bookmarks first to enable search' }));
       return;
     }
 
@@ -264,6 +267,7 @@ async function performSearch() {
     }
 
     const count = filteredResults.length;
+    resultStatus.classList.remove('loading');
     resultStatus.textContent = count === 0
       ? 'No results found'
       : `${count} result${count === 1 ? '' : 's'}`;
@@ -286,8 +290,10 @@ async function performSearch() {
     }
   } catch (error) {
     console.error('Search error:', error);
+    resultStatus.classList.remove('loading');
+    resultStatus.textContent = 'Search failed';
     resultsList.innerHTML = '';
-    resultsList.appendChild(createElement('div', { className: 'error-message', textContent: `Search failed: ${error}` }));
+    resultsList.appendChild(createElement('div', { className: 'error-message', textContent: `${error}` }));
   } finally {
     searchBtn.disabled = false;
     searchBtn.textContent = '🔍 Search';
