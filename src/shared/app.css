@@ -733,23 +733,74 @@ h3 {
   margin-bottom: var(--space-7);
 }
 
-form,
-.data-section,
-.theme-section,
-.info-section {
+/* Standardized Option Panel Structure */
+.option-panel {
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-xl);
   padding: var(--space-6);
-  margin-bottom: var(--space-7);
 }
 
 @media (min-width: 768px) {
-  form,
-  .data-section,
-  .theme-section,
-  .info-section {
+  .option-panel {
     padding: var(--space-7);
+  }
+}
+
+.option-panel__header {
+  margin-bottom: var(--space-6);
+}
+
+.option-panel__header h2 {
+  margin-bottom: var(--space-3);
+}
+
+.option-panel__header .section-description {
+  margin-bottom: 0;
+}
+
+.option-panel__content {
+  /* Content container */
+}
+
+.option-panel__content p {
+  margin-bottom: var(--space-3);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.option-panel__content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Legacy form/section styles for backward compatibility */
+form.option-panel__content,
+.data-section,
+.theme-section,
+.info-section {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin-bottom: 0;
+}
+
+/* Jobs Page Specific */
+.jobs-page-content {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .jobs-page-content {
+    padding: var(--space-6);
+  }
+}
+
+@media (min-width: 1024px) {
+  .jobs-page-content {
+    padding: var(--space-8);
   }
 }
 

@@ -40,9 +40,6 @@
         <a href="#webdav-sync" class="nav-item" data-section="webdav-sync">
           <span class="nav-label">WebDAV Sync</span>
         </a>
-        <a href="#jobs" class="nav-item" data-section="jobs">
-          <span class="nav-label">Jobs Dashboard</span>
-        </a>
         <a href="#about" class="nav-item" data-section="about">
           <span class="nav-label">About</span>
         </a>
@@ -54,383 +51,365 @@
         <div id="status" class="status hidden"></div>
 
         <section id="appearance" class="settings-section">
-          <div class="theme-section">
-        <h2>Theme</h2>
-        <p class="section-description">
-          Choose your preferred appearance. Auto will follow your system preferences.
-        </p>
-        <div class="theme-options">
-          <div class="theme-option">
-            <input type="radio" id="themeAuto" name="theme" value="auto" checked>
-            <label for="themeAuto">
-              <div class="theme-preview auto"></div>
-              <span class="theme-name">Auto</span>
-            </label>
-          </div>
-          <div class="theme-option">
-            <input type="radio" id="themeLight" name="theme" value="light">
-            <label for="themeLight">
-              <div class="theme-preview light">A</div>
-              <span class="theme-name">Light</span>
-            </label>
-          </div>
-          <div class="theme-option">
-            <input type="radio" id="themeDark" name="theme" value="dark">
-            <label for="themeDark">
-              <div class="theme-preview dark">A</div>
-              <span class="theme-name">Dark</span>
-            </label>
-          </div>
-          <div class="theme-option">
-            <input type="radio" id="themeTerminal" name="theme" value="terminal">
-            <label for="themeTerminal">
-              <div class="theme-preview terminal">&gt;_</div>
-              <span class="theme-name">Terminal</span>
-            </label>
-          </div>
-          <div class="theme-option">
-            <input type="radio" id="themeTufte" name="theme" value="tufte">
-            <label for="themeTufte">
-              <div class="theme-preview tufte">Aa</div>
-              <span class="theme-name">Tufte</span>
-            </label>
-          </div>
-        </div>
+          <div class="option-panel">
+            <div class="option-panel__header">
+              <h2>Theme</h2>
+              <p class="section-description">
+                Choose your preferred appearance. Auto will follow your system preferences.
+              </p>
+            </div>
+            <div class="option-panel__content">
+              <div class="theme-options">
+                <div class="theme-option">
+                  <input type="radio" id="themeAuto" name="theme" value="auto" checked>
+                  <label for="themeAuto">
+                    <div class="theme-preview auto"></div>
+                    <span class="theme-name">Auto</span>
+                  </label>
+                </div>
+                <div class="theme-option">
+                  <input type="radio" id="themeLight" name="theme" value="light">
+                  <label for="themeLight">
+                    <div class="theme-preview light">A</div>
+                    <span class="theme-name">Light</span>
+                  </label>
+                </div>
+                <div class="theme-option">
+                  <input type="radio" id="themeDark" name="theme" value="dark">
+                  <label for="themeDark">
+                    <div class="theme-preview dark">A</div>
+                    <span class="theme-name">Dark</span>
+                  </label>
+                </div>
+                <div class="theme-option">
+                  <input type="radio" id="themeTerminal" name="theme" value="terminal">
+                  <label for="themeTerminal">
+                    <div class="theme-preview terminal">&gt;_</div>
+                    <span class="theme-name">Terminal</span>
+                  </label>
+                </div>
+                <div class="theme-option">
+                  <input type="radio" id="themeTufte" name="theme" value="tufte">
+                  <label for="themeTufte">
+                    <div class="theme-preview tufte">Aa</div>
+                    <span class="theme-name">Tufte</span>
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
         <section id="api-config" class="settings-section">
-          <form id="settingsForm">
-        <div class="form-group">
-          <label for="apiBaseUrl">API Base URL</label>
-          <input
-            type="url"
-            id="apiBaseUrl"
-            name="apiBaseUrl"
-            placeholder="https://api.openai.com/v1"
-            required
-          />
-          <small class="help-text">
-            OpenAI-compatible API endpoint. For OpenAI, use the default.
-            For local models, use your local endpoint (e.g., http://localhost:1234/v1)
-          </small>
-        </div>
-
-        <div class="form-group">
-          <label for="apiKey">API Key</label>
-          <input
-            type="password"
-            id="apiKey"
-            name="apiKey"
-            placeholder="sk-..."
-            required
-          />
-          <small class="help-text">
-            Your OpenAI API key or compatible provider key
-          </small>
-        </div>
-
-        <div class="form-group">
-          <label for="chatModel">Chat Model</label>
-          <input
-            type="text"
-            id="chatModel"
-            name="chatModel"
-            placeholder="gpt-4o-mini"
-            required
-          />
-          <small class="help-text">
-            Model for Q&A generation (e.g., gpt-4o-mini, gpt-4o)
-          </small>
-        </div>
-
-        <div class="form-group">
-          <label for="embeddingModel">Embedding Model</label>
-          <input
-            type="text"
-            id="embeddingModel"
-            name="embeddingModel"
-            placeholder="text-embedding-3-small"
-            required
-          />
-          <small class="help-text">
-            Model for generating embeddings (e.g., text-embedding-3-small)
-          </small>
-        </div>
-
-        <div class="button-group">
-          <button type="submit" class="btn btn-primary">
-            Save Settings
-          </button>
-          <button type="button" id="testBtn" class="btn btn-secondary">
-            Test Connection
-          </button>
-        </div>
-          </form>
-        </section>
-
-        <section id="bulk-import" class="settings-section">
-          <div class="data-section">
-            <h2>Bulk Import URLs</h2>
-        <p class="section-description">
-          Import multiple bookmarks at once by pasting a list of URLs (one per line).
-        </p>
-
-        <div class="bulk-import-container">
-          <textarea
-            id="bulkUrlsInput"
-            rows="10"
-            placeholder="https://example.com/article1&#10;https://example.com/article2&#10;https://github.com/user/repo"
-          ></textarea>
-
-          <div id="urlValidationFeedback" class="validation-feedback"></div>
-
-          <div class="button-group">
-            <button type="button" id="startBulkImport" class="btn btn-primary" disabled>
-              Import URLs
-            </button>
-            <button type="button" id="cancelBulkImport" class="btn btn-secondary" style="display:none;">
-              Cancel
-            </button>
-          </div>
-
-          <div id="bulkImportProgress" class="bulk-import-progress hidden">
-            <div class="progress-bar-container">
-              <div id="bulkImportProgressBar" class="progress-bar"></div>
+          <div class="option-panel">
+            <div class="option-panel__header">
+              <h2>API Configuration</h2>
+              <p class="section-description">
+                Configure your OpenAI-compatible API connection for Q&A generation and semantic search.
+              </p>
             </div>
-            <span id="bulkImportStatus" class="progress-status">Processing...</span>
-          </div>
-        </div>
-          </div>
-        </section>
-
-        <section id="import-export" class="settings-section">
-          <div class="data-section">
-            <h2>Import / Export</h2>
-        <p class="section-description">
-          Backup your bookmarks or transfer them between browsers.
-        </p>
-
-        <div class="data-actions">
-          <div class="data-action">
-            <h3>Export Bookmarks</h3>
-            <p>Download all your bookmarks as a JSON file.</p>
-            <button type="button" id="exportBtn" class="btn btn-secondary">
-              Export All Bookmarks
-            </button>
-          </div>
-
-          <div class="data-action">
-            <h3>Import Bookmarks</h3>
-            <p>Import bookmarks from a previously exported JSON file. Duplicates will be skipped.</p>
-            <input type="file" id="importFile" accept=".json" class="file-input" />
-            <label for="importFile" class="btn btn-secondary file-label">
-              Choose File to Import
-            </label>
-            <span id="importFileName" class="file-name"></span>
-            <button type="button" id="importBtn" class="btn btn-primary" disabled>
-              Import
-            </button>
-          </div>
-        </div>
-
-        <div id="importStatus" class="import-status hidden"></div>
-          </div>
-        </section>
-
-        <!-- WebDAV Sync Section -->
-        <section id="webdav-sync" class="settings-section">
-          <div class="section-header">
-            <h2>WebDAV Sync</h2>
-            <p class="section-description">
-              Sync your bookmarks across devices using a WebDAV server (Nextcloud, ownCloud, Synology, etc.)
-            </p>
-          </div>
-
-          <form id="webdavForm">
-            <!-- Enable/Disable Toggle -->
-            <div class="form-group">
-              <label class="toggle-label">
-                <input type="checkbox" id="webdavEnabled" name="webdavEnabled" />
-                <span class="toggle-text">Enable WebDAV Sync</span>
-              </label>
-              <small class="help-text">
-                When enabled, bookmarks will sync automatically with your WebDAV server
-              </small>
-            </div>
-
-            <div id="webdavFields" class="conditional-fields">
-              <!-- Server URL -->
+            <form id="settingsForm" class="option-panel__content">
               <div class="form-group">
-                <label for="webdavUrl">Server URL</label>
+                <label for="apiBaseUrl">API Base URL</label>
                 <input
                   type="url"
-                  id="webdavUrl"
-                  name="webdavUrl"
-                  placeholder="https://cloud.example.com/remote.php/dav/files/username"
+                  id="apiBaseUrl"
+                  name="apiBaseUrl"
+                  placeholder="https://api.openai.com/v1"
+                  required
                 />
                 <small class="help-text">
-                  Full WebDAV endpoint URL. For Nextcloud: <code>https://your-server/remote.php/dav/files/USERNAME</code>
-                </small>
-                <div id="webdavUrlWarning" class="security-warning hidden">
-                  <strong>Security Warning:</strong> HTTP connections send credentials in plain text.
-                  Please use HTTPS, or enable "Allow insecure connections" below if you understand the risks.
-                </div>
-              </div>
-
-              <!-- Username -->
-              <div class="form-group">
-                <label for="webdavUsername">Username</label>
-                <input
-                  type="text"
-                  id="webdavUsername"
-                  name="webdavUsername"
-                  placeholder="your-username"
-                  autocomplete="username"
-                />
-                <small class="help-text">
-                  Your WebDAV server username
+                  OpenAI-compatible API endpoint. For OpenAI, use the default.
+                  For local models, use your local endpoint (e.g., http://localhost:1234/v1)
                 </small>
               </div>
 
-              <!-- Password -->
               <div class="form-group">
-                <label for="webdavPassword">Password</label>
+                <label for="apiKey">API Key</label>
                 <input
                   type="password"
-                  id="webdavPassword"
-                  name="webdavPassword"
-                  placeholder="••••••••"
-                  autocomplete="current-password"
+                  id="apiKey"
+                  name="apiKey"
+                  placeholder="sk-..."
+                  required
                 />
                 <small class="help-text">
-                  Your WebDAV server password or app-specific password. Stored locally only.
+                  Your OpenAI API key or compatible provider key
                 </small>
               </div>
 
-              <!-- Sync Path -->
               <div class="form-group">
-                <label for="webdavPath">Sync Folder Path</label>
+                <label for="chatModel">Chat Model</label>
                 <input
                   type="text"
-                  id="webdavPath"
-                  name="webdavPath"
-                  placeholder="/bookmarks"
+                  id="chatModel"
+                  name="chatModel"
+                  placeholder="gpt-4o-mini"
+                  required
                 />
                 <small class="help-text">
-                  Folder path on the server where bookmark data will be stored (will be created if it doesn't exist)
+                  Model for Q&A generation (e.g., gpt-4o-mini, gpt-4o)
                 </small>
               </div>
 
-              <!-- Sync Interval -->
               <div class="form-group">
-                <label for="webdavSyncInterval">Auto-sync Interval (minutes)</label>
+                <label for="embeddingModel">Embedding Model</label>
                 <input
-                  type="number"
-                  id="webdavSyncInterval"
-                  name="webdavSyncInterval"
-                  min="0"
-                  max="1440"
-                  placeholder="15"
+                  type="text"
+                  id="embeddingModel"
+                  name="embeddingModel"
+                  placeholder="text-embedding-3-small"
+                  required
                 />
                 <small class="help-text">
-                  How often to automatically sync (0 to disable auto-sync)
+                  Model for generating embeddings (e.g., text-embedding-3-small)
                 </small>
               </div>
 
-              <!-- Allow Insecure Connections -->
-              <div class="form-group">
-                <label class="toggle-label">
-                  <input type="checkbox" id="webdavAllowInsecure" name="webdavAllowInsecure" />
-                  <span class="toggle-text">Allow insecure connections (HTTP)</span>
-                </label>
-                <small class="help-text security-help">
-                  Only enable this for development or testing. HTTP connections send your credentials in plain text, which is a security risk.
-                </small>
-              </div>
-
-              <!-- Connection Status -->
-              <div id="webdavConnectionStatus" class="connection-status hidden">
-                <span class="status-indicator"></span>
-                <span class="status-text"></span>
-              </div>
-
-              <!-- Action Buttons -->
               <div class="button-group">
                 <button type="submit" class="btn btn-primary">
                   Save Settings
                 </button>
-                <button type="button" id="testWebdavBtn" class="btn btn-secondary">
+                <button type="button" id="testBtn" class="btn btn-secondary">
                   Test Connection
                 </button>
               </div>
-
-              <!-- Sync Status Section -->
-              <div id="syncStatusSection" class="sync-status-section">
-                <h4>Sync Status</h4>
-                <div id="syncStatusIndicator" class="sync-status-indicator">
-                  <span class="sync-status-icon"></span>
-                  <span class="sync-status-text">Not synced yet</span>
-                </div>
-                <button type="button" id="syncNowBtn" class="btn btn-secondary">
-                  Sync Now
-                </button>
-              </div>
-            </div>
-          </form>
+            </form>
+          </div>
         </section>
 
-        <section id="jobs" class="settings-section">
-          <div class="data-section">
-            <h2>Jobs Dashboard</h2>
-        <p class="section-description">
-          Monitor processing jobs for your bookmarks and bulk imports.
-        </p>
+        <section id="bulk-import" class="settings-section">
+          <div class="option-panel">
+            <div class="option-panel__header">
+              <h2>Bulk Import URLs</h2>
+              <p class="section-description">
+                Import multiple bookmarks at once by pasting a list of URLs (one per line).
+              </p>
+            </div>
+            <div class="option-panel__content">
+              <div class="bulk-import-container">
+                <textarea
+                  id="bulkUrlsInput"
+                  rows="10"
+                  placeholder="https://example.com/article1&#10;https://example.com/article2&#10;https://github.com/user/repo"
+                ></textarea>
 
-        <div class="jobs-controls">
-          <div class="jobs-filters">
-            <select id="jobTypeFilter" class="filter-select">
-              <option value="">All Types</option>
-              <option value="manual_add">Manual Add</option>
-              <option value="markdown_generation">Markdown Generation</option>
-              <option value="qa_generation">Q&A Generation</option>
-              <option value="file_import">File Import</option>
-              <option value="bulk_url_import">Bulk URL Import</option>
-              <option value="url_fetch">URL Fetch</option>
-            </select>
+                <div id="urlValidationFeedback" class="validation-feedback"></div>
 
-            <select id="jobStatusFilter" class="filter-select">
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
-              <option value="failed">Failed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
+                <div class="button-group">
+                  <button type="button" id="startBulkImport" class="btn btn-primary" disabled>
+                    Import URLs
+                  </button>
+                  <button type="button" id="cancelBulkImport" class="btn btn-secondary" style="display:none;">
+                    Cancel
+                  </button>
+                </div>
+
+                <div id="bulkImportProgress" class="bulk-import-progress hidden">
+                  <div class="progress-bar-container">
+                    <div id="bulkImportProgressBar" class="progress-bar"></div>
+                  </div>
+                  <span id="bulkImportStatus" class="progress-status">Processing...</span>
+                </div>
+              </div>
+            </div>
           </div>
+        </section>
 
-          <button type="button" id="refreshJobsBtn" class="btn btn-secondary">
-            Refresh
-          </button>
-        </div>
+        <section id="import-export" class="settings-section">
+          <div class="option-panel">
+            <div class="option-panel__header">
+              <h2>Import / Export</h2>
+              <p class="section-description">
+                Backup your bookmarks or transfer them between browsers.
+              </p>
+            </div>
+            <div class="option-panel__content">
+              <div class="data-actions">
+                <div class="data-action">
+                  <h3>Export Bookmarks</h3>
+                  <p>Download all your bookmarks as a JSON file.</p>
+                  <button type="button" id="exportBtn" class="btn btn-secondary">
+                    Export All Bookmarks
+                  </button>
+                </div>
 
-        <div id="jobsList" class="jobs-list">
-          <div class="loading">Loading jobs...</div>
-        </div>
+                <div class="data-action">
+                  <h3>Import Bookmarks</h3>
+                  <p>Import bookmarks from a previously exported JSON file. Duplicates will be skipped.</p>
+                  <input type="file" id="importFile" accept=".json" class="file-input" />
+                  <label for="importFile" class="btn btn-secondary file-label">
+                    Choose File to Import
+                  </label>
+                  <span id="importFileName" class="file-name"></span>
+                  <button type="button" id="importBtn" class="btn btn-primary" disabled>
+                    Import
+                  </button>
+                </div>
+              </div>
+
+              <div id="importStatus" class="import-status hidden"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="webdav-sync" class="settings-section">
+          <div class="option-panel">
+            <div class="option-panel__header">
+              <h2>WebDAV Sync</h2>
+              <p class="section-description">
+                Sync your bookmarks across devices using a WebDAV server (Nextcloud, ownCloud, Synology, etc.)
+              </p>
+            </div>
+            <form id="webdavForm" class="option-panel__content">
+              <!-- Enable/Disable Toggle -->
+              <div class="form-group">
+                <label class="toggle-label">
+                  <input type="checkbox" id="webdavEnabled" name="webdavEnabled" />
+                  <span class="toggle-text">Enable WebDAV Sync</span>
+                </label>
+                <small class="help-text">
+                  When enabled, bookmarks will sync automatically with your WebDAV server
+                </small>
+              </div>
+
+              <div id="webdavFields" class="conditional-fields">
+                <!-- Server URL -->
+                <div class="form-group">
+                  <label for="webdavUrl">Server URL</label>
+                  <input
+                    type="url"
+                    id="webdavUrl"
+                    name="webdavUrl"
+                    placeholder="https://cloud.example.com/remote.php/dav/files/username"
+                  />
+                  <small class="help-text">
+                    Full WebDAV endpoint URL. For Nextcloud: <code>https://your-server/remote.php/dav/files/USERNAME</code>
+                  </small>
+                  <div id="webdavUrlWarning" class="security-warning hidden">
+                    <strong>Security Warning:</strong> HTTP connections send credentials in plain text.
+                    Please use HTTPS, or enable "Allow insecure connections" below if you understand the risks.
+                  </div>
+                </div>
+
+                <!-- Username -->
+                <div class="form-group">
+                  <label for="webdavUsername">Username</label>
+                  <input
+                    type="text"
+                    id="webdavUsername"
+                    name="webdavUsername"
+                    placeholder="your-username"
+                    autocomplete="username"
+                  />
+                  <small class="help-text">
+                    Your WebDAV server username
+                  </small>
+                </div>
+
+                <!-- Password -->
+                <div class="form-group">
+                  <label for="webdavPassword">Password</label>
+                  <input
+                    type="password"
+                    id="webdavPassword"
+                    name="webdavPassword"
+                    placeholder="••••••••"
+                    autocomplete="current-password"
+                  />
+                  <small class="help-text">
+                    Your WebDAV server password or app-specific password. Stored locally only.
+                  </small>
+                </div>
+
+                <!-- Sync Path -->
+                <div class="form-group">
+                  <label for="webdavPath">Sync Folder Path</label>
+                  <input
+                    type="text"
+                    id="webdavPath"
+                    name="webdavPath"
+                    placeholder="/bookmarks"
+                  />
+                  <small class="help-text">
+                    Folder path on the server where bookmark data will be stored (will be created if it doesn't exist)
+                  </small>
+                </div>
+
+                <!-- Sync Interval -->
+                <div class="form-group">
+                  <label for="webdavSyncInterval">Auto-sync Interval (minutes)</label>
+                  <input
+                    type="number"
+                    id="webdavSyncInterval"
+                    name="webdavSyncInterval"
+                    min="0"
+                    max="1440"
+                    placeholder="15"
+                  />
+                  <small class="help-text">
+                    How often to automatically sync (0 to disable auto-sync)
+                  </small>
+                </div>
+
+                <!-- Allow Insecure Connections -->
+                <div class="form-group">
+                  <label class="toggle-label">
+                    <input type="checkbox" id="webdavAllowInsecure" name="webdavAllowInsecure" />
+                    <span class="toggle-text">Allow insecure connections (HTTP)</span>
+                  </label>
+                  <small class="help-text security-help">
+                    Only enable this for development or testing. HTTP connections send your credentials in plain text, which is a security risk.
+                  </small>
+                </div>
+
+                <!-- Connection Status -->
+                <div id="webdavConnectionStatus" class="connection-status hidden">
+                  <span class="status-indicator"></span>
+                  <span class="status-text"></span>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="button-group">
+                  <button type="submit" class="btn btn-primary">
+                    Save Settings
+                  </button>
+                  <button type="button" id="testWebdavBtn" class="btn btn-secondary">
+                    Test Connection
+                  </button>
+                </div>
+
+                <!-- Sync Status Section -->
+                <div id="syncStatusSection" class="sync-status-section">
+                  <h4>Sync Status</h4>
+                  <div id="syncStatusIndicator" class="sync-status-indicator">
+                    <span class="sync-status-icon"></span>
+                    <span class="sync-status-text">Not synced yet</span>
+                  </div>
+                  <button type="button" id="syncNowBtn" class="btn btn-secondary">
+                    Sync Now
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
         </section>
 
         <section id="about" class="settings-section">
-          <div class="info-section">
-            <h2>About</h2>
-        <p>
-          Bookmarks by Localforge captures web pages and uses AI to generate searchable
-          question-answer pairs, enabling semantic search across your bookmarks.
-        </p>
-        <p>
-          <strong>Privacy:</strong> All bookmarks are stored locally in your browser.
-          Only the extracted content is sent to your configured API for processing.
-        </p>
+          <div class="option-panel">
+            <div class="option-panel__header">
+              <h2>About</h2>
+            </div>
+            <div class="option-panel__content">
+              <p>
+                Bookmarks by Localforge captures web pages and uses AI to generate searchable
+                question-answer pairs, enabling semantic search across your bookmarks.
+              </p>
+              <p>
+                <strong>Privacy:</strong> All bookmarks are stored locally in your browser.
+                Only the extracted content is sent to your configured API for processing.
+              </p>
+            </div>
           </div>
         </section>
       </div>

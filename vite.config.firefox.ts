@@ -47,6 +47,7 @@ export default defineConfig({
         library: 'src/library/library.html',
         search: 'src/search/search.html',
         stumble: 'src/stumble/stumble.html',
+        jobs: 'src/jobs/jobs.html',
       },
       output: sharedOutput,
     },
