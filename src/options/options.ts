@@ -19,6 +19,17 @@ const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
 const chatModelInput = document.getElementById('chatModel') as HTMLInputElement;
 const embeddingModelInput = document.getElementById('embeddingModel') as HTMLInputElement;
 
+// WebDAV form elements
+const webdavForm = document.getElementById('webdavForm') as HTMLFormElement;
+const webdavEnabledInput = document.getElementById('webdavEnabled') as HTMLInputElement;
+const webdavFieldsDiv = document.getElementById('webdavFields') as HTMLDivElement;
+const webdavUrlInput = document.getElementById('webdavUrl') as HTMLInputElement;
+const webdavUsernameInput = document.getElementById('webdavUsername') as HTMLInputElement;
+const webdavPasswordInput = document.getElementById('webdavPassword') as HTMLInputElement;
+const webdavPathInput = document.getElementById('webdavPath') as HTMLInputElement;
+const testWebdavBtn = document.getElementById('testWebdavBtn') as HTMLButtonElement;
+const webdavConnectionStatus = document.getElementById('webdavConnectionStatus') as HTMLDivElement;
+
 // Import/Export elements
 const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
 const importFile = document.getElementById('importFile') as HTMLInputElement;
@@ -37,6 +48,31 @@ async function loadSettings() {
   } catch (error) {
     console.error('Error loading settings:', error);
     showStatusMessage(statusDiv, 'Failed to load settings', 'error', 5000);
+  }
+}
+
+async function loadWebDAVSettings() {
+  try {
+    const settings = await getSettings();
+
+    webdavEnabledInput.checked = settings.webdavEnabled;
+    webdavUrlInput.value = settings.webdavUrl;
+    webdavUsernameInput.value = settings.webdavUsername;
+    webdavPasswordInput.value = settings.webdavPassword;
+    webdavPathInput.value = settings.webdavPath;
+
+    // Show/hide fields based on enabled state
+    updateWebDAVFieldsVisibility();
+  } catch (error) {
+    console.error('Error loading WebDAV settings:', error);
+  }
+}
+
+function updateWebDAVFieldsVisibility() {
+  if (webdavEnabledInput.checked) {
+    webdavFieldsDiv.classList.remove('hidden');
+  } else {
+    webdavFieldsDiv.classList.add('hidden');
   }
 }
 
@@ -110,6 +146,119 @@ testBtn.addEventListener('click', async () => {
     testBtn.textContent = 'Test Connection';
   }
 });
+
+// WebDAV form handlers
+webdavEnabledInput.addEventListener('change', updateWebDAVFieldsVisibility);
+
+webdavForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const submitBtn = webdavForm.querySelector('[type="submit"]') as HTMLButtonElement;
+
+  try {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving...';
+
+    await saveSetting('webdavEnabled', webdavEnabledInput.checked);
+    await saveSetting('webdavUrl', webdavUrlInput.value.trim());
+    await saveSetting('webdavUsername', webdavUsernameInput.value.trim());
+    await saveSetting('webdavPassword', webdavPasswordInput.value);
+    await saveSetting('webdavPath', webdavPathInput.value.trim() || '/bookmarks');
+
+    showStatusMessage(statusDiv, 'WebDAV settings saved successfully!', 'success', 5000);
+  } catch (error) {
+    console.error('Error saving WebDAV settings:', error);
+    showStatusMessage(statusDiv, 'Failed to save WebDAV settings', 'error', 5000);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Save Settings';
+  }
+});
+
+testWebdavBtn.addEventListener('click', async () => {
+  const url = webdavUrlInput.value.trim();
+  const username = webdavUsernameInput.value.trim();
+  const password = webdavPasswordInput.value;
+
+  if (!url || !username || !password) {
+    showConnectionStatus('error', 'Please fill in URL, username, and password');
+    return;
+  }
+
+  showConnectionStatus('testing', 'Testing connection...');
+  testWebdavBtn.disabled = true;
+
+  try {
+    const result = await testWebDAVConnection(url, username, password);
+
+    if (result.success) {
+      showConnectionStatus('success', 'Connection successful!');
+    } else {
+      showConnectionStatus('error', result.error || 'Connection failed');
+    }
+  } catch (error) {
+    showConnectionStatus('error', `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  } finally {
+    testWebdavBtn.disabled = false;
+  }
+});
+
+function showConnectionStatus(type: 'success' | 'error' | 'testing', message: string) {
+  webdavConnectionStatus.className = `connection-status ${type}`;
+  const statusText = webdavConnectionStatus.querySelector('.status-text');
+  if (statusText) {
+    statusText.textContent = message;
+  }
+}
+
+interface WebDAVTestResult {
+  success: boolean;
+  error?: string;
+}
+
+async function testWebDAVConnection(
+  url: string,
+  username: string,
+  password: string
+): Promise<WebDAVTestResult> {
+  try {
+    // Use PROPFIND to test WebDAV connection
+    const response = await fetch(url, {
+      method: 'PROPFIND',
+      headers: {
+        'Depth': '0',
+        'Authorization': 'Basic ' + btoa(`${username}:${password}`),
+        'Content-Type': 'application/xml',
+      },
+      body: `<?xml version="1.0" encoding="utf-8" ?>
+<D:propfind xmlns:D="DAV:">
+  <D:prop>
+    <D:resourcetype/>
+  </D:prop>
+</D:propfind>`,
+    });
+
+    // WebDAV returns 207 Multi-Status for successful PROPFIND
+    if (response.status === 207 || response.ok) {
+      return { success: true };
+    }
+
+    if (response.status === 401) {
+      return { success: false, error: 'Authentication failed. Check username and password.' };
+    }
+
+    if (response.status === 404) {
+      return { success: false, error: 'Path not found. Check the server URL.' };
+    }
+
+    return { success: false, error: `Server returned status ${response.status}` };
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      return { success: false, error: 'Network error. Check the URL and your connection.' };
+    }
+    throw error;
+  }
+}
 
 // Navigate to pages (same tab)
 navLibrary.addEventListener('click', (e) => {
@@ -710,6 +859,7 @@ window.addEventListener('resize', () => {
 
 // Load settings on page load
 loadSettings();
+loadWebDAVSettings();
 loadTheme();
 
 // Load jobs on page load

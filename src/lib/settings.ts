@@ -5,6 +5,12 @@ export interface ApiSettings {
   apiKey: string;
   chatModel: string;
   embeddingModel: string;
+  // WebDAV fields
+  webdavUrl: string;
+  webdavUsername: string;
+  webdavPassword: string;
+  webdavPath: string;
+  webdavEnabled: boolean;
 }
 
 const DEFAULTS: ApiSettings = {
@@ -12,6 +18,12 @@ const DEFAULTS: ApiSettings = {
   apiKey: '',
   chatModel: 'gpt-4o-mini',
   embeddingModel: 'text-embedding-3-small',
+  // WebDAV defaults
+  webdavUrl: '',
+  webdavUsername: '',
+  webdavPassword: '',
+  webdavPath: '/bookmarks',
+  webdavEnabled: false,
 };
 
 export async function getSettings(): Promise<ApiSettings> {
@@ -23,10 +35,16 @@ export async function getSettings(): Promise<ApiSettings> {
     apiKey: map.apiKey ?? DEFAULTS.apiKey,
     chatModel: map.chatModel ?? DEFAULTS.chatModel,
     embeddingModel: map.embeddingModel ?? DEFAULTS.embeddingModel,
+    // WebDAV fields
+    webdavUrl: map.webdavUrl ?? DEFAULTS.webdavUrl,
+    webdavUsername: map.webdavUsername ?? DEFAULTS.webdavUsername,
+    webdavPassword: map.webdavPassword ?? DEFAULTS.webdavPassword,
+    webdavPath: map.webdavPath ?? DEFAULTS.webdavPath,
+    webdavEnabled: map.webdavEnabled ?? DEFAULTS.webdavEnabled,
   };
 }
 
-export async function saveSetting(key: keyof ApiSettings, value: string): Promise<void> {
+export async function saveSetting(key: keyof ApiSettings, value: string | boolean): Promise<void> {
   const now = new Date();
   const existing = await db.settings.get(key);
 
