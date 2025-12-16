@@ -1,22 +1,22 @@
 /**
- * Chrome E2E Tests
+ * Firefox E2E Tests
  *
- * Runs the shared E2E test suite against the Chrome extension.
- * Uses Puppeteer with mock API server for most tests, plus one real API test.
+ * Runs the shared E2E test suite against the Firefox extension.
+ * Uses Selenium WebDriver with mock API server for most tests, plus one real API test.
  */
 
-import { ChromeAdapter } from './adapters/chrome-adapter';
+import { FirefoxAdapter } from './adapters/firefox-adapter';
 import { TestRunner, runSharedTests } from './e2e-shared';
 
 async function main(): Promise<void> {
   console.log('='.repeat(60));
-  console.log('Chrome Extension E2E Tests');
+  console.log('Firefox Extension E2E Tests');
   console.log('='.repeat(60));
   console.log(`API Key: ${process.env.OPENAI_API_KEY ? 'Provided' : 'Not provided'}`);
   console.log('Mode: MOCK API (with 1 real API test at the end)');
   console.log('='.repeat(60));
 
-  const adapter = new ChromeAdapter();
+  const adapter = new FirefoxAdapter();
   const runner = new TestRunner();
 
   try {
@@ -39,7 +39,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  console.log('\n✓ All Chrome E2E tests passed!');
+  console.log('\n✓ All Firefox E2E tests passed!');
 }
 
 main();
