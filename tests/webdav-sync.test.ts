@@ -19,10 +19,20 @@ vi.mock('../src/lib/export', () => ({
   importBookmarks: vi.fn(),
 }));
 
+// Reset module state between tests
+async function resetSyncModule() {
+  // Re-import to reset module-level state (lastSyncAttempt)
+  vi.resetModules();
+}
+
 describe('WebDAV Sync - Race Condition Protection', () => {
   beforeEach(async () => {
     await db.bookmarks.clear();
     vi.clearAllMocks();
+    // Use fake timers and advance past debounce period to reset state
+    vi.useFakeTimers();
+    // Advance time by 10 seconds to ensure debounce period is passed
+    vi.advanceTimersByTime(10000);
 
     // Default mock implementations
     vi.mocked(settings.getSettings).mockResolvedValue({
@@ -59,10 +69,14 @@ describe('WebDAV Sync - Race Condition Protection', () => {
 
   afterEach(async () => {
     await db.bookmarks.clear();
+    vi.useRealTimers();
   });
 
   describe('Concurrent Sync Prevention', () => {
     it('should prevent concurrent sync operations', async () => {
+      // Use real timers for concurrent operation tests
+      vi.useRealTimers();
+
       let syncCount = 0;
 
       // Mock a slow sync operation
@@ -77,14 +91,14 @@ describe('WebDAV Sync - Race Condition Protection', () => {
         };
       });
 
-      // Start multiple sync operations concurrently
+      // Start multiple sync operations concurrently (all with force=true to bypass debouncing)
       const results = await Promise.all([
-        performSync(),
-        performSync(),
-        performSync(),
+        performSync(true),
+        performSync(true),
+        performSync(true),
       ]);
 
-      // One should succeed, two should be skipped
+      // One should succeed, two should be skipped (due to concurrent prevention, not debouncing)
       const skipped = results.filter(r => r.action === 'skipped').length;
       const uploaded = results.filter(r => r.action === 'uploaded').length;
 
@@ -94,7 +108,8 @@ describe('WebDAV Sync - Race Condition Protection', () => {
     });
 
     it('should use state manager for sync flag', async () => {
-      const result = await performSync();
+      // Use force=true to bypass debouncing
+      const result = await performSync(true);
 
       // Should complete successfully
       expect(['uploaded', 'no-change']).toContain(result.action);
@@ -102,6 +117,9 @@ describe('WebDAV Sync - Race Condition Protection', () => {
     });
 
     it('should return correct sync status during sync', async () => {
+      // Use real timers for this test
+      vi.useRealTimers();
+
       // Start a slow sync
       vi.mocked(exportModule.exportAllBookmarks).mockImplementation(async () => {
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -113,7 +131,7 @@ describe('WebDAV Sync - Race Condition Protection', () => {
         };
       });
 
-      const syncPromise = performSync();
+      const syncPromise = performSync(true); // force=true to bypass debouncing
 
       // Check status while syncing
       const statusDuringSyncPromise = getSyncStatus();
@@ -172,8 +190,8 @@ describe('WebDAV Sync - Race Condition Protection', () => {
       // First sync
       await performSync();
 
-      // Wait for debounce period (5 seconds)
-      await new Promise(resolve => setTimeout(resolve, 5100));
+      // Advance timers past debounce period (5 seconds)
+      vi.advanceTimersByTime(5100);
 
       // Second sync should work
       const result = await performSync();
@@ -210,8 +228,8 @@ describe('WebDAV Sync - Race Condition Protection', () => {
       // First sync
       await performSync();
 
-      // Add a small delay
-      await new Promise(resolve => setTimeout(resolve, 10));
+      // Advance time a bit
+      vi.advanceTimersByTime(10);
 
       // Second sync should work (state was properly cleaned up)
       const result = await performSync(true); // Use force to bypass debounce
@@ -272,7 +290,8 @@ describe('WebDAV Sync - Race Condition Protection', () => {
         webdavEnabled: false,
       } as any);
 
-      const result = await performSync();
+      // Use force=true to bypass debouncing and test configuration check
+      const result = await performSync(true);
 
       expect(result.success).toBe(false);
       expect(result.action).toBe('skipped');
@@ -287,7 +306,8 @@ describe('WebDAV Sync - Race Condition Protection', () => {
         webdavPassword: 'testpass',
       } as any);
 
-      const result = await performSync();
+      // Use force=true to bypass debouncing and test configuration check
+      const result = await performSync(true);
 
       expect(result.success).toBe(false);
       expect(result.action).toBe('skipped');
@@ -301,7 +321,8 @@ describe('WebDAV Sync - Race Condition Protection', () => {
         webdavPassword: 'testpass',
       } as any);
 
-      const result = await performSync();
+      // Use force=true to bypass debouncing and test configuration check
+      const result = await performSync(true);
 
       expect(result.success).toBe(false);
       expect(result.action).toBe('skipped');
@@ -312,7 +333,8 @@ describe('WebDAV Sync - Race Condition Protection', () => {
     it('should handle network errors gracefully', async () => {
       vi.mocked(global.fetch).mockRejectedValue(new Error('Network timeout'));
 
-      const result = await performSync();
+      // Use force=true to bypass debouncing
+      const result = await performSync(true);
 
       expect(result.success).toBe(false);
       expect(result.action).toBe('error');
@@ -322,7 +344,8 @@ describe('WebDAV Sync - Race Condition Protection', () => {
     it('should save error to settings', async () => {
       vi.mocked(global.fetch).mockRejectedValue(new Error('Connection failed'));
 
-      await performSync();
+      // Use force=true to bypass debouncing
+      await performSync(true);
 
       expect(settings.saveSetting).toHaveBeenCalledWith(
         'webdavLastSyncError',
@@ -333,8 +356,8 @@ describe('WebDAV Sync - Race Condition Protection', () => {
     it('should reset sync state even when error occurs', async () => {
       vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
 
-      // First sync fails
-      await performSync();
+      // First sync fails - use force=true
+      await performSync(true);
 
       // Mock successful fetch
       vi.mocked(global.fetch).mockResolvedValue({
@@ -356,11 +379,11 @@ describe('WebDAV Sync - Race Condition Protection', () => {
       // Import state manager to verify session handling
       const stateManagerModule = await import('../src/lib/state-manager');
 
-      // First sync
-      await performSync();
+      // First sync - use force=true
+      await performSync(true);
 
-      // Wait a bit
-      await new Promise(resolve => setTimeout(resolve, 10));
+      // Advance time a bit
+      vi.advanceTimersByTime(10);
 
       // Second sync with force flag
       const result = await performSync(true);
@@ -372,7 +395,8 @@ describe('WebDAV Sync - Race Condition Protection', () => {
     it('should use state manager for sync operations', async () => {
       const stateManagerModule = await import('../src/lib/state-manager');
 
-      const result = await performSync();
+      // Use force=true to bypass debouncing
+      const result = await performSync(true);
 
       // Verify sync completed
       expect(['uploaded', 'no-change', 'skipped']).toContain(result.action);
@@ -390,6 +414,9 @@ describe('WebDAV Sync - Race Condition Protection', () => {
     });
 
     it('should reflect active sync state', async () => {
+      // For this test, we use real timers since we need actual async behavior
+      vi.useRealTimers();
+
       // Start a slow sync
       vi.mocked(exportModule.exportAllBookmarks).mockImplementation(async () => {
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -401,7 +428,7 @@ describe('WebDAV Sync - Race Condition Protection', () => {
         };
       });
 
-      const syncPromise = performSync();
+      const syncPromise = performSync(true); // force=true to bypass debouncing
 
       // Small delay to let sync start
       await new Promise(resolve => setTimeout(resolve, 10));

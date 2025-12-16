@@ -401,6 +401,8 @@ describe('Bookmark Processor', () => {
 
       const qaPairs = await db.questionsAnswers.where('bookmarkId').equals('test-1').toArray();
       expect(qaPairs).toHaveLength(3);
+      // Sort by question to ensure consistent ordering
+      qaPairs.sort((a, b) => a.question.localeCompare(b.question));
       expect(qaPairs.map(qa => qa.question)).toEqual(['Q1?', 'Q2?', 'Q3?']);
       expect(qaPairs.map(qa => qa.answer)).toEqual(['A1', 'A2', 'A3']);
     });

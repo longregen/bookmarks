@@ -111,7 +111,7 @@ export function validateSingleUrl(url: string): UrlValidation {
 
   // Add https:// if no protocol specified
   let normalized = url;
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+  if (!url.includes('://')) {
     normalized = 'https://' + url;
   }
 
