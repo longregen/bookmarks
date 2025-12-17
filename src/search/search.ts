@@ -30,7 +30,7 @@ if (!autocompleteDropdown || !resultsList || !resultStatus || !searchPage || !se
   throw new Error('Required DOM elements not found');
 }
 
-searchPage.classList.add('search-page--centered');
+searchPage!.classList.add('search-page--centered');
 
 const detailPanel2 = document.getElementById('detailPanel');
 const detailBackdrop2 = document.getElementById('detailBackdrop');
@@ -59,7 +59,7 @@ searchInput.addEventListener('blur', () => setTimeout(hideAutocomplete, 200));
 
 async function getSearchAutocompleteSetting(): Promise<boolean> {
   const setting = await db.settings.get('searchAutocomplete');
-  return setting?.value ?? true;
+  return (setting?.value ?? true) as boolean;
 }
 
 async function saveSearchHistory(query: string, resultCount: number): Promise<void> {
@@ -112,7 +112,7 @@ async function showAutocomplete(): Promise<void> {
     return;
   }
 
-  autocompleteDropdown.innerHTML = '';
+  autocompleteDropdown!.innerHTML = '';
 
   for (const history of matchingHistory) {
     const item = createElement('div', { className: 'autocomplete-item' });
@@ -136,14 +136,14 @@ async function showAutocomplete(): Promise<void> {
       void performSearch();
     };
 
-    autocompleteDropdown.appendChild(item);
+    autocompleteDropdown!.appendChild(item);
   }
 
-  autocompleteDropdown.classList.add('active');
+  autocompleteDropdown!.classList.add('active');
 }
 
 function hideAutocomplete(): void {
-  autocompleteDropdown.classList.remove('active');
+  autocompleteDropdown!.classList.remove('active');
 }
 
 function buildResultCard(
@@ -175,7 +175,7 @@ function buildResultCard(
 
 async function loadFilters(): Promise<void> {
   await loadTagFilters({
-    container: tagFilters,
+    container: tagFilters!,
     selectedTags,
     onChange: () => {
       void loadFilters();
@@ -187,17 +187,17 @@ async function loadFilters(): Promise<void> {
 }
 
 function showResultsMode(): void {
-  searchPage.classList.remove('search-page--centered');
-  searchHero.classList.add('hidden');
-  resultHeader.classList.remove('hidden');
-  resultStatus.innerHTML = '<span class="spinner"></span> Searching...';
-  resultStatus.classList.add('loading');
+  searchPage!.classList.remove('search-page--centered');
+  searchHero!.classList.add('hidden');
+  resultHeader!.classList.remove('hidden');
+  resultStatus!.innerHTML = '<span class="spinner"></span> Searching...';
+  resultStatus!.classList.add('loading');
 }
 
 function showCenteredMode(): void {
-  searchPage.classList.add('search-page--centered');
-  searchHero.classList.remove('hidden');
-  resultHeader.classList.add('hidden');
+  searchPage!.classList.add('search-page--centered');
+  searchHero!.classList.remove('hidden');
+  resultHeader!.classList.add('hidden');
 }
 
 // eslint-disable-next-line complexity
@@ -205,7 +205,7 @@ async function performSearch(): Promise<void> {
   const query = searchInput.value.trim();
   if (!query) {
     showCenteredMode();
-    resultsList.innerHTML = '';
+    resultsList!.innerHTML = '';
     return;
   }
 
@@ -224,10 +224,10 @@ async function performSearch(): Promise<void> {
     ]).filter(({ embedding }) => Array.isArray(embedding) && embedding.length === queryEmbedding.length);
 
     if (!items.length) {
-      resultStatus.classList.remove('loading');
-      resultStatus.textContent = 'No bookmarks indexed yet';
-      resultsList.innerHTML = '';
-      resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'Save some bookmarks first to enable search' }));
+      resultStatus!.classList.remove('loading');
+      resultStatus!.textContent = 'No bookmarks indexed yet';
+      resultsList!.innerHTML = '';
+      resultsList!.appendChild(createElement('div', { className: 'empty-state', textContent: 'Save some bookmarks first to enable search' }));
       return;
     }
 
@@ -277,14 +277,14 @@ async function performSearch(): Promise<void> {
     }
 
     const count = filteredResults.length;
-    resultStatus.classList.remove('loading');
-    resultStatus.textContent = count === 0
+    resultStatus!.classList.remove('loading');
+    resultStatus!.textContent = count === 0
       ? 'No results found'
       : `${count} result${count === 1 ? '' : 's'}`;
-    resultsList.innerHTML = '';
+    resultsList!.innerHTML = '';
 
     if (!filteredResults.length) {
-      resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'Try a different search term or check your filters' }));
+      resultsList!.appendChild(createElement('div', { className: 'empty-state', textContent: 'Try a different search term or check your filters' }));
       await saveSearchHistory(query, 0);
       return;
     }
@@ -296,13 +296,13 @@ async function performSearch(): Promise<void> {
       const bestQA = qaResults[0].qa;
 
       const card = buildResultCard(bookmark, maxScore, bestQA, () => detailManager.showDetail(bookmark.id));
-      resultsList.appendChild(card);
+      resultsList!.appendChild(card);
     }
   } catch (error) {
     console.error('Search error:', error);
-    resultStatus.classList.remove('loading');
-    resultStatus.textContent = 'Search failed';
-    resultsList.innerHTML = '';
+    resultStatus!.classList.remove('loading');
+    resultStatus!.textContent = 'Search failed';
+    resultsList!.innerHTML = '';
 
     const errorMessage = error instanceof Error ? error.message : String(error);
     const isApiKeyError = errorMessage.toLowerCase().includes('api key') ||
@@ -330,7 +330,7 @@ async function performSearch(): Promise<void> {
       errorDiv.appendChild(settingsLink);
     }
 
-    resultsList.appendChild(errorDiv);
+    resultsList!.appendChild(errorDiv);
   } finally {
     searchBtn.disabled = false;
     searchBtn.textContent = '🔍 Search';

@@ -1,17 +1,44 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    // Target & Module - Modern ES2022 for better tree-shaking and performance
+    "target": "ES2022",
     "module": "ESNext",
-    "lib": ["ES2020", "DOM"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "moduleResolution": "bundler",
-    "strict": true,
-    "esModuleInterop": true,
+    "moduleDetection": "force",
+
+    // Performance - Faster type checking
+    "incremental": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true,
     "isolatedModules": true,
+
+    // TypeScript 5.9 Recommended Defaults
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    "noUncheckedSideEffectImports": true,
+
+    // Stricter Typechecking - TypeScript 5.9 recommends these
+    // Uncomment when ready to fix existing issues:
+    // "noUncheckedIndexedAccess": true,
+    // "exactOptionalPropertyTypes": true,
+
+    // Style Options
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "forceConsistentCasingInFileNames": true,
+
+    // Module Interop
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+
+    // Output - Vite handles emission
     "noEmit": true,
+    "useDefineForClassFields": true,
+
+    // Types - explicitly specify to prevent auto-including @types
     "types": ["chrome", "vite/client"]
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "dist", "dist-*"]
 }

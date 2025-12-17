@@ -56,7 +56,7 @@ shuffleBtn.addEventListener('click', () => void loadStumble());
 
 async function loadFilters(): Promise<void> {
   await loadTagFilters({
-    container: tagFilters,
+    container: tagFilters!,
     selectedTags,
     onChange: () => {
       void loadFilters();
@@ -88,12 +88,12 @@ async function loadStumble(): Promise<void> {
     }
 
     const selected = bookmarks.slice(0, config.STUMBLE_COUNT);
-    resultCount.textContent = selected.length.toString();
+    resultCount!.textContent = selected.length.toString();
 
-    stumbleList.innerHTML = '';
+    stumbleList!.innerHTML = '';
 
     if (selected.length === 0) {
-      stumbleList.appendChild(createElement('div', { className: 'empty-state', textContent: 'No complete bookmarks to stumble through' }));
+      stumbleList!.appendChild(createElement('div', { className: 'empty-state', textContent: 'No complete bookmarks to stumble through' }));
       return;
     }
 
@@ -125,13 +125,13 @@ async function loadStumble(): Promise<void> {
         card.appendChild(qaPreview);
       }
 
-      stumbleList.appendChild(card);
+      stumbleList!.appendChild(card);
     }
   } catch (error) {
     console.error('Stumble error:', error);
-    stumbleList.innerHTML = '';
+    stumbleList!.innerHTML = '';
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    stumbleList.appendChild(createElement('div', { className: 'error-message', textContent: `Failed to load: ${errorMessage}` }));
+    stumbleList!.appendChild(createElement('div', { className: 'error-message', textContent: `Failed to load: ${errorMessage}` }));
   } finally {
     shuffleBtn.disabled = false;
     shuffleBtn.textContent = '↻ Shuffle';

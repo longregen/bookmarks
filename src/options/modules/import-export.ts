@@ -50,11 +50,12 @@ importFile.addEventListener('change', (e) => {
 
 importBtn.addEventListener('click', async () => {
   if (!selectedFile) return;
+  const file = selectedFile;
 
   try {
     await withButtonState(importBtn, 'Importing...', async () => {
-      const exportData = await readImportFile(selectedFile);
-      const result = await importBookmarks(exportData, selectedFile.name);
+      const exportData = await readImportFile(file);
+      const result = await importBookmarks(exportData, file.name);
 
       let message = `Imported ${result.imported} bookmark(s)`;
       if (result.skipped > 0) {

@@ -161,5 +161,5 @@ async function executeExtraction(tabId: number, settleTimeMs: number): Promise<s
     throw new Error('Failed to extract HTML from page');
   }
 
-  return results[0].result;
+  return results[0].result ?? '';
 }

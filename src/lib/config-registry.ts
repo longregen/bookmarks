@@ -319,7 +319,7 @@ export async function loadConfigOverrides(): Promise<void> {
   try {
     const stored = await db.settings.get(CONFIG_STORAGE_KEY);
     if (stored?.value !== undefined) {
-      configOverrides = stored.value;
+      configOverrides = stored.value as Record<string, string | number | boolean>;
     }
     overridesLoaded = true;
     rebuildConfigCache();

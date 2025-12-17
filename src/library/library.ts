@@ -79,30 +79,30 @@ async function loadTags(): Promise<void> {
 
   const untaggedCount = bookmarks.length - taggedBookmarkIds.size;
 
-  tagList.innerHTML = '';
+  tagList!.innerHTML = '';
 
   const allTag = createElement('div', { className: `tag-item ${selectedTag === 'All' ? 'active' : ''}` });
   allTag.onclick = () => selectTag('All');
   allTag.appendChild(createElement('span', { className: 'tag-name', textContent: 'All' }));
   allTag.appendChild(createElement('span', { className: 'tag-count', textContent: bookmarks.length.toString() }));
-  tagList.appendChild(allTag);
+  tagList!.appendChild(allTag);
 
   if (untaggedCount > 0) {
     const untaggedTag = createElement('div', { className: `tag-item ${selectedTag === 'Untagged' ? 'active' : ''}` });
     untaggedTag.onclick = () => selectTag('Untagged');
     untaggedTag.appendChild(createElement('span', { className: 'tag-name', textContent: 'Untagged' }));
     untaggedTag.appendChild(createElement('span', { className: 'tag-count', textContent: untaggedCount.toString() }));
-    tagList.appendChild(untaggedTag);
+    tagList!.appendChild(untaggedTag);
   }
 
-  tagList.appendChild(createElement('hr', { style: { border: 'none', borderTop: '1px solid var(--border-primary)', margin: 'var(--space-3) 0' } }));
+  tagList!.appendChild(createElement('hr', { style: { border: 'none', borderTop: '1px solid var(--border-primary)', margin: 'var(--space-3) 0' } }));
 
   for (const [tagName, count] of Object.entries(allTags).sort()) {
     const tagItem = createElement('div', { className: `tag-item ${selectedTag === tagName ? 'active' : ''}` });
     tagItem.onclick = () => selectTag(tagName);
     tagItem.appendChild(createElement('span', { className: 'tag-name', textContent: `#${tagName}` }));
     tagItem.appendChild(createElement('span', { className: 'tag-count', textContent: count.toString() }));
-    tagList.appendChild(tagItem);
+    tagList!.appendChild(tagItem);
   }
 }
 
@@ -129,11 +129,11 @@ async function loadBookmarks(): Promise<void> {
   else if (sortBy === 'oldest') bookmarks.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   else if (sortBy === 'title') bookmarks.sort((a, b) => a.title.localeCompare(b.title));
 
-  bookmarkList.innerHTML = '';
-  bookmarkCount.textContent = bookmarks.length.toString();
+  bookmarkList!.innerHTML = '';
+  bookmarkCount!.textContent = bookmarks.length.toString();
 
   if (bookmarks.length === 0) {
-    bookmarkList.appendChild(createElement('div', { className: 'empty-state', textContent: 'No bookmarks found' }));
+    bookmarkList!.appendChild(createElement('div', { className: 'empty-state', textContent: 'No bookmarks found' }));
     return;
   }
 
@@ -176,7 +176,7 @@ async function loadBookmarks(): Promise<void> {
       card.appendChild(tagContainer);
     }
 
-    bookmarkList.appendChild(card);
+    bookmarkList!.appendChild(card);
   }
 }
 
@@ -236,13 +236,13 @@ function _initAddUrlSection(): void {
   }
 
   function showAddUrlStatus(message: string, type: 'success' | 'error' | 'info'): void {
-    addUrlStatus.textContent = message;
-    addUrlStatus.className = `add-url-status ${type}`;
-    addUrlStatus.classList.remove('hidden');
+    addUrlStatus!.textContent = message;
+    addUrlStatus!.className = `add-url-status ${type}`;
+    addUrlStatus!.classList.remove('hidden');
 
     if (type === 'success') {
       setTimeout(() => {
-        addUrlStatus.classList.add('hidden');
+        addUrlStatus!.classList.add('hidden');
       }, 3000);
     }
   }

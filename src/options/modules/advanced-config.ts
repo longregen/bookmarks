@@ -54,7 +54,7 @@ function populateCategoryFilter(): void {
   );
 
   Object.values(CONFIG_CATEGORIES).forEach(category => {
-    categoryFilter.appendChild(
+    categoryFilter!.appendChild(
       createElement('option', { textContent: category, attributes: { value: category } })
     );
   });
@@ -139,8 +139,8 @@ function renderConfigTable(): void {
 
   entries.forEach(entry => {
     const [mainRow, descRow] = renderConfigRow(entry);
-    configTableBody.appendChild(mainRow);
-    configTableBody.appendChild(descRow);
+    configTableBody!.appendChild(mainRow);
+    configTableBody!.appendChild(descRow);
   });
 }
 
@@ -341,8 +341,7 @@ function startEditing(key: string): void {
   const input = document.querySelector(`.config-edit-input[data-key="${key}"], .config-edit-select[data-key="${key}"]`)!;
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions
   if (input) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    input.focus();
+    (input as HTMLElement).focus();
     if (input instanceof HTMLInputElement) {
       input.select();
     }
@@ -367,16 +366,16 @@ async function saveEdit(key: string): Promise<void> {
     let newValue: number | string | boolean;
 
     if (entry.type === 'boolean') {
-      newValue = input.value === 'true';
+      newValue = (input as HTMLSelectElement).value === 'true';
     } else if (entry.type === 'number') {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      newValue = parseFloat(input.value);
+      newValue = parseFloat((input as HTMLInputElement).value);
       if (isNaN(newValue)) {
         throw new Error('Invalid number');
       }
     } else {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      newValue = input.value;
+      newValue = (input as HTMLInputElement).value;
     }
 
     await setConfigValue(key, newValue);
