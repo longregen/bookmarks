@@ -8,21 +8,18 @@
 
 import { db } from '../db/schema';
 
-// Configuration value types
 export type ConfigValueType = 'number' | 'string' | 'boolean';
 
-// Configuration entry definition
 export interface ConfigEntry {
   key: string;
   defaultValue: number | string | boolean;
   type: ConfigValueType;
   description: string;
   category: string;
-  min?: number; // For number types
-  max?: number; // For number types
+  min?: number;
+  max?: number;
 }
 
-// Categories for grouping config entries
 export const CONFIG_CATEGORIES = {
   FETCHER: 'Fetcher',
   API: 'API',
@@ -36,9 +33,7 @@ export const CONFIG_CATEGORIES = {
   SIMILARITY: 'Similarity Thresholds',
 } as const;
 
-// Registry of all configurable constants
 export const CONFIG_REGISTRY: ConfigEntry[] = [
-  // Fetcher Configuration
   {
     key: 'FETCH_CONCURRENCY',
     defaultValue: 5,
@@ -84,8 +79,6 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     min: 500,
     max: 10000,
   },
-
-  // API Configuration
   {
     key: 'DEFAULT_API_BASE_URL',
     defaultValue: 'https://api.openai.com/v1',
@@ -111,8 +104,6 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     min: 0,
     max: 2,
   },
-
-  // Search Configuration
   {
     key: 'SEARCH_HISTORY_LIMIT',
     defaultValue: 50,
@@ -140,8 +131,6 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     min: 10,
     max: 1000,
   },
-
-  // Queue Configuration
   {
     key: 'QUEUE_PROCESSING_TIMEOUT_MS',
     defaultValue: 60 * 1000,
@@ -187,8 +176,6 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     min: 1000,
     max: 60000,
   },
-
-  // Processor Configuration
   {
     key: 'PROCESSOR_QA_GENERATION_PROGRESS',
     defaultValue: 33,
@@ -207,8 +194,6 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     min: 10,
     max: 90,
   },
-
-  // WebDAV Configuration
   {
     key: 'WEBDAV_SYNC_TIMEOUT_MS',
     defaultValue: 2 * 60 * 1000,
@@ -227,8 +212,6 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     min: 1000,
     max: 60000,
   },
-
-  // Stumble Configuration
   {
     key: 'STUMBLE_COUNT',
     defaultValue: 10,
@@ -238,8 +221,6 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     min: 1,
     max: 50,
   },
-
-  // Date Formatting Configuration
   {
     key: 'DATE_RELATIVE_TIME_THRESHOLD_DAYS',
     defaultValue: 14,
@@ -258,8 +239,6 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     min: 30,
     max: 730,
   },
-
-  // Health Indicator Configuration
   {
     key: 'HEALTH_REFRESH_INTERVAL_MS',
     defaultValue: 5000,
@@ -269,8 +248,6 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     min: 1000,
     max: 60000,
   },
-
-  // Similarity Thresholds
   {
     key: 'SIMILARITY_THRESHOLD_EXCELLENT',
     defaultValue: 0.9,
@@ -309,7 +286,6 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
   },
 ];
 
-// Storage key for config overrides
 const CONFIG_STORAGE_KEY = 'advancedConfig';
 
 // Cached overrides (loaded once at startup)
@@ -325,10 +301,6 @@ const registryMap = new Map<string, ConfigEntry>(
 // Merged config cache (pre-computed defaults + overrides)
 let configCache: Record<string, number | string | boolean> = {};
 
-/**
- * Build the config cache by merging defaults with overrides
- * Called after loading overrides or when they change
- */
 function rebuildConfigCache(): void {
   configCache = {};
   for (const entry of CONFIG_REGISTRY) {
@@ -338,7 +310,6 @@ function rebuildConfigCache(): void {
   }
 }
 
-// Initialize cache with default values
 rebuildConfigCache();
 
 /**
@@ -351,12 +322,12 @@ export async function loadConfigOverrides(): Promise<void> {
       configOverrides = stored.value;
     }
     overridesLoaded = true;
-    rebuildConfigCache(); // Rebuild cache with loaded overrides
+    rebuildConfigCache();
   } catch (error) {
     console.error('Failed to load config overrides:', error);
     configOverrides = {};
     overridesLoaded = true;
-    rebuildConfigCache(); // Rebuild cache with empty overrides
+    rebuildConfigCache();
   }
 }
 
@@ -383,12 +354,10 @@ export async function saveConfigOverrides(): Promise<void> {
  * Uses pre-computed cache for O(1) lookups
  */
 export function getConfigValue<T extends number | string | boolean>(key: string): T {
-  // Verify key exists in registry using Map (O(1))
   if (!registryMap.has(key)) {
     throw new Error(`Unknown config key: ${key}`);
   }
 
-  // Return cached value (O(1) object property lookup)
   return configCache[key] as T;
 }
 
@@ -401,12 +370,10 @@ export async function setConfigValue(key: string, value: number | string | boole
     throw new Error(`Unknown config key: ${key}`);
   }
 
-  // Validate type
   if (typeof value !== entry.type) {
     throw new Error(`Invalid type for ${key}: expected ${entry.type}, got ${typeof value}`);
   }
 
-  // Validate range for numbers
   if (entry.type === 'number' && typeof value === 'number') {
     if (entry.min !== undefined && value < entry.min) {
       throw new Error(`Value for ${key} must be at least ${entry.min}`);
@@ -417,7 +384,7 @@ export async function setConfigValue(key: string, value: number | string | boole
   }
 
   configOverrides[key] = value;
-  rebuildConfigCache(); // Update cache immediately
+  rebuildConfigCache();
   await saveConfigOverrides();
 }
 
@@ -430,7 +397,7 @@ export async function resetConfigValue(key: string): Promise<void> {
   }
 
   delete configOverrides[key];
-  rebuildConfigCache(); // Update cache immediately
+  rebuildConfigCache();
   await saveConfigOverrides();
 }
 
@@ -439,7 +406,7 @@ export async function resetConfigValue(key: string): Promise<void> {
  */
 export async function resetAllConfigValues(): Promise<void> {
   configOverrides = {};
-  rebuildConfigCache(); // Update cache immediately
+  rebuildConfigCache();
   await saveConfigOverrides();
 }
 
@@ -495,49 +462,35 @@ export async function ensureConfigLoaded(): Promise<void> {
   }
 }
 
-// ============================================================================
-// CONFIG OBJECT WITH GETTERS/SETTERS
-// ============================================================================
-
 /**
  * Type definition for the config object
  * Each property corresponds to a configurable constant
  */
 export interface ConfigValues {
-  // Fetcher
   FETCH_CONCURRENCY: number;
   FETCH_TIMEOUT_MS: number;
   FETCH_MAX_HTML_SIZE: number;
   FETCH_OFFSCREEN_BUFFER_MS: number;
   PAGE_SETTLE_TIME_MS: number;
-  // API
   DEFAULT_API_BASE_URL: string;
   API_CONTENT_MAX_CHARS: number;
   API_CHAT_TEMPERATURE: number;
-  // Search
   SEARCH_HISTORY_LIMIT: number;
   SEARCH_AUTOCOMPLETE_LIMIT: number;
   SEARCH_TOP_K_RESULTS: number;
-  // Queue
   QUEUE_PROCESSING_TIMEOUT_MS: number;
   QUEUE_STATE_TIMEOUT_MS: number;
   QUEUE_MAX_RETRIES: number;
   QUEUE_RETRY_BASE_DELAY_MS: number;
   QUEUE_RETRY_MAX_DELAY_MS: number;
-  // Processor
   PROCESSOR_QA_GENERATION_PROGRESS: number;
   PROCESSOR_QA_SAVING_PROGRESS: number;
-  // WebDAV
   WEBDAV_SYNC_TIMEOUT_MS: number;
   WEBDAV_SYNC_DEBOUNCE_MS: number;
-  // Stumble
   STUMBLE_COUNT: number;
-  // Date
   DATE_RELATIVE_TIME_THRESHOLD_DAYS: number;
   DATE_FULL_DATE_THRESHOLD_DAYS: number;
-  // Health
   HEALTH_REFRESH_INTERVAL_MS: number;
-  // Similarity
   SIMILARITY_THRESHOLD_EXCELLENT: number;
   SIMILARITY_THRESHOLD_GOOD: number;
   SIMILARITY_THRESHOLD_FAIR: number;
@@ -564,7 +517,6 @@ export const CONFIG_DEFAULTS: ConfigValues = CONFIG_REGISTRY.reduce((acc, entry)
  */
 export const config: ConfigValues = Object.create(null);
 
-// Create getters for each config entry
 CONFIG_REGISTRY.forEach(entry => {
   Object.defineProperty(config, entry.key, {
     get(): number | string | boolean {

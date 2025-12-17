@@ -1,13 +1,5 @@
-/**
- * Shared offscreen document utilities for Chrome MV3
- * Firefox doesn't need this - it has DOMParser in service workers
- */
-
 import { getErrorMessage } from './errors';
 
-/**
- * Check if running in Firefox
- */
 export function isFirefox(): boolean {
   return typeof navigator !== 'undefined' && navigator.userAgent.includes('Firefox');
 }
@@ -17,15 +9,13 @@ export function isFirefox(): boolean {
  * Uses feature detection to avoid Firefox compatibility issues
  */
 export async function ensureOffscreenDocument(): Promise<void> {
-  // Check if we're in Chrome extension context
   if (typeof chrome === 'undefined') {
     return;
   }
 
-  // Check for offscreen API (Chrome MV3 only)
   const offscreenApi = chrome.offscreen;
   if (!offscreenApi || typeof offscreenApi.createDocument !== 'function') {
-    return; // Offscreen API not available (Firefox)
+    return;
   }
 
   // Check for runtime.getContexts API (Chrome 116+)
@@ -51,16 +41,14 @@ export async function ensureOffscreenDocument(): Promise<void> {
   }
 
   try {
-    // Check if offscreen document already exists
     const existingContexts = await runtimeApi.getContexts({
       contextTypes: ['OFFSCREEN_DOCUMENT'],
     });
 
     if (existingContexts.length > 0) {
-      return; // Already exists
+      return;
     }
 
-    // Create offscreen document
     await offscreenApi.createDocument({
       url: 'src/offscreen/offscreen.html',
       reasons: ['DOM_SCRAPING'],

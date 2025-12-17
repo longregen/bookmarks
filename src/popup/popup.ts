@@ -28,20 +28,17 @@ saveBtn.addEventListener('click', async () => {
       return;
     }
 
-    // Check if tab.url is accessible (undefined in incognito or restricted URLs)
     if (!tab.url) {
       showStatusMessage(statusDiv, 'Cannot save in incognito mode or restricted URLs', 'error');
       return;
     }
 
-    // Check for restricted URL schemes that don't allow script injection
     const restrictedSchemes = ['chrome:', 'about:', 'chrome-extension:', 'edge:', 'moz-extension:'];
     if (restrictedSchemes.some(scheme => tab.url?.startsWith(scheme))) {
       showStatusMessage(statusDiv, 'Cannot save browser internal pages', 'error');
       return;
     }
 
-    // Inject content script to capture the page
     const result = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: async () => {
@@ -56,7 +53,6 @@ saveBtn.addEventListener('click', async () => {
       }
     });
 
-    // Extract bookmarkId from response
     const response: SaveBookmarkResponse | undefined = result[0]?.result;
     if (response?.success && response?.bookmarkId) {
       showSuccessWithCTA(response.bookmarkId);
@@ -65,7 +61,6 @@ saveBtn.addEventListener('click', async () => {
     }
   } catch (error) {
     console.error('Error saving bookmark:', error);
-    // Provide more specific error messages for common cases
     const errorMessage = getErrorMessage(error);
     if (errorMessage.includes('Cannot access') || errorMessage.includes('scripting')) {
       showStatusMessage(statusDiv, 'Cannot access this page (permissions or restrictions)', 'error');
@@ -103,7 +98,6 @@ function showSuccessWithCTA(bookmarkId: string) {
   statusDiv.appendChild(ctaBtn);
 }
 
-// Navigation button handlers
 navLibrary.addEventListener('click', () => {
   openExtensionPage('src/library/library.html');
 });
@@ -120,7 +114,6 @@ navSettings.addEventListener('click', () => {
   openExtensionPage('src/options/options.html');
 });
 
-// Search functionality
 function performSearch() {
   const query = searchInput.value.trim();
   if (query) {
@@ -138,7 +131,6 @@ searchInput.addEventListener('keydown', (e) => {
   }
 });
 
-// Ctrl+K shortcut to focus search
 document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
     e.preventDefault();
@@ -146,14 +138,11 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Focus search input on popup open
 searchInput.focus();
 
-// Initialize theme
 initExtension();
 onThemeChange((theme) => applyTheme(theme));
 
-// Check for endpoint configuration
 async function checkEndpointConfiguration() {
   try {
     const settings = await getSettings();

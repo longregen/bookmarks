@@ -3,7 +3,6 @@ import { showStatusMessage, createElement } from '../../lib/dom';
 import { withButtonState } from '../../lib/form-helper';
 import { getErrorMessage } from '../../lib/errors';
 
-// Import/Export elements
 const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
 const importFile = document.getElementById('importFile') as HTMLInputElement;
 const importBtn = document.getElementById('importBtn') as HTMLButtonElement;
@@ -46,7 +45,6 @@ importFile.addEventListener('change', (e) => {
     importBtn.disabled = true;
   }
 
-  // Clear any previous import status
   importStatus.classList.add('hidden');
 });
 
@@ -58,14 +56,13 @@ importBtn.addEventListener('click', async () => {
       const exportData = await readImportFile(selectedFile);
       const result = await importBookmarks(exportData, selectedFile.name);
 
-      // Show result
       let message = `Imported ${result.imported} bookmark(s)`;
       if (result.skipped > 0) {
         message += `, skipped ${result.skipped} duplicate(s)`;
       }
 
       // Build import result using DOM APIs (CSP-safe)
-      importStatus.textContent = ''; // Clear existing content
+      importStatus.textContent = '';
       const resultDiv = createElement('div', {
         className: `import-result ${result.success ? 'success' : 'warning'}`
       });
@@ -82,7 +79,6 @@ importBtn.addEventListener('click', async () => {
       importStatus.appendChild(resultDiv);
       importStatus.classList.remove('hidden');
 
-      // Reset file input
       importFile.value = '';
       selectedFile = null;
       importFileName.textContent = '';
@@ -100,5 +96,4 @@ importBtn.addEventListener('click', async () => {
 });
 
 export function initImportExportModule() {
-  // Module is initialized via event listeners
 }

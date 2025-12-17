@@ -3,9 +3,6 @@ import { getSettingsFromDb, saveSettingToDb } from './common';
 
 const THEME_STORAGE_KEY = 'bookmark-rag-theme';
 
-/**
- * Extension platform adapter - uses IndexedDB for settings and chrome.storage for theme
- */
 export const extensionAdapter: PlatformAdapter = {
   async getSettings(): Promise<ApiSettings> {
     return getSettingsFromDb();

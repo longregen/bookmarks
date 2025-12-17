@@ -6,7 +6,6 @@ import { withButtonState } from '../../lib/form-helper';
 import type { UpdateSyncSettingsResponse, SyncStatus, TriggerSyncResponse } from '../../lib/messages';
 import { getErrorMessage } from '../../lib/errors';
 
-// WebDAV form elements
 const webdavForm = document.getElementById('webdavForm') as HTMLFormElement;
 const webdavEnabledInput = document.getElementById('webdavEnabled') as HTMLInputElement;
 const webdavFieldsDiv = document.getElementById('webdavFields') as HTMLDivElement;
@@ -20,14 +19,13 @@ const testWebdavBtn = document.getElementById('testWebdavBtn') as HTMLButtonElem
 const webdavConnectionStatus = document.getElementById('webdavConnectionStatus') as HTMLDivElement;
 const webdavUrlWarning = document.getElementById('webdavUrlWarning') as HTMLDivElement;
 
-// Sync status elements
 const syncStatusIndicator = document.getElementById('syncStatusIndicator') as HTMLDivElement;
 const syncNowBtn = document.getElementById('syncNowBtn') as HTMLButtonElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
 
 const syncStatusPoller: Poller = createPoller(
   () => updateSyncStatus(),
-  10000 // Poll every 10 seconds
+  10000
 );
 
 async function loadWebDAVSettings() {
@@ -42,13 +40,10 @@ async function loadWebDAVSettings() {
     webdavSyncIntervalInput.value = String(settings.webdavSyncInterval || 15);
     webdavAllowInsecureInput.checked = settings.webdavAllowInsecure || false;
 
-    // Show/hide fields based on enabled state
     updateWebDAVFieldsVisibility();
 
-    // Validate URL and show warning if HTTP
     validateWebDAVUrl();
 
-    // Load sync status if enabled
     if (settings.webdavEnabled) {
       updateSyncStatus();
     }
@@ -73,12 +68,10 @@ function validateWebDAVUrl() {
     return;
   }
 
-  // Use shared validation utility
   // Note: We pass allowInsecure=true here to get a warning instead of an error for HTTP
   const result = validateWebDAVUrlShared(url, true);
 
   if (result.valid && result.warning) {
-    // HTTP URL detected - show warning
     webdavUrlWarning.classList.remove('hidden');
   } else {
     webdavUrlWarning.classList.add('hidden');
@@ -102,13 +95,11 @@ webdavForm.addEventListener('submit', async (e) => {
       await saveSetting('webdavPath', webdavPathInput.value.trim() || '/bookmarks');
       await saveSetting('webdavSyncInterval', parseInt(webdavSyncIntervalInput.value, 10) || 15);
 
-      // Notify service worker to update sync alarm
       await chrome.runtime.sendMessage({ type: 'UPDATE_SYNC_SETTINGS' }) as UpdateSyncSettingsResponse;
     });
 
     showStatusMessage(statusDiv, 'WebDAV settings saved successfully!', 'success', 5000);
 
-    // Update sync status display
     if (webdavEnabledInput.checked) {
       updateSyncStatus();
     }
@@ -202,7 +193,6 @@ async function testWebDAVConnection(
   }
 }
 
-// Sync status functions
 async function updateSyncStatus() {
   try {
     const response = await chrome.runtime.sendMessage({ type: 'GET_SYNC_STATUS' }) as SyncStatus;
@@ -210,7 +200,6 @@ async function updateSyncStatus() {
     if (response) {
       const statusText = syncStatusIndicator.querySelector('.sync-status-text') as HTMLSpanElement;
 
-      // Remove existing status classes
       syncStatusIndicator.classList.remove('syncing', 'success', 'error');
 
       if (response.isSyncing) {
@@ -281,7 +270,6 @@ syncNowBtn.addEventListener('click', async () => {
         showStatusMessage(statusDiv, `Sync failed: ${result?.message || 'Unknown error'}`, 'error', 5000);
       }
 
-      // Refresh status after a short delay
       setTimeout(updateSyncStatus, 1000);
     });
   } catch (error) {
@@ -290,11 +278,9 @@ syncNowBtn.addEventListener('click', async () => {
   }
 });
 
-// Poll for sync status while on the options page
 function startSyncStatusPolling() {
   syncStatusPoller.stop();
 
-  // Only poll if WebDAV is enabled
   if (webdavEnabledInput.checked) {
     syncStatusPoller.start();
   }
@@ -308,7 +294,6 @@ export function initWebDAVModule() {
   loadWebDAVSettings();
   startSyncStatusPolling();
 
-  // Return cleanup function
   return () => {
     stopSyncStatusPolling();
   };

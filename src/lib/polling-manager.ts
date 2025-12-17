@@ -25,15 +25,12 @@ export function createPoller(
   let intervalId: number | null = null;
 
   const start = () => {
-    // Clear any existing interval before starting a new one
     if (intervalId !== null) {
       clearInterval(intervalId);
       intervalId = null;
     }
 
-    // Execute immediately if requested
     if (options?.immediate) {
-      // Execute callback and handle potential promise
       const result = callback();
       if (result instanceof Promise) {
         result.catch(error => {
@@ -42,7 +39,6 @@ export function createPoller(
       }
     }
 
-    // Start the interval
     intervalId = window.setInterval(() => {
       const result = callback();
       if (result instanceof Promise) {

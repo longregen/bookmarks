@@ -11,13 +11,13 @@ export interface UrlValidationResult {
 }
 
 export interface UrlValidationOptions {
-  requireHttps?: boolean;        // If true, http:// is an error. If false, it's a warning
-  allowedProtocols?: string[];   // e.g., ['http:', 'https:'] or ['https:']
+  requireHttps?: boolean;
+  allowedProtocols?: string[];
   requireTrailingSlash?: boolean;
-  trimWhitespace?: boolean;      // Default true
-  autoAddProtocol?: boolean;     // If true, prepend https:// when missing (default false)
-  allowedSchemes?: string[];     // Allowed schemes (for positive validation)
-  blockedSchemes?: Record<string, string>; // Blocked schemes with error messages
+  trimWhitespace?: boolean;
+  autoAddProtocol?: boolean;
+  allowedSchemes?: string[];
+  blockedSchemes?: Record<string, string>;
 }
 
 const DEFAULT_BLOCKED_SCHEMES: Record<string, string> = {
@@ -40,15 +40,12 @@ export function validateUrl(url: string, options: UrlValidationOptions = {}): Ur
     blockedSchemes,
   } = options;
 
-  // Trim whitespace if requested
   let processedUrl = trimWhitespace ? url.trim() : url;
 
-  // Check for empty URL
   if (!processedUrl) {
     return { valid: false, error: 'URL is required' };
   }
 
-  // Check blocked schemes (case-insensitive)
   const trimmedLower = processedUrl.toLowerCase();
   const schemesToBlock = blockedSchemes || DEFAULT_BLOCKED_SCHEMES;
 
@@ -58,12 +55,10 @@ export function validateUrl(url: string, options: UrlValidationOptions = {}): Ur
     }
   }
 
-  // Auto-add protocol if missing and requested
   if (autoAddProtocol && !processedUrl.includes('://')) {
     processedUrl = 'https://' + processedUrl;
   }
 
-  // Validate URL format
   let urlObj: URL;
   try {
     urlObj = new URL(processedUrl);
@@ -71,7 +66,6 @@ export function validateUrl(url: string, options: UrlValidationOptions = {}): Ur
     return { valid: false, error: 'Invalid URL format' };
   }
 
-  // Check if protocol is in allowed list
   if (!allowedProtocols.includes(urlObj.protocol)) {
     const protocolName = urlObj.protocol.replace(':', '');
     return {
@@ -80,12 +74,10 @@ export function validateUrl(url: string, options: UrlValidationOptions = {}): Ur
     };
   }
 
-  // Validate host exists
   if (!urlObj.host) {
     return { valid: false, error: 'Invalid URL: missing host' };
   }
 
-  // Check for HTTP vs HTTPS
   let warning: string | undefined;
   if (urlObj.protocol === 'http:') {
     if (requireHttps) {
@@ -98,7 +90,6 @@ export function validateUrl(url: string, options: UrlValidationOptions = {}): Ur
     }
   }
 
-  // Handle trailing slash requirement
   let normalizedUrl = urlObj.href;
   if (requireTrailingSlash && !normalizedUrl.endsWith('/')) {
     normalizedUrl += '/';

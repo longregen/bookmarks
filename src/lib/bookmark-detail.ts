@@ -13,9 +13,6 @@ export function renderMarkdown(text: string): string {
   return parseMarkdown(text);
 }
 
-/**
- * Configuration for the bookmark detail panel manager
- */
 export interface BookmarkDetailConfig {
   detailPanel: HTMLElement;
   detailBackdrop: HTMLElement;
@@ -28,9 +25,6 @@ export interface BookmarkDetailConfig {
   onTagsChange?: () => void;
 }
 
-/**
- * Manager for bookmark detail panel functionality
- */
 export class BookmarkDetailManager {
   private config: BookmarkDetailConfig;
   private currentBookmarkId: string | null = null;
@@ -48,9 +42,6 @@ export class BookmarkDetailManager {
     this.config.debugBtn.addEventListener('click', () => this.debugCurrentBookmark());
   }
 
-  /**
-   * Shows the detail panel for a bookmark
-   */
   async showDetail(bookmarkId: string) {
     this.currentBookmarkId = bookmarkId;
     const bookmark = await db.bookmarks.get(bookmarkId);
@@ -116,18 +107,12 @@ export class BookmarkDetailManager {
     this.config.detailBackdrop.classList.add('active');
   }
 
-  /**
-   * Closes the detail panel
-   */
   closeDetail() {
     this.config.detailPanel.classList.remove('active');
     this.config.detailBackdrop.classList.remove('active');
     this.currentBookmarkId = null;
   }
 
-  /**
-   * Deletes the current bookmark
-   */
   async deleteCurrentBookmark() {
     if (!this.currentBookmarkId || !confirm('Delete this bookmark?')) return;
 
@@ -140,9 +125,6 @@ export class BookmarkDetailManager {
     this.config.onDelete?.();
   }
 
-  /**
-   * Exports the current bookmark
-   */
   async exportCurrentBookmark() {
     if (!this.currentBookmarkId) return;
 
@@ -157,9 +139,6 @@ export class BookmarkDetailManager {
     }
   }
 
-  /**
-   * Shows debug information for the current bookmark
-   */
   async debugCurrentBookmark() {
     if (!this.currentBookmarkId) return;
 
@@ -169,9 +148,6 @@ export class BookmarkDetailManager {
     alert(`HTML Length: ${bookmark.html.length} chars\nStatus: ${bookmark.status}\n\n${bookmark.html.slice(0, 500)}...`);
   }
 
-  /**
-   * Gets the current bookmark ID
-   */
   getCurrentBookmarkId(): string | null {
     return this.currentBookmarkId;
   }

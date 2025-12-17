@@ -242,7 +242,6 @@ export async function importBookmarks(data: BookmarkExport, fileName?: string): 
     errors: [],
   };
 
-  // Create FILE_IMPORT job
   const job = await createJob({
     type: JobType.FILE_IMPORT,
     status: JobStatus.IN_PROGRESS,

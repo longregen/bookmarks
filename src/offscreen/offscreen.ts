@@ -11,10 +11,6 @@ import { getErrorMessage } from '../lib/errors';
 
 console.log('Offscreen document loaded');
 
-/**
- * Get or create a TurndownService instance
- * Lazy initialization to avoid potential issues during module loading
- */
 let turndownInstance: TurndownService | null = null;
 function getTurndown(): TurndownService {
   if (!turndownInstance) {
@@ -26,26 +22,19 @@ function getTurndown(): TurndownService {
   return turndownInstance;
 }
 
-/**
- * Extract markdown content from HTML using native DOMParser
- * This runs in the offscreen document where DOMParser is available
- */
 function extractMarkdownInOffscreen(html: string, url: string): ExtractedContent {
   console.log('[Offscreen] Extracting markdown', {
     url,
     htmlLength: html.length,
   });
 
-  // Use native DOMParser (available in offscreen document)
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
 
-  // Set the base URL for relative link resolution
   const base = doc.createElement('base');
   base.href = url;
   doc.head.insertBefore(base, doc.head.firstChild);
 
-  // Run Readability
   const reader = new Readability(doc);
   const article = reader.parse();
 
@@ -62,7 +51,6 @@ function extractMarkdownInOffscreen(html: string, url: string): ExtractedContent
     contentLength: article.content?.length ?? 0,
   });
 
-  // Convert HTML content to Markdown using lazy-initialized TurndownService
   const contentDoc = parser.parseFromString(article.content ?? '', 'text/html');
   const markdown = getTurndown().turndown(contentDoc.body);
 
@@ -78,7 +66,6 @@ function extractMarkdownInOffscreen(html: string, url: string): ExtractedContent
   };
 }
 
-// Handle messages from service worker
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // DEPRECATED: FETCH_URL is no longer used - service workers can fetch directly
   // Kept for backwards compatibility; may be removed in future versions

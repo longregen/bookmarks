@@ -34,14 +34,12 @@ async function setupSyncAlarm(): Promise<void> {
   try {
     const settings = await getSettings();
 
-    // Clear existing alarm
     await chrome.alarms.clear(WEBDAV_SYNC_ALARM);
 
-    // Only set up alarm if WebDAV is enabled and interval > 0
     if (settings.webdavEnabled && settings.webdavSyncInterval > 0) {
       await chrome.alarms.create(WEBDAV_SYNC_ALARM, {
         periodInMinutes: settings.webdavSyncInterval,
-        delayInMinutes: 1, // First sync after 1 minute
+        delayInMinutes: 1,
       });
       console.log(`WebDAV sync alarm set for every ${settings.webdavSyncInterval} minutes`);
     } else {
@@ -59,14 +57,12 @@ async function initializeExtension() {
   console.log('Initializing extension...');
 
   try {
-    // First, check for and resume any interrupted jobs
     const { resumedBulkImports, resetFetchJobs } = await resumeInterruptedJobs();
 
     if (resumedBulkImports > 0 || resetFetchJobs > 0) {
       console.log(`Job recovery: resumed ${resumedBulkImports} bulk imports, reset ${resetFetchJobs} fetch jobs`);
     }
 
-    // Then start the bookmark processing queue
     startProcessingQueue();
 
     // Set up WebDAV sync alarm (don't await to prevent blocking)
@@ -74,7 +70,6 @@ async function initializeExtension() {
       console.error('Error setting up sync alarm:', err);
     });
 
-    // Trigger initial sync if configured (use dynamic import)
     import('../lib/webdav-sync').then(({ triggerSyncIfEnabled }) => {
       triggerSyncIfEnabled().catch(err => {
         console.error('Initial WebDAV sync failed:', err);
@@ -89,13 +84,11 @@ async function initializeExtension() {
   }
 }
 
-// Initialize on extension install/update
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Extension installed/updated');
   initializeExtension();
 });
 
-// Initialize on browser startup
 chrome.runtime.onStartup.addListener(() => {
   console.log('Browser started, initializing');
   initializeExtension();
@@ -105,7 +98,6 @@ chrome.runtime.onStartup.addListener(() => {
 // This handles cases where the service worker was killed and restarted
 initializeExtension();
 
-// Handle alarm for periodic WebDAV sync
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === WEBDAV_SYNC_ALARM) {
     console.log('WebDAV sync alarm triggered');
@@ -118,7 +110,6 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   }
 });
 
-// Dispatch table for simple async message handlers
 const asyncMessageHandlers = {
   'SAVE_BOOKMARK': (async (msg) => handleSaveBookmark(msg.data)) as MessageHandler<'SAVE_BOOKMARK'>,
   'START_BULK_IMPORT': (async (msg) => handleBulkImport(msg.urls)) as MessageHandler<'START_BULK_IMPORT'>,
@@ -131,9 +122,7 @@ const asyncMessageHandlers = {
   }) as MessageHandler<'UPDATE_SYNC_SETTINGS'>,
 } as const;
 
-// Handle messages from content scripts and popup
 chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
-  // Check dispatch table for simple async handlers
   if (message.type in asyncMessageHandlers) {
     const handler = asyncMessageHandlers[message.type as keyof typeof asyncMessageHandlers];
     // TypeScript can't narrow the union type automatically, so we use type assertion
@@ -144,7 +133,6 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
     return true; // Keep message channel open for async response
   }
 
-  // Special handler: GET_CURRENT_TAB_INFO uses chrome.tabs.query callback
   if (message.type === 'GET_CURRENT_TAB_INFO') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tab = tabs[0];
@@ -167,25 +155,19 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
     return true;
   }
 
-  // Special handler: START_PROCESSING is synchronous
   if (message.type === 'START_PROCESSING') {
-    // Ping to restart processing queue
     startProcessingQueue();
     sendResponse({ success: true });
     return true;
   }
 
-  // Special handler: FETCH_URL forwarding logic for offscreen document (Chrome only)
   if (message.type === 'FETCH_URL' && !sender.tab) {
-    // This message should be forwarded to offscreen document
-    // The offscreen document will handle it and respond
     return false;
   }
 
   return false;
 });
 
-// Handle keyboard shortcut command
 chrome.commands.onCommand.addListener((command) => {
   if (command === 'save-bookmark') {
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
@@ -198,7 +180,6 @@ chrome.commands.onCommand.addListener((command) => {
         return;
       }
 
-      // Inject and execute the content script to capture the page
       try {
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
@@ -220,7 +201,6 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
   try {
     const { url, title, html } = data;
 
-    // Create MANUAL_ADD job
     const job = await createJob({
       type: JobType.MANUAL_ADD,
       status: JobStatus.IN_PROGRESS,
@@ -232,11 +212,9 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
     });
     jobId = job.id;
 
-    // Check if bookmark already exists
     const existing = await db.bookmarks.where('url').equals(url).first();
 
     if (existing) {
-      // Update existing bookmark
       const now = new Date();
       await db.bookmarks.update(existing.id, {
         title,
@@ -247,7 +225,6 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
         updatedAt: now,
       });
 
-      // Complete job
       const captureTimeMs = Date.now() - startTime;
       await completeJob(jobId, {
         url,
@@ -256,16 +233,13 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
         captureTimeMs,
       });
 
-      // Link job to bookmark
       await db.jobs.update(jobId, { bookmarkId: existing.id });
 
-      // Trigger processing queue
       startProcessingQueue();
 
       return { success: true, bookmarkId: existing.id, updated: true };
     }
 
-    // Create new bookmark
     const id = crypto.randomUUID();
     const now = new Date();
 
@@ -279,7 +253,6 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
       updatedAt: now,
     });
 
-    // Complete job
     const captureTimeMs = Date.now() - startTime;
     await completeJob(jobId, {
       url,
@@ -288,10 +261,8 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
       captureTimeMs,
     });
 
-    // Link job to bookmark
     await db.jobs.update(jobId, { bookmarkId: id });
 
-    // Trigger processing queue
     startProcessingQueue();
 
     return { success: true, bookmarkId: id };
@@ -314,10 +285,8 @@ async function handleBulkImport(urls: string[]): Promise<StartBulkImportResponse
       await ensureOffscreenDocument();
     }
 
-    // Create bulk import job and child jobs
     const parentJobId = await createBulkImportJob(urls);
 
-    // Start processing in background
     processBulkFetch(parentJobId).catch(error => {
       console.error('Error in bulk fetch processing:', error);
     });

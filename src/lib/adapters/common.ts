@@ -10,15 +10,13 @@ export const DEFAULTS: ApiSettings = {
   apiKey: '',
   chatModel: 'gpt-4o-mini',
   embeddingModel: 'text-embedding-3-small',
-  // WebDAV defaults
   webdavUrl: '',
   webdavUsername: '',
   webdavPassword: '',
   webdavPath: '/bookmarks',
   webdavEnabled: false,
-  webdavAllowInsecure: false, // Require HTTPS by default for security
-  // WebDAV sync state defaults
-  webdavSyncInterval: 15, // 15 minutes default
+  webdavAllowInsecure: false,
+  webdavSyncInterval: 15,
   webdavLastSyncTime: '',
   webdavLastSyncError: '',
 };
@@ -36,14 +34,12 @@ export async function getSettingsFromDb(): Promise<ApiSettings> {
     apiKey: map.apiKey ?? DEFAULTS.apiKey,
     chatModel: map.chatModel ?? DEFAULTS.chatModel,
     embeddingModel: map.embeddingModel ?? DEFAULTS.embeddingModel,
-    // WebDAV fields
     webdavUrl: map.webdavUrl ?? DEFAULTS.webdavUrl,
     webdavUsername: map.webdavUsername ?? DEFAULTS.webdavUsername,
     webdavPassword: map.webdavPassword ?? DEFAULTS.webdavPassword,
     webdavPath: map.webdavPath ?? DEFAULTS.webdavPath,
     webdavEnabled: map.webdavEnabled ?? DEFAULTS.webdavEnabled,
     webdavAllowInsecure: map.webdavAllowInsecure ?? DEFAULTS.webdavAllowInsecure,
-    // WebDAV sync state
     webdavSyncInterval: map.webdavSyncInterval ?? DEFAULTS.webdavSyncInterval,
     webdavLastSyncTime: map.webdavLastSyncTime ?? DEFAULTS.webdavLastSyncTime,
     webdavLastSyncError: map.webdavLastSyncError ?? DEFAULTS.webdavLastSyncError,

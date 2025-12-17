@@ -1,6 +1,5 @@
 import { config } from './config-registry';
 
-// Debug loggers that compile away when __DEBUG_EMBEDDINGS__ is false
 const debugLog = __DEBUG_EMBEDDINGS__
   ? (msg: string, data?: unknown) => console.log(`[Similarity] ${msg}`, data)
   : (_msg: string, _data?: unknown) => {};
@@ -13,9 +12,6 @@ const debugWarn = __DEBUG_EMBEDDINGS__
   ? (msg: string, data?: unknown) => console.warn(`[Similarity] ${msg}`, data)
   : (_msg: string, _data?: unknown) => {};
 
-/**
- * Compute cosine similarity between two vectors.
- */
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (!a || !b) {
     debugError('cosineSimilarity called with null/undefined vectors', {
@@ -65,9 +61,6 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   return dotProduct / magnitude;
 }
 
-/**
- * Find the top K most similar items.
- */
 export function findTopK<T>(
   queryEmbedding: number[],
   items: Array<{ item: T; embedding: number[] }>,
@@ -95,7 +88,6 @@ export function findTopK<T>(
     throw new Error('Items must be a valid array');
   }
 
-  // Track any errors during scoring
   const errors: Array<{ index: number; error: string }> = [];
 
   const scored = items.map(({ item, embedding }, index) => {
@@ -107,7 +99,6 @@ export function findTopK<T>(
         index,
         error: err instanceof Error ? err.message : String(err),
       });
-      // Return a very low score for invalid items
       return { item, score: -1 };
     }
   });
@@ -116,11 +107,10 @@ export function findTopK<T>(
     debugError('Errors during similarity calculation', {
       errorCount: errors.length,
       totalItems: items.length,
-      errors: errors.slice(0, 5), // Show first 5 errors
+      errors: errors.slice(0, 5),
     });
   }
 
-  // Filter out items that had errors (score = -1)
   const validScored = scored.filter(s => s.score >= 0);
 
   debugLog('Scoring complete', {

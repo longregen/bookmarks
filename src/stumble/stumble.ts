@@ -12,7 +12,6 @@ import { addEventListener as addBookmarkEventListener } from '../lib/events';
 
 let selectedTags: Set<string> = new Set();
 
-// Map bookmark status to BEM modifier for status dots
 function getStatusModifier(status: string): string {
   const statusMap: { [key: string]: string } = {
     'complete': 'status-dot--success',
@@ -28,7 +27,6 @@ const stumbleList = document.getElementById('stumbleList')!;
 const shuffleBtn = document.getElementById('shuffleBtn') as HTMLButtonElement;
 const resultCount = document.getElementById('resultCount')!;
 
-// Initialize bookmark detail manager
 const detailManager = new BookmarkDetailManager({
   detailPanel: document.getElementById('detailPanel')!,
   detailBackdrop: document.getElementById('detailBackdrop')!,
@@ -44,7 +42,6 @@ const detailManager = new BookmarkDetailManager({
 shuffleBtn.addEventListener('click', loadStumble);
 
 async function loadFilters() {
-  // Load tag filters using shared utility
   await loadTagFilters({
     container: tagFilters,
     selectedTags,
@@ -127,7 +124,6 @@ async function loadStumble() {
   }
 }
 
-// Initialize platform and theme
 if (__IS_WEB__) {
   initWeb();
 } else {
@@ -137,20 +133,17 @@ onThemeChange((theme) => applyTheme(theme));
 loadFilters();
 loadStumble();
 
-// Initialize health indicator
 const healthIndicatorContainer = document.getElementById('healthIndicator');
 if (healthIndicatorContainer) {
   createHealthIndicator(healthIndicatorContainer);
 }
 
-// Event-driven updates for tag changes
 const removeEventListener = addBookmarkEventListener((event) => {
   if (event.type === 'TAG_UPDATED') {
     loadFilters();
   }
 });
 
-// Cleanup on page unload
 window.addEventListener('beforeunload', () => {
   removeEventListener();
 });

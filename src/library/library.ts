@@ -13,7 +13,6 @@ import { processBulkFetch } from '../background/fetcher';
 let selectedTag = 'All';
 let sortBy = 'newest';
 
-// Map bookmark status to BEM modifier for status dots
 function getStatusModifier(status: string): string {
   const statusMap: { [key: string]: string } = {
     'complete': 'status-dot--success',
@@ -29,7 +28,6 @@ const bookmarkList = document.getElementById('bookmarkList')!;
 const bookmarkCount = document.getElementById('bookmarkCount')!;
 const sortSelect = document.getElementById('sortSelect') as HTMLSelectElement;
 
-// Initialize bookmark detail manager
 const detailManager = new BookmarkDetailManager({
   detailPanel: document.getElementById('detailPanel')!,
   detailBackdrop: document.getElementById('detailBackdrop')!,
@@ -130,7 +128,6 @@ async function loadBookmarks() {
   const bookmarkIds = bookmarks.map(b => b.id);
   const allTags = await db.bookmarkTags.where('bookmarkId').anyOf(bookmarkIds).toArray();
 
-  // Group tags by bookmarkId for efficient lookup
   const tagsByBookmarkId = new Map<string, BookmarkTag[]>();
   for (const tag of allTags) {
     if (!tagsByBookmarkId.has(tag.bookmarkId)) {
@@ -168,7 +165,6 @@ async function loadBookmarks() {
   }
 }
 
-// Initialize platform and theme
 if (__IS_WEB__) {
   initWeb();
   // Note: initAddUrlSection() is disabled for web builds due to CORS limitations
@@ -180,7 +176,6 @@ onThemeChange((theme) => applyTheme(theme));
 loadTags();
 loadBookmarks();
 
-// Initialize Add URL section for web version
 function initAddUrlSection() {
   const addUrlSection = document.getElementById('addUrlSection');
   const addUrlInput = document.getElementById('addUrlInput') as HTMLInputElement;
@@ -189,7 +184,6 @@ function initAddUrlSection() {
 
   if (!addUrlSection || !addUrlInput || !addUrlBtn || !addUrlStatus) return;
 
-  // Show the section in web mode
   addUrlSection.classList.remove('hidden');
 
   async function addUrl() {
@@ -255,19 +249,16 @@ const fallbackInterval = setInterval(() => {
   loadBookmarks();
 }, 30000);
 
-// Cleanup on page unload
 window.addEventListener('beforeunload', () => {
   removeEventListener();
   clearInterval(fallbackInterval);
 });
 
-// Initialize health indicator
 const healthIndicatorContainer = document.getElementById('healthIndicator');
 if (healthIndicatorContainer) {
   createHealthIndicator(healthIndicatorContainer);
 }
 
-// Check for bookmarkId URL parameter and open the bookmark if present
 const urlParams = new URLSearchParams(window.location.search);
 const bookmarkIdParam = urlParams.get('bookmarkId');
 if (bookmarkIdParam) {
@@ -277,7 +268,6 @@ if (bookmarkIdParam) {
   }, 500);
 }
 
-// Expose test helpers for E2E tests
 declare global {
   interface Window {
     __testHelpers?: {

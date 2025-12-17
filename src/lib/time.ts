@@ -1,12 +1,3 @@
-/**
- * Shared time formatting utilities
- */
-
-/**
- * Format a date as a relative time string (e.g., "2 hours ago", "3 days ago")
- * @param date Date to format
- * @returns Human-readable relative time string
- */
 export function formatTimeAgo(date: Date): string {
   const now = new Date();
   const diff = now.getTime() - new Date(date).getTime();
@@ -22,11 +13,6 @@ export function formatTimeAgo(date: Date): string {
   return new Date(date).toLocaleDateString();
 }
 
-/**
- * Format a date as a short relative time string (e.g., "2h ago", "3d ago")
- * @param date Date to format
- * @returns Short relative time string
- */
 export function formatTimeAgoShort(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
 

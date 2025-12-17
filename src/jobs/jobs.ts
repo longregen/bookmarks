@@ -12,7 +12,6 @@ import { createElement } from '../lib/dom';
 import { formatTimeAgo } from '../lib/time';
 import { startProcessingQueue } from '../background/queue';
 
-// Jobs Dashboard elements
 const jobTypeFilter = document.getElementById('jobTypeFilter') as HTMLSelectElement;
 const jobStatusFilter = document.getElementById('jobStatusFilter') as HTMLSelectElement;
 const refreshJobsBtn = document.getElementById('refreshJobsBtn') as HTMLButtonElement;
@@ -22,14 +21,11 @@ let jobsPollingInterval: number | null = null;
 
 async function loadJobs() {
   try {
-    // Clear and show loading using DOM APIs (CSP-safe)
     jobsList.textContent = '';
     jobsList.appendChild(createElement('div', { className: 'loading', textContent: 'Loading jobs...' }));
 
-    // Get recent jobs from database
     const jobs = await getRecentJobs({ limit: 100 });
 
-    // Apply filters
     const typeFilter = jobTypeFilter.value;
     const statusFilter = jobStatusFilter.value;
 
@@ -49,7 +45,6 @@ async function loadJobs() {
       return;
     }
 
-    // Render jobs using DOM APIs
     jobsList.textContent = '';
     for (const job of filteredJobs) {
       const jobEl = await renderJobItemElement(job);
@@ -67,9 +62,6 @@ async function loadJobs() {
   }
 }
 
-/**
- * Create a job item element using DOM APIs (CSP-safe)
- */
 async function renderJobItemElement(job: Job): Promise<HTMLElement> {
   const typeLabel = formatJobType(job.type);
   const statusClass = job.status.toLowerCase();
@@ -81,7 +73,6 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
     attributes: { 'data-job-id': job.id }
   });
 
-  // Job header
   const header = createElement('div', { className: 'job-header' });
   const jobInfo = createElement('div', { className: 'job-info' });
   jobInfo.appendChild(createElement('div', { className: 'job-type', textContent: typeLabel }));
@@ -90,7 +81,6 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
   header.appendChild(createElement('div', { className: `job-status-badge ${statusClass}`, textContent: statusLabel }));
   jobItem.appendChild(header);
 
-  // Progress bar (if applicable)
   if (job.progress > 0 && job.status === JobStatus.IN_PROGRESS) {
     const progressDiv = createElement('div', { className: 'job-progress' });
     const progressBar = createElement('div', { className: 'job-progress-bar' });
@@ -103,17 +93,14 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
     jobItem.appendChild(progressDiv);
   }
 
-  // Current step
   if (job.currentStep) {
     jobItem.appendChild(createElement('div', { className: 'job-step', textContent: job.currentStep }));
   }
 
-  // Metadata
   const metadataDiv = createElement('div', { className: 'job-metadata' });
   await appendMetadataElements(metadataDiv, job);
   jobItem.appendChild(metadataDiv);
 
-  // Error message
   if (job.status === JobStatus.FAILED && job.metadata.errorMessage) {
     const errorDiv = createElement('div', { className: 'job-error' });
     errorDiv.appendChild(createElement('strong', { textContent: 'Error: ' }));
@@ -121,11 +108,9 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
     jobItem.appendChild(errorDiv);
   }
 
-  // Action buttons for failed jobs
   if (job.status === JobStatus.FAILED) {
     const actionsDiv = createElement('div', { className: 'job-actions' });
 
-    // Retry button
     const retryBtn = createElement('button', {
       className: 'btn btn-sm btn-primary',
       textContent: 'Retry',
@@ -147,7 +132,6 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
     });
     actionsDiv.appendChild(retryBtn);
 
-    // Dismiss button
     const dismissBtn = createElement('button', {
       className: 'btn btn-sm btn-secondary',
       textContent: 'Dismiss',
@@ -160,7 +144,6 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
     });
     actionsDiv.appendChild(dismissBtn);
 
-    // Delete bookmark button (if job has associated bookmark)
     if (job.bookmarkId) {
       const deleteBtn = createElement('button', {
         className: 'btn btn-sm btn-danger',
@@ -183,9 +166,6 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
   return jobItem;
 }
 
-/**
- * Helper to create a metadata item element
- */
 function createMetadataItem(label: string, value: string | number): HTMLElement {
   const item = createElement('div', { className: 'job-metadata-item' });
   item.appendChild(createElement('strong', { textContent: `${label}: ` }));
@@ -193,17 +173,12 @@ function createMetadataItem(label: string, value: string | number): HTMLElement 
   return item;
 }
 
-/**
- * Append metadata elements to container using DOM APIs
- */
 async function appendMetadataElements(container: HTMLElement, job: Job): Promise<void> {
   let hasMetadata = false;
 
-  // Show associated bookmark info
   if (job.bookmarkId) {
     const bookmark = await db.bookmarks.get(job.bookmarkId);
     if (bookmark) {
-      // Create clickable bookmark link
       const bookmarkItem = createElement('div', { className: 'job-metadata-item job-metadata-bookmark' });
       bookmarkItem.appendChild(createElement('strong', { textContent: 'Bookmark: ' }));
       const bookmarkLink = createElement('a', {
@@ -218,7 +193,6 @@ async function appendMetadataElements(container: HTMLElement, job: Job): Promise
       container.appendChild(bookmarkItem);
       hasMetadata = true;
 
-      // Show bookmark status
       if (bookmark.status) {
         container.appendChild(createMetadataItem('Bookmark Status', bookmark.status));
         hasMetadata = true;
@@ -226,7 +200,6 @@ async function appendMetadataElements(container: HTMLElement, job: Job): Promise
     }
   }
 
-  // Common metadata
   if (job.metadata.url) {
     container.appendChild(createMetadataItem('URL', job.metadata.url));
     hasMetadata = true;
@@ -237,7 +210,6 @@ async function appendMetadataElements(container: HTMLElement, job: Job): Promise
     hasMetadata = true;
   }
 
-  // Type-specific metadata
   if (job.type === JobType.MARKDOWN_GENERATION) {
     if (job.metadata.characterCount) {
       container.appendChild(createMetadataItem('Characters', job.metadata.characterCount.toLocaleString()));
@@ -303,19 +275,16 @@ function formatJobType(type: JobType): string {
   return labels[type] || type;
 }
 
-// Jobs filter handlers
 jobTypeFilter.addEventListener('change', loadJobs);
 jobStatusFilter.addEventListener('change', loadJobs);
 refreshJobsBtn.addEventListener('click', loadJobs);
 
-// Start polling for jobs updates
 function startJobsPolling() {
   if (jobsPollingInterval) {
     clearInterval(jobsPollingInterval);
   }
 
   jobsPollingInterval = window.setInterval(() => {
-    // Only auto-refresh if there are active jobs
     const hasActiveJobs = document.querySelectorAll('.job-status-badge.in_progress').length > 0;
     if (hasActiveJobs) {
       loadJobs();
@@ -329,14 +298,11 @@ function stopJobsPolling() {
   }
 }
 
-// Listen for refresh events from other modules
 window.addEventListener('refresh-jobs', () => {
   loadJobs();
 });
 
-// Initialize the page
 function init() {
-  // Apply URL query params to filters
   const urlParams = new URLSearchParams(window.location.search);
   const statusParam = urlParams.get('status');
   const typeParam = urlParams.get('type');
@@ -352,10 +318,8 @@ function init() {
   startJobsPolling();
 }
 
-// Cleanup on page unload
 window.addEventListener('beforeunload', () => {
   stopJobsPolling();
 });
 
-// Initialize when DOM is ready
 init();

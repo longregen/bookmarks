@@ -37,7 +37,6 @@ testBtn.addEventListener('click', async () => {
         embeddingModel: embeddingModelInput.value.trim(),
       };
 
-      // Test the API with a simple embedding request
       await makeApiRequest('/embeddings', {
         model: settings.embeddingModel,
         input: ['test'],

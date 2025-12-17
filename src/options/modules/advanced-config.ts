@@ -1,10 +1,3 @@
-/**
- * Advanced Configuration Module
- *
- * Firefox about:config inspired interface for modifying internal constants.
- * Allows power users to customize application behavior.
- */
-
 import {
   CONFIG_REGISTRY,
   CONFIG_CATEGORIES,
@@ -20,7 +13,6 @@ import {
 import { createElement } from '../../lib/dom';
 import { getErrorMessage } from '../../lib/errors';
 
-// DOM Elements
 let searchInput: HTMLInputElement | null = null;
 let categoryFilter: HTMLSelectElement | null = null;
 let showModifiedOnly: HTMLInputElement | null = null;
@@ -28,17 +20,11 @@ let configTableBody: HTMLTableSectionElement | null = null;
 let resetAllBtn: HTMLButtonElement | null = null;
 let modifiedCountSpan: HTMLElement | null = null;
 
-// Currently editing row
 let editingKey: string | null = null;
 
-/**
- * Initialize the advanced config module
- */
 export async function initAdvancedConfigModule(): Promise<void> {
-  // Ensure config overrides are loaded
   await ensureConfigLoaded();
 
-  // Get DOM elements
   searchInput = document.getElementById('configSearch') as HTMLInputElement;
   categoryFilter = document.getElementById('configCategoryFilter') as HTMLSelectElement;
   showModifiedOnly = document.getElementById('showModifiedOnly') as HTMLInputElement;
@@ -51,29 +37,21 @@ export async function initAdvancedConfigModule(): Promise<void> {
     return;
   }
 
-  // Populate category filter
   populateCategoryFilter();
 
-  // Setup event listeners
   setupEventListeners();
 
-  // Initial render
   renderConfigTable();
   updateModifiedCount();
 }
 
-/**
- * Populate the category filter dropdown
- */
 function populateCategoryFilter(): void {
   if (!categoryFilter) return;
 
-  // Add "All Categories" option
   categoryFilter.appendChild(
     createElement('option', { textContent: 'All Categories', attributes: { value: '' } })
   );
 
-  // Add each category
   Object.values(CONFIG_CATEGORIES).forEach(category => {
     categoryFilter.appendChild(
       createElement('option', { textContent: category, attributes: { value: category } })
@@ -81,26 +59,19 @@ function populateCategoryFilter(): void {
   });
 }
 
-/**
- * Setup event listeners
- */
 function setupEventListeners(): void {
-  // Search input
   searchInput?.addEventListener('input', () => {
     renderConfigTable();
   });
 
-  // Category filter
   categoryFilter?.addEventListener('change', () => {
     renderConfigTable();
   });
 
-  // Show modified only toggle
   showModifiedOnly?.addEventListener('change', () => {
     renderConfigTable();
   });
 
-  // Reset all button
   resetAllBtn?.addEventListener('click', async () => {
     if (getModifiedCount() === 0) return;
 
@@ -117,14 +88,10 @@ function setupEventListeners(): void {
     }
   });
 
-  // Handle clicks on the table for edit/reset buttons
   configTableBody?.addEventListener('click', handleTableClick);
   configTableBody?.addEventListener('keydown', handleTableKeydown);
 }
 
-/**
- * Get filtered config entries based on current filters
- */
 function getFilteredEntries(): Array<ConfigEntry & { currentValue: number | string | boolean; isModified: boolean }> {
   const query = searchInput?.value.trim() || '';
   const category = categoryFilter?.value || '';
@@ -143,18 +110,12 @@ function getFilteredEntries(): Array<ConfigEntry & { currentValue: number | stri
   return entries;
 }
 
-/**
- * Clear all children from an element
- */
 function clearChildren(element: HTMLElement): void {
   while (element.firstChild) {
     element.removeChild(element.firstChild);
   }
 }
 
-/**
- * Render the config table
- */
 function renderConfigTable(): void {
   if (!configTableBody) return;
 
@@ -181,23 +142,17 @@ function renderConfigTable(): void {
   });
 }
 
-/**
- * Render a single config row - returns [mainRow, descriptionRow]
- */
 function renderConfigRow(entry: ConfigEntry & { currentValue: number | string | boolean; isModified: boolean }): [HTMLTableRowElement, HTMLTableRowElement] {
   const isEditing = editingKey === entry.key;
   const modifiedClass = entry.isModified ? 'config-modified' : '';
 
-  // Key cell
   const keyCell = createElement('td', { className: 'config-key' }, [
     createElement('span', { className: 'key-name', textContent: entry.key }),
     createElement('span', { className: 'key-category', textContent: entry.category })
   ]);
 
-  // Type cell
   const typeCell = createElement('td', { className: 'config-type', textContent: entry.type });
 
-  // Value cell
   const valueCell = createElement('td', {
     className: 'config-value',
     attributes: { 'data-key': entry.key }
@@ -208,14 +163,12 @@ function renderConfigRow(entry: ConfigEntry & { currentValue: number | string | 
     valueCell.appendChild(renderValueDisplay(entry));
   }
 
-  // Default cell
   const defaultCell = createElement('td', {
     className: 'config-default',
     title: `Default: ${entry.defaultValue}`
   });
   defaultCell.appendChild(formatValue(entry.defaultValue, entry.type));
 
-  // Actions cell
   const actionsCell = createElement('td', { className: 'config-actions' });
   if (entry.isModified) {
     const resetBtn = createElement('button', {
@@ -227,13 +180,11 @@ function renderConfigRow(entry: ConfigEntry & { currentValue: number | string | 
     actionsCell.appendChild(resetBtn);
   }
 
-  // Main row
   const mainRow = createElement('tr', {
     className: `config-row ${modifiedClass}`.trim(),
     attributes: { 'data-key': entry.key }
   }, [keyCell, typeCell, valueCell, defaultCell, actionsCell]) as HTMLTableRowElement;
 
-  // Description row
   const descRow = createElement('tr', { className: `config-description-row ${modifiedClass}`.trim() }, [
     createElement('td', {
       className: 'config-description',
@@ -245,9 +196,6 @@ function renderConfigRow(entry: ConfigEntry & { currentValue: number | string | 
   return [mainRow, descRow];
 }
 
-/**
- * Render the value display (clickable to edit)
- */
 function renderValueDisplay(entry: ConfigEntry & { currentValue: number | string | boolean; isModified: boolean }): HTMLElement {
   const valueSpan = createElement('span', {
     className: 'value-display',
@@ -262,9 +210,6 @@ function renderValueDisplay(entry: ConfigEntry & { currentValue: number | string
   return valueSpan;
 }
 
-/**
- * Render the edit input into a container
- */
 function renderEditInput(entry: ConfigEntry & { currentValue: number | string | boolean; isModified: boolean }, container: HTMLElement): void {
   if (entry.type === 'boolean') {
     const select = createElement('select', {
@@ -303,14 +248,12 @@ function renderEditInput(entry: ConfigEntry & { currentValue: number | string | 
     container.appendChild(input);
   }
 
-  // Save button
   container.appendChild(createElement('button', {
     className: 'btn-save',
     textContent: 'Save',
     attributes: { 'data-key': entry.key }
   }));
 
-  // Cancel button
   container.appendChild(createElement('button', {
     className: 'btn-cancel',
     textContent: 'Cancel',
@@ -318,9 +261,6 @@ function renderEditInput(entry: ConfigEntry & { currentValue: number | string | 
   }));
 }
 
-/**
- * Format a value for display - returns an element
- */
 function formatValue(value: number | string | boolean, type: string): HTMLElement {
   if (type === 'boolean') {
     return createElement('span', { className: 'value-boolean', textContent: String(value) });
@@ -333,13 +273,9 @@ function formatValue(value: number | string | boolean, type: string): HTMLElemen
   return createElement('span', { className: 'value-string', textContent: `"${value}"` });
 }
 
-/**
- * Handle clicks on the table
- */
 async function handleTableClick(event: MouseEvent): Promise<void> {
   const target = event.target as HTMLElement;
 
-  // Click on value display to edit
   if (target.classList.contains('value-display')) {
     const key = target.dataset.key;
     if (key) {
@@ -348,7 +284,6 @@ async function handleTableClick(event: MouseEvent): Promise<void> {
     return;
   }
 
-  // Click save button
   if (target.classList.contains('btn-save')) {
     const key = target.dataset.key;
     if (key) {
@@ -357,13 +292,11 @@ async function handleTableClick(event: MouseEvent): Promise<void> {
     return;
   }
 
-  // Click cancel button
   if (target.classList.contains('btn-cancel')) {
     cancelEditing();
     return;
   }
 
-  // Click reset button
   if (target.classList.contains('btn-reset')) {
     const key = target.dataset.key;
     if (key) {
@@ -373,13 +306,9 @@ async function handleTableClick(event: MouseEvent): Promise<void> {
   }
 }
 
-/**
- * Handle keyboard events on the table
- */
 async function handleTableKeydown(event: KeyboardEvent): Promise<void> {
   const target = event.target as HTMLElement;
 
-  // Enter on value display to edit
   if (target.classList.contains('value-display') && event.key === 'Enter') {
     const key = target.dataset.key;
     if (key) {
@@ -388,7 +317,6 @@ async function handleTableKeydown(event: KeyboardEvent): Promise<void> {
     return;
   }
 
-  // Enter in edit input to save
   if ((target.classList.contains('config-edit-input') || target.classList.contains('config-edit-select')) && event.key === 'Enter') {
     const key = target.dataset.key;
     if (key) {
@@ -397,21 +325,16 @@ async function handleTableKeydown(event: KeyboardEvent): Promise<void> {
     return;
   }
 
-  // Escape in edit input to cancel
   if ((target.classList.contains('config-edit-input') || target.classList.contains('config-edit-select')) && event.key === 'Escape') {
     cancelEditing();
     return;
   }
 }
 
-/**
- * Start editing a config value
- */
 function startEditing(key: string): void {
   editingKey = key;
   renderConfigTable();
 
-  // Focus the input
   const input = document.querySelector(`.config-edit-input[data-key="${key}"], .config-edit-select[data-key="${key}"]`) as HTMLInputElement | HTMLSelectElement;
   if (input) {
     input.focus();
@@ -421,17 +344,11 @@ function startEditing(key: string): void {
   }
 }
 
-/**
- * Cancel editing
- */
 function cancelEditing(): void {
   editingKey = null;
   renderConfigTable();
 }
 
-/**
- * Save the edited value
- */
 async function saveEdit(key: string): Promise<void> {
   const entry = CONFIG_REGISTRY.find(e => e.key === key);
   if (!entry) return;
@@ -463,9 +380,6 @@ async function saveEdit(key: string): Promise<void> {
   }
 }
 
-/**
- * Reset a value to default
- */
 async function resetValue(key: string): Promise<void> {
   try {
     await resetConfigValue(key);
@@ -477,9 +391,6 @@ async function resetValue(key: string): Promise<void> {
   }
 }
 
-/**
- * Update the modified count display
- */
 function updateModifiedCount(): void {
   const count = getModifiedCount();
   if (modifiedCountSpan) {
@@ -491,9 +402,6 @@ function updateModifiedCount(): void {
   }
 }
 
-/**
- * Show a status message
- */
 function showStatus(message: string, type: 'success' | 'error'): void {
   const status = document.getElementById('configStatus');
   if (!status) return;

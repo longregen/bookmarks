@@ -1,8 +1,3 @@
-/**
- * Event notification system for broadcasting database and processing changes
- * Replaces polling with event-driven updates
- */
-
 import { getErrorMessage } from './errors';
 import type { Message } from './messages';
 
@@ -19,10 +14,6 @@ export interface EventData {
   timestamp: number;
 }
 
-/**
- * Broadcast an event to all listening pages (options, library, popup)
- * This works in both extension and web contexts
- */
 export async function broadcastEvent(type: EventType, payload?: any): Promise<void> {
   const event: EventData = {
     type,
@@ -30,7 +21,6 @@ export async function broadcastEvent(type: EventType, payload?: any): Promise<vo
     timestamp: Date.now(),
   };
 
-  // Extension context: broadcast via chrome.runtime.sendMessage
   if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
     try {
       // Use sendMessage with no specific target - broadcasts to all listeners
@@ -48,7 +38,6 @@ export async function broadcastEvent(type: EventType, payload?: any): Promise<vo
     }
   }
 
-  // Web context: use custom events on window
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('bookmark-event', { detail: event }));
   }
@@ -56,19 +45,13 @@ export async function broadcastEvent(type: EventType, payload?: any): Promise<vo
 
 export type EventListener = (event: EventData) => void;
 
-/**
- * Listen for events in UI pages (options, library, popup)
- * Automatically handles both extension and web contexts
- */
 export function addEventListener(listener: EventListener): () => void {
-  // Extension context: listen for chrome.runtime messages
   const chromeListener = (message: Message) => {
     if (message.type === 'EVENT_BROADCAST' && message.event) {
       listener(message.event);
     }
   };
 
-  // Web context: listen for custom events
   const webListener = (e: Event) => {
     const customEvent = e as CustomEvent<EventData>;
     listener(customEvent.detail);
@@ -82,7 +65,6 @@ export function addEventListener(listener: EventListener): () => void {
     window.addEventListener('bookmark-event', webListener);
   }
 
-  // Return cleanup function
   return () => {
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
       chrome.runtime.onMessage.removeListener(chromeListener);

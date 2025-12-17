@@ -15,13 +15,9 @@ const KEEPALIVE_ALARM_NAME = 'tab-renderer-keepalive';
  * In MV3, service workers can be killed after ~30s of inactivity
  */
 async function startKeepalive(): Promise<void> {
-  // Create an alarm that fires every 25 seconds to keep the service worker alive
   await chrome.alarms.create(KEEPALIVE_ALARM_NAME, { periodInMinutes: 25 / 60 });
 }
 
-/**
- * Stop the keepalive alarm
- */
 async function stopKeepalive(): Promise<void> {
   await chrome.alarms.clear(KEEPALIVE_ALARM_NAME);
 }
@@ -39,14 +35,12 @@ async function stopKeepalive(): Promise<void> {
 export async function renderPage(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
   let tabId: number | undefined;
 
-  // Start keepalive to prevent service worker termination during long renders
   await startKeepalive();
 
   try {
-    // 1. Create a background tab (not active/focused)
     const tab = await chrome.tabs.create({
       url,
-      active: false, // Open in background
+      active: false,
     });
 
     if (!tab.id) {
@@ -55,18 +49,15 @@ export async function renderPage(url: string, timeoutMs: number = config.FETCH_T
 
     tabId = tab.id;
 
-    // 2. Wait for the tab to complete loading
     await waitForTabLoad(tabId, timeoutMs);
 
     // 3. Get the final URL (in case of redirects)
     const updatedTab = await chrome.tabs.get(tabId);
     const finalUrl = updatedTab.url || url;
 
-    // 4. Inject the extraction script and get the HTML
     const settleTimeMs = config.PAGE_SETTLE_TIME_MS || 2000;
     const html = await executeExtraction(tabId, settleTimeMs);
 
-    // 5. Validate HTML size
     if (html.length > config.FETCH_MAX_HTML_SIZE) {
       throw new Error(`HTML content too large: ${(html.length / 1024 / 1024).toFixed(2)} MB`);
     }
@@ -75,7 +66,6 @@ export async function renderPage(url: string, timeoutMs: number = config.FETCH_T
   } catch (error) {
     throw error instanceof Error ? error : new Error(String(error));
   } finally {
-    // 6. Stop keepalive alarm
     await stopKeepalive();
 
     // 7. Always close the tab, even on errors
@@ -147,12 +137,10 @@ async function executeExtraction(tabId: number, settleTimeMs: number): Promise<s
           clearTimeout(timeout);
           timeout = setTimeout(() => {
             observer.disconnect();
-            // Extract and return the HTML
             resolve(document.documentElement.outerHTML);
           }, settleMs);
         });
 
-        // Observe the entire document for changes
         const target = document.body || document.documentElement;
         observer.observe(target, {
           childList: true,

@@ -4,18 +4,11 @@
  * and extract the final rendered HTML after JavaScript execution.
  */
 
-/**
- * Wait for the DOM to settle (no mutations for a specified time)
- * Uses MutationObserver to detect when the page stops changing
- * @param settleTimeMs Time in milliseconds to wait with no changes before considering the page settled
- * @returns Promise that resolves when the page has settled
- */
 function waitForSettle(settleTimeMs: number = 2000): Promise<void> {
   return new Promise((resolve) => {
     let timeout: ReturnType<typeof setTimeout>;
 
     const observer = new MutationObserver(() => {
-      // Reset timeout on every mutation
       clearTimeout(timeout);
       timeout = setTimeout(() => {
         observer.disconnect();
@@ -23,7 +16,6 @@ function waitForSettle(settleTimeMs: number = 2000): Promise<void> {
       }, settleTimeMs);
     });
 
-    // Observe the entire document for changes
     observer.observe(document.body || document.documentElement, {
       childList: true,
       subtree: true,
@@ -39,15 +31,8 @@ function waitForSettle(settleTimeMs: number = 2000): Promise<void> {
   });
 }
 
-/**
- * Extract the final rendered HTML after the page has settled
- * This is the main entry point called by the tab renderer
- */
 async function extractHtml(settleTimeMs: number = 2000): Promise<string> {
-  // Wait for page to settle
   await waitForSettle(settleTimeMs);
-
-  // Extract the full HTML
   return document.documentElement.outerHTML;
 }
 

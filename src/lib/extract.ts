@@ -5,7 +5,7 @@ import type { ExtractContentResponse } from './messages';
 
 export interface ExtractedContent {
   title: string;
-  content: string;      // Markdown
+  content: string;
   excerpt: string;
   byline: string | null;
 }
@@ -40,7 +40,6 @@ function extractMarkdownNative(html: string, url: string): ExtractedContent {
   base.href = url;
   doc.head.insertBefore(base, doc.head.firstChild);
 
-  // Run Readability
   const reader = new Readability(doc);
   const article = reader.parse();
 
@@ -54,7 +53,6 @@ function extractMarkdownNative(html: string, url: string): ExtractedContent {
     contentLength: article.content?.length ?? 0,
   });
 
-  // Convert HTML content to Markdown using lazy-initialized TurndownService
   const contentDoc = parser.parseFromString(article.content ?? '', 'text/html');
   const markdown = getTurndown().turndown(contentDoc.body);
 
@@ -76,7 +74,6 @@ function extractMarkdownNative(html: string, url: string): ExtractedContent {
 async function extractMarkdownViaOffscreen(html: string, url: string): Promise<ExtractedContent> {
   console.log('[Extract] Using offscreen document (Chrome)', { url, htmlLength: html.length });
 
-  // Ensure offscreen document exists before sending message
   await ensureOffscreenDocument();
 
   return new Promise((resolve, reject) => {
@@ -115,12 +112,11 @@ export async function extractMarkdownAsync(html: string, url: string): Promise<E
   // Build-time branching: __IS_WEB__ and __IS_FIREFOX__ are replaced with true/false at build time
   // Bundler eliminates the dead code path during minification
   if (__IS_WEB__ || __IS_FIREFOX__) {
-    // Web and Firefox have DOMParser available - use it directly
     return extractMarkdownNative(html, url);
   } else {
-    // Chrome needs to use offscreen document (no DOMParser in service workers)
     return extractMarkdownViaOffscreen(html, url);
   }
+
 }
 
 /**

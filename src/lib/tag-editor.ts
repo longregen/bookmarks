@@ -123,7 +123,6 @@ function createTagPill(tagName: string, bookmarkId: string, onTagsChange?: () =>
     await db.bookmarkTags.where({ bookmarkId, tagName }).delete();
     pill.remove();
     if (onTagsChange) onTagsChange();
-    // Broadcast tag update event to notify all pages
     await broadcastEvent('TAG_UPDATED', { bookmarkId, tagName, action: 'removed' });
   });
 
@@ -139,7 +138,6 @@ async function addTag(tagName: string, bookmarkId: string, container: HTMLElemen
       tagName,
       addedAt: new Date()
     });
-    // Broadcast tag update event to notify all pages
     await broadcastEvent('TAG_UPDATED', { bookmarkId, tagName, action: 'added' });
   }
   await createTagEditor({ bookmarkId, container, onTagsChange });
