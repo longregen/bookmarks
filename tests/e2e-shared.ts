@@ -372,23 +372,25 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     // Click start bulk import button
     await page.click('#startBulkImport');
 
-    // Wait for the fetch to complete - check for status updates indicating fetch progress/completion
-    // The bulk import fetches URLs and creates bookmark entries
+    // Wait for the fetch to complete - the status shows "Imported X of Y URLs"
+    // When done, it shows "Imported 1 of 1 URLs" or the status div shows "completed"
     await page.waitForFunction(
       `(() => {
-        const feedback = document.getElementById('bulkImportFeedback');
+        // Check progress status text: "Imported X of Y URLs (Z failed)"
         const status = document.getElementById('bulkImportStatus');
-        // Check if import is complete or has progress
-        if (feedback && feedback.textContent) {
-          const text = feedback.textContent.toLowerCase();
-          // Success indicators: completed, finished, or shows URL count
-          if (text.includes('complete') || text.includes('finished') || text.includes('created') || text.includes('1 of 1') || text.includes('fetched')) {
+        if (status && status.textContent) {
+          const text = status.textContent;
+          // Match "Imported X of Y" where X equals Y (all done)
+          const match = text.match(/Imported (\\d+) of (\\d+)/);
+          if (match && match[1] === match[2] && parseInt(match[1]) > 0) {
             return true;
           }
         }
-        if (status && status.textContent) {
-          const text = status.textContent.toLowerCase();
-          if (text.includes('complete') || text.includes('finished') || text.includes('created')) {
+        // Also check the main status message div for completion
+        const statusDiv = document.querySelector('.status');
+        if (statusDiv && statusDiv.textContent) {
+          const text = statusDiv.textContent.toLowerCase();
+          if (text.includes('bulk import completed') || text.includes('bulk import failed')) {
             return true;
           }
         }
