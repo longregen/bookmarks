@@ -190,6 +190,3 @@ export async function getBookmarkContent(bookmarkId: string): Promise<{
   return { markdown, qaPairs, tags };
 }
 
-export async function getBookmarkQAPairs(bookmarkId: string): Promise<QuestionAnswer[]> {
-  return db.questionsAnswers.where('bookmarkId').equals(bookmarkId).toArray();
-}

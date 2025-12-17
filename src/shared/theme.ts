@@ -30,18 +30,6 @@ export async function initTheme(): Promise<void> {
   applyTheme(theme);
 }
 
-export function getEffectiveTheme(theme: Theme): 'light' | 'dark' | 'terminal' | 'tufte' {
-  if (theme === 'terminal') return 'terminal';
-  if (theme === 'tufte') return 'tufte';
-  if (theme === 'light') return 'light';
-  if (theme === 'dark') return 'dark';
-
-  if (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    return 'dark';
-  }
-  return 'light';
-}
-
 export function onThemeChange(callback: (theme: Theme) => void): void {
   if (__IS_WEB__) {
     window.addEventListener('storage', (event) => {

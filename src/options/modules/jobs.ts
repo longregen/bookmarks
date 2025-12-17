@@ -13,24 +13,16 @@ async function loadJobs(): Promise<void> {
     jobsList.textContent = '';
     jobsList.appendChild(createElement('div', { className: 'loading', textContent: 'Loading jobs...' }));
 
-    const jobs = await getRecentJobs({ limit: 100 });
+    const typeFilter = jobTypeFilter.value as JobType | '';
+    const statusFilter = jobStatusFilter.value as JobStatus | '';
 
-    const typeFilter = jobTypeFilter.value;
-    const statusFilter = jobStatusFilter.value;
+    const jobs = await getRecentJobs({
+      limit: 100,
+      type: typeFilter || undefined,
+      status: statusFilter || undefined,
+    });
 
-    let filteredJobs = jobs;
-
-    if (typeFilter) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-      filteredJobs = filteredJobs.filter(job => job.type === typeFilter);
-    }
-
-    if (statusFilter) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-      filteredJobs = filteredJobs.filter(job => job.status === statusFilter);
-    }
-
-    if (filteredJobs.length === 0) {
+    if (jobs.length === 0) {
       jobsList.textContent = '';
       jobsList.appendChild(createElement('div', { className: 'empty', textContent: 'No jobs found' }));
       return;
@@ -38,7 +30,7 @@ async function loadJobs(): Promise<void> {
 
     jobsList.textContent = '';
     const fragment = document.createDocumentFragment();
-    for (const job of filteredJobs) {
+    for (const job of jobs) {
       const jobEl = renderJobItemElement(job);
       fragment.appendChild(jobEl);
     }
