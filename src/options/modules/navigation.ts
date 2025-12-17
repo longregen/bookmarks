@@ -22,10 +22,12 @@ navItems.forEach(item => {
       const section = document.getElementById(sectionId);
       const scrollContainer = document.querySelector('.middle');
       if (section && scrollContainer) {
-        // Use scrollTo on container directly to avoid scrollIntoView
-        // scrolling both the container AND the document body
+        // Calculate scroll position relative to the container
+        const sectionRect = section.getBoundingClientRect();
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const scrollTop = scrollContainer.scrollTop + sectionRect.top - containerRect.top;
         scrollContainer.scrollTo({
-          top: section.offsetTop,
+          top: scrollTop,
           behavior: 'smooth'
         });
       }
