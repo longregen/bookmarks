@@ -2,10 +2,32 @@
 
 A browser extension for capturing and semantically searching bookmarks using RAG (Retrieval-Augmented Generation).
 
-## Build Commands
-npm run `build:chrome` builds the Chrome extension, `build:firefox` builds the Firefox extension, `build:web` builds a standalone webapp, `test:unit` runs the unit tests, `typecheck` the TypeScript typechecker, `lint` the configured ESLint, `check` typechecks and lints in parallel, `e2e:chrome` runs end-to-end tests with Puppeteer, `e2e:firefox` uses Selenium.
+## Commands
 
-## Architecture Overview
+```bash
+npm run build:chrome # Chrome extension
+npm run build:firefox # Firefox extension
+npm run build:web # standalone webapp
+npm run typecheck
+npm run lint
+npm run check # Typecheck + lint in parallel
+npm run test:unit # unit tests
+npm run test:e2e:chrome # E2E tests (Puppeteer)
+npm run test:e2e:firefox # E2E tests (Selenium)
+```
+
+## Key Directories
+
+```
+src/
+├── background/ # Service worker, job queue, content processor
+├── db/ # Dexie/IndexedDB schema and queries
+├── lib/ # Shared utilities, adapters, API client
+├── search/ # Semantic vector search
+├── options/ # Settings page modules
+├── library/ # Bookmark management UI
+└── content/ # Content scripts for page capture
+```
 
 See [AGENTS.md](./AGENTS.md) for detailed module documentation.
 
@@ -26,20 +48,31 @@ Do not read or modify: `node_modules/`, `dist/`, `dist-*/`, `coverage/`
 - Prefer concise, readable implementations
 - Use existing helpers from `src/lib/` (e.g., `getElement`, `createElement`, `getErrorMessage`)
 
+## Workflow
+
+Before modifying code:
+1. **Explore** - Read relevant files, understand existing patterns
+2. **Plan** - For multi-file changes, outline the approach first
+3. **Implement** - Make changes incrementally
+4. **Test** - Run `npm run check` and add tests in `tests/`
+
 ## When Making Changes
 
-1. **Reduce complexity** - Simplify code while preserving functionality
-2. **Remove dead code** - Delete unused functions, variables, imports
-3. **Use lib helpers** - Always check `src/lib/` for existing utilities
-4. **Leverage tree shaking** - Structure code for dead code elimination
-5. **Optimize queries** - Avoid N+1 patterns in database operations
-6. **Verify assumptions** - Research external APIs and browser behaviors
-7. **Ensure test coverage** - Add tests that cover the new code
+- **Use lib helpers** - Check `src/lib/` for existing utilities before writing new ones
+- **Optimize queries** - Use batch operations from `src/db/`, avoid N+1 patterns
+- **Remove dead code** - Delete unused functions, variables, imports
+- **Verify assumptions** - Research external APIs and browser behaviors
 
-## Running E2E Tests Locally
+## Running E2E Tests
 
-0. Claude can only run Chromium tests right now.
-1. Download Chromium from `storage.googleapis.com`; `apt install xvfb`\
-2. Build with `npm run build:chrome`, run with `BROWSER_PATH=/path/to/chrome OPENAI_API_KEY=not-needed-for-tests \
-  xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" \
-  npm run test:e2e:chrome`
+```bash
+# Download Chromium
+mkdir -p /tmp/chromium && cd /tmp/chromium && \
+  wget -q "https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/$(wget -qO- https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/LAST_CHANGE)/chrome-linux.zip" && \
+  unzip -q chrome-linux.zip
+
+# Run tests (requires xvfb)
+npm run build:chrome && \
+  BROWSER_PATH=/tmp/chromium/chrome-linux/chrome OPENAI_API_KEY=not-needed-for-tests \
+  xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm run test:e2e:chrome
+```
