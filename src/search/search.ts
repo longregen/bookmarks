@@ -30,7 +30,7 @@ if (!autocompleteDropdown || !resultsList || !resultStatus || !searchPage || !se
   throw new Error('Required DOM elements not found');
 }
 
-searchPage!.classList.add('search-page--centered');
+searchPage.classList.add('search-page--centered');
 
 const detailPanel2 = document.getElementById('detailPanel');
 const detailBackdrop2 = document.getElementById('detailBackdrop');

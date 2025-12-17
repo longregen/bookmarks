@@ -368,13 +368,13 @@ async function saveEdit(key: string): Promise<void> {
     if (entry.type === 'boolean') {
       newValue = (input as HTMLSelectElement).value === 'true';
     } else if (entry.type === 'number') {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+       
       newValue = parseFloat((input as HTMLInputElement).value);
       if (isNaN(newValue)) {
         throw new Error('Invalid number');
       }
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+       
       newValue = (input as HTMLInputElement).value;
     }
 

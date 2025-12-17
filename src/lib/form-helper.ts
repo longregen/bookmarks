@@ -36,7 +36,7 @@ export function initSettingsForm(config: FormConfig): void {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const submitBtn = form.querySelector('[type="submit"]') as HTMLButtonElement | null;
+    const submitBtn = form.querySelector('[type="submit"]');
     if (!submitBtn) return;
     const savingText = config.saveButtonText?.saving ?? 'Saving...';
 
