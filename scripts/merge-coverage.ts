@@ -44,6 +44,35 @@ const COVERAGE_SOURCES: CoverageConfig[] = [
 
 const OUTPUT_DIR = path.join(PROJECT_ROOT, 'coverage-merged');
 
+function isSourceFile(filePath: string): boolean {
+  const normalizedPath = filePath.replace(/\\/g, '/');
+
+  // Exclude minified/bundled build artifacts (dist directories with hashed filenames)
+  if (normalizedPath.includes('/dist-chrome/') || normalizedPath.includes('/dist-firefox/')) {
+    return false;
+  }
+
+  // Exclude node_modules
+  if (normalizedPath.includes('/node_modules/')) {
+    return false;
+  }
+
+  // Only include source files from src/
+  return normalizedPath.includes('/src/');
+}
+
+function filterCoverageData(data: CoverageMapData): CoverageMapData {
+  const filtered: CoverageMapData = {};
+
+  for (const [filePath, coverage] of Object.entries(data)) {
+    if (isSourceFile(filePath)) {
+      filtered[filePath] = coverage;
+    }
+  }
+
+  return filtered;
+}
+
 async function mergeCoverage(): Promise<void> {
   console.log('🔄 Merging coverage reports...\n');
 
@@ -54,8 +83,14 @@ async function mergeCoverage(): Promise<void> {
     if (fs.existsSync(source.path)) {
       console.log(`  ✓ Found ${source.name} coverage: ${source.path}`);
       try {
-        const data = JSON.parse(fs.readFileSync(source.path, 'utf-8')) as CoverageMapData;
-        coverageMap.merge(createCoverageMap(data));
+        const rawData = JSON.parse(fs.readFileSync(source.path, 'utf-8')) as CoverageMapData;
+        const filteredData = filterCoverageData(rawData);
+        const originalCount = Object.keys(rawData).length;
+        const filteredCount = Object.keys(filteredData).length;
+        if (originalCount !== filteredCount) {
+          console.log(`    (filtered ${originalCount - filteredCount} build artifacts, keeping ${filteredCount} source files)`);
+        }
+        coverageMap.merge(createCoverageMap(filteredData));
         sourcesFound++;
       } catch (error) {
         console.warn(`  ⚠ Failed to parse ${source.name} coverage:`, error);

@@ -40,6 +40,7 @@ export default defineConfig({
   plugins: [crx({ manifest }), firefoxManifestCleanup()],
   build: {
     outDir: 'dist-firefox',
+    sourcemap: true,
     rollupOptions: {
       input: {
         popup: 'src/popup/popup.html',

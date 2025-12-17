@@ -74,8 +74,11 @@ async function convertToIstanbul(entries: CoverageEntry[]): Promise<CoverageMapD
         continue;
       }
 
+      // Read source from disk to get sourceMappingURL comment for source map support
+      const sourceFromDisk = fs.readFileSync(filePath, 'utf-8');
+
       const converter = v8ToIstanbul(filePath, 0, {
-        source: entry.text,
+        source: sourceFromDisk,
       });
 
       await converter.load();
