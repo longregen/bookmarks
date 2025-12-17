@@ -3,31 +3,11 @@
 A browser extension for capturing and semantically searching bookmarks using RAG (Retrieval-Augmented Generation).
 
 ## Build Commands
-
-```bash
-npm run build:chrome      # Build Chrome extension
-npm run build:firefox     # Build Firefox extension
-npm run build:web         # Build web standalone
-npm run test:unit         # Run unit tests
-npm run typecheck         # TypeScript type checking
-npm run lint              # ESLint
-npm run check             # typecheck + lint (parallel)
-```
+npm run `build:chrome` builds the Chrome extension, `build:firefox` builds the Firefox extension, `build:web` builds a standalone webapp, `test:unit` runs the unit tests, `typecheck` the TypeScript typechecker, `lint` the configured ESLint, `check` typechecks and lints in parallel, `e2e:chrome` runs end-to-end tests with Puppeteer, `e2e:firefox` uses Selenium.
 
 ## Architecture Overview
 
 See [AGENTS.md](./AGENTS.md) for detailed module documentation.
-
-| Directory | Purpose |
-|-----------|---------|
-| `src/background/` | Service worker, job queue, processor, fetcher |
-| `src/db/` | Dexie schema, IndexedDB operations |
-| `src/lib/` | Core utilities, API, adapters, state management |
-| `src/search/` | Vector similarity, embedding search |
-| `src/options/` | Settings page modules |
-| `src/popup/` | Extension popup UI |
-| `src/library/` | Bookmark library interface |
-| `src/content/` | Page capture scripts |
 
 ## Forbidden Directories
 
