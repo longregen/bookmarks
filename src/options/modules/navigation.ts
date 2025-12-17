@@ -24,7 +24,7 @@ navItems.forEach(item => {
       if (section && scrollContainer) {
         const sectionRect = section.getBoundingClientRect();
         const containerRect = scrollContainer.getBoundingClientRect();
-        const scrollTop = scrollContainer.scrollTop + sectionRect.top - containerRect.top - 24; // margin-top * 75%
+        const scrollTop = scrollContainer.scrollTop + sectionRect.top - containerRect.top - 24;
         scrollContainer.scrollTo({
           top: scrollTop,
           behavior: 'smooth'
@@ -40,25 +40,40 @@ function setupScrollObserver(): void {
   }
 
   const scrollContainer = document.querySelector('.middle');
-  const observerOptions: IntersectionObserverInit = {
-    root: scrollContainer,
-    rootMargin: '-20% 0px -60% 0px',
-    threshold: 0
-  };
+  if (!scrollContainer) return;
 
-  scrollObserver = new IntersectionObserver((entries) => {
-          console.log('e')
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const sectionId = entry.target.id;
-        setActiveNavItem(sectionId);
+  // Use scroll listener instead of IntersectionObserver for more reliable
+  // tracking with nested scroll containers
+  const handleScroll = (): void => {
+    const containerRect = scrollContainer.getBoundingClientRect();
+    // Target zone is 20% from top of container
+    const targetY = containerRect.top + containerRect.height * 0.2;
+
+    let activeSectionId = '';
+    let closestDistance = Infinity;
+
+    sections.forEach(section => {
+      const sectionRect = section.getBoundingClientRect();
+      const distance = Math.abs(sectionRect.top - targetY);
+      if (sectionRect.top <= targetY && distance < closestDistance) {
+        closestDistance = distance;
+        activeSectionId = section.id;
       }
     });
-  }, observerOptions);
 
-  sections.forEach(section => {
-    scrollObserver?.observe(section);
-  });
+    if (activeSectionId) {
+      setActiveNavItem(activeSectionId);
+    }
+  };
+
+  scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+  // Initial check
+  handleScroll();
+
+  // Store cleanup function
+  scrollObserver = {
+    disconnect: () => scrollContainer.removeEventListener('scroll', handleScroll)
+  } as IntersectionObserver;
 }
 
 function handleResponsiveObserver(): void {
