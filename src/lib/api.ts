@@ -7,6 +7,10 @@ export interface QAPair {
   answer: string;
 }
 
+interface ChatCompletionResponse {
+  choices: { message: { content: string } }[];
+}
+
 interface EmbeddingData {
   embedding: number[];
   index: number;
@@ -66,11 +70,9 @@ Respond with JSON only, no other text. Format:
 
 export async function generateQAPairs(markdownContent: string): Promise<QAPair[]> {
   const settings = await getPlatformAdapter().getSettings();
-
   const truncatedContent = markdownContent.slice(0, config.API_CONTENT_MAX_CHARS);
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
-  const data = await makeApiRequest<any>('/chat/completions', {
+  const data = await makeApiRequest<ChatCompletionResponse>('/chat/completions', {
     model: settings.chatModel,
     messages: [
       { role: 'system', content: QA_SYSTEM_PROMPT },
@@ -80,18 +82,14 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
     temperature: config.API_CHAT_TEMPERATURE,
   }, settings);
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-  const content = data.choices[0]?.message?.content;
-
-  if (content === undefined || content === null || content === '') {
+  const content = data.choices.at(0)?.message.content;
+  if (content === undefined) {
     throw new Error('Empty response from chat API');
   }
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument
-    const parsed = JSON.parse(content);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/strict-boolean-expressions
-    return parsed.pairs || [];
+    const parsed = JSON.parse(content) as { pairs?: QAPair[] };
+    return parsed.pairs ?? [];
   } catch (error) {
     throw new Error(`Failed to parse Q&A pairs from API response: ${getErrorMessage(error)}`);
   }
@@ -99,7 +97,6 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
 
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   const settings = await getPlatformAdapter().getSettings();
-  // TODO: use helper function
   if (__DEBUG_EMBEDDINGS__) {
     console.log('[Embeddings API] Starting embedding generation', {
       inputCount: texts.length,
