@@ -37,7 +37,8 @@ export async function renderPage(url: string, timeoutMs: number = config.FETCH_T
     await waitForTabLoad(tabId, timeoutMs);
 
     const settleTimeMs = config.PAGE_SETTLE_TIME_MS || 2000;
-    const html = await executeExtraction(tabId, settleTimeMs);
+    const maxMultiplier = config.PAGE_SETTLE_MAX_MULTIPLIER || 3;
+    const html = await executeExtraction(tabId, settleTimeMs, maxMultiplier);
 
     if (html.length > config.FETCH_MAX_HTML_SIZE) {
       throw new Error(`HTML content too large: ${(html.length / 1024 / 1024).toFixed(2)} MB`);
@@ -96,7 +97,7 @@ async function waitForTabLoad(tabId: number, timeoutMs: number): Promise<void> {
   });
 }
 
-async function executeExtraction(tabId: number, settleTimeMs: number): Promise<string> {
+async function executeExtraction(tabId: number, settleTimeMs: number, maxMultiplier: number): Promise<string> {
   // Firefox doesn't allow chrome.scripting.executeScript() on programmatically created tabs
   // Use message passing to content script instead
   if (isFirefox()) {
@@ -105,12 +106,20 @@ async function executeExtraction(tabId: number, settleTimeMs: number): Promise<s
 
   const results = await chrome.scripting.executeScript({
     target: { tabId },
-    func: (settleMs: number) => new Promise<string>((resolve) => {
-        let timeout: ReturnType<typeof setTimeout>;
+    func: (settleMs: number, multiplier: number) => new Promise<string>((resolve) => {
+        let settleTimeout: ReturnType<typeof setTimeout>;
+        const maxWaitMs = settleMs * multiplier;
+
+        // Hard timeout to prevent hanging on pages with continuous DOM mutations
+        const maxTimeout = setTimeout(() => {
+          observer.disconnect();
+          resolve(document.documentElement.outerHTML);
+        }, maxWaitMs);
 
         const observer = new MutationObserver(() => {
-          clearTimeout(timeout);
-          timeout = setTimeout(() => {
+          clearTimeout(settleTimeout);
+          settleTimeout = setTimeout(() => {
+            clearTimeout(maxTimeout);
             observer.disconnect();
             resolve(document.documentElement.outerHTML);
           }, settleMs);
@@ -124,12 +133,13 @@ async function executeExtraction(tabId: number, settleTimeMs: number): Promise<s
           characterData: true
         });
 
-        timeout = setTimeout(() => {
+        settleTimeout = setTimeout(() => {
+          clearTimeout(maxTimeout);
           observer.disconnect();
           resolve(document.documentElement.outerHTML);
         }, settleMs);
       }),
-    args: [settleTimeMs],
+    args: [settleTimeMs, maxMultiplier],
   });
 
   const result = results[0]?.result;
