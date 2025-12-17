@@ -17,6 +17,7 @@ import {
   ensureConfigLoaded,
   type ConfigEntry,
 } from '../../lib/config-registry';
+import { createElement } from '../../lib/dom';
 
 // DOM Elements
 let searchInput: HTMLInputElement | null = null;
@@ -67,17 +68,15 @@ function populateCategoryFilter(): void {
   if (!categoryFilter) return;
 
   // Add "All Categories" option
-  const allOption = document.createElement('option');
-  allOption.value = '';
-  allOption.textContent = 'All Categories';
-  categoryFilter.appendChild(allOption);
+  categoryFilter.appendChild(
+    createElement('option', { textContent: 'All Categories', attributes: { value: '' } })
+  );
 
   // Add each category
   Object.values(CONFIG_CATEGORIES).forEach(category => {
-    const option = document.createElement('option');
-    option.value = category;
-    option.textContent = category;
-    categoryFilter.appendChild(option);
+    categoryFilter.appendChild(
+      createElement('option', { textContent: category, attributes: { value: category } })
+    );
   });
 }
 
@@ -144,126 +143,193 @@ function getFilteredEntries(): Array<ConfigEntry & { currentValue: number | stri
 }
 
 /**
+ * Clear all children from an element
+ */
+function clearChildren(element: HTMLElement): void {
+  while (element.firstChild) {
+    element.removeChild(element.firstChild);
+  }
+}
+
+/**
  * Render the config table
  */
 function renderConfigTable(): void {
   if (!configTableBody) return;
 
+  clearChildren(configTableBody);
+
   const entries = getFilteredEntries();
 
   if (entries.length === 0) {
-    configTableBody.innerHTML = `
-      <tr>
-        <td colspan="5" class="config-empty">
-          No configuration entries found matching your criteria.
-        </td>
-      </tr>
-    `;
+    const emptyRow = createElement('tr', {}, [
+      createElement('td', {
+        className: 'config-empty',
+        textContent: 'No configuration entries found matching your criteria.',
+        attributes: { colspan: '5' }
+      })
+    ]);
+    configTableBody.appendChild(emptyRow);
     return;
   }
 
-  configTableBody.innerHTML = entries.map(entry => renderConfigRow(entry)).join('');
+  entries.forEach(entry => {
+    const [mainRow, descRow] = renderConfigRow(entry);
+    configTableBody.appendChild(mainRow);
+    configTableBody.appendChild(descRow);
+  });
 }
 
 /**
- * Render a single config row
+ * Render a single config row - returns [mainRow, descriptionRow]
  */
-function renderConfigRow(entry: ConfigEntry & { currentValue: number | string | boolean; isModified: boolean }): string {
+function renderConfigRow(entry: ConfigEntry & { currentValue: number | string | boolean; isModified: boolean }): [HTMLTableRowElement, HTMLTableRowElement] {
   const isEditing = editingKey === entry.key;
   const modifiedClass = entry.isModified ? 'config-modified' : '';
 
-  const valueDisplay = isEditing
-    ? renderEditInput(entry)
-    : renderValueDisplay(entry);
+  // Key cell
+  const keyCell = createElement('td', { className: 'config-key' }, [
+    createElement('span', { className: 'key-name', textContent: entry.key }),
+    createElement('span', { className: 'key-category', textContent: entry.category })
+  ]);
 
-  const resetButton = entry.isModified
-    ? `<button class="btn-reset" data-key="${entry.key}" title="Reset to default">Reset</button>`
-    : '';
+  // Type cell
+  const typeCell = createElement('td', { className: 'config-type', textContent: entry.type });
 
-  return `
-    <tr class="config-row ${modifiedClass}" data-key="${entry.key}">
-      <td class="config-key">
-        <span class="key-name">${entry.key}</span>
-        <span class="key-category">${entry.category}</span>
-      </td>
-      <td class="config-type">${entry.type}</td>
-      <td class="config-value" data-key="${entry.key}">
-        ${valueDisplay}
-      </td>
-      <td class="config-default" title="Default: ${entry.defaultValue}">
-        ${formatValue(entry.defaultValue, entry.type)}
-      </td>
-      <td class="config-actions">
-        ${resetButton}
-      </td>
-    </tr>
-    <tr class="config-description-row ${modifiedClass}">
-      <td colspan="5" class="config-description">${entry.description}</td>
-    </tr>
-  `;
+  // Value cell
+  const valueCell = createElement('td', {
+    className: 'config-value',
+    attributes: { 'data-key': entry.key }
+  });
+  if (isEditing) {
+    renderEditInput(entry, valueCell);
+  } else {
+    valueCell.appendChild(renderValueDisplay(entry));
+  }
+
+  // Default cell
+  const defaultCell = createElement('td', {
+    className: 'config-default',
+    title: `Default: ${entry.defaultValue}`
+  });
+  defaultCell.appendChild(formatValue(entry.defaultValue, entry.type));
+
+  // Actions cell
+  const actionsCell = createElement('td', { className: 'config-actions' });
+  if (entry.isModified) {
+    const resetBtn = createElement('button', {
+      className: 'btn-reset',
+      textContent: 'Reset',
+      title: 'Reset to default',
+      attributes: { 'data-key': entry.key }
+    });
+    actionsCell.appendChild(resetBtn);
+  }
+
+  // Main row
+  const mainRow = createElement('tr', {
+    className: `config-row ${modifiedClass}`.trim(),
+    attributes: { 'data-key': entry.key }
+  }, [keyCell, typeCell, valueCell, defaultCell, actionsCell]) as HTMLTableRowElement;
+
+  // Description row
+  const descRow = createElement('tr', { className: `config-description-row ${modifiedClass}`.trim() }, [
+    createElement('td', {
+      className: 'config-description',
+      textContent: entry.description,
+      attributes: { colspan: '5' }
+    })
+  ]) as HTMLTableRowElement;
+
+  return [mainRow, descRow];
 }
 
 /**
  * Render the value display (clickable to edit)
  */
-function renderValueDisplay(entry: ConfigEntry & { currentValue: number | string | boolean; isModified: boolean }): string {
-  const formattedValue = formatValue(entry.currentValue, entry.type);
-  return `
-    <span class="value-display" data-key="${entry.key}" tabindex="0" role="button" aria-label="Click to edit ${entry.key}">
-      ${formattedValue}
-    </span>
-  `;
+function renderValueDisplay(entry: ConfigEntry & { currentValue: number | string | boolean; isModified: boolean }): HTMLElement {
+  const valueSpan = createElement('span', {
+    className: 'value-display',
+    attributes: {
+      'data-key': entry.key,
+      tabindex: '0',
+      role: 'button',
+      'aria-label': `Click to edit ${entry.key}`
+    }
+  });
+  valueSpan.appendChild(formatValue(entry.currentValue, entry.type));
+  return valueSpan;
 }
 
 /**
- * Render the edit input
+ * Render the edit input into a container
  */
-function renderEditInput(entry: ConfigEntry & { currentValue: number | string | boolean; isModified: boolean }): string {
+function renderEditInput(entry: ConfigEntry & { currentValue: number | string | boolean; isModified: boolean }, container: HTMLElement): void {
   if (entry.type === 'boolean') {
-    return `
-      <select class="config-edit-select" data-key="${entry.key}" autofocus>
-        <option value="true" ${entry.currentValue === true ? 'selected' : ''}>true</option>
-        <option value="false" ${entry.currentValue === false ? 'selected' : ''}>false</option>
-      </select>
-      <button class="btn-save" data-key="${entry.key}">Save</button>
-      <button class="btn-cancel" data-key="${entry.key}">Cancel</button>
-    `;
+    const select = createElement('select', {
+      className: 'config-edit-select',
+      attributes: { 'data-key': entry.key, autofocus: '' }
+    }, [
+      createElement('option', {
+        textContent: 'true',
+        attributes: entry.currentValue === true ? { value: 'true', selected: '' } : { value: 'true' }
+      }),
+      createElement('option', {
+        textContent: 'false',
+        attributes: entry.currentValue === false ? { value: 'false', selected: '' } : { value: 'false' }
+      })
+    ]);
+    container.appendChild(select);
+  } else {
+    const inputType = entry.type === 'number' ? 'number' : 'text';
+    const attrs: Record<string, string> = {
+      type: inputType,
+      'data-key': entry.key,
+      value: String(entry.currentValue),
+      autofocus: ''
+    };
+
+    if (entry.type === 'number' && entry.key.includes('TEMPERATURE')) {
+      attrs.step = '0.1';
+    }
+    if (entry.min !== undefined) attrs.min = String(entry.min);
+    if (entry.max !== undefined) attrs.max = String(entry.max);
+
+    const input = createElement('input', {
+      className: 'config-edit-input',
+      attributes: attrs
+    });
+    container.appendChild(input);
   }
 
-  const inputType = entry.type === 'number' ? 'number' : 'text';
-  const step = entry.type === 'number' && entry.key.includes('TEMPERATURE') ? '0.1' : '1';
-  const min = entry.min !== undefined ? `min="${entry.min}"` : '';
-  const max = entry.max !== undefined ? `max="${entry.max}"` : '';
+  // Save button
+  container.appendChild(createElement('button', {
+    className: 'btn-save',
+    textContent: 'Save',
+    attributes: { 'data-key': entry.key }
+  }));
 
-  return `
-    <input
-      type="${inputType}"
-      class="config-edit-input"
-      data-key="${entry.key}"
-      value="${entry.currentValue}"
-      ${step !== '1' ? `step="${step}"` : ''}
-      ${min}
-      ${max}
-      autofocus
-    />
-    <button class="btn-save" data-key="${entry.key}">Save</button>
-    <button class="btn-cancel" data-key="${entry.key}">Cancel</button>
-  `;
+  // Cancel button
+  container.appendChild(createElement('button', {
+    className: 'btn-cancel',
+    textContent: 'Cancel',
+    attributes: { 'data-key': entry.key }
+  }));
 }
 
 /**
- * Format a value for display
+ * Format a value for display - returns an element
  */
-function formatValue(value: number | string | boolean, type: string): string {
+function formatValue(value: number | string | boolean, type: string): HTMLElement {
   if (type === 'boolean') {
-    return `<span class="value-boolean">${value}</span>`;
+    return createElement('span', { className: 'value-boolean', textContent: String(value) });
   }
   if (type === 'number') {
     // Format large numbers with commas
-    const formatted = typeof value === 'number' ? value.toLocaleString() : value;
-    return `<span class="value-number">${formatted}</span>`;
+    const formatted = typeof value === 'number' ? value.toLocaleString() : String(value);
+    return createElement('span', { className: 'value-number', textContent: formatted });
   }
-  return `<span class="value-string">"${value}"</span>`;
+  return createElement('span', { className: 'value-string', textContent: `"${value}"` });
 }
 
 /**
