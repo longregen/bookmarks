@@ -321,7 +321,7 @@ jobs:
       - name: Run visual smoke tests
         env:
           EXTENSION_PATH: dist-chrome
-          OPENAI_API_KEY: not-needed-for-visual-tests
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'visual-test-placeholder' }}
         run: |
           CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
           BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npm run test:e2e-visual
