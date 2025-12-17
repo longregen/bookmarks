@@ -23,14 +23,6 @@ export interface ExportedBookmark {
   }[];
 }
 
-interface _LegacyExportedQA {
-  question: string;
-  answer: string;
-  embeddingQuestion?: number[];
-  embeddingAnswer?: number[];
-  embeddingBoth?: number[];
-}
-
 export interface BookmarkExport {
   version: number;
   exportedAt: string;
