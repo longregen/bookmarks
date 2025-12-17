@@ -251,6 +251,68 @@ export class ChromeAdapter implements TestAdapter {
     return this.apiKey;
   }
 
+  async getExtensionErrors(): Promise<string[]> {
+    const errorsUrl = `chrome://extensions/?errors=${this.extensionId}`;
+    const page = await this.browser!.newPage();
+
+    try {
+      await page.goto(errorsUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      const errors = await page.evaluate(() => {
+        const errorMessages: string[] = [];
+
+        const extensionsManager = document.querySelector('extensions-manager');
+        if (!extensionsManager?.shadowRoot) {
+          return errorMessages;
+        }
+
+        const errorPage = extensionsManager.shadowRoot.querySelector('extensions-error-page');
+        if (!errorPage?.shadowRoot) {
+          return errorMessages;
+        }
+
+        const errorItems = errorPage.shadowRoot.querySelectorAll('.error-item');
+        errorItems.forEach((item) => {
+          const messageEl = item.querySelector('.error-message');
+          if (messageEl?.textContent) {
+            errorMessages.push(messageEl.textContent.trim());
+          }
+        });
+
+        if (errorMessages.length === 0) {
+          const codeSection = errorPage.shadowRoot.querySelector('#errorsList');
+          if (codeSection) {
+            const allErrors = codeSection.querySelectorAll('[class*="error"]');
+            allErrors.forEach((el) => {
+              if (el.textContent?.trim()) {
+                errorMessages.push(el.textContent.trim());
+              }
+            });
+          }
+        }
+
+        if (errorMessages.length === 0) {
+          const codeFrames = errorPage.shadowRoot.querySelectorAll('extensions-code-section');
+          codeFrames.forEach((frame) => {
+            if (frame.shadowRoot) {
+              const errorText = frame.shadowRoot.querySelector('.error-message, .source-code');
+              if (errorText?.textContent?.trim()) {
+                errorMessages.push(errorText.textContent.trim());
+              }
+            }
+          });
+        }
+
+        return errorMessages;
+      });
+
+      return errors;
+    } finally {
+      await page.close();
+    }
+  }
+
   private async getExtensionId(): Promise<string> {
     const EXTENSION_TIMEOUT = 30000;
 

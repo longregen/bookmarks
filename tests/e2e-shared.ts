@@ -25,6 +25,7 @@ export interface TestAdapter {
   startCoverage?(): Promise<void>;
   stopCoverage?(): Promise<void>;
   writeCoverage?(): Promise<void>;
+  getExtensionErrors?(): Promise<string[]>;
 }
 
 export function generateMockEmbedding(): number[] {
@@ -546,6 +547,18 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
       }
 
       await verifyPage.close();
+    });
+
+    await runner.runTest('Extension has no errors on chrome://extensions', async () => {
+      if (!adapter.getExtensionErrors) {
+        throw new Error('getExtensionErrors not implemented');
+      }
+
+      const errors = await adapter.getExtensionErrors();
+
+      if (errors.length > 0) {
+        throw new Error(`Extension has ${errors.length} error(s):\n${errors.join('\n')}`);
+      }
     });
   }
 
