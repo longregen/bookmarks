@@ -63,15 +63,16 @@ Before modifying code:
 - **Remove dead code** - Delete unused functions, variables, imports
 - **Verify assumptions** - Research external APIs and browser behaviors
 
-## Running E2E Tests Locally
-
-Prerequisites: Download Chromium from `storage.googleapis.com`, install xvfb (`apt install xvfb`)
+## Running E2E Tests
 
 ```bash
-npm run build:chrome
-BROWSER_PATH=/path/to/chrome OPENAI_API_KEY=not-needed-for-tests \
-  xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" \
-  npm run test:e2e:chrome
-```
+# Download Chromium
+mkdir -p /tmp/chromium && cd /tmp/chromium && \
+  wget -q "https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/$(wget -qO- https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/LAST_CHANGE)/chrome-linux.zip" && \
+  unzip -q chrome-linux.zip
 
-Note: Claude can only run Chromium tests (not Firefox).
+# Run tests (requires xvfb)
+npm run build:chrome && \
+  BROWSER_PATH=/tmp/chromium/chrome-linux/chrome OPENAI_API_KEY=not-needed-for-tests \
+  xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm run test:e2e:chrome
+```
