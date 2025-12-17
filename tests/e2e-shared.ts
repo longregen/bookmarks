@@ -200,14 +200,14 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
 
       await page.waitForFunction(
         `(() => {
-          const status = document.querySelector('.status');
+          const status = document.querySelector('#testConnectionStatus');
           return status && !status.classList.contains('hidden') &&
                  (status.textContent?.includes('successful') || status.textContent?.includes('failed'));
         })()`,
         30000
       );
 
-      const statusText = await page.$eval<string>('.status', 'el => el.textContent');
+      const statusText = await page.$eval<string>('#testConnectionStatus', 'el => el.textContent');
       if (!statusText?.toLowerCase().includes('successful')) {
         throw new Error(`API test failed: ${statusText}`);
       }
@@ -715,14 +715,14 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
 
       await page.waitForFunction(
         `(() => {
-          const status = document.querySelector('.status');
+          const status = document.querySelector('#testConnectionStatus');
           return status && !status.classList.contains('hidden') &&
                  (status.textContent?.includes('successful') || status.textContent?.includes('failed'));
         })()`,
         30000
       );
 
-      const statusText = await page.$eval<string>('.status', 'el => el.textContent');
+      const statusText = await page.$eval<string>('#testConnectionStatus', 'el => el.textContent');
       if (!statusText?.toLowerCase().includes('successful')) {
         throw new Error(`Real API test failed: ${statusText}`);
       }
