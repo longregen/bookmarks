@@ -50,13 +50,12 @@ body {
 .layout {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
 }
 
 .main-content {
   display: flex;
   flex: 1;
-  overflow: hidden;
 }
 
 .sidebar {
@@ -65,9 +64,12 @@ body {
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-primary);
   padding: var(--space-6);
-  overflow-y: auto;
-  min-height: 0;
   flex-shrink: 0;
+  align-self: flex-start;
+  position: sticky;
+  top: 0;
+  max-height: 100vh;
+  overflow-y: auto;
 }
 @media (min-width: 768px) {
   .sidebar {
@@ -89,9 +91,7 @@ body {
 
 .middle {
   flex: 1;
-  overflow-y: auto;
   padding: var(--space-4);
-  min-height: 0;
 }
 
 @media (min-width: 768px) {
