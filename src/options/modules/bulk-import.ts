@@ -1,5 +1,5 @@
 import { validateUrls, createBulkImportJob } from '../../lib/bulk-import';
-import { showStatusMessage } from '../../lib/dom';
+import { showStatusMessage } from '../../ui/dom';
 import { db } from '../../db/schema';
 import { createPoller, type Poller } from '../../lib/polling-manager';
 import { getErrorMessage } from '../../lib/errors';

@@ -29,11 +29,16 @@ export const sharedOutput: OutputOptions = {
     if (id.includes('node_modules')) {
       return 'vendor';
     }
+    // UI components must be separate from shared to keep DOM code out of service worker
+    if (id.includes('/src/ui/')) {
+      return 'ui';
+    }
     if (id.includes('/src/lib/')) {
       return 'shared';
     }
+    // Theme utilities have DOM manipulation, keep with UI
     if (id.includes('/src/shared/')) {
-      return 'shared';
+      return 'ui';
     }
     // Database schema must be in shared to avoid circular dependencies
     if (id.includes('/src/db/')) {
@@ -55,4 +60,7 @@ export const sharedOutput: OutputOptions = {
 
 export const sharedConfig: Partial<UserConfig> = {
   define: sharedDefine,
+  build: {
+    sourcemap: true,
+  },
 };

@@ -1,12 +1,12 @@
 import { db, type BookmarkTag } from '../db/schema';
-import { createElement, getElement } from '../lib/dom';
+import { createElement, getElement } from '../ui/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { onThemeChange, applyTheme } from '../shared/theme';
-import { initExtension } from '../lib/init-extension';
+import { initExtension } from '../ui/init-extension';
 import { initWeb } from '../web/init-web';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
-import { createHealthIndicator } from '../lib/health-indicator';
-import { BookmarkDetailManager } from '../lib/bookmark-detail';
+import { createHealthIndicator } from '../ui/health-indicator';
+import { BookmarkDetailManager } from '../ui/bookmark-detail';
 
 let selectedTag = 'All';
 let sortBy = 'newest';

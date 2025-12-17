@@ -10,7 +10,7 @@ import {
   ensureConfigLoaded,
   type ConfigEntry,
 } from '../../lib/config-registry';
-import { createElement, getElement } from '../../lib/dom';
+import { createElement, getElement } from '../../ui/dom';
 import { getErrorMessage } from '../../lib/errors';
 
 let searchInput: HTMLInputElement;

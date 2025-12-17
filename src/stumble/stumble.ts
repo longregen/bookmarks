@@ -1,13 +1,13 @@
 import { db, type BookmarkTag, getBookmarkQAPairs } from '../db/schema';
-import { createElement, getElement } from '../lib/dom';
+import { createElement, getElement } from '../ui/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { getErrorMessage } from '../lib/errors';
 import { onThemeChange, applyTheme } from '../shared/theme';
-import { initExtension } from '../lib/init-extension';
+import { initExtension } from '../ui/init-extension';
 import { initWeb } from '../web/init-web';
-import { createHealthIndicator } from '../lib/health-indicator';
-import { BookmarkDetailManager } from '../lib/bookmark-detail';
-import { loadTagFilters } from '../lib/tag-filter';
+import { createHealthIndicator } from '../ui/health-indicator';
+import { BookmarkDetailManager } from '../ui/bookmark-detail';
+import { loadTagFilters } from '../ui/tag-filter';
 import { config } from '../lib/config-registry';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
 

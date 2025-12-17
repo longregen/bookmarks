@@ -1,9 +1,10 @@
 import { db, getBookmarkContent } from '../db/schema';
 import { createElement } from './dom';
-import { formatDateByAge } from './date-format';
-import { exportSingleBookmark, downloadExport } from './export';
+import { formatDateByAge } from '../lib/date-format';
+import { exportSingleBookmark } from '../lib/export';
+import { downloadExport } from './export-download';
 import { createTagEditor } from './tag-editor';
-import { parseMarkdown } from './markdown';
+import { parseMarkdown } from '../lib/markdown';
 
 export interface BookmarkDetailConfig {
   detailPanel: HTMLElement;

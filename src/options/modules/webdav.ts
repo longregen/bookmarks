@@ -1,8 +1,8 @@
 import { getSettings, saveSetting } from '../../lib/settings';
-import { showStatusMessage } from '../../lib/dom';
+import { showStatusMessage } from '../../ui/dom';
 import { createPoller, type Poller } from '../../lib/polling-manager';
 import { validateWebDAVUrl as validateWebDAVUrlShared } from '../../lib/url-validator';
-import { withButtonState } from '../../lib/form-helper';
+import { withButtonState } from '../../ui/form-helper';
 import { getErrorMessage } from '../../lib/errors';
 
 const webdavForm = document.getElementById('webdavForm') as HTMLFormElement;

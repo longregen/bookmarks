@@ -1,6 +1,6 @@
-import { showStatusMessage, getElement, createElement } from '../lib/dom';
+import { showStatusMessage, getElement, createElement } from '../ui/dom';
 import { onThemeChange, applyTheme } from '../shared/theme';
-import { initExtension } from '../lib/init-extension';
+import { initExtension } from '../ui/init-extension';
 import { openExtensionPage } from '../lib/tabs';
 import { getSettings } from '../lib/settings';
 import type { SaveBookmarkResponse } from '../lib/messages';

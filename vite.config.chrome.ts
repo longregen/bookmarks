@@ -13,6 +13,7 @@ export default defineConfig({
   plugins: [crx({ manifest })],
   build: {
     outDir: 'dist-chrome',
+    sourcemap: true,
     rollupOptions: {
       input: {
         popup: 'src/popup/popup.html',
