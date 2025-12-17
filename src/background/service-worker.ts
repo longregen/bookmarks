@@ -6,6 +6,7 @@ import { setPlatformAdapter } from '../lib/platform';
 import { extensionAdapter } from '../lib/adapters/extension';
 import { getSettings } from '../lib/settings';
 import { getErrorMessage } from '../lib/errors';
+import { performSync, getSyncStatus, triggerSyncIfEnabled } from '../lib/webdav-sync';
 import type {
   Message,
   SaveBookmarkResponse,
@@ -48,12 +49,8 @@ async function initializeExtension(): Promise<void> {
       console.error('Error setting up sync alarm:', err);
     });
 
-    void import('../lib/webdav-sync').then(({ triggerSyncIfEnabled }) => {
-      triggerSyncIfEnabled().catch((err: unknown) => {
-        console.error('Initial WebDAV sync failed:', err);
-      });
-    }).catch((err: unknown) => {
-      console.error('Failed to load webdav-sync module:', err);
+    triggerSyncIfEnabled().catch((err: unknown) => {
+      console.error('Initial WebDAV sync failed:', err);
     });
   } catch (error) {
     console.error('Error during initialization:', error);
@@ -77,7 +74,6 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === WEBDAV_SYNC_ALARM) {
     console.log('WebDAV sync alarm triggered');
     try {
-      const { triggerSyncIfEnabled } = await import('../lib/webdav-sync');
       await triggerSyncIfEnabled();
     } catch (err) {
       console.error('WebDAV sync alarm failed:', err);
@@ -101,16 +97,14 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
   }
 
   if (message.type === 'TRIGGER_SYNC') {
-    import('../lib/webdav-sync')
-      .then(m => m.performSync(true))
+    performSync(true)
       .then(sendResponse)
       .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
     return true;
   }
 
   if (message.type === 'GET_SYNC_STATUS') {
-    import('../lib/webdav-sync')
-      .then(m => m.getSyncStatus())
+    getSyncStatus()
       .then(sendResponse)
       .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
     return true;

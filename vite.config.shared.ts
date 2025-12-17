@@ -33,24 +33,32 @@ export const sharedOutput: OutputOptions = {
     if (id.includes('/src/ui/')) {
       return 'ui';
     }
+    // Library code goes in 'lib' chunk - these are pure functions with no side effects
+    // IMPORTANT: This must be separate from service-worker to prevent side effects
+    // from running when offscreen/popup documents import library functions
     if (id.includes('/src/lib/')) {
-      return 'shared';
+      return 'lib';
     }
     // Theme utilities have DOM manipulation, keep with UI
     if (id.includes('/src/shared/')) {
       return 'ui';
     }
-    // Database schema must be in shared to avoid circular dependencies
+    // Database schema in its own chunk to avoid bundling with service worker side effects
     if (id.includes('/src/db/')) {
-      return 'shared';
+      return 'lib';
     }
-    // Background modules (queue, processor, etc.) must be in shared
-    // to prevent service worker from importing options-modules
+    // Service worker entry point - do NOT put in shared chunk
+    // Let it be bundled as its own entry point to avoid side effects
+    // running in other contexts (offscreen, popup, etc.)
+    if (id.includes('/src/background/service-worker')) {
+      return undefined; // Let rollup handle as entry point
+    }
+    // Other background modules (queue, processor, etc.)
     if (id.includes('/src/background/')) {
-      return 'shared';
+      return 'lib';
     }
     if (id.includes('/src/web/init-web')) {
-      return 'shared';
+      return 'lib';
     }
     if (id.includes('/src/options/modules/')) {
       return 'options-modules';

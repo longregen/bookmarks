@@ -1,6 +1,7 @@
 import { db } from '../db/schema';
 import { processBookmark } from './processor';
 import { getErrorMessage } from '../lib/errors';
+import { triggerSyncIfEnabled } from '../lib/webdav-sync';
 
 let isProcessing = false;
 
@@ -54,15 +55,9 @@ export async function startProcessingQueue(): Promise<void> {
     }
 
     // Trigger WebDAV sync after queue is empty
-    import('../lib/webdav-sync')
-      .then(({ triggerSyncIfEnabled }) => {
-        triggerSyncIfEnabled().catch((err: unknown) => {
-          console.error('WebDAV sync after queue empty failed:', err);
-        });
-      })
-      .catch((err: unknown) => {
-        console.error('Failed to load webdav-sync module:', err);
-      });
+    triggerSyncIfEnabled().catch((err: unknown) => {
+      console.error('WebDAV sync after queue empty failed:', err);
+    });
   } finally {
     isProcessing = false;
   }
