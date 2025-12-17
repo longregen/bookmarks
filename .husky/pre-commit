@@ -17,5 +17,6 @@ if [ -n "$BROWSER_PATH" ]; then
   export OPENAI_API_KEY="${OPENAI_API_KEY:-not-needed-for-tests}"
   xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm run test:e2e:chrome || echo "⚠️  E2E tests failed (non-blocking)"
 else
-  echo "Skipping e2e tests (BROWSER_PATH not set and Playwright Chromium not found)"
+  echo "E2E TESTS FAILED! (BROWSER_PATH not set and Playwright Chromium not found)"
+  exit 1
 fi
