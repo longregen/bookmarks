@@ -1,8 +1,3 @@
-/**
- * Shared manifest configuration for Chrome and Firefox builds.
- * Browser-specific fields are added in the respective vite configs.
- */
-
 export const manifestBase = {
   manifest_version: 3,
   name: 'Bookmark RAG',
@@ -50,10 +45,8 @@ export const manifestBase = {
   },
 } as const;
 
-/** Shared permissions for all browser builds */
 export const basePermissions = ['storage', 'activeTab', 'scripting', 'alarms'] as const;
 
-/** Chrome-specific manifest configuration */
 export const chromeManifest = {
   ...manifestBase,
   permissions: [...basePermissions, 'tabs', 'offscreen'],
@@ -63,7 +56,6 @@ export const chromeManifest = {
   },
 };
 
-/** Firefox-specific manifest configuration */
 export const firefoxManifest = {
   ...manifestBase,
   permissions: [...basePermissions, 'tabs'],
