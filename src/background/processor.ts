@@ -1,15 +1,10 @@
 import { db, type Bookmark, JobType, JobStatus, type Job } from '../db/schema';
 import { extractMarkdownAsync } from '../lib/extract';
-import { generateQAPairs, generateEmbeddings } from '../lib/api';
+import { generateQAPairs, generateEmbeddings, type QAPair } from '../lib/api';
 import { createJob, updateJob, completeJob, failJob } from '../lib/jobs';
 import { broadcastEvent } from '../lib/events';
 import { config } from '../lib/config-registry';
 import { getErrorMessage, getErrorStack } from '../lib/errors';
-
-interface QAPair {
-  question: string;
-  answer: string;
-}
 
 // Debug logger that compiles away when __DEBUG_EMBEDDINGS__ is false
 const debugLog = __DEBUG_EMBEDDINGS__
@@ -81,13 +76,14 @@ async function generateQAPairsStep(
       status: 'complete',
       updatedAt: new Date(),
     });
+
+    await broadcastEvent('BOOKMARK_UPDATED', { bookmarkId: bookmark.id, status: 'complete' });
   }
 
   return qaPairs;
 }
 
 async function generateEmbeddingsStep(
-  bookmark: Bookmark,
   job: Job,
   qaPairs: QAPair[]
 ): Promise<{ questionEmbeddings: number[][]; answerEmbeddings: number[][]; combinedEmbeddings: number[][]; embeddingTimeMs: number }> {
@@ -161,13 +157,9 @@ async function generateEmbeddingsStep(
 async function saveResultsStep(
   bookmark: Bookmark,
   job: Job,
-  data: {
-    markdown: { content: string; characterCount: number; wordCount: number };
-    qaPairs: QAPair[];
-    embeddings: { questionEmbeddings: number[][]; answerEmbeddings: number[][]; combinedEmbeddings: number[][] };
-  }
+  qaPairs: QAPair[],
+  embeddings: { questionEmbeddings: number[][]; answerEmbeddings: number[][]; combinedEmbeddings: number[][] }
 ): Promise<void> {
-  const { qaPairs, embeddings } = data;
   const { questionEmbeddings, answerEmbeddings, combinedEmbeddings } = embeddings;
 
   await updateJob(job.id, {
@@ -182,17 +174,14 @@ async function saveResultsStep(
       questionLength: qa.question.length,
       answerLength: qa.answer.length,
       embeddingQuestion: {
-        exists: true,
         dimension: questionEmbeddings[i].length,
         isArray: Array.isArray(questionEmbeddings[i]),
       },
       embeddingAnswer: {
-        exists: true,
         dimension: answerEmbeddings[i].length,
         isArray: Array.isArray(answerEmbeddings[i]),
       },
       embeddingBoth: {
-        exists: true,
         dimension: combinedEmbeddings[i].length,
         isArray: Array.isArray(combinedEmbeddings[i]),
       },
@@ -266,7 +255,7 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
     }
 
     // Step 3: Generate embeddings for Q&A pairs
-    const embeddings = await generateEmbeddingsStep(bookmark, qaJob, qaPairs);
+    const embeddings = await generateEmbeddingsStep(qaJob, qaPairs);
 
     // Step 4: Save results to database
     const totalApiTimeMs = Date.now() - qaStartTime;
@@ -279,14 +268,10 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
       },
     });
 
-    await saveResultsStep(bookmark, qaJob, {
-      markdown: markdownData,
-      qaPairs,
-      embeddings: {
-        questionEmbeddings: embeddings.questionEmbeddings,
-        answerEmbeddings: embeddings.answerEmbeddings,
-        combinedEmbeddings: embeddings.combinedEmbeddings,
-      },
+    await saveResultsStep(bookmark, qaJob, qaPairs, {
+      questionEmbeddings: embeddings.questionEmbeddings,
+      answerEmbeddings: embeddings.answerEmbeddings,
+      combinedEmbeddings: embeddings.combinedEmbeddings,
     });
   } catch (error) {
     console.error(`Error processing bookmark ${bookmark.id}:`, error);

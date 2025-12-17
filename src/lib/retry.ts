@@ -18,7 +18,7 @@ export function calculateBackoffDelay(
   baseDelayMs: number,
   maxDelayMs = 30000
 ): number {
-  const exponentialDelay = baseDelayMs * Math.pow(2, attempt);
+  const exponentialDelay = baseDelayMs * (2 ** attempt);
   return Math.min(exponentialDelay, maxDelayMs);
 }
 
@@ -27,7 +27,7 @@ export async function withRetry<T>(
   options: RetryOptions
 ): Promise<T> {
   const { maxRetries, baseDelayMs, maxDelayMs, onRetry } = options;
-  let lastError: Error;
+  let lastError: Error = new Error('Retry failed: all attempts exhausted');
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -49,7 +49,9 @@ export async function withRetry<T>(
     }
   }
 
-  throw new Error('Retry failed: all attempts exhausted');
+  // TypeScript requires this for type safety, though it's logically unreachable
+  // because the loop either returns on success or throws on the last retry attempt
+  throw lastError;
 }
 
 export function shouldRetryBookmark(retryCount: number, maxRetries: number): boolean {

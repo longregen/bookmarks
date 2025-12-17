@@ -105,9 +105,7 @@ function getFilteredEntries(): (ConfigEntry & { currentValue: number | string | 
 }
 
 function clearChildren(element: HTMLElement): void {
-  while (element.firstChild) {
-    element.removeChild(element.firstChild);
-  }
+  element.replaceChildren();
 }
 
 function renderConfigTable(): void {

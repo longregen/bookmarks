@@ -184,34 +184,6 @@ export async function getBookmarkContent(bookmarkId: string): Promise<{
   return { markdown, qaPairs, tags };
 }
 
-export async function getBookmarkMarkdown(bookmarkId: string): Promise<Markdown | undefined> {
-  return db.markdown.where('bookmarkId').equals(bookmarkId).first();
-}
-
 export async function getBookmarkQAPairs(bookmarkId: string): Promise<QuestionAnswer[]> {
   return db.questionsAnswers.where('bookmarkId').equals(bookmarkId).toArray();
-}
-
-export async function getBookmarkTags(bookmarkId: string): Promise<BookmarkTag[]> {
-  return db.bookmarkTags.where('bookmarkId').equals(bookmarkId).toArray();
-}
-
-export async function getFullBookmark(bookmarkId: string): Promise<{
-  bookmark: Bookmark | undefined;
-  markdown: Markdown | undefined;
-  qaPairs: QuestionAnswer[];
-  tags: BookmarkTag[];
-} | null> {
-  const [bookmark, markdown, qaPairs, tags] = await Promise.all([
-    db.bookmarks.get(bookmarkId),
-    db.markdown.where('bookmarkId').equals(bookmarkId).first(),
-    db.questionsAnswers.where('bookmarkId').equals(bookmarkId).toArray(),
-    db.bookmarkTags.where('bookmarkId').equals(bookmarkId).toArray(),
-  ]);
-
-  if (!bookmark) {
-    return null;
-  }
-
-  return { bookmark, markdown, qaPairs, tags };
 }

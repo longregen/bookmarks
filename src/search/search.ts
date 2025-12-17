@@ -26,14 +26,14 @@ const resultHeader = getElement('resultHeader');
 
 searchPage.classList.add('search-page--centered');
 
-const detailPanel2 = getElement('detailPanel');
-const detailBackdrop2 = getElement('detailBackdrop');
-const detailContent2 = getElement('detailContent');
+const detailPanel = getElement('detailPanel');
+const detailBackdrop = getElement('detailBackdrop');
+const detailContent = getElement('detailContent');
 
 const detailManager = new BookmarkDetailManager({
-  detailPanel: detailPanel2,
-  detailBackdrop: detailBackdrop2,
-  detailContent: detailContent2,
+  detailPanel,
+  detailBackdrop,
+  detailContent,
   closeBtn: getElement<HTMLButtonElement>('closeDetailBtn'),
   deleteBtn: getElement<HTMLButtonElement>('deleteBtn'),
   exportBtn: getElement<HTMLButtonElement>('exportBtn'),
@@ -261,7 +261,7 @@ async function performSearch(): Promise<void> {
 
       if (selectedTags.size > 0) {
         const tags = tagsByBookmarkId.get(bookmarkId) ?? [];
-        if (!tags.some((t: BookmarkTag) => selectedTags.has(t.tagName))) continue;
+        if (!tags.some(t => selectedTags.has(t.tagName))) continue;
       }
 
       filteredResults.push({ bookmark, qaResults });

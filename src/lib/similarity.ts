@@ -17,8 +17,6 @@ export function cosineSimilarity(a: number[], b: number[]): number {
     debugError('cosineSimilarity called with non-array values', {
       aType: typeof a,
       bType: typeof b,
-      aIsArray: Array.isArray(a),
-      bIsArray: Array.isArray(b),
     });
     throw new Error('Vectors must be arrays');
   }
@@ -105,18 +103,26 @@ export function findTopK<T>(
 
   const validScored = scored.filter(s => s.score >= 0);
 
-  debugLog('Scoring complete', {
-    totalScored: scored.length,
-    validScored: validScored.length,
-    errored: errors.length,
-    scoreDistribution: {
-      excellent: validScored.filter(s => s.score >= config.SIMILARITY_THRESHOLD_EXCELLENT).length,
-      good: validScored.filter(s => s.score >= config.SIMILARITY_THRESHOLD_GOOD && s.score < config.SIMILARITY_THRESHOLD_EXCELLENT).length,
-      fair: validScored.filter(s => s.score >= config.SIMILARITY_THRESHOLD_FAIR && s.score < config.SIMILARITY_THRESHOLD_GOOD).length,
-      poor: validScored.filter(s => s.score >= config.SIMILARITY_THRESHOLD_POOR && s.score < config.SIMILARITY_THRESHOLD_FAIR).length,
-      veryPoor: validScored.filter(s => s.score < config.SIMILARITY_THRESHOLD_POOR).length,
-    },
-  });
+  if (__DEBUG_EMBEDDINGS__) {
+    const scoreDistribution = validScored.reduce(
+      (acc, s) => {
+        if (s.score >= config.SIMILARITY_THRESHOLD_EXCELLENT) acc.excellent++;
+        else if (s.score >= config.SIMILARITY_THRESHOLD_GOOD) acc.good++;
+        else if (s.score >= config.SIMILARITY_THRESHOLD_FAIR) acc.fair++;
+        else if (s.score >= config.SIMILARITY_THRESHOLD_POOR) acc.poor++;
+        else acc.veryPoor++;
+        return acc;
+      },
+      { excellent: 0, good: 0, fair: 0, poor: 0, veryPoor: 0 }
+    );
+
+    debugLog('Scoring complete', {
+      totalScored: scored.length,
+      validScored: validScored.length,
+      errored: errors.length,
+      scoreDistribution,
+    });
+  }
 
   validScored.sort((a, b) => b.score - a.score);
 

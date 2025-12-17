@@ -16,7 +16,7 @@ function waitForSettle(settleTimeMs = 2000): Promise<void> {
       }, settleTimeMs);
     });
 
-    observer.observe((document.body as Node | null) ?? document.documentElement, {
+    observer.observe(document.body as Node | null ?? document.documentElement, {
       childList: true,
       subtree: true,
       attributes: true,
@@ -38,7 +38,4 @@ async function extractHtml(settleTimeMs = 2000): Promise<string> {
 
 // Export for use when this script is injected
 // When injected via chrome.scripting.executeScript, we need to return the result
-// This will be wrapped in an IIFE by the tab renderer
-if (typeof window !== 'undefined') {
-  (window as { extractHtml?: typeof extractHtml }).extractHtml = extractHtml;
-}
+(window as { extractHtml?: typeof extractHtml }).extractHtml = extractHtml;

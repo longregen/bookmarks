@@ -1,7 +1,6 @@
 /**
  * Browser-agnostic fetch wrapper for bulk URL import
- * For extensions: Uses tab-based rendering to capture fully rendered HTML with JavaScript execution
- * Build-time constants ensure only the relevant code path is included in each build.
+ * Uses tab-based rendering to capture fully rendered HTML with JavaScript execution
  */
 
 import { config } from './config-registry';

@@ -34,7 +34,8 @@ saveBtn.addEventListener('click', async () => {
     }
 
     const restrictedSchemes = ['chrome:', 'about:', 'chrome-extension:', 'edge:', 'moz-extension:'];
-    if (restrictedSchemes.some(scheme => tab.url?.startsWith(scheme) ?? false)) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- validated above
+    if (restrictedSchemes.some(scheme => tab.url!.startsWith(scheme))) {
       showStatusMessage(statusDiv, 'Cannot save browser internal pages', 'error');
       return;
     }
