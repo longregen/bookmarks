@@ -11,6 +11,21 @@ const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
 const chatModelInput = document.getElementById('chatModel') as HTMLInputElement;
 const embeddingModelInput = document.getElementById('embeddingModel') as HTMLInputElement;
 
+const TEST_BTN_DEFAULT = 'Test Connection';
+const TEST_BTN_VERIFIED = 'Access verified';
+
+function resetTestButton(): void {
+  if (testBtn.textContent !== TEST_BTN_DEFAULT) {
+    testBtn.textContent = TEST_BTN_DEFAULT;
+    testConnectionStatus.className = 'test-connection-status hidden';
+    testConnectionStatus.textContent = '';
+  }
+}
+
+[apiBaseUrlInput, apiKeyInput, chatModelInput, embeddingModelInput].forEach(input => {
+  input.addEventListener('input', resetTestButton);
+});
+
 async function loadSettings(): Promise<void> {
   const settings = await getSettings();
 
@@ -43,10 +58,12 @@ testBtn.addEventListener('click', async () => {
       }, settings);
     });
 
+    testBtn.textContent = TEST_BTN_VERIFIED;
     testConnectionStatus.className = 'test-connection-status success';
     testConnectionStatus.textContent = '✓ Connection successful! API is working correctly.';
   } catch (error) {
     console.error('Error testing connection:', error);
+    testBtn.textContent = TEST_BTN_DEFAULT;
     testConnectionStatus.className = 'test-connection-status error';
     testConnectionStatus.textContent = `✗ Connection failed: ${getErrorMessage(error)}`;
   }
