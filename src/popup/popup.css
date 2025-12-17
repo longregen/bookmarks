@@ -151,6 +151,17 @@ main {
   background: var(--btn-primary-hover);
 }
 
+.btn-success {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+
+.btn-success:hover:not(:disabled) {
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+
 .btn-secondary {
   background: var(--btn-secondary-bg);
   color: var(--btn-secondary-text);

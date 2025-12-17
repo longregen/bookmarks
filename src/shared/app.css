@@ -299,6 +299,23 @@ body {
   flex: 1;
 }
 
+#searchBtn.loading {
+  cursor: wait;
+  opacity: 0.9;
+}
+
+#searchBtn.loading .spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
+  margin-right: var(--space-1);
+}
+
 .result-header {
   display: flex;
   justify-content: space-between;
@@ -923,6 +940,13 @@ input:focus {
   background: var(--error-bg);
   color: var(--error-text);
   border: 1px solid var(--error-border);
+}
+
+.test-connection-status.testing {
+  background: var(--info-bg);
+  color: var(--info-text);
+  border: 1px solid var(--info-border);
+  animation: pulse 1s infinite;
 }
 
 .data-actions {
