@@ -38,63 +38,8 @@ Do not read or modify: `node_modules/`, `dist/`, `dist-*/`, `coverage/`
 
 ## Running E2E Tests Locally
 
-### Prerequisites
-
-- **Chrome/Chromium**: Download from `storage.googleapis.com` or install via package manager
-- **Firefox**: Download from Mozilla or install via package manager
-- **geckodriver**: Required for Firefox tests (download from GitHub releases)
-- **xvfb**: Required for headless display (`apt install xvfb`)
-
-### Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `BROWSER_PATH` | Yes | Path to browser executable |
-| `OPENAI_API_KEY` | Yes | API key (can be mock for most tests) |
-| `EXTENSION_PATH` | No | Custom extension path (defaults to `dist-chrome` or `dist-firefox`) |
-| `E2E_COVERAGE` | No | Set to `true` to collect coverage |
-
-### Chrome E2E Tests
-
-```bash
-# 1. Build the extension
-npm run build:chrome
-
-# 2. Run tests (requires display or xvfb)
-BROWSER_PATH=/path/to/chrome OPENAI_API_KEY=your-key \
+0. Claude can only run Chromium tests right now.
+1. Download Chromium from `storage.googleapis.com`; `apt install xvfb`\
+2. Build with `npm run build:chrome`, run with `BROWSER_PATH=/path/to/chrome OPENAI_API_KEY=your-key \
   xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" \
-  npm run test:e2e:chrome
-```
-
-### Firefox E2E Tests
-
-```bash
-# 1. Build the extension
-npm run build:firefox
-
-# 2. Ensure geckodriver is in PATH
-export PATH=$PATH:/path/to/geckodriver
-
-# 3. Run tests
-BROWSER_PATH=/path/to/firefox OPENAI_API_KEY=your-key \
-  xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" \
-  npm run test:e2e:firefox
-```
-
-### Downloading Chromium (if not installed)
-
-```bash
-# Get latest revision
-REVISION=$(curl -s https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/LAST_CHANGE)
-
-# Download and extract
-curl -L "https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/${REVISION}/chrome-linux.zip" -o chrome.zip
-unzip chrome.zip
-# Browser at: ./chrome-linux/chrome
-```
-
-### Test Structure
-
-- Most tests use a **mock API server** (no real API calls)
-- One test at the end uses the **real OpenAI API** to verify connectivity
-- Tests run in headed mode (extensions require it) with xvfb providing virtual display
+  npm run test:e2e:chrome`
