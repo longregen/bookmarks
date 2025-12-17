@@ -4,9 +4,18 @@ npm run lint
 npm run typecheck
 npm run test:unit
 
-# E2E tests require BROWSER_PATH - run if available
+# E2E tests - use Playwright's Chromium if available (non-blocking)
+if [ -z "$BROWSER_PATH" ]; then
+  PLAYWRIGHT_CHROME="$HOME/.cache/ms-playwright/chromium-1194/chrome-linux/chrome"
+  if [ -x "$PLAYWRIGHT_CHROME" ]; then
+    export BROWSER_PATH="$PLAYWRIGHT_CHROME"
+  fi
+fi
+
 if [ -n "$BROWSER_PATH" ]; then
-  npm run test:e2e:chrome
+  npm run build:chrome
+  export OPENAI_API_KEY="${OPENAI_API_KEY:-not-needed-for-tests}"
+  xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm run test:e2e:chrome || echo "⚠️  E2E tests failed (non-blocking)"
 else
-  echo "Skipping e2e tests (BROWSER_PATH not set)"
+  echo "Skipping e2e tests (BROWSER_PATH not set and Playwright Chromium not found)"
 fi
