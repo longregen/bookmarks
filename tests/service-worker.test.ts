@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { db, JobType, JobStatus } from '../src/db/schema';
-import { createJob, completeJob } from '../src/lib/jobs';
+import { createJob } from '../src/lib/jobs';
 
 describe('Service Worker Core Functionality', () => {
   beforeEach(async () => {
@@ -61,7 +61,6 @@ describe('Service Worker Core Functionality', () => {
         html: '<html><body>New</body></html>',
         status: 'pending',
         errorMessage: undefined,
-        errorStack: undefined,
         updatedAt: new Date(),
       });
 
@@ -79,7 +78,6 @@ describe('Service Worker Core Functionality', () => {
         html: '<html><body>Old</body></html>',
         status: 'error' as const,
         errorMessage: 'Previous error',
-        errorStack: 'Error stack',
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -90,14 +88,12 @@ describe('Service Worker Core Functionality', () => {
         html: '<html><body>New</body></html>',
         status: 'pending',
         errorMessage: undefined,
-        errorStack: undefined,
         updatedAt: new Date(),
       });
 
       const bookmark = await db.bookmarks.get('error-1');
       expect(bookmark?.status).toBe('pending');
       expect(bookmark?.errorMessage).toBeUndefined();
-      expect(bookmark?.errorStack).toBeUndefined();
     });
 
     it('should handle very large HTML content', async () => {
@@ -153,131 +149,77 @@ describe('Service Worker Core Functionality', () => {
     });
   });
 
-  describe('Job creation for manual adds', () => {
-    it('should create MANUAL_ADD job with correct metadata', async () => {
-      const data = {
-        url: 'https://example.com',
-        title: 'Test Page',
-        html: '<html><body>Test</body></html>',
-      };
-
+  describe('Job creation', () => {
+    it('should create FILE_IMPORT job with correct metadata', async () => {
       const job = await createJob({
-        type: JobType.MANUAL_ADD,
-        status: JobStatus.IN_PROGRESS,
+        type: JobType.FILE_IMPORT,
+        status: JobStatus.COMPLETED,
         metadata: {
-          url: data.url,
-          title: data.title,
-          source: 'manual',
+          fileName: 'bookmarks.html',
+          importedCount: 10,
         },
       });
 
-      expect(job.type).toBe(JobType.MANUAL_ADD);
-      expect(job.status).toBe(JobStatus.IN_PROGRESS);
-      expect(job.metadata.url).toBe(data.url);
-      expect(job.metadata.title).toBe(data.title);
-      expect(job.metadata.source).toBe('manual');
+      expect(job.type).toBe(JobType.FILE_IMPORT);
+      expect(job.status).toBe(JobStatus.COMPLETED);
+      expect(job.metadata.fileName).toBe('bookmarks.html');
+      expect(job.metadata.importedCount).toBe(10);
     });
 
-    it('should complete MANUAL_ADD job with capture metadata', async () => {
+    it('should create BULK_URL_IMPORT job with URL count', async () => {
       const job = await createJob({
-        type: JobType.MANUAL_ADD,
-        status: JobStatus.IN_PROGRESS,
+        type: JobType.BULK_URL_IMPORT,
+        status: JobStatus.COMPLETED,
+        metadata: {
+          totalUrls: 5,
+        },
+      });
+
+      expect(job.type).toBe(JobType.BULK_URL_IMPORT);
+      expect(job.status).toBe(JobStatus.COMPLETED);
+      expect(job.metadata.totalUrls).toBe(5);
+    });
+
+    it('should create URL_FETCH job with parent reference', async () => {
+      const parentJob = await createJob({
+        type: JobType.BULK_URL_IMPORT,
+        status: JobStatus.COMPLETED,
+        metadata: { totalUrls: 1 },
+      });
+
+      const childJob = await createJob({
+        type: JobType.URL_FETCH,
+        status: JobStatus.COMPLETED,
+        parentJobId: parentJob.id,
         metadata: {
           url: 'https://example.com',
-          title: 'Test',
-          source: 'manual',
         },
       });
 
-      await completeJob(job.id, {
-        url: 'https://example.com',
-        title: 'Test',
-        htmlSize: 1234,
-        captureTimeMs: 100,
-      });
-
-      const completed = await db.jobs.get(job.id);
-      expect(completed?.status).toBe(JobStatus.COMPLETED);
-      expect(completed?.metadata.htmlSize).toBe(1234);
-      expect(completed?.metadata.captureTimeMs).toBe(100);
-    });
-
-    it('should link job to bookmark', async () => {
-      const bookmarkId = crypto.randomUUID();
-      await db.bookmarks.add({
-        id: bookmarkId,
-        url: 'https://example.com',
-        title: 'Test',
-        html: '<html></html>',
-        status: 'pending',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      const job = await createJob({
-        type: JobType.MANUAL_ADD,
-        status: JobStatus.COMPLETED,
-        bookmarkId,
-        metadata: {},
-      });
-
-      expect(job.bookmarkId).toBe(bookmarkId);
-
-      const retrievedJob = await db.jobs.get(job.id);
-      expect(retrievedJob?.bookmarkId).toBe(bookmarkId);
+      expect(childJob.parentJobId).toBe(parentJob.id);
+      expect(childJob.metadata.url).toBe('https://example.com');
     });
   });
 
-  describe('Job status queries', () => {
+  describe('Job queries', () => {
     it('should retrieve job with all fields', async () => {
-      const now = new Date();
-      const job = {
-        id: 'job-1',
-        type: JobType.MARKDOWN_GENERATION,
-        status: JobStatus.IN_PROGRESS,
-        progress: 50,
-        currentStep: 'Processing',
-        totalSteps: 100,
-        completedSteps: 50,
+      const job = await createJob({
+        type: JobType.FILE_IMPORT,
+        status: JobStatus.COMPLETED,
         metadata: { test: 'data' },
-        createdAt: now,
-        updatedAt: now,
-      };
+      });
 
-      await db.jobs.add(job);
-
-      const retrieved = await db.jobs.get('job-1');
+      const retrieved = await db.jobs.get(job.id);
       expect(retrieved).toBeDefined();
-      expect(retrieved?.id).toBe('job-1');
-      expect(retrieved?.type).toBe(JobType.MARKDOWN_GENERATION);
-      expect(retrieved?.status).toBe(JobStatus.IN_PROGRESS);
-      expect(retrieved?.progress).toBe(50);
-      expect(retrieved?.currentStep).toBe('Processing');
+      expect(retrieved?.id).toBe(job.id);
+      expect(retrieved?.type).toBe(JobType.FILE_IMPORT);
+      expect(retrieved?.status).toBe(JobStatus.COMPLETED);
+      expect(retrieved?.createdAt).toBeInstanceOf(Date);
     });
 
     it('should return undefined for non-existent job', async () => {
       const job = await db.jobs.get('non-existent');
       expect(job).toBeUndefined();
-    });
-
-    it('should format completedAt when job is completed', async () => {
-      const now = new Date();
-      const job = {
-        id: 'job-1',
-        type: JobType.MANUAL_ADD,
-        status: JobStatus.COMPLETED,
-        progress: 100,
-        metadata: {},
-        createdAt: now,
-        updatedAt: now,
-        completedAt: now,
-      };
-
-      await db.jobs.add(job);
-
-      const retrieved = await db.jobs.get('job-1');
-      expect(retrieved?.completedAt).toBeInstanceOf(Date);
-      expect(retrieved?.completedAt?.toISOString()).toBe(now.toISOString());
     });
   });
 
@@ -343,14 +285,29 @@ describe('Service Worker Core Functionality', () => {
       await db.bookmarks.update('test-1', {
         status: 'error',
         errorMessage: error.message,
-        errorStack: error.stack,
         updatedAt: new Date(),
       });
 
       const updated = await db.bookmarks.get('test-1');
       expect(updated?.status).toBe('error');
       expect(updated?.errorMessage).toBe('Test error');
-      expect(updated?.errorStack).toBeDefined();
+    });
+
+    it('should support fetching status for bulk imports', async () => {
+      const bookmark = {
+        id: 'test-1',
+        url: 'https://example.com',
+        title: 'Test',
+        html: '',
+        status: 'fetching' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await db.bookmarks.add(bookmark);
+
+      const retrieved = await db.bookmarks.get('test-1');
+      expect(retrieved?.status).toBe('fetching');
     });
   });
 

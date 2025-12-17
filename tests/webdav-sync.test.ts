@@ -321,17 +321,13 @@ describe('WebDAV Sync - Race Condition Protection', () => {
 
   describe('Session Consistency', () => {
     it('should maintain session consistency across syncs', async () => {
-      const stateManagerModule = await import('../src/lib/state-manager');
-
       await performSync(true);
       const result = await performSync(true);
 
       expect(['uploaded', 'no-change']).toContain(result.action);
     });
 
-    it('should use state manager for sync operations', async () => {
-      const stateManagerModule = await import('../src/lib/state-manager');
-
+    it('should handle sequential sync operations', async () => {
       const result = await performSync(true);
 
       expect(['uploaded', 'no-change', 'skipped']).toContain(result.action);
