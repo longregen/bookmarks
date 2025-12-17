@@ -207,9 +207,6 @@ async function performSearch(): Promise<void> {
 
   showResultsMode();
   searchBtn.disabled = true;
-  const originalBtnText = searchBtn.textContent || 'Search';
-  setSpinnerContent(searchBtn, 'Searching...');
-  searchBtn.classList.add('loading');
 
   try {
     const [queryEmbedding] = await generateEmbeddings([query]);
@@ -335,8 +332,6 @@ async function performSearch(): Promise<void> {
     resultsList.appendChild(errorDiv);
   } finally {
     searchBtn.disabled = false;
-    searchBtn.textContent = originalBtnText;
-    searchBtn.classList.remove('loading');
   }
 }
 
