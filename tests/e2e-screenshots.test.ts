@@ -67,12 +67,20 @@ async function testNewUserOnboarding(adapter: ChromeAdapter): Promise<void> {
   `);
   await captureScreenshot(page, '03-api-config-filled.png');
 
-  // 4. Test connection - capture button state
-  await captureScreenshot(page, '04-before-test-connection.png');
+  // 4. Save settings
+  await page.click('[type="submit"]');
+  await page.waitForFunction(
+    `document.querySelector('.status')?.textContent?.includes('success')`,
+    10000
+  );
+  await captureScreenshot(page, '04-settings-saved.png');
+
+  // 5. Test connection - capture button state
+  await captureScreenshot(page, '05-before-test-connection.png');
 
   await page.click('#testBtn');
   await new Promise(resolve => setTimeout(resolve, 500));
-  await captureScreenshot(page, '05-testing-connection.png');
+  await captureScreenshot(page, '06-testing-connection.png');
 
   // Wait for test to complete
   await page.waitForFunction(
@@ -83,7 +91,7 @@ async function testNewUserOnboarding(adapter: ChromeAdapter): Promise<void> {
     })()`,
     30000
   );
-  await captureScreenshot(page, '06-test-connection-feedback.png');
+  await captureScreenshot(page, '07-test-connection-feedback.png');
 
   await page.close();
 }
@@ -97,7 +105,7 @@ async function testAddingBookmark(adapter: ChromeAdapter): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, 500));
 
   // 1. Initial popup state
-  await captureScreenshot(page, '07-popup-initial.png');
+  await captureScreenshot(page, '08-popup-initial.png');
 
   // 2. Simulate saving a bookmark
   const testUrl = 'https://example.com/test-article';
@@ -128,7 +136,7 @@ async function testAddingBookmark(adapter: ChromeAdapter): Promise<void> {
   `);
 
   await new Promise(resolve => setTimeout(resolve, 2000));
-  await captureScreenshot(page, '08-popup-after-save.png');
+  await captureScreenshot(page, '09-popup-after-save.png');
 
   await page.close();
 
@@ -137,7 +145,7 @@ async function testAddingBookmark(adapter: ChromeAdapter): Promise<void> {
   await libraryPage.goto(adapter.getPageUrl('library'));
   await libraryPage.waitForSelector('#bookmarkList');
   await new Promise(resolve => setTimeout(resolve, 2000));
-  await captureScreenshot(libraryPage, '09-library-with-new-bookmark.png', true);
+  await captureScreenshot(libraryPage, '10-library-with-new-bookmark.png', true);
   await libraryPage.close();
 }
 
@@ -150,16 +158,16 @@ async function testBackgroundJobs(adapter: ChromeAdapter): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, 1000));
 
   // 1. Initial jobs page
-  await captureScreenshot(page, '10-jobs-initial.png', true);
+  await captureScreenshot(page, '11-jobs-initial.png', true);
 
   // 2. Test filters
   await page.select('#jobTypeFilter', 'manual_add');
   await new Promise(resolve => setTimeout(resolve, 500));
-  await captureScreenshot(page, '11-jobs-filtered-by-type.png', true);
+  await captureScreenshot(page, '12-jobs-filtered-by-type.png', true);
 
   await page.select('#jobStatusFilter', 'completed');
   await new Promise(resolve => setTimeout(resolve, 500));
-  await captureScreenshot(page, '12-jobs-filtered-by-status.png', true);
+  await captureScreenshot(page, '13-jobs-filtered-by-status.png', true);
 
   // Reset filters
   await page.select('#jobTypeFilter', '');
@@ -187,7 +195,7 @@ async function testAdvancedConfiguration(adapter: ChromeAdapter): Promise<void> 
   await new Promise(resolve => setTimeout(resolve, 1000));
 
   // 1. Default state
-  await captureScreenshot(page, '13-advanced-config-default.png');
+  await captureScreenshot(page, '14-advanced-config-default.png');
 
   // 2. Click "Show All Settings" button
   // Override window.confirm to auto-accept
@@ -203,7 +211,7 @@ async function testAdvancedConfiguration(adapter: ChromeAdapter): Promise<void> 
   `);
 
   await new Promise(resolve => setTimeout(resolve, 1000));
-  await captureScreenshot(page, '14-advanced-config-expanded.png', true);
+  await captureScreenshot(page, '15-advanced-config-expanded.png', true);
 
   await page.close();
 }
@@ -217,7 +225,7 @@ async function testScrollingBehavior(adapter: ChromeAdapter): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, 1000));
 
   // 1. Top of page
-  await captureScreenshot(page, '15-options-scroll-top.png');
+  await captureScreenshot(page, '16-options-scroll-top.png');
 
   // 2. Scroll middle container
   await page.evaluate(`
@@ -229,7 +237,7 @@ async function testScrollingBehavior(adapter: ChromeAdapter): Promise<void> {
     })()
   `);
   await new Promise(resolve => setTimeout(resolve, 500));
-  await captureScreenshot(page, '16-options-scroll-middle.png');
+  await captureScreenshot(page, '17-options-scroll-middle.png');
 
   // 3. Scroll to bottom
   await page.evaluate(`
@@ -241,7 +249,7 @@ async function testScrollingBehavior(adapter: ChromeAdapter): Promise<void> {
     })()
   `);
   await new Promise(resolve => setTimeout(resolve, 500));
-  await captureScreenshot(page, '17-options-scroll-bottom.png');
+  await captureScreenshot(page, '18-options-scroll-bottom.png');
 
   await page.close();
 }
@@ -313,7 +321,7 @@ async function testMarkdownStyling(adapter: ChromeAdapter): Promise<void> {
     `);
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    await captureScreenshot(page, `18-markdown-${theme}-theme.png`, true);
+    await captureScreenshot(page, `19-markdown-${theme}-theme.png`, true);
     await page.close();
   }
 }
@@ -338,7 +346,7 @@ async function testLinkColors(adapter: ChromeAdapter): Promise<void> {
     `);
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    await captureScreenshot(page, `22-links-${theme}-theme.png`);
+    await captureScreenshot(page, `23-links-${theme}-theme.png`);
     await page.close();
   }
 }
@@ -374,10 +382,10 @@ async function testSearchSpinners(adapter: ChromeAdapter): Promise<void> {
   await page.click('#searchBtn');
 
   // Capture the loading state quickly (spinner should be visible)
-  await captureScreenshot(page, '26-search-loading-state.png');
+  await captureScreenshot(page, '27-search-loading-state.png');
 
   await new Promise(resolve => setTimeout(resolve, 3000));
-  await captureScreenshot(page, '27-search-completed-state.png');
+  await captureScreenshot(page, '28-search-completed-state.png');
 
   await page.close();
 }
