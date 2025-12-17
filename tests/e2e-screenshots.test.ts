@@ -77,7 +77,7 @@ async function testNewUserOnboarding(adapter: ChromeAdapter): Promise<void> {
   // Wait for test to complete
   await page.waitForFunction(
     `(() => {
-      const status = document.querySelector('.status');
+      const status = document.querySelector('.test-connection-status');
       return status && !status.classList.contains('hidden') &&
              (status.textContent?.includes('successful') || status.textContent?.includes('failed'));
     })()`,
