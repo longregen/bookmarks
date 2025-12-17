@@ -159,7 +159,7 @@ async function testWebDAVConnection(
       method: 'PROPFIND',
       headers: {
         'Depth': '0',
-        'Authorization': `Basic ${  btoa(`${username}:${password}`)}`,
+        'Authorization': `Basic ${btoa(`${username}:${password}`)}`,
         'Content-Type': 'application/xml',
       },
       body: `<?xml version="1.0" encoding="utf-8" ?>
@@ -250,7 +250,7 @@ function formatSyncTime(isoTime: string): string {
     if (diffHours < 24) {
       return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
     } else {
-      return `${date.toLocaleDateString()  } ${  date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     }
   }
 }
@@ -293,10 +293,10 @@ syncNowBtn.addEventListener('click', async () => {
 });
 
 function startSyncStatusPolling(): void {
-  syncStatusPoller.stop();
-
   if (webdavEnabledInput.checked) {
     syncStatusPoller.start();
+  } else {
+    syncStatusPoller.stop();
   }
 }
 

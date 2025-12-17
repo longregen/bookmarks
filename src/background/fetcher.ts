@@ -11,11 +11,10 @@ export async function processBulkFetch(parentJobId: string, isResumption = false
     const parentJob = await db.jobs.get(parentJobId);
     if (!parentJob) return;
 
-    const allChildJobs = await getJobsByParent(parentJobId);
-    const pendingJobs = allChildJobs
+    const pendingJobIds = (await getJobsByParent(parentJobId))
       .filter(job => job.status === JobStatus.PENDING)
-      .sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime());
-    const pendingJobIds = pendingJobs.map(job => job.id);
+      .sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime())
+      .map(job => job.id);
 
     for (let i = 0; i < pendingJobIds.length; i += config.FETCH_CONCURRENCY) {
       const batch = pendingJobIds.slice(i, i + config.FETCH_CONCURRENCY);
@@ -26,7 +25,7 @@ export async function processBulkFetch(parentJobId: string, isResumption = false
     if (finalParentJob) {
       await completeJob(parentJobId, {
         ...finalParentJob.metadata,
-        resumedAt: isResumption ? new Date().toISOString() : undefined,
+        ...(isResumption && { resumedAt: new Date().toISOString() }),
       });
     }
 

@@ -5,14 +5,6 @@ import { exportSingleBookmark, downloadExport } from './export';
 import { createTagEditor } from './tag-editor';
 import { parseMarkdown } from './markdown';
 
-/**
- * Renders markdown text to HTML using the marked library
- * @deprecated Use parseMarkdown directly instead
- */
-export function renderMarkdown(text: string): string {
-  return parseMarkdown(text);
-}
-
 export interface BookmarkDetailConfig {
   detailPanel: HTMLElement;
   detailBackdrop: HTMLElement;
@@ -148,9 +140,5 @@ export class BookmarkDetailManager {
 
     // eslint-disable-next-line no-alert
     alert(`HTML Length: ${bookmark.html.length} chars\nStatus: ${bookmark.status}\n\n${bookmark.html.slice(0, 500)}...`);
-  }
-
-  getCurrentBookmarkId(): string | null {
-    return this.currentBookmarkId;
   }
 }

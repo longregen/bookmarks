@@ -97,5 +97,5 @@ importBtn.addEventListener('click', async () => {
 });
 
 export function initImportExportModule(): void {
-  // Module is initialized via event listeners above
+  // Event listeners are registered at module level during import
 }

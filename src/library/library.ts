@@ -7,8 +7,6 @@ import { initWeb } from '../web/init-web';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
 import { createHealthIndicator } from '../lib/health-indicator';
 import { BookmarkDetailManager } from '../lib/bookmark-detail';
-import { validateSingleUrl, createBulkImportJob } from '../lib/bulk-import';
-import { processBulkFetch } from '../background/fetcher';
 
 let selectedTag = 'All';
 let sortBy = 'newest';
@@ -173,77 +171,25 @@ async function loadBookmarks(): Promise<void> {
 
 if (__IS_WEB__) {
   void initWeb();
-  // Note: initAddUrlSection() is disabled for web builds due to CORS limitations
-  // The web app cannot fetch external URLs, so URL import functionality is not available
 } else {
   void initExtension();
 }
 onThemeChange((theme) => applyTheme(theme));
-void loadTags();
-void loadBookmarks();
 
-function _initAddUrlSection(): void {
-  const addUrlSection = document.getElementById('addUrlSection');
-  const addUrlInput = document.getElementById('addUrlInput');
-  const addUrlBtn = document.getElementById('addUrlBtn');
-  const addUrlStatus = document.getElementById('addUrlStatus');
+// Initialize data and handle URL parameters
+const urlParams = new URLSearchParams(window.location.search);
+const bookmarkIdParam = urlParams.get('bookmarkId');
 
-  if (!addUrlSection || !addUrlInput || !addUrlBtn || !addUrlStatus) return;
+async function initializeApp(): Promise<void> {
+  await Promise.all([loadTags(), loadBookmarks()]);
 
-  const typedInput = addUrlInput as HTMLInputElement;
-  const typedBtn = addUrlBtn as HTMLButtonElement;
-  const typedStatus = addUrlStatus;
-
-  addUrlSection.classList.remove('hidden');
-
-  async function addUrl(): Promise<void> {
-    const url = typedInput.value.trim();
-    if (!url) return;
-
-    const validation = validateSingleUrl(url);
-    if (!validation.isValid) {
-      showAddUrlStatus(validation.error ?? 'Invalid URL', 'error');
-      return;
-    }
-
-    typedBtn.disabled = true;
-    typedBtn.textContent = 'Adding...';
-    showAddUrlStatus('Fetching page...', 'info');
-
-    try {
-      const jobId = await createBulkImportJob([validation.normalized]);
-      await processBulkFetch(jobId);
-
-      typedInput.value = '';
-      showAddUrlStatus('Bookmark added successfully!', 'success');
-      void loadTags();
-      void loadBookmarks();
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to add bookmark';
-      showAddUrlStatus(errorMessage, 'error');
-    } finally {
-      typedBtn.disabled = false;
-      typedBtn.textContent = 'Add';
-    }
+  // Show detail panel if bookmarkId is in URL
+  if (bookmarkIdParam !== null && bookmarkIdParam !== '') {
+    await detailManager.showDetail(bookmarkIdParam);
   }
-
-  function showAddUrlStatus(message: string, type: 'success' | 'error' | 'info'): void {
-    typedStatus.textContent = message;
-    typedStatus.className = `add-url-status ${type}`;
-    typedStatus.classList.remove('hidden');
-
-    if (type === 'success') {
-      setTimeout(() => {
-        typedStatus.classList.add('hidden');
-      }, 3000);
-    }
-  }
-
-  typedBtn.addEventListener('click', () => void addUrl());
-  typedInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') void addUrl();
-  });
 }
+
+void initializeApp();
 
 // Event-driven updates instead of constant polling
 const removeEventListener = addBookmarkEventListener((event) => {
@@ -267,15 +213,6 @@ window.addEventListener('beforeunload', () => {
 const healthIndicatorContainer = document.getElementById('healthIndicator');
 if (healthIndicatorContainer) {
   createHealthIndicator(healthIndicatorContainer);
-}
-
-const urlParams = new URLSearchParams(window.location.search);
-const bookmarkIdParam = urlParams.get('bookmarkId');
-if (bookmarkIdParam !== null && bookmarkIdParam !== '') {
-  // Wait for bookmarks to load, then show detail
-  setTimeout(() => {
-    void detailManager.showDetail(bookmarkIdParam);
-  }, 500);
 }
 
 declare global {

@@ -20,7 +20,7 @@ export function encodeEmbedding(embedding: number[]): string {
 export function decodeEmbedding(encoded: string): number[] {
   const buffer = base64ToArrayBuffer(encoded);
   const view = new Int16Array(buffer);
-  const embedding: number[] = Array.from({ length: view.length }, () => 0);
+  const embedding = new Array<number>(view.length);
 
   for (let i = 0; i < view.length; i++) {
     embedding[i] = view[i] / QUANTIZE_SCALE;

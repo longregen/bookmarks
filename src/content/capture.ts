@@ -68,7 +68,7 @@ async function capturePage(): Promise<void> {
 
 function injectThemeVariables(effectiveTheme: 'light' | 'dark' | 'terminal' | 'tufte'): void {
   const styleId = 'bookmark-rag-toast-theme';
-  let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
+  let styleEl = document.getElementById(styleId);
 
   if (!styleEl) {
     styleEl = document.createElement('style');
@@ -136,7 +136,7 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-chrome.runtime.onMessage.addListener((message: { type?: string }, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: { type?: string }, _sender, sendResponse) => {
   if (message.type === 'CAPTURE_PAGE') {
     void capturePage();
     const response: CapturePageResponse = { success: true };

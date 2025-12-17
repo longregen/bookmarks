@@ -1,7 +1,7 @@
 import { getPlatformAdapter } from './platform';
 import { config } from './config-registry';
 
-interface QAPair {
+export interface QAPair {
   question: string;
   answer: string;
 }
@@ -94,7 +94,7 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
 
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   const settings = await getPlatformAdapter().getSettings();
-
+  // TODO: use helper function
   if (__DEBUG_EMBEDDINGS__) {
     console.log('[Embeddings API] Starting embedding generation', {
       inputCount: texts.length,
@@ -119,10 +119,7 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
 
   if (__DEBUG_EMBEDDINGS__) {
     console.log('[Embeddings API] Raw API response', {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      hasData: data.data !== undefined,
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      dataLength: data.data?.length,
+      dataLength: data.data.length,
       model: data.model,
       usage: data.usage,
     });
@@ -134,17 +131,13 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   if (__DEBUG_EMBEDDINGS__) {
     console.log('[Embeddings API] Extracted embeddings', {
       count: embeddings.length,
-      dimensions: embeddings.map((e: number[] | undefined) => e?.length ?? 'undefined'),
-      allSameDimension: embeddings.every((e: number[] | undefined) => e?.length === embeddings[0]?.length),
-      firstEmbeddingSample: embeddings[0]?.slice(0, 5),
+      dimensions: embeddings.map((e) => e.length),
+      allSameDimension: embeddings.every((e) => e.length === embeddings[0].length),
+      firstEmbeddingSample: embeddings[0].slice(0, 5),
     });
 
-    embeddings.forEach((embedding: number[] | undefined, index: number) => {
-      if (!embedding) {
-        console.error(`[Embeddings API] Embedding at index ${index} is undefined`);
-      } else if (!Array.isArray(embedding)) {
-        console.error(`[Embeddings API] Embedding at index ${index} is not an array:`, typeof embedding);
-      } else if (embedding.length === 0) {
+    embeddings.forEach((embedding, index) => {
+      if (embedding.length === 0) {
         console.error(`[Embeddings API] Embedding at index ${index} is empty`);
       }
     });

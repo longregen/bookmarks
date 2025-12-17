@@ -8,8 +8,17 @@ export interface TagEditorOptions {
   onTagsChange?: () => void;
 }
 
+function normalizeTagName(input: string): string {
+  return input.trim().toLowerCase().replace(/\s+/g, '-');
+}
+
 export async function createTagEditor(options: TagEditorOptions): Promise<void> {
   const { bookmarkId, container, onTagsChange } = options;
+
+  const containerWithCleanup = container as HTMLElement & { _cleanup?: () => void };
+  if (containerWithCleanup._cleanup) {
+    containerWithCleanup._cleanup();
+  }
 
   const tags = await db.bookmarkTags.where('bookmarkId').equals(bookmarkId).toArray();
   const allTags = await getAllTags();
@@ -43,6 +52,13 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
     className: 'tag-dropdown'
   });
 
+  const existingTagNames = tags.map(t => t.tagName);
+
+  const addHoverStyles = (element: HTMLElement): void => {
+    element.addEventListener('mouseenter', () => { element.style.background = 'var(--bg-secondary)'; });
+    element.addEventListener('mouseleave', () => { element.style.background = 'transparent'; });
+  };
+
   input.addEventListener('input', () => {
     const value = input.value.trim().toLowerCase();
     dropdown.innerHTML = '';
@@ -52,7 +68,6 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
       return;
     }
 
-    const existingTagNames = tags.map(t => t.tagName);
     const matches = allTags
       .filter(t => t.includes(value) && !existingTagNames.includes(t))
       .slice(0, 5);
@@ -62,24 +77,23 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
         textContent: `#${match}`,
         className: 'tag-dropdown-item'
       });
-      item.addEventListener('mouseenter', () => { item.style.background = 'var(--bg-secondary)'; });
-      item.addEventListener('mouseleave', () => { item.style.background = 'transparent'; });
-      item.addEventListener('click', () => addTag(match, bookmarkId, container, onTagsChange));
+      addHoverStyles(item);
+      item.addEventListener('click', () => addTag(normalizeTagName(match), bookmarkId, container, onTagsChange));
       dropdown.appendChild(item);
     }
 
-    if (!allTags.includes(value) && value.length > 0) {
+    const normalizedValue = normalizeTagName(value);
+    if (!allTags.includes(normalizedValue)) {
       const createItem = createElement('div', {
-        textContent: `Create "#${value}"`,
+        textContent: `Create "#${normalizedValue}"`,
         className: 'tag-dropdown-item create'
       });
       if (matches.length > 0) {
         createItem.style.borderTop = '1px solid var(--border-primary)';
       }
       createItem.style.color = 'var(--accent-link)';
-      createItem.addEventListener('mouseenter', () => { createItem.style.background = 'var(--bg-secondary)'; });
-      createItem.addEventListener('mouseleave', () => { createItem.style.background = 'transparent'; });
-      createItem.addEventListener('click', () => addTag(value, bookmarkId, container, onTagsChange));
+      addHoverStyles(createItem);
+      createItem.addEventListener('click', () => addTag(normalizedValue, bookmarkId, container, onTagsChange));
       dropdown.appendChild(createItem);
     }
 
@@ -89,18 +103,24 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
   input.addEventListener('keydown', async (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      const value = input.value.trim().toLowerCase().replace(/\s+/g, '-');
+      const value = normalizeTagName(input.value);
       if (value) {
         await addTag(value, bookmarkId, container, onTagsChange);
       }
     }
   });
 
-  document.addEventListener('click', (e) => {
+  const handleClickOutside = (e: MouseEvent): void => {
     if (!inputWrapper.contains(e.target as Node)) {
       dropdown.style.display = 'none';
     }
-  });
+  };
+  document.addEventListener('click', handleClickOutside);
+
+  const cleanup = (): void => {
+    document.removeEventListener('click', handleClickOutside);
+  };
+  containerWithCleanup._cleanup = cleanup;
 
   inputWrapper.appendChild(input);
   inputWrapper.appendChild(dropdown);

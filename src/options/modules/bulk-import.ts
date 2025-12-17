@@ -63,9 +63,7 @@ const bulkImportPoller: Poller = createPoller(
 );
 
 bulkUrlsInput.addEventListener('input', () => {
-  if (validationTimeout !== null) {
-    clearTimeout(validationTimeout);
-  }
+  clearTimeout(validationTimeout ?? undefined);
 
   validationTimeout = window.setTimeout(() => {
     const urlsText = bulkUrlsInput.value.trim();
@@ -173,10 +171,6 @@ cancelBulkImportBtn.addEventListener('click', () => {
   }
 });
 
-function stopBulkImportPolling(): void {
-  bulkImportPoller.stop();
-}
-
 export function initBulkImportModule(): () => void {
   // Hide bulk import section for web platform (CORS prevents fetching external URLs)
   if (__IS_WEB__) {
@@ -188,6 +182,6 @@ export function initBulkImportModule(): () => void {
   }
 
   return (): void => {
-    stopBulkImportPolling();
+    bulkImportPoller.stop();
   };
 }

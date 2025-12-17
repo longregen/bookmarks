@@ -6,6 +6,7 @@ import { broadcastEvent } from './events';
 import { config } from './config-registry';
 import { validateWebDAVUrl } from './url-validator';
 import { getErrorMessage } from './errors';
+import type { SyncStatus } from './messages';
 
 const syncState = createStateManager({
   name: 'WebDAVSync',
@@ -22,20 +23,6 @@ export interface SyncResult {
   bookmarkCount?: number;
 }
 
-export interface SyncStatus {
-  lastSyncTime: string | null;
-  lastSyncError: string | null;
-  isSyncing: boolean;
-}
-
-export function validateSecureConnection(settings: ApiSettings): { valid: boolean; error?: string } {
-  const result = validateWebDAVUrl(settings.webdavUrl, settings.webdavAllowInsecure);
-  return {
-    valid: result.valid,
-    error: result.error,
-  };
-}
-
 export async function getSyncStatus(): Promise<SyncStatus> {
   const settings = await getSettings();
   return {
@@ -45,7 +32,7 @@ export async function getSyncStatus(): Promise<SyncStatus> {
   };
 }
 
-export async function isWebDAVConfigured(): Promise<boolean> {
+async function isWebDAVConfigured(): Promise<boolean> {
   const settings = await getSettings();
   return !!(
     settings.webdavEnabled &&
@@ -55,16 +42,18 @@ export async function isWebDAVConfigured(): Promise<boolean> {
   );
 }
 
-function buildFileUrl(settings: ApiSettings): string {
+function buildBaseUrl(settings: ApiSettings): string {
   const baseUrl = settings.webdavUrl.replace(/\/$/, '');
   const path = settings.webdavPath.replace(/^\//, '').replace(/\/$/, '');
-  return `${baseUrl}/${path}/bookmarks.json`;
+  return `${baseUrl}/${path}`;
+}
+
+function buildFileUrl(settings: ApiSettings): string {
+  return `${buildBaseUrl(settings)}/bookmarks.json`;
 }
 
 function buildFolderUrl(settings: ApiSettings): string {
-  const baseUrl = settings.webdavUrl.replace(/\/$/, '');
-  const path = settings.webdavPath.replace(/^\//, '').replace(/\/$/, '');
-  return `${baseUrl}/${path}/`;
+  return `${buildBaseUrl(settings)}/`;
 }
 
 function getAuthHeader(settings: ApiSettings): string {
@@ -137,12 +126,12 @@ async function getRemoteMetadata(settings: ApiSettings): Promise<{
     }
 
     const lastModifiedStr = response.headers.get('Last-Modified');
-    const etag = response.headers.get('ETag') ?? undefined;
+    const etag = response.headers.get('ETag');
 
     return {
       exists: true,
       lastModified: (lastModifiedStr !== null && lastModifiedStr !== '') ? new Date(lastModifiedStr) : undefined,
-      etag,
+      etag: etag ?? undefined,
     };
   } catch (_error) {
     return { exists: false };
@@ -238,7 +227,7 @@ export async function performSync(force = false): Promise<SyncResult> {
   try {
     const settings = await getSettings();
 
-    const validation = validateSecureConnection(settings);
+    const validation = validateWebDAVUrl(settings.webdavUrl, settings.webdavAllowInsecure);
     if (!validation.valid) {
       await saveSetting('webdavLastSyncError', validation.error ?? 'Connection validation failed');
       return {

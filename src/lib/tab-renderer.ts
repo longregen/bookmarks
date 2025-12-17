@@ -13,9 +13,10 @@ const KEEPALIVE_ALARM_NAME = 'tab-renderer-keepalive';
 /**
  * Start a keepalive alarm to prevent service worker termination
  * In MV3, service workers can be killed after ~30s of inactivity
+ * Chrome 120+ enforces minimum 30-second alarm intervals
  */
 async function startKeepalive(): Promise<void> {
-  await chrome.alarms.create(KEEPALIVE_ALARM_NAME, { periodInMinutes: 25 / 60 });
+  await chrome.alarms.create(KEEPALIVE_ALARM_NAME, { periodInMinutes: 0.5 });
 }
 
 async function stopKeepalive(): Promise<void> {
@@ -41,9 +42,6 @@ export async function renderPage(url: string, timeoutMs: number = config.FETCH_T
 
     await waitForTabLoad(tabId, timeoutMs);
 
-    const updatedTab = await chrome.tabs.get(tabId);
-    const _finalUrl = updatedTab.url ?? url;
-
     const settleTimeMs = config.PAGE_SETTLE_TIME_MS || 2000;
     const html = await executeExtraction(tabId, settleTimeMs);
 
@@ -52,8 +50,6 @@ export async function renderPage(url: string, timeoutMs: number = config.FETCH_T
     }
 
     return html;
-  } catch (error) {
-    throw error instanceof Error ? error : new Error(String(error));
   } finally {
     await stopKeepalive();
 
@@ -75,7 +71,7 @@ async function waitForTabLoad(tabId: number, timeoutMs: number): Promise<void> {
     }, timeoutMs);
 
     const listener = (updatedTabId: number, changeInfo: { status?: string }): void => {
-      if (updatedTabId === tabId && changeInfo.status !== undefined && changeInfo.status === 'complete') {
+      if (updatedTabId === tabId && changeInfo.status === 'complete') {
         cleanup();
         resolve();
       }
@@ -89,7 +85,7 @@ async function waitForTabLoad(tabId: number, timeoutMs: number): Promise<void> {
     chrome.tabs.onUpdated.addListener(listener);
 
     chrome.tabs.get(tabId).then((tab) => {
-      if (tab.status !== undefined && tab.status === 'complete') {
+      if (tab.status === 'complete') {
         cleanup();
         resolve();
       }
@@ -130,9 +126,10 @@ async function executeExtraction(tabId: number, settleTimeMs: number): Promise<s
     args: [settleTimeMs],
   });
 
-  if (results.length === 0 || (results[0].result ?? '') === '') {
+  const result = results[0]?.result;
+  if (results.length === 0 || result === undefined || result === '') {
     throw new Error('Failed to extract HTML from page');
   }
 
-  return results[0].result ?? '';
+  return result;
 }

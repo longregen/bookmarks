@@ -51,11 +51,10 @@ export function validateUrls(urlsText: string): ValidationResult {
 }
 
 export function validateSingleUrl(url: string): UrlValidation {
-  const original = url;
   const result = validateWebUrl(url);
 
   return {
-    original,
+    original: url,
     normalized: result.normalizedUrl ?? '',
     isValid: result.valid,
     error: result.error,

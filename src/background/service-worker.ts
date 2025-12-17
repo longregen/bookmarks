@@ -153,10 +153,6 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
     return true;
   }
 
-  if (message.type === 'FETCH_URL' && !sender.tab) {
-    return false;
-  }
-
   return false;
 });
 
@@ -164,8 +160,8 @@ chrome.commands.onCommand.addListener((command) => {
   if (command === 'save-bookmark') {
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
       const tab = tabs[0];
-      // eslint-disable-next-line @typescript-eslint/prefer-optional-chain, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions
-      if (!tab || tab.id === undefined || tab.id === 0) return;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (tab?.id === undefined) return;
 
       if (tab.url === undefined || tab.url === '') {
         console.warn('Cannot save bookmark: tab URL is undefined (incognito mode or restricted URL)');
