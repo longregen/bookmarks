@@ -9,3 +9,5 @@ dist-web/
 .crx
 tsconfig.tsbuildinfo
 coverage/
+coverage-e2e/
+coverage-merged/

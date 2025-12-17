@@ -24,6 +24,7 @@
     "test:e2e:firefox": "npx tsx tests/e2e-firefox.test.ts",
     "test:e2e:web": "npx tsx tests/e2e-web.test.ts",
     "test:all": "npm run test:unit && npm run test:e2e:chrome && npm run test:e2e:web",
+    "coverage:merge": "npx tsx scripts/merge-coverage.ts",
     "screenshots": "npx tsx scripts/capture-screenshots.ts"
   },
   "dependencies": {
@@ -36,17 +37,24 @@
     "@crxjs/vite-plugin": "^2.3.0",
     "@eslint/js": "^9.39.2",
     "@types/chrome": "^0.1.32",
+    "@types/istanbul-lib-coverage": "^2.0.6",
+    "@types/istanbul-lib-report": "^3.0.3",
+    "@types/istanbul-reports": "^3.0.4",
     "@types/turndown": "^5.0.6",
     "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^9.39.2",
     "fake-indexeddb": "^6.2.5",
     "globals": "^16.5.0",
+    "istanbul-lib-coverage": "^3.2.2",
+    "istanbul-lib-report": "^3.0.1",
+    "istanbul-reports": "^3.2.0",
     "jsdom": "^27.3.0",
     "puppeteer-core": "^24.33.0",
     "selenium-webdriver": "^4.39.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.50.0",
+    "v8-to-istanbul": "^9.3.0",
     "vite": "^7.3.0",
     "vitest": "^4.0.16"
   }
