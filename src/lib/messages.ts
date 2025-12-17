@@ -5,7 +5,6 @@ export type Message =
   | { type: 'CAPTURE_PAGE' }
   | { type: 'GET_PAGE_HTML' }
   | { type: 'START_BULK_IMPORT'; urls: string[] }
-  | { type: 'GET_JOB_STATUS'; jobId: string }
   | { type: 'GET_CURRENT_TAB_INFO' }
   | { type: 'START_PROCESSING' }
   | { type: 'TRIGGER_SYNC' }
@@ -27,24 +26,6 @@ export interface StartBulkImportResponse {
   success: boolean;
   jobId?: string;
   totalUrls?: number;
-  error?: string;
-}
-
-export interface JobInfo {
-  id: string;
-  type: string;
-  status: string;
-  progress: number;
-  currentStep?: string;
-  metadata: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
-  completedAt?: string;
-}
-
-export interface GetJobStatusResponse {
-  success: boolean;
-  job?: JobInfo;
   error?: string;
 }
 
@@ -113,7 +94,6 @@ export type MessageOfType<T extends MessageType> = Extract<Message, { type: T }>
 export type MessageResponse<T extends MessageType> =
   T extends 'SAVE_BOOKMARK' ? SaveBookmarkResponse
   : T extends 'START_BULK_IMPORT' ? StartBulkImportResponse
-  : T extends 'GET_JOB_STATUS' ? GetJobStatusResponse
   : T extends 'GET_CURRENT_TAB_INFO' ? TabInfo
   : T extends 'START_PROCESSING' ? StartProcessingResponse
   : T extends 'TRIGGER_SYNC' ? TriggerSyncResponse
@@ -130,13 +110,6 @@ export type MessageHandler<T extends MessageType> = (
   message: MessageOfType<T>
 ) => Promise<MessageResponse<T>>;
 
-export function isMessageOfType<T extends MessageType>(
-  message: Message,
-  type: T
-): message is MessageOfType<T> {
-  return message.type === type;
-}
-
 export async function sendMessage<T extends MessageType>(
   message: MessageOfType<T>
 ): Promise<MessageResponse<T>> {
@@ -149,15 +122,4 @@ export async function sendMessage<T extends MessageType>(
       resolve(response);
     });
   });
-}
-
-export async function sendMessageSafe<T extends MessageType>(
-  message: MessageOfType<T>
-): Promise<MessageResponse<T>> {
-  try {
-    return await sendMessage(message);
-  } catch (error) {
-    console.error('Error sending message:', error);
-    throw error;
-  }
 }

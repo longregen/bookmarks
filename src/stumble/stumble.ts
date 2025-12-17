@@ -67,15 +67,12 @@ async function loadStumble(): Promise<void> {
     let bookmarks = await db.bookmarks.where('status').equals('complete').toArray();
 
     if (selectedTags.size > 0) {
-      const tagResults = await Promise.all(
-        Array.from(selectedTags).map(tag =>
-          db.bookmarkTags.where('tagName').equals(tag).toArray()
-        )
-      );
-      const taggedIds = new Set<string>();
-      for (const tagged of tagResults) {
-        tagged.forEach((t: BookmarkTag) => taggedIds.add(t.bookmarkId));
-      }
+      // Use anyOf for single query instead of N queries
+      const tagResults = await db.bookmarkTags
+        .where('tagName')
+        .anyOf(Array.from(selectedTags))
+        .toArray();
+      const taggedIds = new Set(tagResults.map((t: BookmarkTag) => t.bookmarkId));
       bookmarks = bookmarks.filter(b => taggedIds.has(b.id));
     }
 

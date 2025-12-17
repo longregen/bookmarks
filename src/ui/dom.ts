@@ -9,10 +9,6 @@ export function getElement<T extends HTMLElement = HTMLElement>(id: string): T {
   return el as T;
 }
 
-export function getElements<T extends HTMLElement = HTMLElement>(...ids: string[]): T[] {
-  return ids.map(id => getElement<T>(id));
-}
-
 export interface CreateElementOptions {
   className?: string;
   textContent?: string;

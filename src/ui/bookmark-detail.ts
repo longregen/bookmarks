@@ -5,7 +5,7 @@ import { exportSingleBookmark } from '../lib/export';
 import { downloadExport } from './export-download';
 import { createTagEditor } from './tag-editor';
 import { parseMarkdown } from '../lib/markdown';
-import { retryBookmark } from '../lib/jobs';
+import { retryBookmark, deleteBookmarkWithData } from '../lib/jobs';
 
 export interface BookmarkDetailConfig {
   detailPanel: HTMLElement;
@@ -150,10 +150,7 @@ export class BookmarkDetailManager {
     // eslint-disable-next-line no-alert
     if (this.currentBookmarkId === null || !confirm('Delete this bookmark?')) return;
 
-    await db.markdown.where('bookmarkId').equals(this.currentBookmarkId).delete();
-    await db.questionsAnswers.where('bookmarkId').equals(this.currentBookmarkId).delete();
-    await db.bookmarkTags.where('bookmarkId').equals(this.currentBookmarkId).delete();
-    await db.bookmarks.delete(this.currentBookmarkId);
+    await deleteBookmarkWithData(this.currentBookmarkId);
 
     this.closeDetail();
     this.config.onDelete?.();
