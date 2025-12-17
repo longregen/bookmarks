@@ -3,6 +3,8 @@ import { crx } from '@crxjs/vite-plugin';
 import manifest from './manifest.chrome.json';
 import { sharedDefine, sharedOutput } from './vite.config.shared';
 
+const isCoverage = process.env.COVERAGE === 'true';
+
 export default defineConfig({
   define: {
     ...sharedDefine,
@@ -13,7 +15,8 @@ export default defineConfig({
   plugins: [crx({ manifest })],
   build: {
     outDir: 'dist-chrome',
-    sourcemap: true,
+    sourcemap: isCoverage,
+    minify: !isCoverage,
     rollupOptions: {
       input: {
         popup: 'src/popup/popup.html',
