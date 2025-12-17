@@ -98,16 +98,36 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
 
   // Show progress bar and stats for bulk imports
   if (job.type === JobType.BULK_URL_IMPORT && stats.total > 0) {
+    // Get bookmark-level stats for more granular progress
+    const jobItems = await getJobItems(job.id);
+    const bookmarkIds = jobItems.map(item => item.bookmarkId);
+    const bookmarks = await db.bookmarks.bulkGet(bookmarkIds);
+
+    let downloadedCount = 0;
+    let fetchingCount = 0;
+    let processingCount = 0;
+
+    for (const bookmark of bookmarks) {
+      if (bookmark?.status === 'downloaded') downloadedCount++;
+      else if (bookmark?.status === 'fetching') fetchingCount++;
+      else if (bookmark?.status === 'processing') processingCount++;
+    }
+
     const progressContainer = createElement('div', { className: 'job-progress-container' });
 
-    // Progress bar
+    // Progress bar with multiple segments
     const progressBar = createElement('div', { className: 'job-progress-bar' });
     const completedPercent = Math.round((stats.complete / stats.total) * 100);
     const errorPercent = Math.round((stats.error / stats.total) * 100);
+    const downloadedPercent = Math.round((downloadedCount / stats.total) * 100);
 
     const completedFill = createElement('div', {
       className: 'job-progress-fill completed',
       style: { width: `${completedPercent}%` }
+    });
+    const downloadedFill = createElement('div', {
+      className: 'job-progress-fill downloaded',
+      style: { width: `${downloadedPercent}%` }
     });
     const errorFill = createElement('div', {
       className: 'job-progress-fill error',
@@ -115,15 +135,17 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
     });
 
     progressBar.appendChild(completedFill);
+    progressBar.appendChild(downloadedFill);
     progressBar.appendChild(errorFill);
     progressContainer.appendChild(progressBar);
 
-    // Stats summary
+    // Stats summary with granular breakdown
     const statsDiv = createElement('div', { className: 'job-stats' });
+    const inProgressCount = fetchingCount + processingCount;
     statsDiv.appendChild(createElement('span', { className: 'stat complete', textContent: `${stats.complete} complete` }));
-    statsDiv.appendChild(createElement('span', { className: 'stat pending', textContent: `${stats.pending + stats.inProgress} pending` }));
+    statsDiv.appendChild(createElement('span', { className: 'stat downloaded', textContent: `${downloadedCount} downloaded` }));
+    statsDiv.appendChild(createElement('span', { className: 'stat pending', textContent: `${inProgressCount} in progress` }));
     statsDiv.appendChild(createElement('span', { className: 'stat error', textContent: `${stats.error} failed` }));
-    statsDiv.appendChild(createElement('span', { className: 'stat total', textContent: `${stats.total} total` }));
     progressContainer.appendChild(statsDiv);
 
     jobItem.appendChild(progressContainer);
@@ -215,12 +237,32 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
   return jobItem;
 }
 
+function getEffectiveStatus(item: JobItem, bookmark: Bookmark | undefined): { class: string; label: string } {
+  if (!bookmark) {
+    return { class: getStatusClass(item.status), label: formatItemStatus(item.status) };
+  }
+
+  // Show more granular bookmark status when job item is pending
+  if (item.status === JobItemStatus.PENDING) {
+    if (bookmark.status === 'downloaded') {
+      return { class: 'downloaded', label: 'Downloaded' };
+    }
+    if (bookmark.status === 'fetching') {
+      return { class: 'fetching', label: 'Fetching' };
+    }
+  }
+
+  // For other states, use job item status
+  return { class: getStatusClass(item.status), label: formatItemStatus(item.status) };
+}
+
 function renderJobItemRow(item: JobItem, bookmark: Bookmark | undefined): HTMLElement {
+  const effectiveStatus = getEffectiveStatus(item, bookmark);
   const row = createElement('div', { className: `job-item-row status-${item.status}` });
 
   // Status indicator
   const statusDot = createElement('span', {
-    className: `status-indicator ${getStatusClass(item.status)}`,
+    className: `status-indicator ${effectiveStatus.class}`,
   });
   row.appendChild(statusDot);
 
@@ -251,8 +293,8 @@ function renderJobItemRow(item: JobItem, bookmark: Bookmark | undefined): HTMLEl
 
   // Status badge
   const statusBadge = createElement('span', {
-    className: `job-item-status ${getStatusClass(item.status)}`,
-    textContent: formatItemStatus(item.status),
+    className: `job-item-status ${effectiveStatus.class}`,
+    textContent: effectiveStatus.label,
   });
   row.appendChild(statusBadge);
 
