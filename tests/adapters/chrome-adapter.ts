@@ -4,7 +4,7 @@ import fs from 'fs';
 import os from 'os';
 import { fileURLToPath } from 'url';
 import { TestAdapter, PageHandle } from '../e2e-shared';
-import { startMockServer, MockServer } from '../mock-server';
+import { startMockServer, getMockPageUrls, MockServer } from '../mock-server';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -239,6 +239,10 @@ export class ChromeAdapter implements TestAdapter {
 
   getMockApiUrl(): string {
     return this.mockServer!.url;
+  }
+
+  getMockPageUrls(): string[] {
+    return getMockPageUrls(this.mockServer!.url);
   }
 
   getRealApiKey(): string {

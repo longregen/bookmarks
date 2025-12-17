@@ -5,7 +5,7 @@ export interface Bookmark {
   url: string;
   title: string;
   html: string;
-  status: 'fetching' | 'pending' | 'processing' | 'complete' | 'error';
+  status: 'fetching' | 'downloaded' | 'pending' | 'processing' | 'complete' | 'error';
   errorMessage?: string;
   retryCount?: number;
   createdAt: Date;

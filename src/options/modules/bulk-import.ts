@@ -57,8 +57,7 @@ bulkUrlsInput.addEventListener('input', () => {
 
 async function pollProgress(urls: string[]): Promise<void> {
   const total = urls.length;
-  let lastPercent = -1;
-  let lastCompleted = -1;
+  let lastStatusText = '';
 
   const checkProgress = async (): Promise<void> => {
     try {
@@ -67,29 +66,43 @@ async function pollProgress(urls: string[]): Promise<void> {
         .anyOf(urls)
         .toArray();
 
+      let downloaded = 0;
       let completed = 0;
       let errors = 0;
+      let processing = 0;
+
       for (const b of bookmarks) {
         if (b.status === 'error') {
           errors++;
-          completed++;
         } else if (b.status === 'complete') {
           completed++;
+        } else if (b.status === 'downloaded' || b.status === 'pending') {
+          downloaded++;
+        } else if (b.status === 'processing') {
+          processing++;
         }
       }
-      const percent = Math.round((completed / total) * 100);
 
-      // Only update DOM if values changed
-      if (percent !== lastPercent) {
-        bulkImportProgressBar.style.width = `${percent}%`;
-        lastPercent = percent;
-      }
-      if (completed !== lastCompleted) {
-        bulkImportStatus.textContent = `Imported ${completed} of ${total}`;
-        lastCompleted = completed;
+      const finishedCount = completed + errors;
+      const percent = Math.round((finishedCount / total) * 100);
+      bulkImportProgressBar.style.width = `${percent}%`;
+
+      // Show granular status
+      let statusText: string;
+      if (finishedCount >= total) {
+        statusText = `Completed ${completed} of ${total}`;
+      } else if (downloaded > 0 || processing > 0) {
+        statusText = `Downloaded ${downloaded + completed + processing + errors}/${total}, Processing ${completed}/${total}`;
+      } else {
+        statusText = `Fetching ${total - finishedCount} pages...`;
       }
 
-      if (completed >= total) {
+      if (statusText !== lastStatusText) {
+        bulkImportStatus.textContent = statusText;
+        lastStatusText = statusText;
+      }
+
+      if (finishedCount >= total) {
         // All done
         stopProgressPolling();
 

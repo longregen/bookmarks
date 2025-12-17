@@ -14,7 +14,7 @@ async function main(): Promise<void> {
 
   try {
     await adapter.setup();
-    await runSharedTests(adapter, runner, { skipRealApiTests: true, skipApiConnectionTest: true, skipCorsFetchTest: true });
+    await runSharedTests(adapter, runner, { skipRealApiTests: true, skipApiConnectionTest: true, skipCorsFetchTest: true, skipBulkImportTest: true });
   } catch (error) {
     console.error('\nFatal error:', error);
   } finally {

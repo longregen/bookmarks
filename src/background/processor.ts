@@ -5,7 +5,7 @@ import { browserFetch } from '../lib/browser-fetch';
 import { extractTitleFromHtml } from '../lib/bulk-import';
 import { config } from '../lib/config-registry';
 
-async function fetchHtmlIfNeeded(bookmark: Bookmark): Promise<Bookmark> {
+export async function fetchBookmarkHtml(bookmark: Bookmark): Promise<Bookmark> {
   if (bookmark.html && bookmark.html.length > 0) {
     return bookmark;
   }
@@ -17,10 +17,11 @@ async function fetchHtmlIfNeeded(bookmark: Bookmark): Promise<Bookmark> {
   await db.bookmarks.update(bookmark.id, {
     html,
     title,
+    status: 'downloaded',
     updatedAt: new Date(),
   });
 
-  return { ...bookmark, html, title };
+  return { ...bookmark, html, title, status: 'downloaded' };
 }
 
 async function generateMarkdownIfNeeded(bookmark: Bookmark): Promise<string> {
@@ -88,13 +89,20 @@ async function generateQAIfNeeded(bookmark: Bookmark, markdownContent: string): 
   console.log(`[Processor] Completed Q&A generation for: ${bookmark.title}`);
 }
 
-export async function processBookmark(bookmark: Bookmark): Promise<void> {
-  // Step 1: Fetch HTML if needed (for bulk imports)
-  const bookmarkWithHtml = await fetchHtmlIfNeeded(bookmark);
+export async function processBookmarkContent(bookmark: Bookmark): Promise<void> {
+  // Ensure we have HTML (for bookmarks that may have been fetched previously)
+  let bookmarkWithHtml = bookmark;
+  if (!bookmark.html || bookmark.html.length === 0) {
+    bookmarkWithHtml = await fetchBookmarkHtml(bookmark);
+  }
 
-  // Step 2: Generate markdown if needed
+  // Generate markdown if needed
   const markdownContent = await generateMarkdownIfNeeded(bookmarkWithHtml);
 
-  // Step 3: Generate Q&A with embeddings if needed
+  // Generate Q&A with embeddings if needed
   await generateQAIfNeeded(bookmarkWithHtml, markdownContent);
+}
+
+export async function processBookmark(bookmark: Bookmark): Promise<void> {
+  await processBookmarkContent(bookmark);
 }

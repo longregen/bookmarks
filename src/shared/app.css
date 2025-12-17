@@ -1550,6 +1550,10 @@ input:focus {
   background: var(--success-text, #22c55e);
 }
 
+.job-progress-fill.downloaded {
+  background: var(--info-text, #3b82f6);
+}
+
 .job-progress-fill.error {
   background: var(--error-text, #ef4444);
 }
@@ -1570,6 +1574,10 @@ input:focus {
 
 .job-stats .stat.complete {
   color: var(--success-text, #22c55e);
+}
+
+.job-stats .stat.downloaded {
+  color: var(--info-text, #3b82f6);
 }
 
 .job-stats .stat.pending {
@@ -1623,6 +1631,15 @@ input:focus {
 
 .status-indicator.pending {
   background: var(--warning-text, #f59e0b);
+}
+
+.status-indicator.fetching {
+  background: var(--warning-text, #f59e0b);
+  animation: pulse 1.5s infinite;
+}
+
+.status-indicator.downloaded {
+  background: var(--info-text, #3b82f6);
 }
 
 .status-indicator.in-progress {
@@ -1684,6 +1701,16 @@ input:focus {
 .job-item-status.pending {
   background: var(--warning-bg);
   color: var(--warning-text);
+}
+
+.job-item-status.fetching {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+}
+
+.job-item-status.downloaded {
+  background: var(--info-bg);
+  color: var(--info-text);
 }
 
 .job-item-status.in-progress {
