@@ -1,6 +1,5 @@
 import { initSettingsModule } from './modules/settings';
 import { initWebDAVModule } from './modules/webdav';
-import { initImportExportModule } from './modules/import-export';
 import { initBulkImportModule } from './modules/bulk-import';
 import { initThemeModule } from './modules/theme';
 import { initNavigationModule } from './modules/navigation';
@@ -14,8 +13,6 @@ function initializeModules(): void {
 
   const webdavCleanup = initWebDAVModule();
   cleanupFunctions.push(webdavCleanup);
-
-  initImportExportModule();
 
   const bulkImportCleanup = initBulkImportModule();
   cleanupFunctions.push(bulkImportCleanup);

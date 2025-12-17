@@ -80,12 +80,15 @@ export function getMockModelsResponse(): object {
   };
 }
 
-import { CONFIG_DEFAULTS } from '../src/lib/config-registry';
+import { CONFIG_REGISTRY } from '../src/lib/config-registry';
+
+const FETCH_OFFSCREEN_BUFFER_MS = CONFIG_REGISTRY.find(e => e.key === 'FETCH_OFFSCREEN_BUFFER_MS')!.defaultValue as number;
+const DEFAULT_API_BASE_URL = CONFIG_REGISTRY.find(e => e.key === 'DEFAULT_API_BASE_URL')!.defaultValue as string;
 
 export async function waitForSettingsLoad(page: PageHandle): Promise<void> {
   await page.waitForFunction(
     `document.getElementById('apiBaseUrl')?.value?.length > 0`,
-    CONFIG_DEFAULTS.FETCH_OFFSCREEN_BUFFER_MS
+    FETCH_OFFSCREEN_BUFFER_MS
   );
 }
 
@@ -695,7 +698,7 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
       await page.waitForSelector('#apiKey');
       await waitForSettingsLoad(page);
 
-      await page.evaluate(`document.getElementById('apiBaseUrl').value = '${CONFIG_DEFAULTS.DEFAULT_API_BASE_URL}'`);
+      await page.evaluate(`document.getElementById('apiBaseUrl').value = '${DEFAULT_API_BASE_URL}'`);
       await page.evaluate(`document.getElementById('apiKey').value = '${adapter.getRealApiKey()}'`);
       await page.evaluate(`document.getElementById('chatModel').value = 'gpt-4o-mini'`);
       await page.evaluate(`document.getElementById('embeddingModel').value = 'text-embedding-3-small'`);
