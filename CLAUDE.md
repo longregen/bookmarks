@@ -71,7 +71,7 @@ Prerequisites: Download Chromium from `storage.googleapis.com`, install xvfb (`a
 npm run build:chrome
 BROWSER_PATH=/path/to/chrome OPENAI_API_KEY=not-needed-for-tests \
   xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" \
-  npm run e2e:chrome
+  npm run test:e2e:chrome
 ```
 
 Note: Claude can only run Chromium tests (not Firefox).
