@@ -5,11 +5,9 @@ import { createJob, updateJob, completeJob, failJob } from '../lib/jobs';
 import { broadcastEvent } from '../lib/events';
 import { config } from '../lib/config-registry';
 import { getErrorMessage, getErrorStack } from '../lib/errors';
+import { createDebugLog, debugOnly } from '../lib/debug';
 
-// Debug logger that compiles away when __DEBUG_EMBEDDINGS__ is false
-const debugLog = __DEBUG_EMBEDDINGS__
-  ? (msg: string, data?: unknown) => console.log(`[Processor] ${msg}`, data)
-  : (_msg: string, _data?: unknown) => {};
+const debugLog = createDebugLog('Processor');
 
 async function extractMarkdownStep(
   bookmark: Bookmark,
@@ -113,9 +111,9 @@ async function generateEmbeddingsStep(
   ]);
   const embeddingTimeMs = Date.now() - embeddingStartTime;
 
-  if (__DEBUG_EMBEDDINGS__) {
+  debugOnly(() => {
     /* eslint-disable @typescript-eslint/no-unnecessary-condition -- defensive runtime checks for API responses */
-    console.log('[Processor] Received embeddings from API', {
+    debugLog('Received embeddings from API', {
       questionEmbeddings: {
         count: questionEmbeddings.length,
         dimensions: questionEmbeddings.map(e => e.length),
@@ -147,9 +145,9 @@ async function generateEmbeddingsStep(
         expected: 'All embeddings should have the same dimension',
       });
     } else {
-      console.log('[Processor] Embedding dimensions are consistent:', uniqueDimensions[0]);
+      debugLog('Embedding dimensions are consistent:', uniqueDimensions[0]);
     }
-  }
+  });
 
   return { questionEmbeddings, answerEmbeddings, combinedEmbeddings, embeddingTimeMs };
 }

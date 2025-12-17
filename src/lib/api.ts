@@ -1,6 +1,9 @@
 import { getPlatformAdapter } from './platform';
 import { config } from './config-registry';
 import { getErrorMessage } from './errors';
+import { createDebugLog, debugOnly } from './debug';
+
+const debugLog = createDebugLog('Embeddings API');
 
 export interface QAPair {
   question: string;
@@ -86,14 +89,12 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
 
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   const settings = await getPlatformAdapter().getSettings();
-  if (__DEBUG_EMBEDDINGS__) {
-    console.log('[Embeddings API] Starting embedding generation', {
-      inputCount: texts.length,
-      inputLengths: texts.map(t => t.length),
-      model: settings.embeddingModel,
-      apiBaseUrl: settings.apiBaseUrl,
-    });
-  }
+  debugLog('Starting embedding generation', {
+    inputCount: texts.length,
+    inputLengths: texts.map(t => t.length),
+    model: settings.embeddingModel,
+    apiBaseUrl: settings.apiBaseUrl,
+  });
 
   let data: EmbeddingsResponse;
   try {
@@ -102,25 +103,21 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
       input: texts,
     }, settings);
   } catch (error) {
-    if (__DEBUG_EMBEDDINGS__) {
-      console.error('[Embeddings API] API error response', error);
-    }
+    debugLog('API error response', error);
     throw error;
   }
 
-  if (__DEBUG_EMBEDDINGS__) {
-    console.log('[Embeddings API] Raw API response', {
-      dataLength: data.data.length,
-      model: data.model,
-      usage: data.usage,
-    });
-  }
+  debugLog('Raw API response', {
+    dataLength: data.data.length,
+    model: data.model,
+    usage: data.usage,
+  });
 
   const sorted = data.data.sort((a, b) => a.index - b.index);
   const embeddings = sorted.map((item) => item.embedding);
 
-  if (__DEBUG_EMBEDDINGS__) {
-    console.log('[Embeddings API] Extracted embeddings', {
+  debugOnly(() => {
+    debugLog('Extracted embeddings', {
       count: embeddings.length,
       dimensions: embeddings.map((e) => e.length),
       allSameDimension: embeddings.length > 0 && embeddings.every((e) => e.length === embeddings[0].length),
@@ -132,7 +129,7 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
         console.error(`[Embeddings API] Embedding at index ${index} is empty`);
       }
     });
-  }
+  });
 
   return embeddings;
 }
