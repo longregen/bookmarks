@@ -17,6 +17,36 @@ body {
   line-height: var(--leading-relaxed);
 }
 
+/* Themed scrollbars - Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-secondary) var(--bg-tertiary);
+}
+
+/* Themed scrollbars - Webkit (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--bg-tertiary);
+}
+
 .layout {
   display: flex;
   flex-direction: column;
@@ -2189,8 +2219,6 @@ input[type="number"]:focus {
   background: var(--bg-input);
   color: var(--text-primary);
   width: 100%;
-  min-width: 400px;
-  max-width: 600px;
   min-height: 150px;
   resize: vertical;
   margin-bottom: var(--space-2);
@@ -2261,11 +2289,6 @@ input[type="number"]:focus {
   .config-edit-input,
   .config-edit-select {
     max-width: 120px;
-  }
-
-  .config-edit-textarea {
-    min-width: 100%;
-    max-width: 100%;
   }
 }
 
