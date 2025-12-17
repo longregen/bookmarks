@@ -225,7 +225,7 @@ describe('Health Indicator', () => {
       expect(indicator.style.cursor).toBe('default');
     });
 
-    it('should navigate to settings when clicked in error state', async () => {
+    it('should navigate to jobs page (filtered to failed) when clicked in error state', async () => {
       // Create a failed job to trigger error state
       await db.jobs.add({
         id: 'job-1',
@@ -245,7 +245,7 @@ describe('Health Indicator', () => {
       const indicator = container.querySelector('.health-indicator') as HTMLElement;
       indicator.click();
 
-      expect(tabs.openExtensionPage).toHaveBeenCalledWith('src/options/options.html');
+      expect(tabs.openExtensionPage).toHaveBeenCalledWith('src/jobs/jobs.html?status=failed');
     });
 
     it('should not navigate to settings when clicked in healthy state', async () => {
