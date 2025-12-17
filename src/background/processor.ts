@@ -122,17 +122,17 @@ async function generateEmbeddingsStep(
       questionEmbeddings: {
         count: questionEmbeddings.length,
         dimensions: questionEmbeddings.map(e => e.length),
-        hasUndefined: false,
+        hasUndefined: questionEmbeddings.some(e => e === undefined || e === null),
       },
       answerEmbeddings: {
         count: answerEmbeddings.length,
         dimensions: answerEmbeddings.map(e => e.length),
-        hasUndefined: false,
+        hasUndefined: answerEmbeddings.some(e => e === undefined || e === null),
       },
       combinedEmbeddings: {
         count: combinedEmbeddings.length,
         dimensions: combinedEmbeddings.map(e => e.length),
-        hasUndefined: false,
+        hasUndefined: combinedEmbeddings.some(e => e === undefined || e === null),
       },
     });
 

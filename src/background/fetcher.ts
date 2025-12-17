@@ -42,7 +42,7 @@ async function processSingleFetch(jobId: string, parentJobId: string): Promise<v
     if (!job) return;
 
     const { url } = job.metadata;
-    if (url === undefined || url === '') {
+    if (url === undefined || url === null || url === '') {
       await failJob(jobId, 'Missing URL in job metadata');
       return;
     }

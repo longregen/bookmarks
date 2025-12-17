@@ -91,9 +91,9 @@ function formatBookmarkForExport(
     questionsAnswers: qaPairs.map(qa => ({
       question: qa.question,
       answer: qa.answer,
-      embeddingQuestion: encodeEmbedding(qa.embeddingQuestion),
-      embeddingAnswer: encodeEmbedding(qa.embeddingAnswer),
-      embeddingBoth: encodeEmbedding(qa.embeddingBoth),
+      embeddingQuestion: qa.embeddingQuestion !== undefined ? encodeEmbedding(qa.embeddingQuestion) : undefined,
+      embeddingAnswer: qa.embeddingAnswer !== undefined ? encodeEmbedding(qa.embeddingAnswer) : undefined,
+      embeddingBoth: qa.embeddingBoth !== undefined ? encodeEmbedding(qa.embeddingBoth) : undefined,
     })),
   };
 }
