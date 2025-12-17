@@ -115,24 +115,19 @@ const asyncMessageHandlers = {
 chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
   if (message.type in asyncMessageHandlers) {
     const handler = asyncMessageHandlers[message.type as keyof typeof asyncMessageHandlers];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call
-    (handler as any)(message)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-      .then((result: any) => sendResponse(result))
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      .catch((error: Error) => sendResponse({ success: false, error: error.message }));
-    return true; // Keep message channel open for async response
+    (handler as (msg: Message) => Promise<unknown>)(message)
+      .then((result: unknown) => sendResponse(result))
+      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
+    return true;
   }
 
   if (message.type === 'GET_CURRENT_TAB_INFO') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const tab = tabs[0];
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      const tab = tabs.at(0);
       if (tab === undefined) {
         sendResponse({ error: 'No active tab found' });
         return;
       }
-      // tab.url and tab.title can be undefined in incognito mode or for restricted URLs
       if (tab.url !== undefined && tab.url !== '' && tab.title !== undefined && tab.title !== '') {
         sendResponse({
           url: tab.url,
@@ -159,8 +154,7 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
 chrome.commands.onCommand.addListener((command) => {
   if (command === 'save-bookmark') {
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-      const tab = tabs[0];
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      const tab = tabs.at(0);
       if (tab?.id === undefined) return;
 
       if (tab.url === undefined || tab.url === '') {

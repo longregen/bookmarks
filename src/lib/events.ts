@@ -21,8 +21,8 @@ export async function broadcastEvent(type: EventType, payload?: unknown): Promis
     timestamp: Date.now(),
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime check for test environments
-  if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage !== undefined) {
     try {
       await chrome.runtime.sendMessage({
         type: 'EVENT_BROADCAST',
@@ -56,8 +56,8 @@ export function addEventListener(listener: EventListener): () => void {
     listener(customEvent.detail);
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime check for test environments
-  if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage !== undefined) {
     chrome.runtime.onMessage.addListener(chromeListener);
   }
 
@@ -66,8 +66,8 @@ export function addEventListener(listener: EventListener): () => void {
   }
 
   return (): void => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime check for test environments
-    if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage !== undefined) {
       chrome.runtime.onMessage.removeListener(chromeListener);
     }
     if (typeof window !== 'undefined') {

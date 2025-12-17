@@ -1,4 +1,4 @@
-import { db, JobType, JobStatus } from '../db/schema';
+import { JobType, JobStatus } from '../db/schema';
 import { createJob } from './jobs';
 import { validateWebUrl } from './url-validator';
 
@@ -106,9 +106,4 @@ export function extractTitleFromHtml(html: string): string {
     return decodeHtmlEntities(titleMatch[1]).trim();
   }
   return '';
-}
-
-export async function bookmarkExists(url: string): Promise<boolean> {
-  const existing = await db.bookmarks.where('url').equals(url).first();
-  return !!existing;
 }

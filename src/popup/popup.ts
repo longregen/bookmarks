@@ -1,4 +1,4 @@
-import { showStatusMessage } from '../lib/dom';
+import { showStatusMessage, getElement, createElement } from '../lib/dom';
 import { onThemeChange, applyTheme } from '../shared/theme';
 import { initExtension } from '../lib/init-extension';
 import { openExtensionPage } from '../lib/tabs';
@@ -6,14 +6,14 @@ import { getSettings } from '../lib/settings';
 import type { SaveBookmarkResponse } from '../lib/messages';
 import { getErrorMessage } from '../lib/errors';
 
-const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement;
-const statusDiv = document.getElementById('status') as HTMLDivElement;
-const navLibrary = document.getElementById('navLibrary') as HTMLButtonElement;
-const navSearch = document.getElementById('navSearch') as HTMLButtonElement;
-const navStumble = document.getElementById('navStumble') as HTMLButtonElement;
-const navSettings = document.getElementById('navSettings') as HTMLButtonElement;
-const searchInput = document.getElementById('searchInput') as HTMLInputElement;
-const searchBtn = document.getElementById('searchBtn') as HTMLButtonElement;
+const saveBtn = getElement<HTMLButtonElement>('saveBtn');
+const statusDiv = getElement<HTMLDivElement>('status');
+const navLibrary = getElement<HTMLButtonElement>('navLibrary');
+const navSearch = getElement<HTMLButtonElement>('navSearch');
+const navStumble = getElement<HTMLButtonElement>('navStumble');
+const navSettings = getElement<HTMLButtonElement>('navSettings');
+const searchInput = getElement<HTMLInputElement>('searchInput');
+const searchBtn = getElement<HTMLButtonElement>('searchBtn');
 
 
 saveBtn.addEventListener('click', async () => {
@@ -70,27 +70,18 @@ saveBtn.addEventListener('click', async () => {
     }
   } finally {
     saveBtn.disabled = false;
-    // Use DOM APIs instead of innerHTML (CSP-safe)
     saveBtn.textContent = '';
-    const iconSpan = document.createElement('span');
-    iconSpan.className = 'icon';
-    iconSpan.textContent = '📌';
-    saveBtn.appendChild(iconSpan);
+    saveBtn.appendChild(createElement('span', { className: 'icon', textContent: '📌' }));
     saveBtn.appendChild(document.createTextNode(' Save This Page'));
   }
 });
 
 function showSuccessWithCTA(bookmarkId: string): void {
   statusDiv.className = 'status success success-with-cta';
-  statusDiv.innerHTML = '';
+  statusDiv.textContent = '';
 
-  const message = document.createElement('span');
-  message.className = 'success-message';
-  message.textContent = 'Bookmark saved!';
-
-  const ctaBtn = document.createElement('button');
-  ctaBtn.className = 'btn-cta';
-  ctaBtn.textContent = 'View in Library';
+  const message = createElement('span', { className: 'success-message', textContent: 'Bookmark saved!' });
+  const ctaBtn = createElement('button', { className: 'btn-cta', textContent: 'View in Library' });
   ctaBtn.onclick = () => {
     void openExtensionPage(`src/library/library.html?bookmarkId=${bookmarkId}`);
   };
@@ -157,14 +148,10 @@ async function checkEndpointConfiguration(): Promise<void> {
 
 function showConfigurationWarning(): void {
   statusDiv.className = 'status warning';
-  statusDiv.innerHTML = '';
+  statusDiv.textContent = '';
 
-  const message = document.createElement('span');
-  message.textContent = 'API endpoint not configured.';
-
-  const settingsLink = document.createElement('button');
-  settingsLink.className = 'btn-cta';
-  settingsLink.textContent = 'Configure in Settings';
+  const message = createElement('span', { textContent: 'API endpoint not configured.' });
+  const settingsLink = createElement('button', { className: 'btn-cta', textContent: 'Configure in Settings' });
   settingsLink.onclick = () => {
     void openExtensionPage('src/options/options.html');
   };

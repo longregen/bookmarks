@@ -41,7 +41,8 @@ export function cosineSimilarity(a: number[], b: number[]): number {
     normB += b[i] * b[i];
   }
 
-  const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
+  // sqrt(a) * sqrt(b) = sqrt(a*b) - single sqrt is more efficient
+  const magnitude = Math.sqrt(normA * normB);
 
   if (magnitude === 0) {
     debugWarn('Zero magnitude detected - returning 0');
@@ -87,7 +88,7 @@ export function findTopK<T>(
     } catch (err) {
       errors.push({
         index,
-        error: err instanceof Error ? err.message : String(err),
+        error: String(err instanceof Error ? err.message : err),
       });
       return { item, score: -1 };
     }
