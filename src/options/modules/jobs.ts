@@ -74,7 +74,7 @@ function renderJobItemElement(job: Job): HTMLElement {
   appendMetadataElements(metadataDiv, job);
   jobItem.appendChild(metadataDiv);
 
-  if (job.status === JobStatus.FAILED && job.metadata.errorMessage) {
+  if (job.status === JobStatus.FAILED && job.metadata.errorMessage !== undefined && job.metadata.errorMessage !== '') {
     const errorDiv = createElement('div', { className: 'job-error' });
     errorDiv.appendChild(createElement('strong', { textContent: 'Error: ' }));
     errorDiv.appendChild(document.createTextNode(job.metadata.errorMessage));
@@ -94,13 +94,13 @@ function createMetadataItem(label: string, value: string | number): HTMLElement 
 function appendMetadataElements(container: HTMLElement, job: Job): void {
   let hasMetadata = false;
 
-  if (job.metadata.url) {
+  if (job.metadata.url !== undefined && job.metadata.url !== '') {
     container.appendChild(createMetadataItem('URL', job.metadata.url));
     hasMetadata = true;
   }
 
   if (job.type === JobType.FILE_IMPORT) {
-    if (job.metadata.fileName) {
+    if (job.metadata.fileName !== undefined && job.metadata.fileName !== '') {
       container.appendChild(createMetadataItem('File', job.metadata.fileName));
       hasMetadata = true;
     }

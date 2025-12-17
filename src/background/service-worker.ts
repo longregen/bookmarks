@@ -39,7 +39,7 @@ async function setupSyncAlarm(): Promise<void> {
   }
 }
 
-async function initializeExtension(): Promise<void> {
+function initializeExtension(): void {
   console.log('Initializing extension...');
 
   try {
@@ -60,15 +60,15 @@ async function initializeExtension(): Promise<void> {
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Extension installed/updated');
-  void initializeExtension();
+  initializeExtension();
 });
 
 chrome.runtime.onStartup.addListener(() => {
   console.log('Browser started, initializing');
-  void initializeExtension();
+  initializeExtension();
 });
 
-void initializeExtension();
+initializeExtension();
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === WEBDAV_SYNC_ALARM) {
