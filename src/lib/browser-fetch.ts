@@ -1,6 +1,6 @@
 /**
  * Browser-agnostic fetch wrapper for bulk URL import
- * Chrome uses offscreen document, Firefox can fetch directly in service worker
+ * All extension platforms (Chrome, Firefox) can fetch directly with host_permissions
  * Build-time constants ensure only the relevant code path is included in each build.
  */
 
@@ -50,18 +50,17 @@ export async function fetchWithTimeout(url: string, timeoutMs: number = config.F
  * @returns HTML content
  */
 export async function browserFetch(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
-  if (__IS_WEB__ || __IS_FIREFOX__) {
-    // Web and Firefox can fetch directly (no CORS restrictions for direct fetch)
-    return fetchWithTimeout(url, timeoutMs);
-  } else {
-    // Chrome needs to use offscreen document
-    return fetchViaOffscreen(url, timeoutMs);
-  }
+  // All platforms with extension permissions can fetch directly
+  // Chrome service workers have host_permissions: <all_urls>
+  // Firefox service workers can fetch directly
+  // Web is handled separately (CORS proxy or disabled)
+  return fetchWithTimeout(url, timeoutMs);
 }
 
 /**
  * Fetch URL via Chrome offscreen document (Chrome only)
- * This function is only called in Chrome builds; it's tree-shaken from Firefox builds.
+ * @deprecated No longer used - service workers can fetch directly with host_permissions
+ * Kept for backwards compatibility; may be removed in future versions.
  * @param url URL to fetch
  * @param timeoutMs Timeout in milliseconds
  * @returns HTML content

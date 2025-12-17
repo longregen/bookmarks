@@ -250,134 +250,62 @@ describe('Browser Fetch Library', () => {
       });
     });
 
-    it('should handle Chrome by attempting offscreen fetch', async () => {
-      // Mock Chrome user agent
-      const originalNavigator = global.navigator;
-      Object.defineProperty(global, 'navigator', {
-        value: { userAgent: 'Mozilla/5.0 (Chrome)' },
-        configurable: true,
+    it('should use fetchWithTimeout directly for Chrome (with host_permissions)', async () => {
+      // Chrome service workers can now fetch directly with host_permissions: <all_urls>
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: async () => 'chrome test',
       });
-
-      // Mock chrome.runtime.sendMessage for offscreen
-      const mockSendMessage = vi.fn((message, callback) => {
-        callback({ success: true, html: 'chrome test' });
-      });
-
-      global.chrome = {
-        runtime: {
-          sendMessage: mockSendMessage,
-          lastError: undefined,
-        },
-      } as any;
 
       const html = await browserFetch('https://example.com');
       expect(html).toBe('chrome test');
-      expect(mockSendMessage).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'FETCH_URL',
-          url: 'https://example.com',
-        }),
-        expect.any(Function)
-      );
-
-      Object.defineProperty(global, 'navigator', {
-        value: originalNavigator,
-        configurable: true,
-      });
-      delete (global as any).chrome;
+      expect(mockFetch).toHaveBeenCalled();
     });
 
-    it('should handle offscreen fetch errors', async () => {
-      const originalNavigator = global.navigator;
-      Object.defineProperty(global, 'navigator', {
-        value: { userAgent: 'Mozilla/5.0 (Chrome)' },
-        configurable: true,
-      });
-
-      const mockSendMessage = vi.fn((message, callback) => {
-        callback({ success: false, error: 'Fetch failed' });
-      });
-
-      global.chrome = {
-        runtime: {
-          sendMessage: mockSendMessage,
-          lastError: undefined,
-        },
-      } as any;
+    it('should handle fetch errors in Chrome', async () => {
+      // Chrome fetches directly and handles errors the same way as fetchWithTimeout
+      mockFetch.mockRejectedValueOnce(new Error('Fetch failed'));
 
       await expect(
         browserFetch('https://example.com')
       ).rejects.toThrow('Fetch failed');
-
-      Object.defineProperty(global, 'navigator', {
-        value: originalNavigator,
-        configurable: true,
-      });
-      delete (global as any).chrome;
     });
 
-    it('should handle chrome.runtime.lastError', async () => {
-      const originalNavigator = global.navigator;
-      Object.defineProperty(global, 'navigator', {
-        value: { userAgent: 'Mozilla/5.0 (Chrome)' },
-        configurable: true,
+    it('should handle HTTP errors in Chrome', async () => {
+      // Chrome uses direct fetch, so HTTP errors are handled the same way as fetchWithTimeout
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        text: async () => '',
       });
-
-      const mockSendMessage = vi.fn((message, callback) => {
-        global.chrome.runtime.lastError = { message: 'Runtime error' };
-        callback(null);
-      });
-
-      global.chrome = {
-        runtime: {
-          sendMessage: mockSendMessage,
-          lastError: undefined,
-        },
-      } as any;
 
       await expect(
         browserFetch('https://example.com')
-      ).rejects.toThrow('Runtime error');
-
-      Object.defineProperty(global, 'navigator', {
-        value: originalNavigator,
-        configurable: true,
-      });
-      delete (global as any).chrome;
+      ).rejects.toThrow('HTTP 500: Internal Server Error');
     });
 
-    it('should pass timeout to offscreen fetch', async () => {
-      const originalNavigator = global.navigator;
-      Object.defineProperty(global, 'navigator', {
-        value: { userAgent: 'Mozilla/5.0 (Chrome)' },
-        configurable: true,
+    it('should pass timeout to fetchWithTimeout', async () => {
+      // Chrome now uses fetchWithTimeout directly, so timeout is handled there
+      let abortCalled = false;
+      mockFetch.mockImplementationOnce((_url: any, options: any) => {
+        return new Promise((_resolve, reject) => {
+          options.signal.addEventListener('abort', () => {
+            abortCalled = true;
+            reject(new Error('The operation was aborted'));
+          });
+        });
       });
 
-      const mockSendMessage = vi.fn((message, callback) => {
-        callback({ success: true, html: 'test' });
-      });
+      try {
+        await browserFetch('https://example.com', 100);
+      } catch {
+        // Expected to throw on timeout
+      }
 
-      global.chrome = {
-        runtime: {
-          sendMessage: mockSendMessage,
-          lastError: undefined,
-        },
-      } as any;
-
-      await browserFetch('https://example.com', 15000);
-
-      expect(mockSendMessage).toHaveBeenCalledWith(
-        expect.objectContaining({
-          timeoutMs: 15000,
-        }),
-        expect.any(Function)
-      );
-
-      Object.defineProperty(global, 'navigator', {
-        value: originalNavigator,
-        configurable: true,
-      });
-      delete (global as any).chrome;
+      // Wait for abort signal
+      await new Promise(resolve => setTimeout(resolve, 150));
+      expect(abortCalled).toBe(true);
     });
   });
 
