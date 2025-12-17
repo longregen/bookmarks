@@ -1,6 +1,5 @@
 import { Readability } from '@mozilla/readability';
 import TurndownService from 'turndown';
-import { ensureOffscreenDocument } from './offscreen';
 import type { ExtractContentResponse } from './messages';
 
 export interface ExtractedContent {
@@ -56,6 +55,9 @@ function extractMarkdownNative(html: string, url: string): ExtractedContent {
 }
 
 async function extractMarkdownViaOffscreen(html: string, url: string): Promise<ExtractedContent> {
+  // Chrome-only: dynamically import offscreen module to allow tree-shaking
+  const { ensureOffscreenDocument } = await import('./offscreen');
+
   console.log('[Extract] Using offscreen document (Chrome)', { url, htmlLength: html.length });
 
   await ensureOffscreenDocument();
@@ -86,11 +88,11 @@ async function extractMarkdownViaOffscreen(html: string, url: string): Promise<E
 }
 
 export async function extractMarkdownAsync(html: string, url: string): Promise<ExtractedContent> {
-  if (__IS_WEB__ || __IS_FIREFOX__) {
-    return extractMarkdownNative(html, url);
-  } else {
+  // Use compile-time check to enable dead code elimination
+  if (__IS_CHROME__) {
     return extractMarkdownViaOffscreen(html, url);
   }
+  return extractMarkdownNative(html, url);
 }
 
 /** Synchronous markdown extraction for testing purposes */

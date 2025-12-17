@@ -1,14 +1,11 @@
 import { getErrorMessage } from './errors';
 
-export function isFirefox(): boolean {
-  return typeof navigator !== 'undefined' && navigator.userAgent.includes('Firefox');
-}
-
 // Mutex to prevent concurrent offscreen document creation attempts
 let creatingOffscreen: Promise<void> | null = null;
 
 export async function ensureOffscreenDocument(): Promise<void> {
-  if (typeof chrome === 'undefined') {
+  // This function is only needed for Chrome - dead code eliminated in Firefox/Web builds
+  if (!__IS_CHROME__) {
     return;
   }
 

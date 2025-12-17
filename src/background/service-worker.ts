@@ -1,7 +1,6 @@
 import { db } from '../db/schema';
 import { startProcessingQueue } from './queue';
 import { createBulkImportJob } from '../lib/bulk-import';
-import { ensureOffscreenDocument } from '../lib/offscreen';
 import { setPlatformAdapter } from '../lib/platform';
 import { extensionAdapter } from '../lib/adapters/extension';
 import { getSettings } from '../lib/settings';
@@ -216,6 +215,8 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
 
 async function handleBulkImport(urls: string[]): Promise<StartBulkImportResponse> {
   if (__IS_CHROME__) {
+    // Dynamic import to enable tree-shaking of offscreen module in Firefox builds
+    const { ensureOffscreenDocument } = await import('../lib/offscreen');
     await ensureOffscreenDocument();
   }
 
