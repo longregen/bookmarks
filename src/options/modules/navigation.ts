@@ -1,7 +1,6 @@
 const navItems = document.querySelectorAll<HTMLAnchorElement>('.nav-item');
-const sections = document.querySelectorAll<HTMLElement>('.settings-section');
 
-let scrollObserver: IntersectionObserver | null = null;
+let scrollCleanup: (() => void) | null = null;
 
 function setActiveNavItem(sectionId: string): void {
   navItems.forEach(item => {
@@ -34,61 +33,64 @@ navItems.forEach(item => {
   });
 });
 
-function setupScrollObserver(): void {
-  if (scrollObserver) {
-    scrollObserver.disconnect();
+function setupScrollTracking(): void {
+  if (scrollCleanup) {
+    scrollCleanup();
+    scrollCleanup = null;
   }
 
   const scrollContainer = document.querySelector('.middle');
   if (!scrollContainer) return;
 
-  // Use scroll listener instead of IntersectionObserver for more reliable
-  // tracking with nested scroll containers
   const handleScroll = (): void => {
-    const containerRect = scrollContainer.getBoundingClientRect();
-    // Target zone is 20% from top of container
-    const targetY = containerRect.top + containerRect.height * 0.2;
+    // Query sections fresh each time in case DOM changed
+    const sections = document.querySelectorAll<HTMLElement>('.settings-section');
+    if (sections.length === 0) return;
 
-    let activeSectionId = '';
-    let closestDistance = Infinity;
+    const containerTop = scrollContainer.getBoundingClientRect().top;
 
-    sections.forEach(section => {
-      const sectionRect = section.getBoundingClientRect();
-      const distance = Math.abs(sectionRect.top - targetY);
-      if (sectionRect.top <= targetY && distance < closestDistance) {
-        closestDistance = distance;
-        activeSectionId = section.id;
+    // Find the section whose top is closest to (but not below) the container top
+    let activeSection: HTMLElement | null = null;
+
+    for (const section of sections) {
+      const sectionTop = section.getBoundingClientRect().top;
+      // Section is at or above the container top (with some margin)
+      if (sectionTop <= containerTop + 50) {
+        activeSection = section;
+      } else {
+        // First section below the threshold - stop here
+        // If we haven't found any yet, use this one (we're at the top)
+        if (!activeSection) {
+          activeSection = section;
+        }
+        break;
       }
-    });
+    }
 
-    if (activeSectionId) {
-      setActiveNavItem(activeSectionId);
+    if (activeSection) {
+      setActiveNavItem(activeSection.id);
     }
   };
 
   scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-  // Initial check
-  handleScroll();
+  handleScroll(); // Initial check
 
-  // Store cleanup function
-  scrollObserver = {
-    disconnect: () => scrollContainer.removeEventListener('scroll', handleScroll)
-  } as IntersectionObserver;
+  scrollCleanup = () => scrollContainer.removeEventListener('scroll', handleScroll);
 }
 
-function handleResponsiveObserver(): void {
+function handleResponsiveTracking(): void {
   const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
   if (isDesktop) {
-    setupScrollObserver();
-  } else if (scrollObserver) {
-    scrollObserver.disconnect();
-    scrollObserver = null;
+    setupScrollTracking();
+  } else if (scrollCleanup) {
+    scrollCleanup();
+    scrollCleanup = null;
   }
 }
 
-handleResponsiveObserver();
+handleResponsiveTracking();
 
-window.addEventListener('resize', handleResponsiveObserver);
+window.addEventListener('resize', handleResponsiveTracking);
 
 export function initNavigationModule(): void {
   // Hide bulk import nav item for web platform (CORS prevents fetching external URLs)
