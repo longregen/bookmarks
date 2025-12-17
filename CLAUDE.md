@@ -5,28 +5,28 @@ A browser extension for capturing and semantically searching bookmarks using RAG
 ## Commands
 
 ```bash
-npm run build:chrome   # Build Chrome extension
-npm run build:firefox  # Build Firefox extension
-npm run build:web      # Build standalone webapp
-npm run test:unit      # Run unit tests
-npm run typecheck      # TypeScript typechecker
-npm run lint           # ESLint
-npm run check          # Typecheck + lint in parallel
-npm run e2e:chrome     # E2E tests (Puppeteer)
-npm run e2e:firefox    # E2E tests (Selenium)
+npm run build:chrome # Chrome extension
+npm run build:firefox # Firefox extension
+npm run build:web # standalone webapp
+npm run typecheck
+npm run lint
+npm run check # Typecheck + lint in parallel
+npm run test:unit # unit tests
+npm run test:e2e:chrome # E2E tests (Puppeteer)
+npm run test:e2e:firefox # E2E tests (Selenium)
 ```
 
 ## Key Directories
 
 ```
 src/
-├── background/   # Service worker, job queue, content processor
-├── db/           # Dexie/IndexedDB schema and queries
-├── lib/          # Shared utilities, adapters, API client
-├── search/       # Semantic vector search
-├── options/      # Settings page modules
-├── library/      # Bookmark management UI
-└── content/      # Content scripts for page capture
+├── background/ # Service worker, job queue, content processor
+├── db/ # Dexie/IndexedDB schema and queries
+├── lib/ # Shared utilities, adapters, API client
+├── search/ # Semantic vector search
+├── options/ # Settings page modules
+├── library/ # Bookmark management UI
+└── content/ # Content scripts for page capture
 ```
 
 See [AGENTS.md](./AGENTS.md) for detailed module documentation.
