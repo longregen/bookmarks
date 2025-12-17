@@ -5,7 +5,231 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bookmarks by Localforge</title>
 <meta name="description" content="Transform your bookmarks into a knowledge discovery tool. Save pages, organize with tags, and rediscover forgotten knowledge through semantic search and random stumbling.">
-<link rel="stylesheet" href="landing.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:#000;
+  color:#fff;
+  font-family:monospace;
+  line-height:1.6;
+  min-height:100vh;
+  padding:40px 20px;
+}
+.container{max-width:900px;margin:0 auto}
+h1{
+  color:#0f0;
+  font-size:2em;
+  margin-bottom:10px;
+  letter-spacing:2px;
+}
+h2{
+  color:#0f0;
+  font-size:1.4em;
+  margin:40px 0 20px;
+  letter-spacing:1px;
+}
+h3{
+  color:#0f0;
+  font-size:1.1em;
+  margin:20px 0 10px;
+}
+.tagline{
+  color:#888;
+  font-size:14px;
+  margin-bottom:30px;
+}
+.highlight{color:#0f0}
+.principles{margin:30px 0;padding:20px 0;border-top:1px solid #333;border-bottom:1px solid #333}
+.principles p{margin:10px 0;font-size:14px}
+
+.downloads{
+  display:flex;
+  gap:15px;
+  flex-wrap:wrap;
+  margin:30px 0;
+}
+.download-btn{
+  background:#0f0;
+  color:#000;
+  border:none;
+  padding:14px 28px;
+  cursor:pointer;
+  font-family:monospace;
+  font-weight:bold;
+  font-size:14px;
+  text-decoration:none;
+  display:inline-block;
+}
+.download-btn:hover{opacity:0.85}
+.download-btn.secondary{
+  background:transparent;
+  color:#0f0;
+  border:1px solid #0f0;
+}
+.download-btn.secondary:hover{
+  background:#0f0;
+  color:#000;
+}
+
+/* Four Experiences Grid */
+.experiences{
+  display:grid;
+  grid-template-columns:repeat(4, 1fr);
+  gap:15px;
+  margin:30px 0;
+}
+.experience{
+  padding:20px 15px;
+  border:1px solid #333;
+  background:#0a0a0a;
+  text-align:center;
+}
+.experience:hover{
+  border-color:#0f0;
+}
+.experience-icon{
+  font-size:28px;
+  margin-bottom:10px;
+}
+.experience-name{
+  color:#0f0;
+  font-weight:bold;
+  margin-bottom:8px;
+  font-size:14px;
+}
+.experience-desc{
+  color:#888;
+  font-size:12px;
+  line-height:1.4;
+}
+
+.screenshots{
+  display:grid;
+  grid-template-columns:repeat(3, 1fr);
+  gap:10px;
+  margin:20px 0;
+}
+.screenshot{
+  border:1px solid #333;
+  padding:5px;
+  background:#0a0a0a;
+}
+.screenshot img{
+  width:100%;
+  height:auto;
+  display:block;
+}
+.screenshot-label{
+  color:#666;
+  font-size:11px;
+  text-align:center;
+  margin-top:5px;
+}
+
+.features{
+  margin:30px 0;
+}
+.feature{
+  margin:15px 0;
+  padding:15px;
+  border-left:2px solid #333;
+}
+.feature:hover{
+  border-left-color:#0f0;
+}
+.feature-title{
+  color:#0f0;
+  font-weight:bold;
+  margin-bottom:5px;
+}
+.feature-desc{
+  color:#ccc;
+  font-size:13px;
+}
+
+.how-it-works{
+  margin:30px 0;
+}
+.step{
+  display:flex;
+  gap:15px;
+  margin:15px 0;
+  align-items:flex-start;
+}
+.step-num{
+  color:#0f0;
+  font-weight:bold;
+  min-width:25px;
+}
+.step-text{
+  color:#ccc;
+  font-size:14px;
+}
+
+.design-principles{
+  margin:30px 0;
+  padding:20px;
+  background:#0a0a0a;
+  border:1px solid #333;
+}
+.principle{
+  display:flex;
+  gap:10px;
+  margin:10px 0;
+  font-size:13px;
+}
+.principle-num{
+  color:#0f0;
+  min-width:20px;
+}
+.principle-text{
+  color:#ccc;
+}
+.principle-text strong{
+  color:#fff;
+}
+
+.privacy{
+  margin:30px 0;
+  padding:20px;
+  border:1px solid #0f0;
+  background:#001100;
+}
+.privacy p{
+  font-size:13px;
+  color:#ccc;
+  margin:8px 0;
+}
+
+footer{
+  margin-top:60px;
+  padding-top:20px;
+  border-top:1px solid #333;
+  text-align:center;
+}
+footer p{
+  color:#666;
+  font-size:12px;
+  margin:5px 0;
+}
+footer a{
+  color:#0f0;
+  text-decoration:none;
+}
+footer a:hover{text-decoration:underline}
+
+@media (max-width:800px){
+  .experiences{grid-template-columns:repeat(2, 1fr)}
+  .screenshots{grid-template-columns:1fr}
+}
+@media (max-width:600px){
+  h1{font-size:1.5em}
+  .downloads{flex-direction:column}
+  .download-btn{text-align:center}
+  .experiences{grid-template-columns:1fr}
+  .step{flex-direction:column;gap:5px}
+}
+</style>
 </head>
 <body>
 <div class="container">
