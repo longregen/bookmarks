@@ -2,6 +2,7 @@ import { showStatusMessage } from '../lib/dom';
 import { onThemeChange, applyTheme } from '../shared/theme';
 import { initExtension } from '../lib/init-extension';
 import { openExtensionPage } from '../lib/tabs';
+import { getSettings } from '../lib/settings';
 
 const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
@@ -149,3 +150,35 @@ searchInput.focus();
 // Initialize theme
 initExtension();
 onThemeChange((theme) => applyTheme(theme));
+
+// Check for endpoint configuration
+async function checkEndpointConfiguration() {
+  try {
+    const settings = await getSettings();
+    if (!settings.apiKey) {
+      showConfigurationWarning();
+    }
+  } catch (error) {
+    console.error('Error checking settings:', error);
+  }
+}
+
+function showConfigurationWarning() {
+  statusDiv.className = 'status warning';
+  statusDiv.innerHTML = '';
+
+  const message = document.createElement('span');
+  message.textContent = 'API endpoint not configured.';
+
+  const settingsLink = document.createElement('button');
+  settingsLink.className = 'btn-cta';
+  settingsLink.textContent = 'Configure in Settings';
+  settingsLink.onclick = () => {
+    openExtensionPage('src/options/options.html');
+  };
+
+  statusDiv.appendChild(message);
+  statusDiv.appendChild(settingsLink);
+}
+
+checkEndpointConfiguration();

@@ -7,6 +7,8 @@ import { initWeb } from '../web/init-web';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
 import { createHealthIndicator } from '../lib/health-indicator';
 import { BookmarkDetailManager } from '../lib/bookmark-detail';
+import { validateSingleUrl, createBulkImportJob } from '../lib/bulk-import';
+import { processBulkFetch } from '../background/fetcher';
 
 let selectedTag = 'All';
 let sortBy = 'newest';
@@ -158,12 +160,74 @@ async function loadBookmarks() {
 // Initialize platform and theme
 if (__IS_WEB__) {
   initWeb();
+  initAddUrlSection();
 } else {
   initExtension();
 }
 onThemeChange((theme) => applyTheme(theme));
 loadTags();
 loadBookmarks();
+
+// Initialize Add URL section for web version
+function initAddUrlSection() {
+  const addUrlSection = document.getElementById('addUrlSection');
+  const addUrlInput = document.getElementById('addUrlInput') as HTMLInputElement;
+  const addUrlBtn = document.getElementById('addUrlBtn') as HTMLButtonElement;
+  const addUrlStatus = document.getElementById('addUrlStatus')!;
+
+  if (!addUrlSection || !addUrlInput || !addUrlBtn || !addUrlStatus) return;
+
+  // Show the section in web mode
+  addUrlSection.classList.remove('hidden');
+
+  async function addUrl() {
+    const url = addUrlInput.value.trim();
+    if (!url) return;
+
+    const validation = validateSingleUrl(url);
+    if (!validation.isValid) {
+      showAddUrlStatus(validation.error || 'Invalid URL', 'error');
+      return;
+    }
+
+    addUrlBtn.disabled = true;
+    addUrlBtn.textContent = 'Adding...';
+    showAddUrlStatus('Fetching page...', 'info');
+
+    try {
+      const jobId = await createBulkImportJob([validation.normalized]);
+      await processBulkFetch(jobId);
+
+      addUrlInput.value = '';
+      showAddUrlStatus('Bookmark added successfully!', 'success');
+      loadTags();
+      loadBookmarks();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add bookmark';
+      showAddUrlStatus(errorMessage, 'error');
+    } finally {
+      addUrlBtn.disabled = false;
+      addUrlBtn.textContent = 'Add';
+    }
+  }
+
+  function showAddUrlStatus(message: string, type: 'success' | 'error' | 'info') {
+    addUrlStatus.textContent = message;
+    addUrlStatus.className = `add-url-status ${type}`;
+    addUrlStatus.classList.remove('hidden');
+
+    if (type === 'success') {
+      setTimeout(() => {
+        addUrlStatus.classList.add('hidden');
+      }, 3000);
+    }
+  }
+
+  addUrlBtn.addEventListener('click', addUrl);
+  addUrlInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addUrl();
+  });
+}
 
 // Event-driven updates instead of constant polling
 const removeEventListener = addBookmarkEventListener((event) => {

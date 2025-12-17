@@ -289,7 +289,34 @@ async function performSearch() {
     resultStatus.classList.remove('loading');
     resultStatus.textContent = 'Search failed';
     resultsList.innerHTML = '';
-    resultsList.appendChild(createElement('div', { className: 'error-message', textContent: `${error}` }));
+
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isApiKeyError = errorMessage.toLowerCase().includes('api key') ||
+                          errorMessage.toLowerCase().includes('not configured') ||
+                          errorMessage.toLowerCase().includes('401') ||
+                          errorMessage.toLowerCase().includes('unauthorized');
+
+    const errorDiv = createElement('div', { className: 'error-message' });
+
+    if (isApiKeyError) {
+      errorDiv.appendChild(document.createTextNode('API endpoint not configured. '));
+      const settingsLink = createElement('a', {
+        href: '../options/options.html',
+        textContent: 'Configure in Settings',
+        className: 'error-link'
+      });
+      errorDiv.appendChild(settingsLink);
+    } else {
+      errorDiv.appendChild(document.createTextNode(`${errorMessage} `));
+      const settingsLink = createElement('a', {
+        href: '../options/options.html',
+        textContent: 'Check Settings',
+        className: 'error-link'
+      });
+      errorDiv.appendChild(settingsLink);
+    }
+
+    resultsList.appendChild(errorDiv);
   } finally {
     searchBtn.disabled = false;
     searchBtn.textContent = '🔍 Search';

@@ -2044,3 +2044,59 @@ input[type="number"]:focus {
     max-width: 120px;
   }
 }
+
+/* ===== Add URL Section (Library - Web Version) ===== */
+.add-url-section {
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+}
+
+.add-url-section.hidden {
+  display: none;
+}
+
+.add-url-box {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.add-url-box .input {
+  flex: 1;
+}
+
+.add-url-box .btn {
+  width: auto;
+  min-width: 80px;
+}
+
+.add-url-status {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.add-url-status.hidden {
+  display: none;
+}
+
+.add-url-status.success {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+
+.add-url-status.error {
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+}
+
+.add-url-status.info {
+  background: var(--info-bg);
+  color: var(--info-text);
+  border: 1px solid var(--info-border);
+}
