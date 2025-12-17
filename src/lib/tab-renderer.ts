@@ -22,16 +22,6 @@ async function stopKeepalive(): Promise<void> {
   await chrome.alarms.clear(KEEPALIVE_ALARM_NAME);
 }
 
-/**
- * Render a page in a background tab and extract the final HTML
- * This approach allows JavaScript to execute and the DOM to fully render
- * before extracting the HTML content.
- *
- * @param url URL to render
- * @param timeoutMs Maximum time to wait for page to load and settle
- * @returns Promise resolving to the rendered HTML
- * @throws Error if tab creation fails, page load times out, or extraction fails
- */
 export async function renderPage(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
   let tabId: number | undefined;
 
@@ -51,7 +41,6 @@ export async function renderPage(url: string, timeoutMs: number = config.FETCH_T
 
     await waitForTabLoad(tabId, timeoutMs);
 
-    // 3. Get the final URL (in case of redirects)
     const updatedTab = await chrome.tabs.get(tabId);
     const _finalUrl = updatedTab.url ?? url;
 
@@ -68,7 +57,6 @@ export async function renderPage(url: string, timeoutMs: number = config.FETCH_T
   } finally {
     await stopKeepalive();
 
-    // 7. Always close the tab, even on errors
     if (tabId !== undefined) {
       try {
         await chrome.tabs.remove(tabId);
@@ -79,11 +67,6 @@ export async function renderPage(url: string, timeoutMs: number = config.FETCH_T
   }
 }
 
-/**
- * Wait for a tab to finish loading
- * @param tabId Tab ID to monitor
- * @param timeoutMs Maximum time to wait
- */
 async function waitForTabLoad(tabId: number, timeoutMs: number): Promise<void> {
   return new Promise((resolve, reject) => {
     const timeoutId = setTimeout(() => {
@@ -105,7 +88,6 @@ async function waitForTabLoad(tabId: number, timeoutMs: number): Promise<void> {
 
     chrome.tabs.onUpdated.addListener(listener);
 
-    // Check if tab is already complete
     chrome.tabs.get(tabId).then((tab) => {
       if (tab.status !== undefined && tab.status === 'complete') {
         cleanup();
@@ -118,21 +100,13 @@ async function waitForTabLoad(tabId: number, timeoutMs: number): Promise<void> {
   });
 }
 
-/**
- * Execute the extraction script in the tab and get the rendered HTML
- * @param tabId Tab ID to inject script into
- * @param settleTimeMs Time to wait for DOM to settle
- */
 async function executeExtraction(tabId: number, settleTimeMs: number): Promise<string> {
-  // We need to inject the extraction logic directly as a function
-  // chrome.scripting.executeScript runs in an isolated world but can return values
   const results = await chrome.scripting.executeScript({
     target: { tabId },
     func: (settleMs: number) => new Promise<string>((resolve) => {
         let timeout: ReturnType<typeof setTimeout>;
 
         const observer = new MutationObserver(() => {
-          // Reset timeout on every mutation
           clearTimeout(timeout);
           timeout = setTimeout(() => {
             observer.disconnect();
@@ -148,7 +122,6 @@ async function executeExtraction(tabId: number, settleTimeMs: number): Promise<s
           characterData: true
         });
 
-        // Initial timeout in case page is already settled
         timeout = setTimeout(() => {
           observer.disconnect();
           resolve(document.documentElement.outerHTML);

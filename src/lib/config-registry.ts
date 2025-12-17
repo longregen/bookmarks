@@ -1,11 +1,3 @@
-/**
- * Configuration Registry
- *
- * This module provides a registry of all configurable constants with metadata.
- * Similar to Firefox's about:config, it allows advanced users to modify
- * internal settings.
- */
-
 import { db } from '../db/schema';
 
 export type ConfigValueType = 'number' | 'string' | 'boolean';
@@ -288,7 +280,6 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
 
 const CONFIG_STORAGE_KEY = 'advancedConfig';
 
-// Cached overrides (loaded once at startup)
 let configOverrides: Record<string, number | string | boolean> = {};
 let overridesLoaded = false;
 
@@ -298,7 +289,6 @@ const registryMap = new Map<string, ConfigEntry>(
   CONFIG_REGISTRY.map(entry => [entry.key, entry])
 );
 
-// Merged config cache (pre-computed defaults + overrides)
 let configCache: Record<string, number | string | boolean> = {};
 
 function rebuildConfigCache(): void {
@@ -312,9 +302,6 @@ function rebuildConfigCache(): void {
 
 rebuildConfigCache();
 
-/**
- * Load config overrides from IndexedDB
- */
 export async function loadConfigOverrides(): Promise<void> {
   try {
     const stored = await db.settings.get(CONFIG_STORAGE_KEY);
@@ -331,9 +318,6 @@ export async function loadConfigOverrides(): Promise<void> {
   }
 }
 
-/**
- * Save config overrides to IndexedDB
- */
 export async function saveConfigOverrides(): Promise<void> {
   try {
     const now = new Date();
@@ -349,10 +333,6 @@ export async function saveConfigOverrides(): Promise<void> {
   }
 }
 
-/**
- * Get a config value (with override if set)
- * Uses pre-computed cache for O(1) lookups
- */
 export function getConfigValue(key: string): number | string | boolean {
   if (!registryMap.has(key)) {
     throw new Error(`Unknown config key: ${key}`);
@@ -361,9 +341,6 @@ export function getConfigValue(key: string): number | string | boolean {
   return configCache[key];
 }
 
-/**
- * Set a config override
- */
 export async function setConfigValue(key: string, value: number | string | boolean): Promise<void> {
   const entry = registryMap.get(key);
   if (!entry) {
@@ -388,9 +365,6 @@ export async function setConfigValue(key: string, value: number | string | boole
   await saveConfigOverrides();
 }
 
-/**
- * Reset a config value to default
- */
 export async function resetConfigValue(key: string): Promise<void> {
   if (!registryMap.has(key)) {
     throw new Error(`Unknown config key: ${key}`);
@@ -402,25 +376,16 @@ export async function resetConfigValue(key: string): Promise<void> {
   await saveConfigOverrides();
 }
 
-/**
- * Reset all config values to defaults
- */
 export async function resetAllConfigValues(): Promise<void> {
   configOverrides = {};
   rebuildConfigCache();
   await saveConfigOverrides();
 }
 
-/**
- * Check if a config value has been modified from default
- */
 export function isConfigModified(key: string): boolean {
   return key in configOverrides;
 }
 
-/**
- * Get all config entries with their current values
- */
 export function getAllConfigEntries(): (ConfigEntry & { currentValue: number | string | boolean; isModified: boolean })[] {
   return CONFIG_REGISTRY.map(entry => ({
     ...entry,
@@ -429,16 +394,10 @@ export function getAllConfigEntries(): (ConfigEntry & { currentValue: number | s
   }));
 }
 
-/**
- * Get config entries filtered by category
- */
 export function getConfigEntriesByCategory(category: string): (ConfigEntry & { currentValue: number | string | boolean; isModified: boolean })[] {
   return getAllConfigEntries().filter(entry => entry.category === category);
 }
 
-/**
- * Search config entries by key or description
- */
 export function searchConfigEntries(query: string): (ConfigEntry & { currentValue: number | string | boolean; isModified: boolean })[] {
   const lowerQuery = query.toLowerCase();
   return getAllConfigEntries().filter(entry =>
@@ -447,26 +406,16 @@ export function searchConfigEntries(query: string): (ConfigEntry & { currentValu
   );
 }
 
-/**
- * Get count of modified config entries
- */
 export function getModifiedCount(): number {
   return Object.keys(configOverrides).length;
 }
 
-/**
- * Ensure overrides are loaded (call this before using getConfigValue)
- */
 export async function ensureConfigLoaded(): Promise<void> {
   if (!overridesLoaded) {
     await loadConfigOverrides();
   }
 }
 
-/**
- * Type definition for the config object
- * Each property corresponds to a configurable constant
- */
 export interface ConfigValues {
   FETCH_CONCURRENCY: number;
   FETCH_TIMEOUT_MS: number;
@@ -498,24 +447,12 @@ export interface ConfigValues {
   SIMILARITY_THRESHOLD_POOR: number;
 }
 
-/**
- * Default values for all config entries (used as fallback in tests)
- */
 export const CONFIG_DEFAULTS: ConfigValues = CONFIG_REGISTRY.reduce((acc, entry) => {
   acc[entry.key as keyof ConfigValues] = entry.defaultValue as never;
   return acc;
 }, {} as ConfigValues);
 
-/**
- * Config object with getters that read from the config registry.
- * Use this instead of importing constants directly to respect user overrides.
- *
- * Example usage:
- *   import { config } from './config-registry';
- *   const timeout = config.FETCH_TIMEOUT_MS;
- *
- * For tests that need predictable values, use CONFIG_DEFAULTS instead.
- */
+// Use config to respect user overrides. For tests with predictable values, use CONFIG_DEFAULTS.
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const config: ConfigValues = Object.create(null);
 

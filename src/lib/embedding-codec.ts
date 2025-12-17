@@ -1,19 +1,6 @@
 /**
- * Embedding Codec - Efficient encoding/decoding for embedding vectors
- *
- * Embeddings are arrays of floats in the range [-1, 1]. Instead of storing
- * them as JSON arrays of numbers (which is very verbose), we:
- *
- * 1. Quantize each float to a 16-bit signed integer (-32767 to 32767)
- * 2. Pack the integers into a binary buffer
- * 3. Base64 encode the result
- *
- * This reduces storage by roughly 75% compared to JSON arrays:
- * - JSON: ~20 bytes per float (e.g., "-0.12345678901234")
- * - Encoded: 2 bytes per float + base64 overhead (~2.67 bytes final)
- *
- * Precision: 16 bits gives ~4.5 decimal digits, which is more than enough
- * for embedding similarity calculations (typically 6-8 bits suffice).
+ * Encodes embedding vectors (range [-1, 1]) to reduce storage by ~75%.
+ * Uses 16-bit quantization and base64 encoding with sufficient precision for similarity calculations.
  */
 
 const QUANTIZE_SCALE = 32767;

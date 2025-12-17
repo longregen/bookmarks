@@ -24,9 +24,6 @@ console.log('Bookmark RAG service worker loaded');
 
 const WEBDAV_SYNC_ALARM = 'webdav-sync';
 
-/**
- * Set up or update the WebDAV sync alarm based on settings
- */
 async function setupSyncAlarm(): Promise<void> {
   try {
     const settings = await getSettings();
@@ -47,9 +44,6 @@ async function setupSyncAlarm(): Promise<void> {
   }
 }
 
-/**
- * Initialize the extension - check for interrupted jobs and start processing
- */
 async function initializeExtension(): Promise<void> {
   console.log('Initializing extension...');
 
@@ -91,7 +85,6 @@ chrome.runtime.onStartup.addListener(() => {
   void initializeExtension();
 });
 
-// Also initialize immediately when the service worker loads
 // This handles cases where the service worker was killed and restarted
 void initializeExtension();
 
@@ -122,8 +115,6 @@ const asyncMessageHandlers = {
 chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
   if (message.type in asyncMessageHandlers) {
     const handler = asyncMessageHandlers[message.type as keyof typeof asyncMessageHandlers];
-    // TypeScript can't narrow the union type automatically, so we use type assertion
-    // This is safe because we've matched the type key
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call
     (handler as any)(message)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
@@ -176,7 +167,6 @@ chrome.commands.onCommand.addListener((command) => {
       // eslint-disable-next-line @typescript-eslint/prefer-optional-chain, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions
       if (!tab || tab.id === undefined || tab.id === 0) return;
 
-      // Check if we can access the tab URL (may be undefined in incognito or restricted URLs)
       if (tab.url === undefined || tab.url === '') {
         console.warn('Cannot save bookmark: tab URL is undefined (incognito mode or restricted URL)');
         return;
@@ -271,7 +261,6 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
   } catch (error) {
     console.error('Error saving bookmark:', error);
 
-    // Mark job as failed if it was created
     if (jobId !== undefined) {
       await failJob(jobId, getErrorMessage(error));
     }

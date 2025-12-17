@@ -1,19 +1,9 @@
 /**
- * Shared E2E Test Definitions
- *
- * This file contains platform-agnostic test definitions that run on:
- * - Chrome extension (Puppeteer)
- * - Firefox extension (Selenium)
- * - Web app (Puppeteer)
- *
+ * Platform-agnostic E2E test definitions.
  * Each platform provides an adapter implementing the TestAdapter interface.
  */
 
 import { getErrorMessage } from '../src/lib/errors';
-
-// ============================================================================
-// TEST ADAPTER INTERFACE
-// ============================================================================
 
 export interface PageHandle {
   goto(url: string): Promise<void>;
@@ -21,38 +11,23 @@ export interface PageHandle {
   click(selector: string): Promise<void>;
   type(selector: string, text: string): Promise<void>;
   select(selector: string, value: string): Promise<void>;
-  $(selector: string): Promise<boolean>;  // Returns true if element exists
-  $eval<T>(selector: string, fn: string): Promise<T>;  // Evaluate JS on element
-  evaluate<T>(fn: string): Promise<T>;  // Evaluate JS in page context
+  $(selector: string): Promise<boolean>;
+  $eval<T>(selector: string, fn: string): Promise<T>;
+  evaluate<T>(fn: string): Promise<T>;
   waitForFunction(fn: string, timeout?: number): Promise<void>;
   close(): Promise<void>;
 }
 
 export interface TestAdapter {
-  // Platform info
   platformName: string;
-
-  // Whether this is a browser extension (vs web app)
   isExtension: boolean;
-
-  // Setup/teardown
   setup(): Promise<void>;
   teardown(): Promise<void>;
-
-  // Page management
   newPage(): Promise<PageHandle>;
-
-  // URL helpers
   getPageUrl(page: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs'): string;
-
-  // Mock API
   getMockApiUrl(): string;
   getRealApiKey(): string;
 }
-
-// ============================================================================
-// MOCK API HELPERS
-// ============================================================================
 
 export function generateMockEmbedding(): number[] {
   return Array.from({ length: 1536 }, () => Math.random() * 2 - 1);
@@ -105,15 +80,10 @@ export function getMockModelsResponse(): object {
   };
 }
 
-// ============================================================================
-// E2E TEST HELPERS
-// ============================================================================
-
 import { CONFIG_DEFAULTS } from '../src/lib/config-registry';
 
 /**
  * Wait for settings to load from IndexedDB.
- * Checks that the apiBaseUrl input has been populated (non-empty value).
  */
 export async function waitForSettingsLoad(page: PageHandle): Promise<void> {
   await page.waitForFunction(
@@ -121,10 +91,6 @@ export async function waitForSettingsLoad(page: PageHandle): Promise<void> {
     CONFIG_DEFAULTS.FETCH_OFFSCREEN_BUFFER_MS
   );
 }
-
-// ============================================================================
-// TEST RESULT TRACKING
-// ============================================================================
 
 export interface TestResult {
   name: string;
@@ -176,10 +142,6 @@ export class TestRunner {
   }
 }
 
-// ============================================================================
-// SHARED TEST DEFINITIONS
-// ============================================================================
-
 export interface TestOptions {
   skipRealApiTests?: boolean;
   skipApiConnectionTest?: boolean;
@@ -189,13 +151,11 @@ export interface TestOptions {
 export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, options: TestOptions = {}): Promise<void> {
   console.log('\n--- MOCKED API TESTS ---\n');
 
-  // Test: Popup page loads (extension-only)
   if (adapter.isExtension) {
     await runner.runTest('Popup page loads', async () => {
       const page = await adapter.newPage();
       await page.goto(adapter.getPageUrl('popup'));
 
-      // Check for essential popup elements (nav buttons and save button)
       await page.waitForSelector('#saveBtn');
       await page.waitForSelector('#navLibrary');
       await page.waitForSelector('#navSearch');
@@ -210,23 +170,19 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     });
   }
 
-  // Test 1: Configure API settings (with mock server)
   await runner.runTest('Configure API settings', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('options'));
     await page.waitForSelector('#apiKey');
     await waitForSettingsLoad(page);
 
-    // Clear and set API settings to use mock server
     await page.evaluate(`document.getElementById('apiBaseUrl').value = '${adapter.getMockApiUrl()}'`);
     await page.evaluate(`document.getElementById('apiKey').value = 'mock-api-key'`);
     await page.evaluate(`document.getElementById('chatModel').value = 'gpt-4o-mini'`);
     await page.evaluate(`document.getElementById('embeddingModel').value = 'text-embedding-3-small'`);
 
-    // Save settings
     await page.click('[type="submit"]');
 
-    // Wait for success
     await page.waitForFunction(
       `document.querySelector('.status')?.textContent?.includes('success')`,
       10000
@@ -235,7 +191,6 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
-  // Test 2: Test API connection (mock)
   if (options.skipApiConnectionTest) {
     console.log('  (Skipping API connection test for this platform)');
   } else {
@@ -245,10 +200,8 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
       await page.waitForSelector('#testBtn');
       await waitForSettingsLoad(page);
 
-      // Click test button
       await page.click('#testBtn');
 
-      // Wait for result
       await page.waitForFunction(
         `(() => {
           const status = document.querySelector('.status');
@@ -267,7 +220,6 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     });
   }
 
-  // Test 3: Library page loads
   await runner.runTest('Library page loads', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('library'));
@@ -281,7 +233,6 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
-  // Test 4: Search page loads
   await runner.runTest('Search page loads', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('search'));
@@ -295,7 +246,6 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
-  // Test 5: Stumble page loads
   await runner.runTest('Stumble page loads', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('stumble'));
@@ -309,7 +259,6 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
-  // Test 6: Bulk import UI is available
   await runner.runTest('Bulk import UI is available', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('options'));
@@ -326,13 +275,11 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
-  // Test 7: Bulk import validates URLs
   await runner.runTest('Bulk import validates URLs', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('options'));
     await page.waitForSelector('#bulkUrlsInput');
 
-    // Enter mix of valid and invalid URLs
     const testUrls = 'https://example.com\\njavascript:alert(1)\\nnot-a-url\\nhttps://github.com';
     await page.evaluate(`(() => {
       const el = document.getElementById('bulkUrlsInput');
@@ -340,7 +287,6 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
       el.dispatchEvent(new Event('input', { bubbles: true }));
     })()`);
 
-    // Wait for validation feedback
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     const hasFeedback = await page.$('#urlValidationFeedback');
@@ -351,9 +297,6 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
-  // Test 7b: CORS/Fetch - Bulk import fetches real Paul Graham article
-  // This test verifies that the webapp can actually fetch external URLs (CORS/fetch working)
-  // Skip on web and chrome due to timing issues with IndexedDB persistence
   if (options.skipCorsFetchTest) {
     console.log('  (Skipping CORS/fetch test for this platform)');
   } else {
@@ -364,34 +307,26 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.waitForSelector('#bulkUrlsInput');
     await waitForSettingsLoad(page);
 
-    // Enter the Paul Graham article URL
     await page.evaluate(`(() => {
       const el = document.getElementById('bulkUrlsInput');
       el.value = '${paulGrahamUrl}';
       el.dispatchEvent(new Event('input', { bubbles: true }));
     })()`);
 
-    // Wait for validation to show 1 valid URL
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Click start bulk import button
     await page.click('#startBulkImport');
 
-    // Wait for the fetch to complete - the status shows "Imported X of Y URLs"
-    // When done, it shows "Imported 1 of 1 URLs" or the status div shows "completed"
     await page.waitForFunction(
       `(() => {
-        // Check progress status text: "Imported X of Y URLs (Z failed)"
         const status = document.getElementById('bulkImportStatus');
         if (status && status.textContent) {
           const text = status.textContent;
-          // Match "Imported X of Y" where X equals Y (all done)
           const match = text.match(/Imported (\\d+) of (\\d+)/);
           if (match && match[1] === match[2] && parseInt(match[1]) > 0) {
             return true;
           }
         }
-        // Also check the main status message div for completion
         const statusDiv = document.querySelector('.status');
         if (statusDiv && statusDiv.textContent) {
           const text = statusDiv.textContent.toLowerCase();
@@ -401,28 +336,23 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
         }
         return false;
       })()`,
-      60000 // Allow up to 60 seconds for real network fetch
+      60000
     );
 
     await page.close();
 
-    // Verify the bookmark was created in the library
     const libraryPage = await adapter.newPage();
     await libraryPage.goto(adapter.getPageUrl('library'));
     await libraryPage.waitForSelector('#bookmarkList');
 
-    // Wait for bookmark to appear in the library (poll with retries)
-    // The bookmark may take time to be saved to IndexedDB and loaded
     await libraryPage.waitForFunction(
       `(() => {
         const cards = document.querySelectorAll('.bookmark-card');
         for (const card of cards) {
           const url = card.querySelector('.card-url');
-          // Check if the URL contains paulgraham.com (displayed as hostname)
           if (url && url.textContent && url.textContent.includes('paulgraham.com')) {
             return true;
           }
-          // Also check href attribute if present
           const link = card.querySelector('a[href*="paulgraham.com"]');
           if (link) {
             return true;
@@ -430,14 +360,13 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
         }
         return false;
       })()`,
-      30000 // Allow up to 30 seconds for bookmark to appear
+      30000
     );
 
     await libraryPage.close();
     });
   }
 
-  // Test 8: Export button exists
   await runner.runTest('Export button exists', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('options'));
@@ -451,7 +380,6 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
-  // Test 9: Import file input exists
   await runner.runTest('Import file input exists', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('options'));
@@ -465,7 +393,6 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
-  // Test 10: Jobs dashboard exists (on separate jobs page)
   await runner.runTest('Jobs dashboard exists', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('jobs'));
@@ -482,7 +409,6 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
-  // Test 11: Jobs filtering works (on separate jobs page)
   await runner.runTest('Jobs can be filtered by type and status', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('jobs'));
@@ -491,28 +417,23 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
 
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Test type filter
     await page.select('#jobTypeFilter', 'manual_add');
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Test status filter
     await page.select('#jobStatusFilter', 'completed');
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Reset filters
     await page.select('#jobTypeFilter', '');
     await page.select('#jobStatusFilter', '');
 
     await page.close();
   });
 
-  // Test 12: Navigation between pages
   await runner.runTest('Navigation between library and search pages', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('library'));
     await page.waitForSelector('#bookmarkList');
 
-    // Navigate to search page
     await page.click('.app-header__nav-link[href="../search/search.html"]');
     await page.waitForSelector('#searchInput');
 
@@ -524,16 +445,13 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
-  // Test 13: Settings page scrolling works
   await runner.runTest('Settings page scrolling is functional', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('options'));
     await page.waitForSelector('.middle');
 
-    // Wait for content to load
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Check that the main content area (.middle) has scrollable content
     const scrollableInfo = await page.evaluate(`(() => {
       const middle = document.querySelector('.middle');
       if (!middle) return { found: false };
@@ -542,7 +460,6 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
       const canScroll = middle.style.overflowY === 'auto' ||
                        window.getComputedStyle(middle).overflowY === 'auto';
 
-      // Try to scroll to bottom
       const initialScroll = middle.scrollTop;
       middle.scrollTo(0, 1000);
       const scrolledAmount = middle.scrollTop;
@@ -570,7 +487,6 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
-  // Test: Save bookmark via extension messaging (extension-only)
   if (adapter.isExtension) {
     await runner.runTest('Save bookmark via runtime messaging', async () => {
       const testUrl = 'https://example.com/e2e-test-article';
@@ -589,12 +505,10 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
         </html>
       `;
 
-      // Open popup page to get access to chrome.runtime
       const savePage = await adapter.newPage();
       await savePage.goto(adapter.getPageUrl('popup'));
       await savePage.waitForSelector('#saveBtn');
 
-      // Send SAVE_BOOKMARK message via chrome.runtime.sendMessage
       const result = await savePage.evaluate(`
         new Promise((resolve) => {
           chrome.runtime.sendMessage(
@@ -613,17 +527,14 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
 
       await savePage.close();
 
-      // Verify the save was successful
       if (!(result as any)?.success) {
         throw new Error(`Failed to save bookmark: ${(result as any)?.error || 'Unknown error'}`);
       }
 
-      // Verify bookmark appears in library
       const verifyPage = await adapter.newPage();
       await verifyPage.goto(adapter.getPageUrl('library'));
       await verifyPage.waitForSelector('#bookmarkList');
 
-      // Wait for bookmarks to load
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       const bookmarkFound = await verifyPage.evaluate(`
@@ -646,31 +557,24 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     });
   }
 
-  // ========================================================================
-  // ONE REAL API TEST
-  // ========================================================================
   if (options.skipRealApiTests) {
     console.log('\n--- REAL API TESTS SKIPPED ---\n');
   } else {
     console.log('\n--- REAL API TEST (1 test with actual OpenAI API) ---\n');
 
-    // Reconfigure to use real OpenAI API
     await runner.runTest('Configure real OpenAI API', async () => {
       const page = await adapter.newPage();
       await page.goto(adapter.getPageUrl('options'));
       await page.waitForSelector('#apiKey');
       await waitForSettingsLoad(page);
 
-      // Set real API settings
       await page.evaluate(`document.getElementById('apiBaseUrl').value = '${CONFIG_DEFAULTS.DEFAULT_API_BASE_URL}'`);
       await page.evaluate(`document.getElementById('apiKey').value = '${adapter.getRealApiKey()}'`);
       await page.evaluate(`document.getElementById('chatModel').value = 'gpt-4o-mini'`);
       await page.evaluate(`document.getElementById('embeddingModel').value = 'text-embedding-3-small'`);
 
-      // Save settings
       await page.click('[type="submit"]');
 
-      // Wait for success
       await page.waitForFunction(
         `document.querySelector('.status')?.textContent?.includes('success')`,
         10000
@@ -679,7 +583,6 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
       await page.close();
     });
 
-    // Real API test - test connection
     await runner.runTest('[REAL API] Test API connection', async () => {
       console.log('  🔴 Using REAL OpenAI API...');
 
@@ -688,10 +591,8 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
       await page.waitForSelector('#testBtn');
       await waitForSettingsLoad(page);
 
-      // Click test button
       await page.click('#testBtn');
 
-      // Wait for result
       await page.waitForFunction(
         `(() => {
           const status = document.querySelector('.status');

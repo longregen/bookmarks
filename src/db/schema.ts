@@ -4,28 +4,28 @@ export interface Bookmark {
   id: string;
   url: string;
   title: string;
-  html: string;                // full document.documentElement.outerHTML
+  html: string;
   status: 'pending' | 'processing' | 'complete' | 'error';
   errorMessage?: string;
   errorStack?: string;
   retryCount?: number;
   lastRetryAt?: Date;
-  nextRetryAt?: Date;          // Timestamp when next retry should occur (exponential backoff)
+  nextRetryAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface Markdown {
   id: string;
-  bookmarkId: string;          // foreign key → Bookmark.id
-  content: string;             // Readability output converted to Markdown
+  bookmarkId: string;
+  content: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface QuestionAnswer {
   id: string;
-  bookmarkId: string;          // foreign key → Bookmark.id
+  bookmarkId: string;
   question: string;
   answer: string;
   embeddingQuestion: number[]; // Float array, 1536 dims for text-embedding-3-small
@@ -79,24 +79,21 @@ export interface Job {
   parentJobId?: string;          // For hierarchical jobs (e.g., bulk import -> individual fetches)
   bookmarkId?: string;
 
-  progress: number;              // 0-100
+  progress: number;
   currentStep?: string;
   totalSteps?: number;
   completedSteps?: number;
 
   metadata: {
-    // For MARKDOWN_GENERATION
     characterCount?: number;
     wordCount?: number;
     extractionTimeMs?: number;
 
-    // For QA_GENERATION
     pairsGenerated?: number;
     truncatedChars?: number;
     apiTimeMs?: number;
     embeddingTimeMs?: number;
 
-    // For FILE_IMPORT
     fileName?: string;
     totalBookmarks?: number;
     importedCount?: number;
@@ -104,28 +101,23 @@ export interface Job {
     errorCount?: number;
     errors?: { url: string; error: string }[];
 
-    // For BULK_URL_IMPORT
     totalUrls?: number;
     successCount?: number;
     failureCount?: number;
 
-    // For URL_FETCH
     url?: string;
     fetchTimeMs?: number;
     htmlSize?: number;
     bookmarkId?: string;
 
-    // For MANUAL_ADD
     title?: string;
     captureTimeMs?: number;
     source?: string;
 
-    // Common
     errorMessage?: string;
     errorStack?: string;
     retryCount?: number;
 
-    // Job resumption tracking
     lastInterruptedAt?: string;
     resumedAt?: string;
     resumedAndCompleted?: boolean;
@@ -155,7 +147,6 @@ export class BookmarkDatabase extends Dexie {
       settings: 'key, createdAt, updatedAt',
     });
 
-    // Version 2: Add jobs table
     this.version(2).stores({
       bookmarks: 'id, url, status, createdAt, updatedAt',
       markdown: 'id, bookmarkId, createdAt, updatedAt',
@@ -166,7 +157,6 @@ export class BookmarkDatabase extends Dexie {
       console.log('Upgraded database to version 2 with jobs table');
     });
 
-    // Version 3: Add bookmarkTags table for the redesigned tag system and searchHistory table for search autocomplete
     this.version(3).stores({
       bookmarks: 'id, url, status, createdAt, updatedAt',
       markdown: 'id, bookmarkId, createdAt, updatedAt',
@@ -181,10 +171,6 @@ export class BookmarkDatabase extends Dexie {
 
 export const db = new BookmarkDatabase();
 
-/**
- * Get all content related to a bookmark (markdown, Q&A pairs, tags)
- * Uses Promise.all for efficient parallel queries
- */
 export async function getBookmarkContent(bookmarkId: string): Promise<{
   markdown: Markdown | undefined;
   qaPairs: QuestionAnswer[];
@@ -210,10 +196,6 @@ export async function getBookmarkTags(bookmarkId: string): Promise<BookmarkTag[]
   return db.bookmarkTags.where('bookmarkId').equals(bookmarkId).toArray();
 }
 
-/**
- * Get full bookmark with all related data
- * Uses Promise.all for efficient parallel queries
- */
 export async function getFullBookmark(bookmarkId: string): Promise<{
   bookmark: Bookmark | undefined;
   markdown: Markdown | undefined;

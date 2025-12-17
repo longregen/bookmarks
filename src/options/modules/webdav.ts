@@ -155,7 +155,6 @@ async function testWebDAVConnection(
   password: string
 ): Promise<WebDAVTestResult> {
   try {
-    // Use PROPFIND to test WebDAV connection
     const response = await fetch(url, {
       method: 'PROPFIND',
       headers: {
