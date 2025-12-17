@@ -299,6 +299,23 @@ body {
   flex: 1;
 }
 
+#searchBtn.loading {
+  cursor: wait;
+  opacity: 0.9;
+}
+
+#searchBtn.loading .spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
+  margin-right: var(--space-1);
+}
+
 .result-header {
   display: flex;
   justify-content: space-between;
@@ -929,6 +946,13 @@ input:focus {
   border: 1px solid var(--error-border);
 }
 
+.test-connection-status.testing {
+  background: var(--info-bg);
+  color: var(--info-text);
+  border: 1px solid var(--info-border);
+  animation: pulse 1s infinite;
+}
+
 .data-actions {
   display: grid;
   gap: var(--space-6);
@@ -1035,9 +1059,21 @@ input:focus {
 
 .theme-options {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--space-4);
   margin-top: var(--space-4);
+}
+
+@media (min-width: 480px) {
+  .theme-options {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .theme-options {
+    grid-template-columns: repeat(5, 1fr);
+  }
 }
 
 .theme-option {
@@ -1224,10 +1260,9 @@ input:focus {
 
 .jobs-controls {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   margin-bottom: var(--space-6);
-  gap: var(--space-4);
+  gap: var(--space-3);
   flex-wrap: wrap;
 }
 
@@ -1235,6 +1270,7 @@ input:focus {
   display: flex;
   gap: var(--space-3);
   flex-wrap: wrap;
+  flex: 1;
 }
 
 .filter-select {
@@ -1267,9 +1303,18 @@ input:focus {
 
 .jobs-list .loading,
 .jobs-list .empty {
-  padding: var(--space-8);
+  padding: var(--space-8) var(--space-4);
   text-align: center;
   color: var(--text-tertiary);
+  font-size: var(--text-base);
+}
+
+.jobs-list .empty::before {
+  content: "📋";
+  display: block;
+  font-size: var(--text-2xl);
+  margin-bottom: var(--space-3);
+  opacity: 0.6;
 }
 
 .job-item {

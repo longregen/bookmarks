@@ -17,6 +17,7 @@ const searchBtn = getElement<HTMLButtonElement>('searchBtn');
 
 
 saveBtn.addEventListener('click', async () => {
+  let saveSucceeded = false;
   try {
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving...';
@@ -57,8 +58,12 @@ saveBtn.addEventListener('click', async () => {
     const response: SaveBookmarkResponse | undefined = result[0]?.result as SaveBookmarkResponse | undefined;
     if (response?.success === true && response.bookmarkId !== undefined) {
       showSuccessWithCTA(response.bookmarkId);
+      showSaveSuccess();
+      saveSucceeded = true;
     } else {
       showStatusMessage(statusDiv, 'Bookmark saved!', 'success', 3000);
+      showSaveSuccess();
+      saveSucceeded = true;
     }
   } catch (error) {
     console.error('Error saving bookmark:', error);
@@ -69,10 +74,12 @@ saveBtn.addEventListener('click', async () => {
       showStatusMessage(statusDiv, 'Failed to save bookmark', 'error');
     }
   } finally {
-    saveBtn.disabled = false;
-    saveBtn.textContent = '';
-    saveBtn.appendChild(createElement('span', { className: 'icon', textContent: '📌' }));
-    saveBtn.appendChild(document.createTextNode(' Save This Page'));
+    if (!saveSucceeded) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = '';
+      saveBtn.appendChild(createElement('span', { className: 'icon', textContent: '📌' }));
+      saveBtn.appendChild(document.createTextNode(' Save This Page'));
+    }
   }
 });
 
@@ -88,6 +95,22 @@ function showSuccessWithCTA(bookmarkId: string): void {
 
   statusDiv.appendChild(message);
   statusDiv.appendChild(ctaBtn);
+}
+
+function showSaveSuccess(): void {
+  saveBtn.disabled = true;
+  saveBtn.classList.add('btn-success');
+  saveBtn.textContent = '';
+  saveBtn.appendChild(createElement('span', { className: 'icon', textContent: '✓' }));
+  saveBtn.appendChild(document.createTextNode(' Saved!'));
+
+  setTimeout(() => {
+    saveBtn.classList.remove('btn-success');
+    saveBtn.disabled = false;
+    saveBtn.textContent = '';
+    saveBtn.appendChild(createElement('span', { className: 'icon', textContent: '📌' }));
+    saveBtn.appendChild(document.createTextNode(' Save This Page'));
+  }, 2000);
 }
 
 navLibrary.addEventListener('click', () => {

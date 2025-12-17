@@ -44,7 +44,9 @@ async function saveSettings(): Promise<void> {
 
 testBtn.addEventListener('click', async () => {
   try {
-    testConnectionStatus.className = 'test-connection-status hidden';
+    testConnectionStatus.className = 'test-connection-status testing';
+    testConnectionStatus.textContent = 'Testing connection...';
+
     await withButtonState(testBtn, 'Testing...', async () => {
       const settings = {
         apiBaseUrl: apiBaseUrlInput.value.trim(),
