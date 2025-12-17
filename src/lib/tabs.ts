@@ -39,6 +39,7 @@ export async function openExtensionPage(pagePath: string): Promise<void> {
     if (existingTab.windowId !== undefined) {
       try {
         await chrome.windows.update(existingTab.windowId, { focused: true });
+      // eslint-disable-next-line no-empty
       } catch {}
     }
   } else {

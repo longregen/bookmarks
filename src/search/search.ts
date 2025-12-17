@@ -192,6 +192,7 @@ function showCenteredMode(): void {
   resultHeader.classList.add('hidden');
 }
 
+// eslint-disable-next-line complexity
 async function performSearch(): Promise<void> {
   const query = searchInput.value.trim();
   if (!query) {

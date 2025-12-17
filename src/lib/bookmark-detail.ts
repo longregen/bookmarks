@@ -106,6 +106,7 @@ export class BookmarkDetailManager {
   }
 
   async deleteCurrentBookmark(): Promise<void> {
+    // eslint-disable-next-line no-alert
     if (this.currentBookmarkId === null || !confirm('Delete this bookmark?')) return;
 
     await db.markdown.where('bookmarkId').equals(this.currentBookmarkId).delete();
@@ -137,6 +138,7 @@ export class BookmarkDetailManager {
     const bookmark = await db.bookmarks.get(this.currentBookmarkId);
     if (!bookmark) return;
 
+    // eslint-disable-next-line no-alert
     alert(`HTML Length: ${bookmark.html.length} chars\nStatus: ${bookmark.status}\n\n${bookmark.html.slice(0, 500)}...`);
   }
 }

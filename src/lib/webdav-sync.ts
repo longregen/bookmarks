@@ -75,8 +75,8 @@ async function ensureFolderExists(settings: ApiSettings): Promise<void> {
     if (response.status === 207 || response.ok) {
       return;
     }
-  } catch {
-  }
+  // eslint-disable-next-line no-empty
+  } catch {}
 
   const mkcolResponse = await fetch(folderUrl, {
     method: 'MKCOL',

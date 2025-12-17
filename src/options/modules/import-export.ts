@@ -96,5 +96,5 @@ importBtn.addEventListener('click', async () => {
   }
 });
 
-export function initImportExportModule(): void {
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+export function initImportExportModule(): void {}
