@@ -1,5 +1,4 @@
 import { config } from './config-registry';
-import { isFirefox } from './offscreen';
 import type { GetPageHtmlResponse } from './messages';
 
 const KEEPALIVE_ALARM_NAME = 'tab-renderer-keepalive';
@@ -100,7 +99,7 @@ async function waitForTabLoad(tabId: number, timeoutMs: number): Promise<void> {
 async function executeExtraction(tabId: number, settleTimeMs: number, maxMultiplier: number): Promise<string> {
   // Firefox doesn't allow chrome.scripting.executeScript() on programmatically created tabs
   // Use message passing to content script instead
-  if (isFirefox()) {
+  if (__IS_FIREFOX__) {
     return executeExtractionViaMessage(tabId, settleTimeMs);
   }
 

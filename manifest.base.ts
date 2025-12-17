@@ -50,7 +50,7 @@ export const basePermissions = ['storage', 'activeTab', 'scripting', 'alarms'] a
 export const chromeManifest = {
   ...manifestBase,
   permissions: [...basePermissions, 'tabs', 'offscreen'],
-  minimum_chrome_version: '4.2.0',
+  minimum_chrome_version: '109',
   background: {
     service_worker: 'src/background/service-worker.ts',
     type: 'module' as const,
@@ -67,13 +67,10 @@ export const firefoxManifest = {
   browser_specific_settings: {
     gecko: {
       id: 'bookmarks@localforge.org',
-      strict_min_version: '4.2.0',
-      data_collection_permissions: {
-        required: ['none'],
-      },
+      strict_min_version: '142.0',
     },
     gecko_android: {
-      strict_min_version: '4.2.0',
+      strict_min_version: '142.0',
     },
   },
 };
