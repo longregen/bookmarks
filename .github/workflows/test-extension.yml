@@ -195,15 +195,6 @@ jobs:
         if: env.HAS_API_KEY == 'true'
         run: npm run coverage:merge
 
-      - name: Upload merged coverage to Codecov
-        if: env.HAS_API_KEY == 'true'
-        uses: codecov/codecov-action@ad3126e916f78f00edff4ed0317cf185271ccc2d # v5.4.2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage-merged/lcov.info
-          fail_ci_if_error: false
-          verbose: true
-
       - name: Skip E2E tests (no API key)
         if: env.HAS_API_KEY != 'true'
         run: echo "Skipping E2E tests - OPENAI_API_KEY secret not configured"
