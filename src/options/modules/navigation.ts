@@ -20,8 +20,14 @@ navItems.forEach(item => {
     if (sectionId !== undefined && sectionId !== '') {
       setActiveNavItem(sectionId);
       const section = document.getElementById(sectionId);
-      if (section) {
-        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const scrollContainer = document.querySelector('.middle');
+      if (section && scrollContainer) {
+        // Use scrollTo on container directly to avoid scrollIntoView
+        // scrolling both the container AND the document body
+        scrollContainer.scrollTo({
+          top: section.offsetTop,
+          behavior: 'smooth'
+        });
       }
     }
   });
