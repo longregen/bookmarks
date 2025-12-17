@@ -1,4 +1,4 @@
-import { SIMILARITY_THRESHOLD } from './constants';
+import { config } from './config-registry';
 
 // Debug loggers that compile away when __DEBUG_EMBEDDINGS__ is false
 const debugLog = __DEBUG_EMBEDDINGS__
@@ -128,11 +128,11 @@ export function findTopK<T>(
     validScored: validScored.length,
     errored: errors.length,
     scoreDistribution: {
-      excellent: validScored.filter(s => s.score >= SIMILARITY_THRESHOLD.EXCELLENT).length,
-      good: validScored.filter(s => s.score >= SIMILARITY_THRESHOLD.GOOD && s.score < SIMILARITY_THRESHOLD.EXCELLENT).length,
-      fair: validScored.filter(s => s.score >= SIMILARITY_THRESHOLD.FAIR && s.score < SIMILARITY_THRESHOLD.GOOD).length,
-      poor: validScored.filter(s => s.score >= SIMILARITY_THRESHOLD.POOR && s.score < SIMILARITY_THRESHOLD.FAIR).length,
-      veryPoor: validScored.filter(s => s.score < SIMILARITY_THRESHOLD.POOR).length,
+      excellent: validScored.filter(s => s.score >= config.SIMILARITY_THRESHOLD_EXCELLENT).length,
+      good: validScored.filter(s => s.score >= config.SIMILARITY_THRESHOLD_GOOD && s.score < config.SIMILARITY_THRESHOLD_EXCELLENT).length,
+      fair: validScored.filter(s => s.score >= config.SIMILARITY_THRESHOLD_FAIR && s.score < config.SIMILARITY_THRESHOLD_GOOD).length,
+      poor: validScored.filter(s => s.score >= config.SIMILARITY_THRESHOLD_POOR && s.score < config.SIMILARITY_THRESHOLD_FAIR).length,
+      veryPoor: validScored.filter(s => s.score < config.SIMILARITY_THRESHOLD_POOR).length,
     },
   });
 

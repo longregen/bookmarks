@@ -307,6 +307,31 @@ const CONFIG_STORAGE_KEY = 'advancedConfig';
 let configOverrides: Record<string, number | string | boolean> = {};
 let overridesLoaded = false;
 
+// Performance optimizations: O(1) lookups
+// Registry map for fast entry lookup (avoids find() on every read)
+const registryMap = new Map<string, ConfigEntry>(
+  CONFIG_REGISTRY.map(entry => [entry.key, entry])
+);
+
+// Merged config cache (pre-computed defaults + overrides)
+let configCache: Record<string, number | string | boolean> = {};
+
+/**
+ * Build the config cache by merging defaults with overrides
+ * Called after loading overrides or when they change
+ */
+function rebuildConfigCache(): void {
+  configCache = {};
+  for (const entry of CONFIG_REGISTRY) {
+    configCache[entry.key] = entry.key in configOverrides
+      ? configOverrides[entry.key]
+      : entry.defaultValue;
+  }
+}
+
+// Initialize cache with default values
+rebuildConfigCache();
+
 /**
  * Load config overrides from IndexedDB
  */
@@ -317,10 +342,12 @@ export async function loadConfigOverrides(): Promise<void> {
       configOverrides = stored.value;
     }
     overridesLoaded = true;
+    rebuildConfigCache(); // Rebuild cache with loaded overrides
   } catch (error) {
     console.error('Failed to load config overrides:', error);
     configOverrides = {};
     overridesLoaded = true;
+    rebuildConfigCache(); // Rebuild cache with empty overrides
   }
 }
 
@@ -344,26 +371,23 @@ export async function saveConfigOverrides(): Promise<void> {
 
 /**
  * Get a config value (with override if set)
+ * Uses pre-computed cache for O(1) lookups
  */
 export function getConfigValue<T extends number | string | boolean>(key: string): T {
-  // Find the entry in registry
-  const entry = CONFIG_REGISTRY.find(e => e.key === key);
-  if (!entry) {
+  // Verify key exists in registry using Map (O(1))
+  if (!registryMap.has(key)) {
     throw new Error(`Unknown config key: ${key}`);
   }
 
-  // Return override if set, otherwise default
-  if (key in configOverrides) {
-    return configOverrides[key] as T;
-  }
-  return entry.defaultValue as T;
+  // Return cached value (O(1) object property lookup)
+  return configCache[key] as T;
 }
 
 /**
  * Set a config override
  */
 export async function setConfigValue(key: string, value: number | string | boolean): Promise<void> {
-  const entry = CONFIG_REGISTRY.find(e => e.key === key);
+  const entry = registryMap.get(key);
   if (!entry) {
     throw new Error(`Unknown config key: ${key}`);
   }
@@ -384,6 +408,7 @@ export async function setConfigValue(key: string, value: number | string | boole
   }
 
   configOverrides[key] = value;
+  rebuildConfigCache(); // Update cache immediately
   await saveConfigOverrides();
 }
 
@@ -391,12 +416,12 @@ export async function setConfigValue(key: string, value: number | string | boole
  * Reset a config value to default
  */
 export async function resetConfigValue(key: string): Promise<void> {
-  const entry = CONFIG_REGISTRY.find(e => e.key === key);
-  if (!entry) {
+  if (!registryMap.has(key)) {
     throw new Error(`Unknown config key: ${key}`);
   }
 
   delete configOverrides[key];
+  rebuildConfigCache(); // Update cache immediately
   await saveConfigOverrides();
 }
 
@@ -405,6 +430,7 @@ export async function resetConfigValue(key: string): Promise<void> {
  */
 export async function resetAllConfigValues(): Promise<void> {
   configOverrides = {};
+  rebuildConfigCache(); // Update cache immediately
   await saveConfigOverrides();
 }
 
