@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { getElement, getElements, createElement, showStatusMessage } from '../src/ui/dom';
+import { getElement, createElement, showStatusMessage } from '../src/ui/dom';
 
 describe('DOM utilities', () => {
   describe('getElement', () => {
@@ -28,33 +28,6 @@ describe('DOM utilities', () => {
 
     it('should throw error if element not found', () => {
       expect(() => getElement('non-existent')).toThrow('Required element #non-existent not found');
-    });
-  });
-
-  describe('getElements', () => {
-    beforeEach(() => {
-      document.body.innerHTML = '';
-    });
-
-    it('should return multiple elements by ID', () => {
-      const div1 = document.createElement('div');
-      div1.id = 'element-1';
-      const div2 = document.createElement('div');
-      div2.id = 'element-2';
-      document.body.appendChild(div1);
-      document.body.appendChild(div2);
-
-      const [el1, el2] = getElements('element-1', 'element-2');
-      expect(el1).toBe(div1);
-      expect(el2).toBe(div2);
-    });
-
-    it('should throw if any element is not found', () => {
-      const div = document.createElement('div');
-      div.id = 'existing';
-      document.body.appendChild(div);
-
-      expect(() => getElements('existing', 'non-existent')).toThrow('Required element #non-existent not found');
     });
   });
 

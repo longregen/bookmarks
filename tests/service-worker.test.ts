@@ -429,7 +429,6 @@ describe('Service Worker Core Functionality', () => {
       const messages = [
         { type: 'SAVE_BOOKMARK', data: {} },
         { type: 'START_BULK_IMPORT', urls: [] },
-        { type: 'GET_JOB_STATUS', jobId: 'test' },
         { type: 'GET_CURRENT_TAB_INFO' },
         { type: 'START_PROCESSING' },
       ];
