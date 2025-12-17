@@ -10,10 +10,6 @@ export interface ExtractedContent {
   byline: string | null;
 }
 
-/**
- * Get or create a TurndownService instance
- * Lazy initialization to avoid accessing document in service worker contexts
- */
 let turndownInstance: TurndownService | null = null;
 function getTurndown(): TurndownService {
   turndownInstance ??= new TurndownService({
@@ -23,17 +19,12 @@ function getTurndown(): TurndownService {
   return turndownInstance;
 }
 
-/**
- * Extract markdown from HTML using native DOMParser (Firefox only)
- * This is used directly in Firefox service workers where DOMParser is available
- */
 function extractMarkdownNative(html: string, url: string): ExtractedContent {
   console.log('[Extract] Using native DOMParser', { url, htmlLength: html.length });
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
 
-  // Set the base URL for relative link resolution
   const base = doc.createElement('base');
   base.href = url;
   doc.head.insertBefore(base, doc.head.firstChild);
@@ -64,11 +55,6 @@ function extractMarkdownNative(html: string, url: string): ExtractedContent {
   };
 }
 
-/**
- * Extract markdown via Chrome offscreen document
- * Chrome MV3 service workers don't have DOMParser, so we use the offscreen document.
- * This function is only called in Chrome builds; it's tree-shaken from Firefox builds.
- */
 async function extractMarkdownViaOffscreen(html: string, url: string): Promise<ExtractedContent> {
   console.log('[Extract] Using offscreen document (Chrome)', { url, htmlLength: html.length });
 
@@ -77,7 +63,7 @@ async function extractMarkdownViaOffscreen(html: string, url: string): Promise<E
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error('Extract timeout via offscreen document'));
-    }, 60000); // 60s timeout for extraction
+    }, 60000);
 
     chrome.runtime.sendMessage(
       { type: 'EXTRACT_CONTENT', html, url },
@@ -99,16 +85,7 @@ async function extractMarkdownViaOffscreen(html: string, url: string): Promise<E
   });
 }
 
-/**
- * Extract markdown from HTML - async version that works on all platforms
- * Build-time constants ensure only the relevant code path is included in each build:
- * - Web: Uses native DOMParser (always available in browser context)
- * - Firefox: Uses native DOMParser directly in service worker
- * - Chrome: Routes to offscreen document where DOMParser is available
- */
 export async function extractMarkdownAsync(html: string, url: string): Promise<ExtractedContent> {
-  // Build-time branching: __IS_WEB__ and __IS_FIREFOX__ are replaced with true/false at build time
-  // Bundler eliminates the dead code path during minification
   if (__IS_WEB__ || __IS_FIREFOX__) {
     return extractMarkdownNative(html, url);
   } else {
@@ -117,10 +94,7 @@ export async function extractMarkdownAsync(html: string, url: string): Promise<E
 
 }
 
-/**
- * @deprecated Use extractMarkdownAsync instead
- * Synchronous version - only works in Firefox or contexts with DOMParser
- */
+/** @deprecated Use extractMarkdownAsync instead */
 export function extractMarkdown(html: string, url: string): ExtractedContent {
   return extractMarkdownNative(html, url);
 }

@@ -15,26 +15,20 @@ import type { OutputOptions } from 'rollup';
  *   if (__IS_CHROME__) { ... } // Dead code eliminated in Firefox builds
  */
 export const sharedDefine = {
-  // Set to false to disable all embedding-related console.log statements
   __DEBUG_EMBEDDINGS__: JSON.stringify(false),
 };
 
 /**
  * Shared rollup output options for bundling JavaScript.
  *
- * This configuration consolidates JavaScript into fewer chunks to reduce HTTP requests:
- * - 'vendor': All node_modules dependencies (dexie, readability, marked, turndown)
- * - 'shared': All shared library code from src/lib/
- * - Entry points get their own minimal bundles that import from shared chunks
+ * This configuration consolidates JavaScript into optimized chunks for better
+ * compression and caching while avoiding too many small files.
  */
 export const sharedOutput: OutputOptions = {
   manualChunks(id) {
-    // Bundle all node_modules into a single vendor chunk
     if (id.includes('node_modules')) {
       return 'vendor';
     }
-    // Bundle all shared library code into a single chunk
-    // This includes: src/lib/, src/shared/, src/db/, src/background/, and platform initialization
     if (id.includes('/src/lib/')) {
       return 'shared';
     }
@@ -50,11 +44,9 @@ export const sharedOutput: OutputOptions = {
     if (id.includes('/src/background/')) {
       return 'shared';
     }
-    // Web initialization (used by both extension and web builds)
     if (id.includes('/src/web/init-web')) {
       return 'shared';
     }
-    // Bundle options modules together
     if (id.includes('/src/options/modules/')) {
       return 'options-modules';
     }

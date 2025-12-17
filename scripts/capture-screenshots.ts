@@ -35,21 +35,17 @@ const OUTPUT_DIR = process.env.OUTPUT_DIR
 
 const BROWSER_PATH = process.env.BROWSER_PATH;
 
-// Create a temporary user data directory for the browser
 const USER_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'chrome-screenshot-profile-'));
 
-// Cleanup function for user data directory
 function cleanupUserDataDir() {
   try {
     if (fs.existsSync(USER_DATA_DIR)) {
       fs.rmSync(USER_DATA_DIR, { recursive: true, force: true });
     }
   } catch {
-    // Ignore cleanup errors
   }
 }
 
-// Ensure cleanup on exit
 process.on('exit', cleanupUserDataDir);
 process.on('SIGINT', () => { cleanupUserDataDir(); process.exit(1); });
 process.on('SIGTERM', () => { cleanupUserDataDir(); process.exit(1); });
@@ -61,7 +57,6 @@ if (!BROWSER_PATH) {
 }
 
 async function launchBrowser(): Promise<Browser> {
-  // Verify extension path exists
   if (!fs.existsSync(EXTENSION_PATH)) {
     throw new Error(`Extension path does not exist: ${EXTENSION_PATH}\nRun 'npm run build:chrome' first.`);
   }
@@ -92,7 +87,6 @@ async function launchBrowser(): Promise<Browser> {
       '--disable-background-timer-throttling',
       '--disable-backgrounding-occluded-windows',
       '--disable-renderer-backgrounding',
-      // Set a consistent window size
       '--window-size=1400,900',
     ],
   });
@@ -122,7 +116,6 @@ async function getExtensionId(browser: Browser): Promise<string> {
     console.log('Service worker target not found, trying fallback methods...');
   }
 
-  // Fallback: Look for any chrome-extension:// target
   const extensionTarget = await browser.waitForTarget(
     target => target.url().includes('chrome-extension://'),
     { timeout: 10000 }
@@ -143,30 +136,24 @@ function getExtensionUrl(extensionId: string, pagePath: string): string {
 }
 
 async function setTheme(page: Page, theme: string): Promise<void> {
-  // Set the theme via data-theme attribute
   await page.evaluate((themeName) => {
     document.documentElement.setAttribute('data-theme', themeName);
   }, theme);
 }
 
 async function injectDemoData(page: Page): Promise<void> {
-  // Inject demo bookmarks using raw IndexedDB (avoids dynamic import issues)
-  // Note: We pass the code as a string to avoid esbuild adding __name helper
-  // which is not available in the browser context
   await page.evaluate(`(async () => {
     const DB_NAME = 'BookmarkRAG';
     const DB_VERSION = 1;
 
-    // Delete existing database first to avoid version conflicts
-    // (Dexie uses different version numbering than raw IndexedDB)
+    // Dexie uses different version numbering than raw IndexedDB (multiplies by 10)
     await new Promise((resolve, reject) => {
       const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
       deleteRequest.onsuccess = () => resolve();
       deleteRequest.onerror = () => reject(deleteRequest.error);
-      deleteRequest.onblocked = () => resolve(); // Proceed even if blocked
+      deleteRequest.onblocked = () => resolve();
     });
 
-    // Open database directly
     function openDb() {
       return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -174,7 +161,6 @@ async function injectDemoData(page: Page): Promise<void> {
         request.onsuccess = () => resolve(request.result);
         request.onupgradeneeded = (event) => {
           const db = event.target.result;
-          // Create stores if they don't exist (matching schema.ts)
           if (!db.objectStoreNames.contains('bookmarks')) {
             db.createObjectStore('bookmarks', { keyPath: 'id' });
           }
@@ -210,7 +196,6 @@ async function injectDemoData(page: Page): Promise<void> {
 
     const db = await openDb();
 
-    // Clear existing data
     await clearStore(db, 'bookmarks');
     await clearStore(db, 'markdown');
     await clearStore(db, 'questionsAnswers');
@@ -275,7 +260,6 @@ async function injectDemoData(page: Page): Promise<void> {
           updatedAt: bookmark.updatedAt,
         });
 
-        // Add Q&A pairs
         await putRecord(db, 'questionsAnswers', {
           id: 'qa-' + bookmark.id + '-1',
           bookmarkId: bookmark.id,
@@ -314,14 +298,11 @@ async function capturePopup(browser: Browser, extensionId: string): Promise<void
   await page.setViewport({ width: 320, height: 240 });
   await page.goto(getExtensionUrl(extensionId, '/src/popup/popup.html'));
 
-  // Wait for content to load
   await page.waitForSelector('#saveBtn', { timeout: 5000 });
 
-  // Set terminal theme for screenshots
   await setTheme(page, 'terminal');
   await new Promise(resolve => setTimeout(resolve, 1000));
 
-  // Update stats display for demo
   await page.evaluate(() => {
     const totalCount = document.querySelector('#totalCount');
     const pendingCount = document.querySelector('#pendingCount');
@@ -347,17 +328,13 @@ async function captureExplore(browser: Browser, extensionId: string): Promise<vo
   await page.setViewport({ width: 1200, height: 800 });
   await page.goto(getExtensionUrl(extensionId, '/src/library/library.html'));
 
-  // Wait for page structure
   await page.waitForSelector('#bookmarkList', { timeout: 5000 });
 
-  // Inject demo data
   await injectDemoData(page);
 
-  // Reload to show the data
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#bookmarkList', { timeout: 5000 });
 
-  // Set terminal theme for screenshots
   await setTheme(page, 'terminal');
   await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -376,23 +353,18 @@ async function captureSearch(browser: Browser, extensionId: string): Promise<voi
   await page.setViewport({ width: 1200, height: 800 });
   await page.goto(getExtensionUrl(extensionId, '/src/search/search.html'));
 
-  // Wait for page structure
   await page.waitForSelector('#searchInput', { timeout: 5000 });
 
-  // Inject demo data first
   await injectDemoData(page);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#searchInput', { timeout: 5000 });
 
-  // Set terminal theme for screenshots
   await setTheme(page, 'terminal');
   await new Promise(resolve => setTimeout(resolve, 1000));
 
-  // Set search query
   await page.type('#searchInput', 'javascript fundamentals');
   await new Promise(resolve => setTimeout(resolve, 500));
 
-  // Inject fake search results
   await page.evaluate(() => {
     const resultsList = document.querySelector('#resultsList');
     if (resultsList) {
@@ -439,7 +411,6 @@ async function captureSearch(browser: Browser, extensionId: string): Promise<voi
       `;
     }
 
-    // Update result count
     const resultCount = document.querySelector('#resultCount');
     if (resultCount) resultCount.textContent = '3';
   });
@@ -459,7 +430,6 @@ async function main(): Promise<void> {
   console.log('Screenshot Capture for Landing Page');
   console.log('='.repeat(60));
 
-  // Ensure output directory exists
   if (!fs.existsSync(OUTPUT_DIR)) {
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   }

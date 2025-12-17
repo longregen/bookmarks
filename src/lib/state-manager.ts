@@ -1,19 +1,8 @@
-/**
- * State Manager for Service Worker Operations
- *
- * Provides robust state management with:
- * - Session ID tracking to detect service worker restarts
- * - Timeout-based recovery to prevent stuck flags
- * - Thread-safe flag management
- */
-
 // Generate a unique session ID when the module loads (service worker starts)
 const SESSION_ID = crypto.randomUUID();
 
 interface StateManagerOptions {
-  /** Operation name for logging purposes */
   name: string;
-  /** Timeout in milliseconds after which the operation is considered stuck */
   timeoutMs: number;
 }
 
@@ -23,9 +12,6 @@ interface OperationState {
   sessionId: string;
 }
 
-/**
- * Manages a boolean flag with timeout and session validation
- */
 export class StateManager {
   private state: OperationState = {
     isActive: false,
@@ -39,20 +25,10 @@ export class StateManager {
     this.options = options;
   }
 
-  /**
-   * Get the current session ID
-   */
   getSessionId(): string {
     return SESSION_ID;
   }
 
-  /**
-   * Check if the operation is currently active
-   * Returns false if:
-   * - Not currently active
-   * - Timeout exceeded (automatically resets)
-   * - Session changed (service worker restarted)
-   */
   isActive(): boolean {
     if (!this.state.isActive) {
       return false;
@@ -79,10 +55,6 @@ export class StateManager {
     return true;
   }
 
-  /**
-   * Start the operation
-   * Returns false if already active (with valid session and not timed out)
-   */
   start(): boolean {
     // Check if already active (this will auto-reset if timed out or session changed)
     if (this.isActive()) {
@@ -100,9 +72,6 @@ export class StateManager {
     return true;
   }
 
-  /**
-   * Reset the operation state
-   */
   reset(): void {
     if (this.state.isActive) {
       const duration = Date.now() - this.state.startTime;
@@ -116,17 +85,10 @@ export class StateManager {
     };
   }
 
-  /**
-   * Get the current state (for debugging/testing)
-   */
   getState(): Readonly<OperationState> {
     return { ...this.state };
   }
 
-  /**
-   * Get elapsed time since operation started (in milliseconds)
-   * Returns 0 if not active
-   */
   getElapsedTime(): number {
     if (!this.state.isActive) {
       return 0;
@@ -134,10 +96,6 @@ export class StateManager {
     return Date.now() - this.state.startTime;
   }
 
-  /**
-   * Check if the operation is close to timing out
-   * Returns true if more than 80% of timeout has elapsed
-   */
   isNearTimeout(): boolean {
     if (!this.state.isActive) {
       return false;
@@ -147,9 +105,6 @@ export class StateManager {
   }
 }
 
-/**
- * Create a state manager with the given options
- */
 export function createStateManager(options: StateManagerOptions): StateManager {
   return new StateManager(options);
 }

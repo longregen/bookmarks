@@ -24,14 +24,12 @@ export async function broadcastEvent(type: EventType, payload?: unknown): Promis
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions, @typescript-eslint/prefer-optional-chain
   if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
     try {
-      // Use sendMessage with no specific target - broadcasts to all listeners
       await chrome.runtime.sendMessage({
         type: 'EVENT_BROADCAST',
         event,
       });
     } catch (error: unknown) {
-      // Ignore errors when no listeners (e.g., no pages open)
-      // This is expected behavior
+      // Expected error when no listeners (e.g., no pages open)
       const errorMessage = getErrorMessage(error);
       if (!errorMessage.includes('Receiving end does not exist')) {
         console.error('Error broadcasting event:', error);
