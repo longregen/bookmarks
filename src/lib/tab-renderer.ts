@@ -1,4 +1,6 @@
 import { config } from './config-registry';
+import { isFirefox } from './offscreen';
+import type { GetPageHtmlResponse } from './messages';
 
 const KEEPALIVE_ALARM_NAME = 'tab-renderer-keepalive';
 
@@ -95,6 +97,12 @@ async function waitForTabLoad(tabId: number, timeoutMs: number): Promise<void> {
 }
 
 async function executeExtraction(tabId: number, settleTimeMs: number): Promise<string> {
+  // Firefox doesn't allow chrome.scripting.executeScript() on programmatically created tabs
+  // Use message passing to content script instead
+  if (isFirefox()) {
+    return executeExtractionViaMessage(tabId, settleTimeMs);
+  }
+
   const results = await chrome.scripting.executeScript({
     target: { tabId },
     func: (settleMs: number) => new Promise<string>((resolve) => {
@@ -130,4 +138,17 @@ async function executeExtraction(tabId: number, settleTimeMs: number): Promise<s
   }
 
   return result;
+}
+
+async function executeExtractionViaMessage(tabId: number, settleTimeMs: number): Promise<string> {
+  // Wait for page to settle before extracting
+  await sleep(settleTimeMs);
+
+  const response: GetPageHtmlResponse | undefined = await chrome.tabs.sendMessage(tabId, { type: 'GET_PAGE_HTML' });
+
+  if (response === undefined || !response.success || response.html === undefined || response.html === '') {
+    throw new Error(response?.error ?? 'Failed to extract HTML from page via message');
+  }
+
+  return response.html;
 }

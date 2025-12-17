@@ -1,5 +1,5 @@
 import { getTheme, getEffectiveTheme } from '../shared/theme';
-import type { SaveBookmarkResponse, CapturePageResponse } from '../lib/messages';
+import type { SaveBookmarkResponse, CapturePageResponse, GetPageHtmlResponse } from '../lib/messages';
 
 const themeCssVariables = {
   light: `
@@ -83,6 +83,7 @@ async function showNotification(message: string, type: 'success' | 'error'): Pro
   const theme = await getTheme();
   const effectiveTheme = getEffectiveTheme(theme);
   injectThemeVariables(effectiveTheme);
+  ensureAnimationStyles();
 
   const toast = document.createElement('div');
   toast.textContent = message;
@@ -111,35 +112,47 @@ async function showNotification(message: string, type: 'success' | 'error'): Pro
   }, 1500);
 }
 
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes slideIn {
-    from {
-      transform: translateX(400px);
-      opacity: 0;
+function ensureAnimationStyles(): void {
+  const styleId = 'bookmark-rag-toast-animations';
+  if (document.getElementById(styleId)) return;
+
+  const style = document.createElement('style');
+  style.id = styleId;
+  style.textContent = `
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
     }
-    to {
-      transform: translateX(0);
-      opacity: 1;
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(400px);
+        opacity: 0;
+      }
     }
-  }
-  @keyframes slideOut {
-    from {
-      transform: translateX(0);
-      opacity: 1;
-    }
-    to {
-      transform: translateX(400px);
-      opacity: 0;
-    }
-  }
-`;
-document.head.appendChild(style);
+  `;
+  document.head.appendChild(style);
+}
 
 chrome.runtime.onMessage.addListener((message: { type?: string }, _sender, sendResponse) => {
   if (message.type === 'CAPTURE_PAGE') {
     void capturePage();
     const response: CapturePageResponse = { success: true };
+    sendResponse(response);
+  } else if (message.type === 'GET_PAGE_HTML') {
+    const response: GetPageHtmlResponse = {
+      success: true,
+      html: document.documentElement.outerHTML
+    };
     sendResponse(response);
   }
   return true;
