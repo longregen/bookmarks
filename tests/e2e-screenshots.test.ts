@@ -58,12 +58,17 @@ async function testNewUserOnboarding(adapter: ChromeAdapter): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, 500));
   await captureScreenshot(page, '02-api-config-section.png');
 
-  // 3. Fill in API settings
+  // 3. Fill in API settings (dispatch input events to ensure proper form state)
   await page.evaluate(`
-    document.getElementById('apiBaseUrl').value = '${adapter.getMockApiUrl()}';
-    document.getElementById('apiKey').value = 'mock-api-key';
-    document.getElementById('chatModel').value = 'gpt-4o-mini';
-    document.getElementById('embeddingModel').value = 'text-embedding-3-small';
+    function setInputValue(id, value) {
+      const el = document.getElementById(id);
+      el.value = value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    setInputValue('apiBaseUrl', '${adapter.getMockApiUrl()}');
+    setInputValue('apiKey', 'mock-api-key');
+    setInputValue('chatModel', 'gpt-4o-mini');
+    setInputValue('embeddingModel', 'text-embedding-3-small');
   `);
   await captureScreenshot(page, '03-api-config-filled.png');
 
@@ -73,7 +78,8 @@ async function testNewUserOnboarding(adapter: ChromeAdapter): Promise<void> {
     `document.querySelector('.status')?.textContent?.includes('success')`,
     10000
   );
-  await new Promise(resolve => setTimeout(resolve, 500));
+  // Wait for IndexedDB write to complete
+  await new Promise(resolve => setTimeout(resolve, 1000));
   await captureScreenshot(page, '04-settings-saved.png');
 
   // 5. Test connection - capture button state
@@ -360,19 +366,25 @@ async function testSearchSpinners(adapter: ChromeAdapter): Promise<void> {
   await page.waitForSelector('#searchInput');
   await new Promise(resolve => setTimeout(resolve, 500));
 
-  // Configure API first
+  // Configure API first (if not already done by earlier tests)
   const optionsPage = await adapter.newPage();
   await optionsPage.goto(adapter.getPageUrl('options'));
   await optionsPage.waitForSelector('#apiKey');
   await optionsPage.evaluate(`
-    document.getElementById('apiBaseUrl').value = '${adapter.getMockApiUrl()}';
-    document.getElementById('apiKey').value = 'mock-api-key';
+    function setInputValue(id, value) {
+      const el = document.getElementById(id);
+      el.value = value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    setInputValue('apiBaseUrl', '${adapter.getMockApiUrl()}');
+    setInputValue('apiKey', 'mock-api-key');
   `);
   await optionsPage.click('[type="submit"]');
   await optionsPage.waitForFunction(
     `document.querySelector('.status')?.textContent?.includes('success')`,
     10000
   );
+  await new Promise(resolve => setTimeout(resolve, 500));
   await optionsPage.close();
 
   // Now trigger search to capture loading state
