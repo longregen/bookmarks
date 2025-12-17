@@ -547,6 +547,133 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
 
       await verifyPage.close();
     });
+
+    await runner.runTest('Save real external page (EFF article) via popup flow', async () => {
+      const effUrl = 'https://www.eff.org/deeplinks/2025/10/its-time-take-back-ctrl';
+
+      // First, fetch the page content from the external URL
+      // This simulates what the popup does when it extracts content from the active tab
+      const fetchPage = await adapter.newPage();
+      await fetchPage.goto(effUrl);
+
+      // Wait for page to load
+      await fetchPage.waitForFunction(
+        `document.title && document.title.length > 0`,
+        30000
+      );
+
+      // Extract the page content (same as what popup's injected script does)
+      const pageData = await fetchPage.evaluate(`
+        (() => ({
+          url: location.href,
+          title: document.title,
+          html: document.documentElement.outerHTML
+        }))()
+      `) as { url: string; title: string; html: string };
+
+      await fetchPage.close();
+
+      // Now send the SAVE_BOOKMARK message from extension context (popup page)
+      // This mirrors the popup's actual flow: extract from tab -> send to service worker
+      const savePage = await adapter.newPage();
+      await savePage.goto(adapter.getPageUrl('popup'));
+      await savePage.waitForSelector('#saveBtn');
+
+      const result = await savePage.evaluate(`
+        new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            {
+              type: 'SAVE_BOOKMARK',
+              data: {
+                url: ${JSON.stringify(pageData.url)},
+                title: ${JSON.stringify(pageData.title)},
+                html: ${JSON.stringify(pageData.html)}
+              }
+            },
+            (response) => resolve(response)
+          );
+        })
+      `);
+
+      await savePage.close();
+
+      if (!(result as any)?.success) {
+        throw new Error(`Failed to save EFF bookmark: ${(result as any)?.error || 'Unknown error'}`);
+      }
+
+      // Verify the bookmark appears in library
+      const verifyPage = await adapter.newPage();
+      await verifyPage.goto(adapter.getPageUrl('library'));
+      await verifyPage.waitForSelector('#bookmarkList');
+
+      // Wait for the bookmark to appear
+      await verifyPage.waitForFunction(
+        `(() => {
+          const cards = document.querySelectorAll('.bookmark-card');
+          for (const card of cards) {
+            const url = card.querySelector('.card-url');
+            const title = card.querySelector('.card-title');
+            if ((url && url.textContent && url.textContent.includes('eff.org')) ||
+                (title && title.textContent && title.textContent.toLowerCase().includes('ctrl'))) {
+              return true;
+            }
+          }
+          return false;
+        })()`,
+        30000
+      );
+
+      // Wait for processing to complete by checking bookmark status via test helpers
+      await verifyPage.waitForFunction(
+        `(async () => {
+          if (!window.__testHelpers) return false;
+          const status = await window.__testHelpers.getBookmarkStatus();
+          const effBookmark = status.bookmarks.find(b => b.url.includes('eff.org'));
+          return effBookmark && effBookmark.status === 'complete';
+        })()`,
+        90000  // Allow time for markdown extraction and Q&A generation
+      );
+
+      // Click on the EFF bookmark to view details
+      await verifyPage.evaluate(`
+        (() => {
+          const cards = document.querySelectorAll('.bookmark-card');
+          for (const card of cards) {
+            const url = card.querySelector('.card-url');
+            if (url && url.textContent && url.textContent.includes('eff.org')) {
+              card.click();
+              return true;
+            }
+          }
+          return false;
+        })()
+      `);
+
+      // Wait for detail panel to open and show Q&A section with pairs
+      await verifyPage.waitForFunction(
+        `(() => {
+          const detailPanel = document.getElementById('detailPanel');
+          if (!detailPanel || !detailPanel.classList.contains('active')) return false;
+
+          // Check for Q&A section with pairs
+          const qaSection = document.querySelector('.qa-section');
+          const qaPairs = document.querySelectorAll('.qa-pair');
+          return qaSection !== null && qaPairs.length > 0;
+        })()`,
+        30000
+      );
+
+      // Verify the Q&A pairs were created
+      const qaCount = await verifyPage.evaluate(`document.querySelectorAll('.qa-pair').length`) as number;
+
+      if (qaCount < 1) {
+        throw new Error(`Expected at least 1 Q&A pair, got ${qaCount}`);
+      }
+
+      console.log(`  ✓ Found ${qaCount} Q&A pairs for EFF article`);
+
+      await verifyPage.close();
+    });
   }
 
   if (options.skipRealApiTests) {

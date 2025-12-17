@@ -144,6 +144,13 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
     return true;
   }
 
+  // IMPORTANT: Don't return false for EXTRACT_CONTENT and FETCH_URL messages
+  // These are handled by the offscreen document. Returning false closes the
+  // message port before the offscreen document can respond.
+  if (message.type === 'EXTRACT_CONTENT' || message.type === 'FETCH_URL') {
+    return;  // Return undefined to keep port open for offscreen document
+  }
+
   return false;
 });
 
