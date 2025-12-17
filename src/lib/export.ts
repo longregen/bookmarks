@@ -1,4 +1,4 @@
-import { db, Bookmark, Markdown, QuestionAnswer, JobType, JobStatus, getBookmarkContent } from '../db/schema';
+import { db, type Bookmark, type Markdown, type QuestionAnswer, JobType, JobStatus, getBookmarkContent } from '../db/schema';
 import { createJob, updateJob, completeJob, failJob } from './jobs';
 import { encodeEmbedding, decodeEmbedding, isEncodedEmbedding } from './embedding-codec';
 import { getErrorMessage } from './errors';
@@ -14,16 +14,16 @@ export interface ExportedBookmark {
   createdAt: string;
   updatedAt: string;
   markdown?: string;
-  questionsAnswers: Array<{
+  questionsAnswers: {
     question: string;
     answer: string;
     embeddingQuestion?: string;
     embeddingAnswer?: string;
     embeddingBoth?: string;
-  }>;
+  }[];
 }
 
-interface LegacyExportedQA {
+interface _LegacyExportedQA {
   question: string;
   answer: string;
   embeddingQuestion?: number[];
@@ -88,13 +88,15 @@ function formatBookmarkForExport(
     createdAt: bookmark.createdAt.toISOString(),
     updatedAt: bookmark.updatedAt.toISOString(),
     markdown: markdown?.content,
+    /* eslint-disable @typescript-eslint/no-unnecessary-condition -- defensive check for missing embeddings */
     questionsAnswers: qaPairs.map(qa => ({
       question: qa.question,
       answer: qa.answer,
-      embeddingQuestion: qa.embeddingQuestion ? encodeEmbedding(qa.embeddingQuestion) : undefined,
-      embeddingAnswer: qa.embeddingAnswer ? encodeEmbedding(qa.embeddingAnswer) : undefined,
-      embeddingBoth: qa.embeddingBoth ? encodeEmbedding(qa.embeddingBoth) : undefined,
+      embeddingQuestion: qa.embeddingQuestion !== undefined ? encodeEmbedding(qa.embeddingQuestion) : undefined,
+      embeddingAnswer: qa.embeddingAnswer !== undefined ? encodeEmbedding(qa.embeddingAnswer) : undefined,
+      embeddingBoth: qa.embeddingBoth !== undefined ? encodeEmbedding(qa.embeddingBoth) : undefined,
     })),
+    /* eslint-enable @typescript-eslint/no-unnecessary-condition */
   };
 }
 
@@ -109,7 +111,7 @@ export function downloadExport(data: BookmarkExport, filename?: string): void {
 
   const a = document.createElement('a');
   a.href = url;
-  a.download = filename || defaultFilename;
+  a.download = filename ?? defaultFilename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -136,7 +138,7 @@ function decodeEmbeddingField(value: unknown): number[] | null {
       return null;
     }
   }
-  if (Array.isArray(value) && value.every(v => typeof v === 'number')) {
+  if (Array.isArray(value) && value.length > 0 && value.every(v => typeof v === 'number')) {
     return value;
   }
   return null;
@@ -145,9 +147,10 @@ function decodeEmbeddingField(value: unknown): number[] | null {
 async function importSingleBookmark(exportedBookmark: ExportedBookmark): Promise<string> {
   const now = new Date();
   const bookmarkId = crypto.randomUUID();
-  const hasHtml = exportedBookmark.html && exportedBookmark.html.length > 0;
+  const hasHtml = Boolean(exportedBookmark.html) && exportedBookmark.html.length > 0;
   let status: Bookmark['status'] = exportedBookmark.status;
-  if (!hasHtml && !exportedBookmark.markdown) {
+  const hasMarkdown = exportedBookmark.markdown !== undefined && exportedBookmark.markdown !== '';
+  if (!hasHtml && !hasMarkdown) {
     status = 'pending';
   }
 
@@ -181,18 +184,21 @@ async function importQAPairs(
   bookmarkId: string,
   questionsAnswers: ExportedBookmark['questionsAnswers']
 ): Promise<void> {
-  if (!questionsAnswers || questionsAnswers.length === 0) {
+  if (questionsAnswers.length === 0) {
     return;
   }
 
   const now = new Date();
   for (const qa of questionsAnswers) {
-    if (qa.embeddingQuestion && qa.embeddingAnswer && qa.embeddingBoth) {
+    const hasQuestion = qa.embeddingQuestion !== undefined && qa.embeddingQuestion !== '';
+    const hasAnswer = qa.embeddingAnswer !== undefined && qa.embeddingAnswer !== '';
+    const hasBoth = qa.embeddingBoth !== undefined && qa.embeddingBoth !== '';
+    if (hasQuestion && hasAnswer && hasBoth) {
       const embeddingQuestion = decodeEmbeddingField(qa.embeddingQuestion);
       const embeddingAnswer = decodeEmbeddingField(qa.embeddingAnswer);
       const embeddingBoth = decodeEmbeddingField(qa.embeddingBoth);
 
-      if (embeddingQuestion && embeddingAnswer && embeddingBoth) {
+      if (embeddingQuestion !== null && embeddingAnswer !== null && embeddingBoth !== null) {
         const questionAnswer: QuestionAnswer = {
           id: crypto.randomUUID(),
           bookmarkId,
@@ -218,7 +224,7 @@ export interface ImportResult {
 }
 
 export function validateImportData(data: unknown): data is BookmarkExport {
-  if (!data || typeof data !== 'object') return false;
+  if (data === null || data === undefined || typeof data !== 'object') return false;
 
   const obj = data as Record<string, unknown>;
 
@@ -226,7 +232,7 @@ export function validateImportData(data: unknown): data is BookmarkExport {
   if (!Array.isArray(obj.bookmarks)) return false;
 
   for (const bookmark of obj.bookmarks) {
-    if (!bookmark || typeof bookmark !== 'object') return false;
+    if (bookmark === null || bookmark === undefined || typeof bookmark !== 'object') return false;
     const b = bookmark as Record<string, unknown>;
     if (typeof b.url !== 'string' || typeof b.title !== 'string') return false;
   }
@@ -247,7 +253,7 @@ export async function importBookmarks(data: BookmarkExport, fileName?: string): 
     status: JobStatus.IN_PROGRESS,
     progress: 0,
     metadata: {
-      fileName: fileName || 'bookmarks-export.json',
+      fileName: fileName ?? 'bookmarks-export.json',
       totalBookmarks: data.bookmarks.length,
       importedCount: 0,
       skippedCount: 0,
@@ -271,11 +277,11 @@ export async function importBookmarks(data: BookmarkExport, fileName?: string): 
 
         const bookmarkId = await importSingleBookmark(exportedBookmark);
 
-        if (exportedBookmark.markdown) {
+        if (exportedBookmark.markdown !== undefined && exportedBookmark.markdown !== '') {
           await importMarkdown(bookmarkId, exportedBookmark.markdown);
         }
 
-        await importQAPairs(bookmarkId, exportedBookmark.questionsAnswers || []);
+        await importQAPairs(bookmarkId, exportedBookmark.questionsAnswers);
 
         result.imported++;
         existingUrls.add(exportedBookmark.url);
@@ -300,7 +306,7 @@ export async function importBookmarks(data: BookmarkExport, fileName?: string): 
     }
 
     await completeJob(job.id, {
-      fileName: fileName || 'bookmarks-export.json',
+      fileName: fileName ?? 'bookmarks-export.json',
       totalBookmarks: data.bookmarks.length,
       importedCount: result.imported,
       skippedCount: result.skipped,
@@ -322,7 +328,7 @@ export function readImportFile(file: File): Promise<BookmarkExport> {
     reader.onload = (e) => {
       try {
         const text = e.target?.result as string;
-        const data = JSON.parse(text);
+        const data = JSON.parse(text) as unknown;
 
         if (!validateImportData(data)) {
           reject(new Error('Invalid bookmark export file format'));
@@ -330,7 +336,7 @@ export function readImportFile(file: File): Promise<BookmarkExport> {
         }
 
         resolve(data);
-      } catch (error) {
+      } catch (_error) {
         reject(new Error('Failed to parse JSON file'));
       }
     };

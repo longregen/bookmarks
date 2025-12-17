@@ -38,11 +38,18 @@ export async function resumeInterruptedJobs(): Promise<{
     }
 
     for (const parentJob of bulkImportsToResume) {
-      const retryCount = parentJob.metadata.retryCount || 0;
-      console.log(`Resuming bulk import: ${parentJob.id} (${parentJob.metadata.successCount || 0}/${parentJob.metadata.totalUrls} complete, retry ${retryCount})`);
+      const retryCount = parentJob.metadata.retryCount ?? 0;
+      const successCount = parentJob.metadata.successCount ?? 0;
+      const totalUrls = parentJob.metadata.totalUrls;
+      if (totalUrls !== undefined) {
+        console.log(`Resuming bulk import: ${parentJob.id} (${successCount}/${totalUrls} complete, retry ${retryCount})`);
+      } else {
+        console.log(`Resuming bulk import: ${parentJob.id} (retry ${retryCount})`);
+      }
 
       // Process in background - don't await to allow parallel resumption
-      processBulkFetch(parentJob.id, true).catch(async error => {
+      // eslint-disable-next-line @typescript-eslint/require-await
+      processBulkFetch(parentJob.id, true).catch(async (error: unknown) => {
         console.error(`Error resuming bulk import ${parentJob.id} (retry ${retryCount}):`, error);
 
         // Note: Individual job failures are already handled by processBulkFetch

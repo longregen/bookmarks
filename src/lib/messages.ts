@@ -35,7 +35,7 @@ export interface JobInfo {
   status: string;
   progress: number;
   currentStep?: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
@@ -115,7 +115,7 @@ export type MessageResponse<T extends MessageType> =
   : T extends 'FETCH_URL' ? FetchUrlResponse
   : T extends 'EXTRACT_CONTENT' ? ExtractContentResponse
   : T extends 'CAPTURE_PAGE' ? CapturePageResponse
-  : T extends 'EVENT_BROADCAST' ? void
+  : T extends 'EVENT_BROADCAST' ? undefined
   : never;
 
 export type MessageHandler<T extends MessageType> = (

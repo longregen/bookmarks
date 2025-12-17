@@ -19,7 +19,7 @@ const jobsList = document.getElementById('jobsList') as HTMLDivElement;
 
 let jobsPollingInterval: number | null = null;
 
-async function loadJobs() {
+async function loadJobs(): Promise<void> {
   try {
     jobsList.textContent = '';
     jobsList.appendChild(createElement('div', { className: 'loading', textContent: 'Loading jobs...' }));
@@ -32,11 +32,11 @@ async function loadJobs() {
     let filteredJobs = jobs;
 
     if (typeFilter) {
-      filteredJobs = filteredJobs.filter(job => job.type === typeFilter);
+      filteredJobs = filteredJobs.filter(job => job.type === typeFilter as JobType);
     }
 
     if (statusFilter) {
-      filteredJobs = filteredJobs.filter(job => job.status === statusFilter);
+      filteredJobs = filteredJobs.filter(job => job.status === statusFilter as JobStatus);
     }
 
     if (filteredJobs.length === 0) {
@@ -93,7 +93,7 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
     jobItem.appendChild(progressDiv);
   }
 
-  if (job.currentStep) {
+  if (job.currentStep !== undefined && job.currentStep !== '') {
     jobItem.appendChild(createElement('div', { className: 'job-step', textContent: job.currentStep }));
   }
 
@@ -101,7 +101,7 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
   await appendMetadataElements(metadataDiv, job);
   jobItem.appendChild(metadataDiv);
 
-  if (job.status === JobStatus.FAILED && job.metadata.errorMessage) {
+  if (job.status === JobStatus.FAILED && job.metadata.errorMessage !== undefined && job.metadata.errorMessage !== '') {
     const errorDiv = createElement('div', { className: 'job-error' });
     errorDiv.appendChild(createElement('strong', { textContent: 'Error: ' }));
     errorDiv.appendChild(document.createTextNode(job.metadata.errorMessage));
@@ -122,8 +122,8 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
       retryBtn.textContent = 'Retrying...';
       try {
         await retryJob(job.id);
-        startProcessingQueue();
-        loadJobs();
+        void startProcessingQueue();
+        void loadJobs();
       } catch (error) {
         console.error('Failed to retry job:', error);
         retryBtn.textContent = 'Retry';
@@ -140,11 +140,12 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
     dismissBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       await dismissJob(job.id);
-      loadJobs();
+      void loadJobs();
     });
     actionsDiv.appendChild(dismissBtn);
 
-    if (job.bookmarkId) {
+    if (job.bookmarkId !== undefined && job.bookmarkId !== '') {
+      const bookmarkIdToDelete = job.bookmarkId;
       const deleteBtn = createElement('button', {
         className: 'btn btn-sm btn-danger',
         textContent: 'Delete Bookmark',
@@ -152,9 +153,10 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
       });
       deleteBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
+        // eslint-disable-next-line no-alert
         if (confirm('Are you sure you want to delete this bookmark and all its data?')) {
-          await deleteBookmarkWithData(job.bookmarkId!);
-          loadJobs();
+          await deleteBookmarkWithData(bookmarkIdToDelete);
+          void loadJobs();
         }
       });
       actionsDiv.appendChild(deleteBtn);
@@ -173,10 +175,11 @@ function createMetadataItem(label: string, value: string | number): HTMLElement 
   return item;
 }
 
+// eslint-disable-next-line complexity
 async function appendMetadataElements(container: HTMLElement, job: Job): Promise<void> {
   let hasMetadata = false;
 
-  if (job.bookmarkId) {
+  if (job.bookmarkId !== undefined && job.bookmarkId !== '') {
     const bookmark = await db.bookmarks.get(job.bookmarkId);
     if (bookmark) {
       const bookmarkItem = createElement('div', { className: 'job-metadata-item job-metadata-bookmark' });
@@ -193,43 +196,41 @@ async function appendMetadataElements(container: HTMLElement, job: Job): Promise
       container.appendChild(bookmarkItem);
       hasMetadata = true;
 
-      if (bookmark.status) {
-        container.appendChild(createMetadataItem('Bookmark Status', bookmark.status));
-        hasMetadata = true;
-      }
+      container.appendChild(createMetadataItem('Bookmark Status', bookmark.status));
+      hasMetadata = true;
     }
   }
 
-  if (job.metadata.url) {
+  if (job.metadata.url !== undefined && job.metadata.url !== '') {
     container.appendChild(createMetadataItem('URL', job.metadata.url));
     hasMetadata = true;
   }
 
-  if (job.metadata.title) {
+  if (job.metadata.title !== undefined && job.metadata.title !== '') {
     container.appendChild(createMetadataItem('Title', job.metadata.title));
     hasMetadata = true;
   }
 
   if (job.type === JobType.MARKDOWN_GENERATION) {
-    if (job.metadata.characterCount) {
+    if (job.metadata.characterCount !== undefined && job.metadata.characterCount !== 0) {
       container.appendChild(createMetadataItem('Characters', job.metadata.characterCount.toLocaleString()));
       hasMetadata = true;
     }
-    if (job.metadata.wordCount) {
+    if (job.metadata.wordCount !== undefined && job.metadata.wordCount !== 0) {
       container.appendChild(createMetadataItem('Words', job.metadata.wordCount.toLocaleString()));
       hasMetadata = true;
     }
   }
 
   if (job.type === JobType.QA_GENERATION) {
-    if (job.metadata.pairsGenerated) {
+    if (job.metadata.pairsGenerated !== undefined && job.metadata.pairsGenerated !== 0) {
       container.appendChild(createMetadataItem('Q&A Pairs', job.metadata.pairsGenerated));
       hasMetadata = true;
     }
   }
 
   if (job.type === JobType.FILE_IMPORT) {
-    if (job.metadata.fileName) {
+    if (job.metadata.fileName !== undefined && job.metadata.fileName !== '') {
       container.appendChild(createMetadataItem('File', job.metadata.fileName));
       hasMetadata = true;
     }
@@ -244,7 +245,7 @@ async function appendMetadataElements(container: HTMLElement, job: Job): Promise
   }
 
   if (job.type === JobType.BULK_URL_IMPORT) {
-    if (job.metadata.totalUrls) {
+    if (job.metadata.totalUrls !== undefined && job.metadata.totalUrls !== 0) {
       container.appendChild(createMetadataItem('Total URLs', job.metadata.totalUrls));
       hasMetadata = true;
     }
@@ -279,42 +280,42 @@ jobTypeFilter.addEventListener('change', loadJobs);
 jobStatusFilter.addEventListener('change', loadJobs);
 refreshJobsBtn.addEventListener('click', loadJobs);
 
-function startJobsPolling() {
-  if (jobsPollingInterval) {
+function startJobsPolling(): void {
+  if (jobsPollingInterval !== null) {
     clearInterval(jobsPollingInterval);
   }
 
   jobsPollingInterval = window.setInterval(() => {
     const hasActiveJobs = document.querySelectorAll('.job-status-badge.in_progress').length > 0;
     if (hasActiveJobs) {
-      loadJobs();
+      void loadJobs();
     }
   }, 2000);
 }
 
-function stopJobsPolling() {
-  if (jobsPollingInterval) {
+function stopJobsPolling(): void {
+  if (jobsPollingInterval !== null) {
     clearInterval(jobsPollingInterval);
   }
 }
 
 window.addEventListener('refresh-jobs', () => {
-  loadJobs();
+  void loadJobs();
 });
 
-function init() {
+function init(): void {
   const urlParams = new URLSearchParams(window.location.search);
   const statusParam = urlParams.get('status');
   const typeParam = urlParams.get('type');
 
-  if (statusParam && jobStatusFilter) {
+  if (statusParam !== null && statusParam !== '') {
     jobStatusFilter.value = statusParam;
   }
-  if (typeParam && jobTypeFilter) {
+  if (typeParam !== null && typeParam !== '') {
     jobTypeFilter.value = typeParam;
   }
 
-  loadJobs();
+  void loadJobs();
   startJobsPolling();
 }
 

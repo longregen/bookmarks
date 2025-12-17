@@ -1,4 +1,4 @@
-import { db, BookmarkTag, getBookmarkQAPairs } from '../db/schema';
+import { db, type BookmarkTag, getBookmarkQAPairs } from '../db/schema';
 import { createElement } from '../lib/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { onThemeChange, applyTheme } from '../shared/theme';
@@ -10,10 +10,10 @@ import { loadTagFilters } from '../lib/tag-filter';
 import { config } from '../lib/config-registry';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
 
-let selectedTags: Set<string> = new Set();
+const selectedTags = new Set<string>();
 
 function getStatusModifier(status: string): string {
-  const statusMap: { [key: string]: string } = {
+  const statusMap: Record<string, string> = {
     'complete': 'status-dot--success',
     'pending': 'status-dot--warning',
     'processing': 'status-dot--info',
@@ -22,37 +22,50 @@ function getStatusModifier(status: string): string {
   return statusMap[status] || 'status-dot--warning';
 }
 
-const tagFilters = document.getElementById('tagFilters')!;
-const stumbleList = document.getElementById('stumbleList')!;
+const tagFilters = document.getElementById('tagFilters');
+const stumbleList = document.getElementById('stumbleList');
+if (!tagFilters || !stumbleList) {
+  throw new Error('Required DOM elements not found');
+}
 const shuffleBtn = document.getElementById('shuffleBtn') as HTMLButtonElement;
-const resultCount = document.getElementById('resultCount')!;
+const resultCount = document.getElementById('resultCount');
+if (!resultCount) {
+  throw new Error('Required DOM element resultCount not found');
+}
+
+const detailPanel = document.getElementById('detailPanel');
+const detailBackdrop = document.getElementById('detailBackdrop');
+const detailContent = document.getElementById('detailContent');
+if (!detailPanel || !detailBackdrop || !detailContent) {
+  throw new Error('Required DOM elements for detail panel not found');
+}
 
 const detailManager = new BookmarkDetailManager({
-  detailPanel: document.getElementById('detailPanel')!,
-  detailBackdrop: document.getElementById('detailBackdrop')!,
-  detailContent: document.getElementById('detailContent')!,
+  detailPanel,
+  detailBackdrop,
+  detailContent,
   closeBtn: document.getElementById('closeDetailBtn') as HTMLButtonElement,
   deleteBtn: document.getElementById('deleteBtn') as HTMLButtonElement,
   exportBtn: document.getElementById('exportBtn') as HTMLButtonElement,
   debugBtn: document.getElementById('debugBtn') as HTMLButtonElement,
-  onDelete: () => loadStumble(),
-  onTagsChange: () => loadFilters()
+  onDelete: () => void loadStumble(),
+  onTagsChange: () => void loadFilters()
 });
 
-shuffleBtn.addEventListener('click', loadStumble);
+shuffleBtn.addEventListener('click', () => void loadStumble());
 
-async function loadFilters() {
+async function loadFilters(): Promise<void> {
   await loadTagFilters({
     container: tagFilters,
     selectedTags,
     onChange: () => {
-      loadFilters();
-      loadStumble();
+      void loadFilters();
+      void loadStumble();
     }
   });
 }
 
-async function loadStumble() {
+async function loadStumble(): Promise<void> {
   shuffleBtn.disabled = true;
   shuffleBtn.textContent = 'Shuffling...';
 
@@ -117,7 +130,8 @@ async function loadStumble() {
   } catch (error) {
     console.error('Stumble error:', error);
     stumbleList.innerHTML = '';
-    stumbleList.appendChild(createElement('div', { className: 'error-message', textContent: `Failed to load: ${error}` }));
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    stumbleList.appendChild(createElement('div', { className: 'error-message', textContent: `Failed to load: ${errorMessage}` }));
   } finally {
     shuffleBtn.disabled = false;
     shuffleBtn.textContent = '↻ Shuffle';
@@ -125,13 +139,13 @@ async function loadStumble() {
 }
 
 if (__IS_WEB__) {
-  initWeb();
+  void initWeb();
 } else {
-  initExtension();
+  void initExtension();
 }
 onThemeChange((theme) => applyTheme(theme));
-loadFilters();
-loadStumble();
+void loadFilters();
+void loadStumble();
 
 const healthIndicatorContainer = document.getElementById('healthIndicator');
 if (healthIndicatorContainer) {
@@ -140,7 +154,7 @@ if (healthIndicatorContainer) {
 
 const removeEventListener = addBookmarkEventListener((event) => {
   if (event.type === 'TAG_UPDATED') {
-    loadFilters();
+    void loadFilters();
   }
 });
 

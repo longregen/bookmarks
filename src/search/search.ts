@@ -1,4 +1,4 @@
-import { db, BookmarkTag, QuestionAnswer, SearchHistory } from '../db/schema';
+import { db, type BookmarkTag, type QuestionAnswer } from '../db/schema';
 import { createElement } from '../lib/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { generateEmbeddings } from '../lib/api';
@@ -12,36 +12,49 @@ import { loadTagFilters } from '../lib/tag-filter';
 import { config } from '../lib/config-registry';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
 
-let selectedTags: Set<string> = new Set();
+const selectedTags = new Set<string>();
 
-const tagFilters = document.getElementById('tagFilters')!;
+const tagFilters = document.getElementById('tagFilters');
+if (!tagFilters) {
+  throw new Error('Required DOM element tagFilters not found');
+}
 const searchInput = document.getElementById('searchInput') as HTMLInputElement;
 const searchBtn = document.getElementById('searchBtn') as HTMLButtonElement;
-const autocompleteDropdown = document.getElementById('autocompleteDropdown')!;
-const resultsList = document.getElementById('resultsList')!;
-const resultStatus = document.getElementById('resultStatus')!;
-const searchPage = document.getElementById('searchPage')!;
-const searchHero = document.getElementById('searchHero')!;
-const resultHeader = document.getElementById('resultHeader')!;
+const autocompleteDropdown = document.getElementById('autocompleteDropdown');
+const resultsList = document.getElementById('resultsList');
+const resultStatus = document.getElementById('resultStatus');
+const searchPage = document.getElementById('searchPage');
+const searchHero = document.getElementById('searchHero');
+const resultHeader = document.getElementById('resultHeader');
+if (!autocompleteDropdown || !resultsList || !resultStatus || !searchPage || !searchHero || !resultHeader) {
+  throw new Error('Required DOM elements not found');
+}
 
 searchPage.classList.add('search-page--centered');
 
+const detailPanel2 = document.getElementById('detailPanel');
+const detailBackdrop2 = document.getElementById('detailBackdrop');
+const detailContent2 = document.getElementById('detailContent');
+if (!detailPanel2 || !detailBackdrop2 || !detailContent2) {
+  throw new Error('Required DOM elements for detail panel not found');
+}
+
 const detailManager = new BookmarkDetailManager({
-  detailPanel: document.getElementById('detailPanel')!,
-  detailBackdrop: document.getElementById('detailBackdrop')!,
-  detailContent: document.getElementById('detailContent')!,
+  detailPanel: detailPanel2,
+  detailBackdrop: detailBackdrop2,
+  detailContent: detailContent2,
   closeBtn: document.getElementById('closeDetailBtn') as HTMLButtonElement,
   deleteBtn: document.getElementById('deleteBtn') as HTMLButtonElement,
   exportBtn: document.getElementById('exportBtn') as HTMLButtonElement,
   debugBtn: document.getElementById('debugBtn') as HTMLButtonElement,
-  onDelete: () => performSearch(),
-  onTagsChange: () => loadFilters()
+  onDelete: () => void performSearch(),
+  onTagsChange: () => void loadFilters()
 });
 
-searchBtn.addEventListener('click', performSearch);
-searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSearch(); });
-searchInput.addEventListener('input', showAutocomplete);
-searchInput.addEventListener('focus', showAutocomplete);
+searchBtn.addEventListener('click', () => void performSearch());
+searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') void performSearch(); });
+searchInput.addEventListener('input', () => void showAutocomplete());
+searchInput.addEventListener('focus', () => void showAutocomplete());
 searchInput.addEventListener('blur', () => setTimeout(hideAutocomplete, 200));
 
 async function getSearchAutocompleteSetting(): Promise<boolean> {
@@ -49,7 +62,7 @@ async function getSearchAutocompleteSetting(): Promise<boolean> {
   return setting?.value ?? true;
 }
 
-async function saveSearchHistory(query: string, resultCount: number) {
+async function saveSearchHistory(query: string, resultCount: number): Promise<void> {
   try {
     const id = crypto.randomUUID();
     const createdAt = new Date();
@@ -71,7 +84,7 @@ async function saveSearchHistory(query: string, resultCount: number) {
   }
 }
 
-async function showAutocomplete() {
+async function showAutocomplete(): Promise<void> {
   const autocompleteEnabled = await getSearchAutocompleteSetting();
   if (!autocompleteEnabled) {
     hideAutocomplete();
@@ -120,7 +133,7 @@ async function showAutocomplete() {
     item.onclick = () => {
       searchInput.value = history.query;
       hideAutocomplete();
-      performSearch();
+      void performSearch();
     };
 
     autocompleteDropdown.appendChild(item);
@@ -129,7 +142,7 @@ async function showAutocomplete() {
   autocompleteDropdown.classList.add('active');
 }
 
-function hideAutocomplete() {
+function hideAutocomplete(): void {
   autocompleteDropdown.classList.remove('active');
 }
 
@@ -160,20 +173,20 @@ function buildResultCard(
   return card;
 }
 
-async function loadFilters() {
+async function loadFilters(): Promise<void> {
   await loadTagFilters({
     container: tagFilters,
     selectedTags,
     onChange: () => {
-      loadFilters();
+      void loadFilters();
       if (searchInput.value.trim()) {
-        performSearch();
+        void performSearch();
       }
     }
   });
 }
 
-function showResultsMode() {
+function showResultsMode(): void {
   searchPage.classList.remove('search-page--centered');
   searchHero.classList.add('hidden');
   resultHeader.classList.remove('hidden');
@@ -181,13 +194,14 @@ function showResultsMode() {
   resultStatus.classList.add('loading');
 }
 
-function showCenteredMode() {
+function showCenteredMode(): void {
   searchPage.classList.add('search-page--centered');
   searchHero.classList.remove('hidden');
   resultHeader.classList.add('hidden');
 }
 
-async function performSearch() {
+// eslint-disable-next-line complexity
+async function performSearch(): Promise<void> {
   const query = searchInput.value.trim();
   if (!query) {
     showCenteredMode();
@@ -201,7 +215,7 @@ async function performSearch() {
 
   try {
     const [queryEmbedding] = await generateEmbeddings([query]);
-    if (!queryEmbedding?.length) throw new Error('Failed to generate embedding');
+    if (queryEmbedding.length === 0) throw new Error('Failed to generate embedding');
 
     const allQAs = await db.questionsAnswers.toArray();
     const items = allQAs.flatMap(qa => [
@@ -222,8 +236,12 @@ async function performSearch() {
 
     for (const result of topResults) {
       const bookmarkId = result.item.bookmarkId;
-      if (!bookmarkMap.has(bookmarkId)) bookmarkMap.set(bookmarkId, []);
-      bookmarkMap.get(bookmarkId)!.push({ qa: result.item, score: result.score });
+      const existing = bookmarkMap.get(bookmarkId);
+      if (existing) {
+        existing.push({ qa: result.item, score: result.score });
+      } else {
+        bookmarkMap.set(bookmarkId, [{ qa: result.item, score: result.score }]);
+      }
     }
 
     const sortedResults = Array.from(bookmarkMap.entries())
@@ -232,15 +250,17 @@ async function performSearch() {
     // Batch load bookmarks and tags to avoid N+1 query pattern
     const bookmarkIds = sortedResults.map(([bookmarkId]) => bookmarkId);
     const bookmarks = await db.bookmarks.bulkGet(bookmarkIds);
-    const bookmarksById = new Map(bookmarks.filter(Boolean).map(b => [b!.id, b!]));
+    const bookmarksById = new Map(bookmarks.filter((b): b is NonNullable<typeof b> => b !== undefined).map(b => [b.id, b]));
 
     const allTags = await db.bookmarkTags.where('bookmarkId').anyOf(bookmarkIds).toArray();
     const tagsByBookmarkId = new Map<string, BookmarkTag[]>();
     for (const tag of allTags) {
-      if (!tagsByBookmarkId.has(tag.bookmarkId)) {
-        tagsByBookmarkId.set(tag.bookmarkId, []);
+      const existing = tagsByBookmarkId.get(tag.bookmarkId);
+      if (existing) {
+        existing.push(tag);
+      } else {
+        tagsByBookmarkId.set(tag.bookmarkId, [tag]);
       }
-      tagsByBookmarkId.get(tag.bookmarkId)!.push(tag);
     }
 
     const filteredResults = [];
@@ -249,7 +269,7 @@ async function performSearch() {
       if (!bookmark) continue;
 
       if (selectedTags.size > 0) {
-        const tags = tagsByBookmarkId.get(bookmarkId) || [];
+        const tags = tagsByBookmarkId.get(bookmarkId) ?? [];
         if (!tags.some((t: BookmarkTag) => selectedTags.has(t.tagName))) continue;
       }
 
@@ -318,18 +338,18 @@ async function performSearch() {
 }
 
 if (__IS_WEB__) {
-  initWeb();
+  void initWeb();
 } else {
-  initExtension();
+  void initExtension();
 }
 onThemeChange((theme) => applyTheme(theme));
-loadFilters();
+void loadFilters();
 
 const urlParams = new URLSearchParams(window.location.search);
 const initialQuery = urlParams.get('q');
-if (initialQuery) {
+if (initialQuery !== null && initialQuery !== '') {
   searchInput.value = initialQuery;
-  performSearch();
+  void performSearch();
 }
 
 searchInput.focus();
@@ -348,7 +368,7 @@ if (healthIndicatorContainer) {
 
 const removeEventListener = addBookmarkEventListener((event) => {
   if (event.type === 'TAG_UPDATED') {
-    loadFilters();
+    void loadFilters();
   }
 });
 

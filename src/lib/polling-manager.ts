@@ -24,16 +24,16 @@ export function createPoller(
 ): Poller {
   let intervalId: number | null = null;
 
-  const start = () => {
+  const start = (): void => {
     if (intervalId !== null) {
       clearInterval(intervalId);
       intervalId = null;
     }
 
-    if (options?.immediate) {
+    if (options?.immediate === true) {
       const result = callback();
       if (result instanceof Promise) {
-        result.catch(error => {
+        result.catch((error: unknown) => {
           console.error('Error in poller callback:', error);
         });
       }
@@ -42,23 +42,21 @@ export function createPoller(
     intervalId = window.setInterval(() => {
       const result = callback();
       if (result instanceof Promise) {
-        result.catch(error => {
+        result.catch((error: unknown) => {
           console.error('Error in poller callback:', error);
         });
       }
     }, intervalMs);
   };
 
-  const stop = () => {
+  const stop = (): void => {
     if (intervalId !== null) {
       clearInterval(intervalId);
       intervalId = null;
     }
   };
 
-  const isRunning = () => {
-    return intervalId !== null;
-  };
+  const isRunning = (): boolean => intervalId !== null;
 
   return {
     start,

@@ -15,9 +15,9 @@ import type {
   SaveBookmarkResponse,
   StartBulkImportResponse,
   GetJobStatusResponse,
-  TriggerSyncResponse,
-  SyncStatus,
-  UpdateSyncSettingsResponse,
+  TriggerSyncResponse as _TriggerSyncResponse,
+  SyncStatus as _SyncStatus,
+  UpdateSyncSettingsResponse as _UpdateSyncSettingsResponse,
 } from '../lib/messages';
 
 // Initialize platform adapter immediately (required for API calls)
@@ -53,7 +53,7 @@ async function setupSyncAlarm(): Promise<void> {
 /**
  * Initialize the extension - check for interrupted jobs and start processing
  */
-async function initializeExtension() {
+async function initializeExtension(): Promise<void> {
   console.log('Initializing extension...');
 
   try {
@@ -63,40 +63,40 @@ async function initializeExtension() {
       console.log(`Job recovery: resumed ${resumedBulkImports} bulk imports, reset ${resetFetchJobs} fetch jobs`);
     }
 
-    startProcessingQueue();
+    void startProcessingQueue();
 
     // Set up WebDAV sync alarm (don't await to prevent blocking)
-    setupSyncAlarm().catch(err => {
+    void setupSyncAlarm().catch((err: unknown) => {
       console.error('Error setting up sync alarm:', err);
     });
 
-    import('../lib/webdav-sync').then(({ triggerSyncIfEnabled }) => {
-      triggerSyncIfEnabled().catch(err => {
+    void import('../lib/webdav-sync').then(({ triggerSyncIfEnabled }) => {
+      triggerSyncIfEnabled().catch((err: unknown) => {
         console.error('Initial WebDAV sync failed:', err);
       });
-    }).catch(err => {
+    }).catch((err: unknown) => {
       console.error('Failed to load webdav-sync module:', err);
     });
   } catch (error) {
     console.error('Error during initialization:', error);
     // Still try to start the processing queue even if job recovery fails
-    startProcessingQueue();
+    void startProcessingQueue();
   }
 }
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Extension installed/updated');
-  initializeExtension();
+  void initializeExtension();
 });
 
 chrome.runtime.onStartup.addListener(() => {
   console.log('Browser started, initializing');
-  initializeExtension();
+  void initializeExtension();
 });
 
 // Also initialize immediately when the service worker loads
 // This handles cases where the service worker was killed and restarted
-initializeExtension();
+void initializeExtension();
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === WEBDAV_SYNC_ALARM) {
@@ -127,8 +127,11 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
     const handler = asyncMessageHandlers[message.type as keyof typeof asyncMessageHandlers];
     // TypeScript can't narrow the union type automatically, so we use type assertion
     // This is safe because we've matched the type key
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call
     (handler as any)(message)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
       .then((result: any) => sendResponse(result))
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       .catch((error: Error) => sendResponse({ success: false, error: error.message }));
     return true; // Keep message channel open for async response
   }
@@ -136,27 +139,28 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
   if (message.type === 'GET_CURRENT_TAB_INFO') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tab = tabs[0];
-      if (tab) {
-        // tab.url and tab.title can be undefined in incognito mode or for restricted URLs
-        if (!tab.url || !tab.title) {
-          sendResponse({
-            error: 'Cannot access tab information. This may be due to incognito mode or restricted URLs (chrome://, about:, etc.)'
-          });
-        } else {
-          sendResponse({
-            url: tab.url,
-            title: tab.title,
-          });
-        }
-      } else {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (tab === undefined) {
         sendResponse({ error: 'No active tab found' });
+        return;
+      }
+      // tab.url and tab.title can be undefined in incognito mode or for restricted URLs
+      if (tab.url !== undefined && tab.url !== '' && tab.title !== undefined && tab.title !== '') {
+        sendResponse({
+          url: tab.url,
+          title: tab.title,
+        });
+      } else {
+        sendResponse({
+          error: 'Cannot access tab information. This may be due to incognito mode or restricted URLs (chrome://, about:, etc.)'
+        });
       }
     });
     return true;
   }
 
   if (message.type === 'START_PROCESSING') {
-    startProcessingQueue();
+    void startProcessingQueue();
     sendResponse({ success: true });
     return true;
   }
@@ -172,10 +176,11 @@ chrome.commands.onCommand.addListener((command) => {
   if (command === 'save-bookmark') {
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
       const tab = tabs[0];
-      if (!tab || !tab.id) return;
+      // eslint-disable-next-line @typescript-eslint/prefer-optional-chain, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions
+      if (!tab || tab.id === undefined || tab.id === 0) return;
 
       // Check if we can access the tab URL (may be undefined in incognito or restricted URLs)
-      if (!tab.url) {
+      if (tab.url === undefined || tab.url === '') {
         console.warn('Cannot save bookmark: tab URL is undefined (incognito mode or restricted URL)');
         return;
       }
@@ -184,7 +189,7 @@ chrome.commands.onCommand.addListener((command) => {
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
           func: () => {
-            chrome.runtime.sendMessage({ type: 'CAPTURE_PAGE' });
+            void chrome.runtime.sendMessage({ type: 'CAPTURE_PAGE' });
           }
         });
       } catch (error) {
@@ -235,7 +240,7 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
 
       await db.jobs.update(jobId, { bookmarkId: existing.id });
 
-      startProcessingQueue();
+      void startProcessingQueue();
 
       return { success: true, bookmarkId: existing.id, updated: true };
     }
@@ -263,14 +268,14 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
 
     await db.jobs.update(jobId, { bookmarkId: id });
 
-    startProcessingQueue();
+    void startProcessingQueue();
 
     return { success: true, bookmarkId: id };
   } catch (error) {
     console.error('Error saving bookmark:', error);
 
     // Mark job as failed if it was created
-    if (jobId) {
+    if (jobId !== undefined) {
       await failJob(jobId, getErrorMessage(error));
     }
 
@@ -287,7 +292,7 @@ async function handleBulkImport(urls: string[]): Promise<StartBulkImportResponse
 
     const parentJobId = await createBulkImportJob(urls);
 
-    processBulkFetch(parentJobId).catch(error => {
+    void processBulkFetch(parentJobId).catch((error: unknown) => {
       console.error('Error in bulk fetch processing:', error);
     });
 

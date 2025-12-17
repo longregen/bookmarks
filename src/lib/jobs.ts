@@ -1,4 +1,4 @@
-import { db, Job, JobType, JobStatus } from '../db/schema';
+import { db, type Job, JobType, JobStatus } from '../db/schema';
 import { broadcastEvent } from './events';
 import { getErrorMessage, getErrorStack } from './errors';
 
@@ -19,14 +19,14 @@ export async function createJob(params: {
   const job: Job = {
     id: crypto.randomUUID(),
     type: params.type,
-    status: params.status || JobStatus.PENDING,
+    status: params.status ?? JobStatus.PENDING,
     parentJobId: params.parentJobId,
     bookmarkId: params.bookmarkId,
-    progress: params.progress || 0,
+    progress: params.progress ?? 0,
     currentStep: params.currentStep,
     totalSteps: params.totalSteps,
     completedSteps: params.completedSteps,
-    metadata: params.metadata || {},
+    metadata: params.metadata ?? {},
     createdAt: now,
     updatedAt: now,
   };
@@ -154,15 +154,15 @@ export async function getRecentJobs(options?: {
   status?: JobStatus;
   parentJobId?: string;
 }): Promise<Job[]> {
-  let query = db.jobs.orderBy('createdAt').reverse();
+  const query = db.jobs.orderBy('createdAt').reverse();
 
   let jobs = await query.toArray();
 
-  if (options?.type) {
+  if (options?.type !== undefined) {
     jobs = jobs.filter(job => job.type === options.type);
   }
 
-  if (options?.status) {
+  if (options?.status !== undefined) {
     jobs = jobs.filter(job => job.status === options.status);
   }
 
@@ -170,10 +170,10 @@ export async function getRecentJobs(options?: {
     jobs = jobs.filter(job => job.parentJobId === options.parentJobId);
   }
 
-  return jobs.slice(0, options?.limit || 100);
+  return jobs.slice(0, options?.limit ?? 100);
 }
 
-export async function cleanupOldJobs(daysOld: number = 30): Promise<number> {
+export async function cleanupOldJobs(daysOld = 30): Promise<number> {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
@@ -230,14 +230,14 @@ export async function resetInterruptedJobs(): Promise<{
       updatedAt: new Date(),
       metadata: {
         ...job.metadata,
-        retryCount: (job.metadata.retryCount || 0) + 1,
+        retryCount: (job.metadata.retryCount ?? 0) + 1,
         lastInterruptedAt: new Date().toISOString(),
       },
     });
     fetchJobsReset++;
   }
 
-  for (const job of bulkImportJobs) {
+  for (const _job of bulkImportJobs) {
     bulkImportsReset++;
   }
 
@@ -320,12 +320,12 @@ export async function incrementParentJobProgress(
 ): Promise<void> {
   await db.jobs.where('id').equals(parentJobId).modify(job => {
     if (success) {
-      job.metadata.successCount = (job.metadata.successCount || 0) + 1;
+      job.metadata.successCount = (job.metadata.successCount ?? 0) + 1;
     } else {
-      job.metadata.failureCount = (job.metadata.failureCount || 0) + 1;
+      job.metadata.failureCount = (job.metadata.failureCount ?? 0) + 1;
     }
-    const total = job.metadata.totalUrls || 1;
-    const completed = (job.metadata.successCount || 0) + (job.metadata.failureCount || 0);
+    const total = job.metadata.totalUrls ?? 1;
+    const completed = (job.metadata.successCount ?? 0) + (job.metadata.failureCount ?? 0);
     job.progress = Math.round((completed / total) * 100);
     job.updatedAt = new Date();
   });
@@ -338,9 +338,9 @@ export async function retryJob(jobId: string): Promise<boolean> {
     return false;
   }
 
-  if (job.bookmarkId) {
+  if (job.bookmarkId !== undefined) {
     const bookmark = await db.bookmarks.get(job.bookmarkId);
-    if (bookmark) {
+    if (bookmark !== undefined) {
       await db.bookmarks.update(job.bookmarkId, {
         status: 'pending',
         errorMessage: undefined,
@@ -361,7 +361,7 @@ export async function retryJob(jobId: string): Promise<boolean> {
         ...job.metadata,
         errorMessage: undefined,
         errorStack: undefined,
-        retryCount: (job.metadata.retryCount || 0) + 1,
+        retryCount: (job.metadata.retryCount ?? 0) + 1,
       },
       updatedAt: new Date(),
       completedAt: undefined,
@@ -395,10 +395,10 @@ export async function deleteBookmarkWithData(bookmarkId: string): Promise<void> 
 
 export async function getJobBookmark(jobId: string): Promise<{ id: string; url: string; title: string } | null> {
   const job = await db.jobs.get(jobId);
-  if (!job?.bookmarkId) return null;
+  if (job?.bookmarkId === undefined) return null;
 
   const bookmark = await db.bookmarks.get(job.bookmarkId);
-  if (!bookmark) return null;
+  if (bookmark === undefined) return null;
 
   return {
     id: bookmark.id,

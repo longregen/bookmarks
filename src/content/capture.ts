@@ -1,5 +1,5 @@
 import { getTheme, getEffectiveTheme } from '../shared/theme';
-import type { SaveBookmarkResponse, CapturePageResponse } from '../lib/messages';
+import type { SaveBookmarkResponse as _SaveBookmarkResponse, CapturePageResponse } from '../lib/messages';
 
 const themeCssVariables = {
   light: `
@@ -44,29 +44,29 @@ const themeCssVariables = {
   `
 };
 
-async function capturePage() {
+async function capturePage(): Promise<void> {
   const url = location.href;
   const title = document.title;
   const html = document.documentElement.outerHTML;
 
   try {
-    const response = await chrome.runtime.sendMessage({
+    const response: { success?: boolean } | undefined = await chrome.runtime.sendMessage({
       type: 'SAVE_BOOKMARK',
       data: { url, title, html }
-    }) as SaveBookmarkResponse;
+    });
 
-    if (response?.success) {
-      showNotification('Bookmark saved!', 'success');
+    if (response?.success === true) {
+      void showNotification('Bookmark saved!', 'success');
     } else {
-      showNotification('Failed to save bookmark', 'error');
+      void showNotification('Failed to save bookmark', 'error');
     }
   } catch (error) {
     console.error('Error saving bookmark:', error);
-    showNotification('Error saving bookmark', 'error');
+    void showNotification('Error saving bookmark', 'error');
   }
 }
 
-function injectThemeVariables(effectiveTheme: 'light' | 'dark' | 'terminal' | 'tufte') {
+function injectThemeVariables(effectiveTheme: 'light' | 'dark' | 'terminal' | 'tufte'): void {
   const styleId = 'bookmark-rag-toast-theme';
   let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
 
@@ -79,7 +79,7 @@ function injectThemeVariables(effectiveTheme: 'light' | 'dark' | 'terminal' | 't
   styleEl.textContent = `:root { ${themeCssVariables[effectiveTheme]} }`;
 }
 
-async function showNotification(message: string, type: 'success' | 'error') {
+async function showNotification(message: string, type: 'success' | 'error'): Promise<void> {
   const theme = await getTheme();
   const effectiveTheme = getEffectiveTheme(theme);
   injectThemeVariables(effectiveTheme);
@@ -136,9 +136,9 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: { type?: string }, sender, sendResponse) => {
   if (message.type === 'CAPTURE_PAGE') {
-    capturePage();
+    void capturePage();
     const response: CapturePageResponse = { success: true };
     sendResponse(response);
   }

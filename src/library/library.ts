@@ -1,4 +1,4 @@
-import { db, BookmarkTag } from '../db/schema';
+import { db, type BookmarkTag } from '../db/schema';
 import { createElement } from '../lib/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { onThemeChange, applyTheme } from '../shared/theme';
@@ -14,7 +14,7 @@ let selectedTag = 'All';
 let sortBy = 'newest';
 
 function getStatusModifier(status: string): string {
-  const statusMap: { [key: string]: string } = {
+  const statusMap: Record<string, string> = {
     'complete': 'status-dot--success',
     'pending': 'status-dot--warning',
     'processing': 'status-dot--info',
@@ -23,40 +23,53 @@ function getStatusModifier(status: string): string {
   return statusMap[status] || 'status-dot--warning';
 }
 
-const tagList = document.getElementById('tagList')!;
-const bookmarkList = document.getElementById('bookmarkList')!;
-const bookmarkCount = document.getElementById('bookmarkCount')!;
+const tagList = document.getElementById('tagList');
+const bookmarkList = document.getElementById('bookmarkList');
+if (!tagList || !bookmarkList) {
+  throw new Error('Required DOM elements not found');
+}
+const bookmarkCount = document.getElementById('bookmarkCount');
 const sortSelect = document.getElementById('sortSelect') as HTMLSelectElement;
+if (!bookmarkCount) {
+  throw new Error('Required DOM element bookmarkCount not found');
+}
+
+const detailPanel = document.getElementById('detailPanel');
+const detailBackdrop = document.getElementById('detailBackdrop');
+const detailContent = document.getElementById('detailContent');
+if (!detailPanel || !detailBackdrop || !detailContent) {
+  throw new Error('Required DOM elements for detail panel not found');
+}
 
 const detailManager = new BookmarkDetailManager({
-  detailPanel: document.getElementById('detailPanel')!,
-  detailBackdrop: document.getElementById('detailBackdrop')!,
-  detailContent: document.getElementById('detailContent')!,
+  detailPanel,
+  detailBackdrop,
+  detailContent,
   closeBtn: document.getElementById('closeDetailBtn') as HTMLButtonElement,
   deleteBtn: document.getElementById('deleteBtn') as HTMLButtonElement,
   exportBtn: document.getElementById('exportBtn') as HTMLButtonElement,
   debugBtn: document.getElementById('debugBtn') as HTMLButtonElement,
   onDelete: () => {
-    loadTags();
-    loadBookmarks();
+    void loadTags();
+    void loadBookmarks();
   },
   onTagsChange: () => {
-    loadTags();
-    loadBookmarks();
+    void loadTags();
+    void loadBookmarks();
   }
 });
 
 sortSelect.addEventListener('change', () => {
   sortBy = sortSelect.value;
-  loadBookmarks();
+  void loadBookmarks();
 });
 
-async function loadTags() {
+async function loadTags(): Promise<void> {
   const bookmarks = await db.bookmarks.toArray();
 
   // Batch load all tags at once to avoid N+1 query pattern
   const allTagRecords = await db.bookmarkTags.toArray();
-  const allTags: { [key: string]: number } = {};
+  const allTags: Record<string, number> = {};
   const taggedBookmarkIds = new Set<string>();
 
   for (const tagRecord of allTagRecords) {
@@ -93,21 +106,21 @@ async function loadTags() {
   }
 }
 
-function selectTag(tag: string) {
+function selectTag(tag: string): void {
   selectedTag = tag;
-  loadTags();
-  loadBookmarks();
+  void loadTags();
+  void loadBookmarks();
 }
 
-async function loadBookmarks() {
+async function loadBookmarks(): Promise<void> {
   let bookmarks = await db.bookmarks.toArray();
 
   if (selectedTag !== 'All') {
     if (selectedTag === 'Untagged') {
-      const taggedIds = new Set((await db.bookmarkTags.toArray() || []).map(t => t.bookmarkId));
+      const taggedIds = new Set((await db.bookmarkTags.toArray()).map(t => t.bookmarkId));
       bookmarks = bookmarks.filter(b => !taggedIds.has(b.id));
     } else {
-      const taggedIds = new Set((await db.bookmarkTags.where('tagName').equals(selectedTag).toArray() || []).map(t => t.bookmarkId));
+      const taggedIds = new Set((await db.bookmarkTags.where('tagName').equals(selectedTag).toArray()).map(t => t.bookmarkId));
       bookmarks = bookmarks.filter(b => taggedIds.has(b.id));
     }
   }
@@ -130,14 +143,16 @@ async function loadBookmarks() {
 
   const tagsByBookmarkId = new Map<string, BookmarkTag[]>();
   for (const tag of allTags) {
-    if (!tagsByBookmarkId.has(tag.bookmarkId)) {
-      tagsByBookmarkId.set(tag.bookmarkId, []);
+    const existing = tagsByBookmarkId.get(tag.bookmarkId);
+    if (existing) {
+      existing.push(tag);
+    } else {
+      tagsByBookmarkId.set(tag.bookmarkId, [tag]);
     }
-    tagsByBookmarkId.get(tag.bookmarkId)!.push(tag);
   }
 
   for (const bookmark of bookmarks) {
-    const tags = tagsByBookmarkId.get(bookmark.id) || [];
+    const tags = tagsByBookmarkId.get(bookmark.id) ?? [];
     const card = createElement('div', { className: 'bookmark-card' });
     card.onclick = () => detailManager.showDetail(bookmark.id);
 
@@ -166,58 +181,61 @@ async function loadBookmarks() {
 }
 
 if (__IS_WEB__) {
-  initWeb();
+  void initWeb();
   // Note: initAddUrlSection() is disabled for web builds due to CORS limitations
   // The web app cannot fetch external URLs, so URL import functionality is not available
 } else {
-  initExtension();
+  void initExtension();
 }
 onThemeChange((theme) => applyTheme(theme));
-loadTags();
-loadBookmarks();
+void loadTags();
+void loadBookmarks();
 
-function initAddUrlSection() {
+function _initAddUrlSection(): void {
   const addUrlSection = document.getElementById('addUrlSection');
-  const addUrlInput = document.getElementById('addUrlInput') as HTMLInputElement;
-  const addUrlBtn = document.getElementById('addUrlBtn') as HTMLButtonElement;
-  const addUrlStatus = document.getElementById('addUrlStatus')!;
+  const addUrlInput = document.getElementById('addUrlInput');
+  const addUrlBtn = document.getElementById('addUrlBtn');
+  const addUrlStatus = document.getElementById('addUrlStatus');
 
   if (!addUrlSection || !addUrlInput || !addUrlBtn || !addUrlStatus) return;
 
+  const typedInput = addUrlInput as HTMLInputElement;
+  const typedBtn = addUrlBtn as HTMLButtonElement;
+
   addUrlSection.classList.remove('hidden');
 
-  async function addUrl() {
-    const url = addUrlInput.value.trim();
+  async function addUrl(): Promise<void> {
+    const url = typedInput.value.trim();
     if (!url) return;
 
     const validation = validateSingleUrl(url);
     if (!validation.isValid) {
-      showAddUrlStatus(validation.error || 'Invalid URL', 'error');
+      showAddUrlStatus(validation.error ?? 'Invalid URL', 'error');
       return;
     }
 
-    addUrlBtn.disabled = true;
-    addUrlBtn.textContent = 'Adding...';
+    typedBtn.disabled = true;
+    typedBtn.textContent = 'Adding...';
     showAddUrlStatus('Fetching page...', 'info');
 
     try {
       const jobId = await createBulkImportJob([validation.normalized]);
       await processBulkFetch(jobId);
 
-      addUrlInput.value = '';
+      typedInput.value = '';
       showAddUrlStatus('Bookmark added successfully!', 'success');
-      loadTags();
-      loadBookmarks();
+      void loadTags();
+      void loadBookmarks();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to add bookmark';
       showAddUrlStatus(errorMessage, 'error');
     } finally {
-      addUrlBtn.disabled = false;
-      addUrlBtn.textContent = 'Add';
+      typedBtn.disabled = false;
+      typedBtn.textContent = 'Add';
     }
   }
 
-  function showAddUrlStatus(message: string, type: 'success' | 'error' | 'info') {
+  function showAddUrlStatus(message: string, type: 'success' | 'error' | 'info'): void {
     addUrlStatus.textContent = message;
     addUrlStatus.className = `add-url-status ${type}`;
     addUrlStatus.classList.remove('hidden');
@@ -229,24 +247,24 @@ function initAddUrlSection() {
     }
   }
 
-  addUrlBtn.addEventListener('click', addUrl);
-  addUrlInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') addUrl();
+  typedBtn.addEventListener('click', () => void addUrl());
+  typedInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') void addUrl();
   });
 }
 
 // Event-driven updates instead of constant polling
 const removeEventListener = addBookmarkEventListener((event) => {
   if (event.type === 'BOOKMARK_UPDATED' || event.type === 'PROCESSING_COMPLETE' || event.type === 'TAG_UPDATED') {
-    loadTags();
-    loadBookmarks();
+    void loadTags();
+    void loadBookmarks();
   }
 });
 
 // Minimal fallback polling every 30 seconds (instead of 5)
 const fallbackInterval = setInterval(() => {
-  loadTags();
-  loadBookmarks();
+  void loadTags();
+  void loadBookmarks();
 }, 30000);
 
 window.addEventListener('beforeunload', () => {
@@ -261,17 +279,17 @@ if (healthIndicatorContainer) {
 
 const urlParams = new URLSearchParams(window.location.search);
 const bookmarkIdParam = urlParams.get('bookmarkId');
-if (bookmarkIdParam) {
+if (bookmarkIdParam !== null && bookmarkIdParam !== '') {
   // Wait for bookmarks to load, then show detail
   setTimeout(() => {
-    detailManager.showDetail(bookmarkIdParam);
+    void detailManager.showDetail(bookmarkIdParam);
   }, 500);
 }
 
 declare global {
   interface Window {
     __testHelpers?: {
-      getBookmarkStatus: () => Promise<any>;
+      getBookmarkStatus: () => Promise<unknown>;
     };
   }
 }
@@ -292,8 +310,8 @@ window.__testHelpers = {
       })),
       markdown: markdown.map(m => ({
         bookmarkId: m.bookmarkId,
-        contentLength: m.content?.length || 0,
-        contentPreview: m.content?.substring(0, 200) || ''
+        contentLength: m.content ? m.content.length : 0,
+        contentPreview: m.content ? m.content.substring(0, 200) : ''
       }))
     };
   }

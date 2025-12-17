@@ -43,7 +43,7 @@ export async function renderPage(url: string, timeoutMs: number = config.FETCH_T
       active: false,
     });
 
-    if (!tab.id) {
+    if (typeof tab.id !== 'number') {
       throw new Error('Failed to create tab - no tab ID returned');
     }
 
@@ -53,7 +53,7 @@ export async function renderPage(url: string, timeoutMs: number = config.FETCH_T
 
     // 3. Get the final URL (in case of redirects)
     const updatedTab = await chrome.tabs.get(tabId);
-    const finalUrl = updatedTab.url || url;
+    const _finalUrl = updatedTab.url ?? url;
 
     const settleTimeMs = config.PAGE_SETTLE_TIME_MS || 2000;
     const html = await executeExtraction(tabId, settleTimeMs);
@@ -91,14 +91,14 @@ async function waitForTabLoad(tabId: number, timeoutMs: number): Promise<void> {
       reject(new Error('Tab load timeout'));
     }, timeoutMs);
 
-    const listener = (updatedTabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
-      if (updatedTabId === tabId && changeInfo.status === 'complete') {
+    const listener = (updatedTabId: number, changeInfo: { status?: string }): void => {
+      if (updatedTabId === tabId && changeInfo.status !== undefined && changeInfo.status === 'complete') {
         cleanup();
         resolve();
       }
     };
 
-    const cleanup = () => {
+    const cleanup = (): void => {
       clearTimeout(timeoutId);
       chrome.tabs.onUpdated.removeListener(listener);
     };
@@ -107,13 +107,13 @@ async function waitForTabLoad(tabId: number, timeoutMs: number): Promise<void> {
 
     // Check if tab is already complete
     chrome.tabs.get(tabId).then((tab) => {
-      if (tab.status === 'complete') {
+      if (tab.status !== undefined && tab.status === 'complete') {
         cleanup();
         resolve();
       }
-    }).catch((error) => {
+    }).catch((error: unknown) => {
       cleanup();
-      reject(error);
+      reject(error instanceof Error ? error : new Error(String(error)));
     });
   });
 }
@@ -128,8 +128,7 @@ async function executeExtraction(tabId: number, settleTimeMs: number): Promise<s
   // chrome.scripting.executeScript runs in an isolated world but can return values
   const results = await chrome.scripting.executeScript({
     target: { tabId },
-    func: (settleMs: number) => {
-      return new Promise<string>((resolve) => {
+    func: (settleMs: number) => new Promise<string>((resolve) => {
         let timeout: ReturnType<typeof setTimeout>;
 
         const observer = new MutationObserver(() => {
@@ -141,7 +140,7 @@ async function executeExtraction(tabId: number, settleTimeMs: number): Promise<s
           }, settleMs);
         });
 
-        const target = document.body || document.documentElement;
+        const target = document.body;
         observer.observe(target, {
           childList: true,
           subtree: true,
@@ -154,14 +153,13 @@ async function executeExtraction(tabId: number, settleTimeMs: number): Promise<s
           observer.disconnect();
           resolve(document.documentElement.outerHTML);
         }, settleMs);
-      });
-    },
+      }),
     args: [settleTimeMs],
   });
 
-  if (!results || results.length === 0 || !results[0].result) {
+  if (results.length === 0 || (results[0].result ?? '') === '') {
     throw new Error('Failed to extract HTML from page');
   }
 
-  return results[0].result as string;
+  return results[0].result;
 }

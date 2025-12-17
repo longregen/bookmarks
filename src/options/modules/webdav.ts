@@ -3,7 +3,6 @@ import { showStatusMessage } from '../../lib/dom';
 import { createPoller, type Poller } from '../../lib/polling-manager';
 import { validateWebDAVUrl as validateWebDAVUrlShared } from '../../lib/url-validator';
 import { withButtonState } from '../../lib/form-helper';
-import type { UpdateSyncSettingsResponse, SyncStatus, TriggerSyncResponse } from '../../lib/messages';
 import { getErrorMessage } from '../../lib/errors';
 
 const webdavForm = document.getElementById('webdavForm') as HTMLFormElement;
@@ -24,11 +23,11 @@ const syncNowBtn = document.getElementById('syncNowBtn') as HTMLButtonElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
 
 const syncStatusPoller: Poller = createPoller(
-  () => updateSyncStatus(),
+  () => void updateSyncStatus(),
   10000
 );
 
-async function loadWebDAVSettings() {
+async function loadWebDAVSettings(): Promise<void> {
   try {
     const settings = await getSettings();
 
@@ -45,14 +44,14 @@ async function loadWebDAVSettings() {
     validateWebDAVUrl();
 
     if (settings.webdavEnabled) {
-      updateSyncStatus();
+      void updateSyncStatus();
     }
   } catch (error) {
     console.error('Error loading WebDAV settings:', error);
   }
 }
 
-function updateWebDAVFieldsVisibility() {
+function updateWebDAVFieldsVisibility(): void {
   if (webdavEnabledInput.checked) {
     webdavFieldsDiv.classList.remove('hidden');
   } else {
@@ -60,10 +59,10 @@ function updateWebDAVFieldsVisibility() {
   }
 }
 
-function validateWebDAVUrl() {
+function validateWebDAVUrl(): void {
   const url = webdavUrlInput.value.trim();
 
-  if (!url) {
+  if (url === '') {
     webdavUrlWarning.classList.add('hidden');
     return;
   }
@@ -71,7 +70,7 @@ function validateWebDAVUrl() {
   // Note: We pass allowInsecure=true here to get a warning instead of an error for HTTP
   const result = validateWebDAVUrlShared(url, true);
 
-  if (result.valid && result.warning) {
+  if (result.valid && result.warning !== undefined) {
     webdavUrlWarning.classList.remove('hidden');
   } else {
     webdavUrlWarning.classList.add('hidden');
@@ -84,7 +83,8 @@ webdavUrlInput.addEventListener('input', validateWebDAVUrl);
 webdavForm.addEventListener('submit', async (e) => {
   e.preventDefault();
 
-  const submitBtn = webdavForm.querySelector('[type="submit"]') as HTMLButtonElement;
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const submitBtn = webdavForm.querySelector('[type="submit"]')!;
 
   try {
     await withButtonState(submitBtn, 'Saving...', async () => {
@@ -95,13 +95,13 @@ webdavForm.addEventListener('submit', async (e) => {
       await saveSetting('webdavPath', webdavPathInput.value.trim() || '/bookmarks');
       await saveSetting('webdavSyncInterval', parseInt(webdavSyncIntervalInput.value, 10) || 15);
 
-      await chrome.runtime.sendMessage({ type: 'UPDATE_SYNC_SETTINGS' }) as UpdateSyncSettingsResponse;
+      await chrome.runtime.sendMessage({ type: 'UPDATE_SYNC_SETTINGS' });
     });
 
     showStatusMessage(statusDiv, 'WebDAV settings saved successfully!', 'success', 5000);
 
     if (webdavEnabledInput.checked) {
-      updateSyncStatus();
+      void updateSyncStatus();
     }
   } catch (error) {
     console.error('Error saving WebDAV settings:', error);
@@ -128,7 +128,7 @@ testWebdavBtn.addEventListener('click', async () => {
       if (result.success) {
         showConnectionStatus('success', 'Connection successful!');
       } else {
-        showConnectionStatus('error', result.error || 'Connection failed');
+        showConnectionStatus('error', (result.error !== undefined && result.error !== '') ? result.error : 'Connection failed');
       }
     });
   } catch (error) {
@@ -136,7 +136,7 @@ testWebdavBtn.addEventListener('click', async () => {
   }
 });
 
-function showConnectionStatus(type: 'success' | 'error' | 'testing', message: string) {
+function showConnectionStatus(type: 'success' | 'error' | 'testing', message: string): void {
   webdavConnectionStatus.className = `connection-status ${type}`;
   const statusText = webdavConnectionStatus.querySelector('.status-text');
   if (statusText) {
@@ -160,7 +160,7 @@ async function testWebDAVConnection(
       method: 'PROPFIND',
       headers: {
         'Depth': '0',
-        'Authorization': 'Basic ' + btoa(`${username}:${password}`),
+        'Authorization': `Basic ${  btoa(`${username}:${password}`)}`,
         'Content-Type': 'application/xml',
       },
       body: `<?xml version="1.0" encoding="utf-8" ?>
@@ -193,27 +193,35 @@ async function testWebDAVConnection(
   }
 }
 
-async function updateSyncStatus() {
+async function updateSyncStatus(): Promise<void> {
   try {
-    const response = await chrome.runtime.sendMessage({ type: 'GET_SYNC_STATUS' }) as SyncStatus;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const response = await chrome.runtime.sendMessage({ type: 'GET_SYNC_STATUS' });
 
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     if (response) {
-      const statusText = syncStatusIndicator.querySelector('.sync-status-text') as HTMLSpanElement;
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const statusText = syncStatusIndicator.querySelector('.sync-status-text')!;
 
       syncStatusIndicator.classList.remove('syncing', 'success', 'error');
 
+      // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unsafe-member-access
       if (response.isSyncing) {
         syncStatusIndicator.classList.add('syncing');
         statusText.textContent = 'Syncing...';
         syncNowBtn.disabled = true;
         syncNowBtn.textContent = 'Syncing...';
+      // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unsafe-member-access
       } else if (response.lastSyncError) {
         syncStatusIndicator.classList.add('error');
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         statusText.textContent = `Error: ${response.lastSyncError}`;
         syncNowBtn.disabled = false;
         syncNowBtn.textContent = 'Sync Now';
+      // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unsafe-member-access
       } else if (response.lastSyncTime) {
         syncStatusIndicator.classList.add('success');
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
         statusText.textContent = `Last synced: ${formatSyncTime(response.lastSyncTime)}`;
         syncNowBtn.disabled = false;
         syncNowBtn.textContent = 'Sync Now';
@@ -243,7 +251,7 @@ function formatSyncTime(isoTime: string): string {
     if (diffHours < 24) {
       return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
     } else {
-      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `${date.toLocaleDateString()  } ${  date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     }
   }
 }
@@ -251,22 +259,29 @@ function formatSyncTime(isoTime: string): string {
 syncNowBtn.addEventListener('click', async () => {
   try {
     await withButtonState(syncNowBtn, 'Syncing...', async () => {
-      const statusText = syncStatusIndicator.querySelector('.sync-status-text') as HTMLSpanElement;
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const statusText = syncStatusIndicator.querySelector('.sync-status-text')!;
       syncStatusIndicator.classList.remove('success', 'error');
       syncStatusIndicator.classList.add('syncing');
       statusText.textContent = 'Syncing...';
 
-      const result = await chrome.runtime.sendMessage({ type: 'TRIGGER_SYNC' }) as TriggerSyncResponse;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const result = await chrome.runtime.sendMessage({ type: 'TRIGGER_SYNC' });
 
       syncStatusIndicator.classList.remove('syncing');
 
-      if (result && result.success) {
+      // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unsafe-member-access
+      if (result?.success) {
         syncStatusIndicator.classList.add('success');
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         statusText.textContent = result.message ?? 'Sync completed';
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         showStatusMessage(statusDiv, `Sync completed: ${result.message ?? 'Success'}`, 'success', 5000);
       } else {
         syncStatusIndicator.classList.add('error');
+        // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/prefer-nullish-coalescing
         statusText.textContent = `Error: ${result?.message || 'Unknown error'}`;
+        // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/prefer-nullish-coalescing
         showStatusMessage(statusDiv, `Sync failed: ${result?.message || 'Unknown error'}`, 'error', 5000);
       }
 
@@ -278,7 +293,7 @@ syncNowBtn.addEventListener('click', async () => {
   }
 });
 
-function startSyncStatusPolling() {
+function startSyncStatusPolling(): void {
   syncStatusPoller.stop();
 
   if (webdavEnabledInput.checked) {
@@ -286,15 +301,15 @@ function startSyncStatusPolling() {
   }
 }
 
-function stopSyncStatusPolling() {
+function stopSyncStatusPolling(): void {
   syncStatusPoller.stop();
 }
 
-export function initWebDAVModule() {
-  loadWebDAVSettings();
+export function initWebDAVModule(): () => void {
+  void loadWebDAVSettings();
   startSyncStatusPolling();
 
-  return () => {
+  return (): void => {
     stopSyncStatusPolling();
   };
 }

@@ -1,4 +1,4 @@
-import { db, BookmarkTag } from '../db/schema';
+import { db, type BookmarkTag } from '../db/schema';
 import { createElement } from './dom';
 
 export interface TagFilterConfig {
@@ -7,7 +7,7 @@ export interface TagFilterConfig {
   onChange: () => void;
 }
 
-export async function loadTagFilters(config: TagFilterConfig) {
+export async function loadTagFilters(config: TagFilterConfig): Promise<void> {
   const bookmarks = await db.bookmarks.toArray();
   const allTags = new Set<string>();
 
@@ -22,7 +22,7 @@ export async function loadTagFilters(config: TagFilterConfig) {
     const clearBtn = createElement('button', {
       className: 'clear-selection-btn',
       textContent: 'Clear selection'
-    }) as HTMLButtonElement;
+    });
     clearBtn.onclick = () => {
       config.selectedTags.clear();
       config.onChange();
@@ -34,7 +34,7 @@ export async function loadTagFilters(config: TagFilterConfig) {
     const label = createElement('label', { className: 'filter-item' });
     const cb = createElement('input', {
       attributes: { type: 'checkbox' }
-    }) as HTMLInputElement;
+    });
     cb.checked = config.selectedTags.has(tag);
     cb.onchange = () => {
       if (cb.checked) {

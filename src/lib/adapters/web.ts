@@ -23,17 +23,19 @@ export const webAdapter: PlatformAdapter = {
     return saveSettingToDb(key, value);
   },
 
-  async getTheme(): Promise<Theme> {
+  getTheme(): Promise<Theme> {
     try {
       const theme = localStorage.getItem(THEME_KEY);
-      return (theme as Theme) || 'auto';
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive check for missing value
+      return Promise.resolve((theme as Theme) || 'auto');
     } catch {
-      return 'auto';
+      return Promise.resolve('auto');
     }
   },
 
-  async setTheme(theme: Theme): Promise<void> {
+  setTheme(theme: Theme): Promise<void> {
     localStorage.setItem(THEME_KEY, theme);
+    return Promise.resolve();
   },
 
   async fetchContent(url: string): Promise<{ html: string; finalUrl: string }> {

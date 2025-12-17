@@ -8,13 +8,15 @@ export interface RetryOptions {
 }
 
 export function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise(resolve => {
+    setTimeout(resolve, ms);
+  });
 }
 
 export function calculateBackoffDelay(
   attempt: number,
   baseDelayMs: number,
-  maxDelayMs: number = 30000
+  maxDelayMs = 30000
 ): number {
   const exponentialDelay = baseDelayMs * Math.pow(2, attempt);
   return Math.min(exponentialDelay, maxDelayMs);
@@ -47,7 +49,7 @@ export async function withRetry<T>(
     }
   }
 
-  throw lastError!;
+  throw new Error('Retry failed: all attempts exhausted');
 }
 
 export function shouldRetryBookmark(retryCount: number, maxRetries: number): boolean {
@@ -56,8 +58,8 @@ export function shouldRetryBookmark(retryCount: number, maxRetries: number): boo
 
 export function getNextRetryTime(
   retryCount: number,
-  baseDelayMs: number = 1000,
-  maxDelayMs: number = 30000
+  baseDelayMs = 1000,
+  maxDelayMs = 30000
 ): Date {
   const delay = calculateBackoffDelay(retryCount, baseDelayMs, maxDelayMs);
   return new Date(Date.now() + delay);

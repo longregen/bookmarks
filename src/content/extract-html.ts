@@ -4,7 +4,7 @@
  * and extract the final rendered HTML after JavaScript execution.
  */
 
-function waitForSettle(settleTimeMs: number = 2000): Promise<void> {
+function waitForSettle(settleTimeMs = 2000): Promise<void> {
   return new Promise((resolve) => {
     let timeout: ReturnType<typeof setTimeout>;
 
@@ -16,7 +16,7 @@ function waitForSettle(settleTimeMs: number = 2000): Promise<void> {
       }, settleTimeMs);
     });
 
-    observer.observe(document.body || document.documentElement, {
+    observer.observe((document.body as Node | null) ?? document.documentElement, {
       childList: true,
       subtree: true,
       attributes: true,
@@ -31,7 +31,7 @@ function waitForSettle(settleTimeMs: number = 2000): Promise<void> {
   });
 }
 
-async function extractHtml(settleTimeMs: number = 2000): Promise<string> {
+async function extractHtml(settleTimeMs = 2000): Promise<string> {
   await waitForSettle(settleTimeMs);
   return document.documentElement.outerHTML;
 }
@@ -40,5 +40,5 @@ async function extractHtml(settleTimeMs: number = 2000): Promise<string> {
 // When injected via chrome.scripting.executeScript, we need to return the result
 // This will be wrapped in an IIFE by the tab renderer
 if (typeof window !== 'undefined') {
-  (window as any).extractHtml = extractHtml;
+  (window as { extractHtml?: typeof extractHtml }).extractHtml = extractHtml;
 }

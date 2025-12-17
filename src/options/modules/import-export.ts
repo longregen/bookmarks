@@ -95,5 +95,6 @@ importBtn.addEventListener('click', async () => {
   }
 });
 
-export function initImportExportModule() {
+export function initImportExportModule(): void {
+  // Module is initialized via event listeners above
 }

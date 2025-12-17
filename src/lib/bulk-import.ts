@@ -1,5 +1,5 @@
 import { db, JobType, JobStatus } from '../db/schema';
-import { createJob, updateJob, completeJob } from './jobs';
+import { createJob, updateJob as _updateJob, completeJob as _completeJob } from './jobs';
 import { validateWebUrl } from './url-validator';
 
 export interface UrlValidation {
@@ -56,7 +56,7 @@ export function validateSingleUrl(url: string): UrlValidation {
 
   return {
     original,
-    normalized: result.normalizedUrl || '',
+    normalized: result.normalizedUrl ?? '',
     isValid: result.valid,
     error: result.error,
   };
@@ -96,14 +96,14 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
     .replace(/&nbsp;/g, ' ')
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCharCode(parseInt(code, 16)))
+    .replace(/&#(\d+);/g, (_: string, code: string) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_: string, code: string) => String.fromCharCode(parseInt(code, 16)))
     .replace(/&amp;/g, '&');
 }
 
 export function extractTitleFromHtml(html: string): string {
-  const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
-  if (titleMatch && titleMatch[1]) {
+  const titleMatch = /<title[^>]*>(.*?)<\/title>/i.exec(html);
+  if (titleMatch?.[1] !== undefined) {
     return decodeHtmlEntities(titleMatch[1]).trim();
   }
   return '';

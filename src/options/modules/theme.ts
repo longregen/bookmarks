@@ -4,7 +4,7 @@ import { initWeb } from '../../web/init-web';
 
 const themeRadios = document.querySelectorAll<HTMLInputElement>('input[name="theme"]');
 
-async function loadTheme() {
+async function loadTheme(): Promise<void> {
   const theme = await getTheme();
   const radio = document.querySelector<HTMLInputElement>(`input[name="theme"][value="${theme}"]`);
   if (radio) {
@@ -21,13 +21,13 @@ themeRadios.forEach(radio => {
   });
 });
 
-export function initThemeModule() {
+export function initThemeModule(): void {
   if (__IS_WEB__) {
-    initWeb();
+    void initWeb();
   } else {
-    initExtension();
+    void initExtension();
   }
   onThemeChange((theme) => applyTheme(theme));
 
-  loadTheme();
+  void loadTheme();
 }

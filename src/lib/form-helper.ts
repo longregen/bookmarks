@@ -29,15 +29,16 @@ export function initSettingsForm(config: FormConfig): void {
   const form = document.getElementById(config.formId) as HTMLFormElement;
   const statusDiv = document.getElementById(config.statusId) as HTMLDivElement;
 
-  config.onLoad().catch(error => {
+  config.onLoad().catch((error: unknown) => {
     console.error('Error loading settings:', error);
     showStatusMessage(statusDiv, 'Failed to load settings', 'error', 5000);
   });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const submitBtn = form.querySelector('[type="submit"]') as HTMLButtonElement;
-    const savingText = config.saveButtonText?.saving || 'Saving...';
+    const submitBtn = form.querySelector('[type="submit"]');
+    if (!submitBtn) return;
+    const savingText = config.saveButtonText?.saving ?? 'Saving...';
 
     try {
       await withButtonState(submitBtn, savingText, async () => {

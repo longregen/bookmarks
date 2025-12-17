@@ -1,10 +1,10 @@
 function isExtensionUrl(url: string | undefined): boolean {
-  if (!url) return false;
+  if (url === undefined || url === '') return false;
   const extensionUrlPrefix = chrome.runtime.getURL('');
   return url.startsWith(extensionUrlPrefix);
 }
 
-function getExtensionPagePath(url: string): string | null {
+function _getExtensionPagePath(url: string): string | null {
   const extensionUrlPrefix = chrome.runtime.getURL('');
   if (!url.startsWith(extensionUrlPrefix)) {
     return null;
@@ -28,14 +28,15 @@ export async function openExtensionPage(pagePath: string): Promise<void> {
   const targetUrl = chrome.runtime.getURL(pagePath);
   const existingTab = await findExtensionTab();
 
-  if (existingTab && existingTab.id !== undefined) {
+  if (existingTab?.id !== undefined) {
     await chrome.tabs.update(existingTab.id, {
       active: true,
       url: targetUrl
     });
 
     // chrome.windows API is not available on Firefox Android
-    if (existingTab.windowId !== undefined && typeof chrome.windows !== 'undefined') {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (existingTab.windowId !== undefined) {
       try {
         await chrome.windows.update(existingTab.windowId, { focused: true });
       } catch {

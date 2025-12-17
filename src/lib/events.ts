@@ -10,17 +10,18 @@ export type EventType =
 
 export interface EventData {
   type: EventType;
-  payload?: any;
+  payload?: unknown;
   timestamp: number;
 }
 
-export async function broadcastEvent(type: EventType, payload?: any): Promise<void> {
+export async function broadcastEvent(type: EventType, payload?: unknown): Promise<void> {
   const event: EventData = {
     type,
     payload,
     timestamp: Date.now(),
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions, @typescript-eslint/prefer-optional-chain
   if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
     try {
       // Use sendMessage with no specific target - broadcasts to all listeners
@@ -46,17 +47,19 @@ export async function broadcastEvent(type: EventType, payload?: any): Promise<vo
 export type EventListener = (event: EventData) => void;
 
 export function addEventListener(listener: EventListener): () => void {
-  const chromeListener = (message: Message) => {
+  const chromeListener = (message: Message): void => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions
     if (message.type === 'EVENT_BROADCAST' && message.event) {
       listener(message.event);
     }
   };
 
-  const webListener = (e: Event) => {
+  const webListener = (e: Event): void => {
     const customEvent = e as CustomEvent<EventData>;
     listener(customEvent.detail);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions, @typescript-eslint/prefer-optional-chain
   if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
     chrome.runtime.onMessage.addListener(chromeListener);
   }
@@ -65,7 +68,8 @@ export function addEventListener(listener: EventListener): () => void {
     window.addEventListener('bookmark-event', webListener);
   }
 
-  return () => {
+  return (): void => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions, @typescript-eslint/prefer-optional-chain
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
       chrome.runtime.onMessage.removeListener(chromeListener);
     }

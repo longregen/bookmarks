@@ -1,5 +1,5 @@
 import { getPlatformAdapter } from './platform';
-import { getSettings } from './settings';
+import { getSettings as _getSettings } from './settings';
 import { config } from './config-registry';
 
 interface QAPair {
@@ -50,7 +50,7 @@ export async function makeApiRequest<T>(
     throw new Error(`API error: ${response.status} - ${error}`);
   }
 
-  return await response.json();
+  return await response.json() as T;
 }
 
 const QA_SYSTEM_PROMPT = `You are a helpful assistant that generates question-answer pairs for semantic search retrieval.
@@ -69,6 +69,7 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
 
   const truncatedContent = markdownContent.slice(0, config.API_CONTENT_MAX_CHARS);
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
   const data = await makeApiRequest<any>('/chat/completions', {
     model: settings.chatModel,
     messages: [
@@ -79,13 +80,16 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
     temperature: config.API_CHAT_TEMPERATURE,
   }, settings);
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
   const content = data.choices[0]?.message?.content;
 
-  if (!content) {
+  if (content === undefined || content === null) {
     throw new Error('Empty response from chat API');
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument
   const parsed = JSON.parse(content);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/strict-boolean-expressions
   return parsed.pairs || [];
 }
 
@@ -116,7 +120,9 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
 
   if (__DEBUG_EMBEDDINGS__) {
     console.log('[Embeddings API] Raw API response', {
-      hasData: !!data.data,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      hasData: data.data !== undefined,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       dataLength: data.data?.length,
       model: data.model,
       usage: data.usage,

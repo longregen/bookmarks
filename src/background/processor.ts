@@ -1,4 +1,4 @@
-import { db, Bookmark, JobType, JobStatus, Job } from '../db/schema';
+import { db, type Bookmark, JobType, JobStatus, type Job } from '../db/schema';
 import { extractMarkdownAsync } from '../lib/extract';
 import { generateQAPairs, generateEmbeddings } from '../lib/api';
 import { createJob, updateJob, completeJob, failJob } from '../lib/jobs';
@@ -22,8 +22,8 @@ async function extractMarkdownStep(
 ): Promise<{ content: string; characterCount: number; wordCount: number }> {
   console.log(`[Processor] Extracting markdown for: ${bookmark.title}`, {
     url: bookmark.url,
-    htmlLength: bookmark.html?.length ?? 0,
-    htmlPreview: bookmark.html?.slice(0, 200) ?? '',
+    htmlLength: bookmark.html.length,
+    htmlPreview: bookmark.html.slice(0, 200),
   });
 
   const markdownStartTime = Date.now();
@@ -33,8 +33,8 @@ async function extractMarkdownStep(
   const markdownId = crypto.randomUUID();
   console.log(`[Processor] Saving markdown to database`, {
     bookmarkId: bookmark.id,
-    contentLength: extracted.content?.length ?? 0,
-    contentPreview: extracted.content?.slice(0, 200) ?? '',
+    contentLength: extracted.content.length,
+    contentPreview: extracted.content.slice(0, 200),
   });
   await db.markdown.add({
     id: markdownId,
@@ -45,7 +45,7 @@ async function extractMarkdownStep(
   });
 
   const wordCount = extracted.content.split(/\s+/).length;
-  await completeJob(job.id!, {
+  await completeJob(job.id, {
     characterCount: extracted.content.length,
     wordCount,
     extractionTimeMs,
@@ -71,7 +71,7 @@ async function generateQAPairsStep(
   if (qaPairs.length === 0) {
     console.warn(`No Q&A pairs generated for: ${bookmark.title}`);
 
-    await completeJob(job.id!, {
+    await completeJob(job.id, {
       pairsGenerated: 0,
       apiTimeMs: Date.now() - qaStartTime,
     });
@@ -91,7 +91,7 @@ async function generateEmbeddingsStep(
   job: Job,
   qaPairs: QAPair[]
 ): Promise<{ questionEmbeddings: number[][]; answerEmbeddings: number[][]; combinedEmbeddings: number[][]; embeddingTimeMs: number }> {
-  await updateJob(job.id!, {
+  await updateJob(job.id, {
     currentStep: 'Generating embeddings...',
     progress: config.PROCESSOR_QA_GENERATION_PROGRESS,
   });
@@ -118,29 +118,31 @@ async function generateEmbeddingsStep(
   const embeddingTimeMs = Date.now() - embeddingStartTime;
 
   if (__DEBUG_EMBEDDINGS__) {
+    /* eslint-disable @typescript-eslint/no-unnecessary-condition -- defensive runtime checks for API responses */
     console.log('[Processor] Received embeddings from API', {
       questionEmbeddings: {
         count: questionEmbeddings.length,
-        dimensions: questionEmbeddings.map(e => e?.length ?? 'undefined'),
-        hasUndefined: questionEmbeddings.some(e => !e),
+        dimensions: questionEmbeddings.map(e => e.length),
+        hasUndefined: questionEmbeddings.some(e => e === undefined || e === null),
       },
       answerEmbeddings: {
         count: answerEmbeddings.length,
-        dimensions: answerEmbeddings.map(e => e?.length ?? 'undefined'),
-        hasUndefined: answerEmbeddings.some(e => !e),
+        dimensions: answerEmbeddings.map(e => e.length),
+        hasUndefined: answerEmbeddings.some(e => e === undefined || e === null),
       },
       combinedEmbeddings: {
         count: combinedEmbeddings.length,
-        dimensions: combinedEmbeddings.map(e => e?.length ?? 'undefined'),
-        hasUndefined: combinedEmbeddings.some(e => !e),
+        dimensions: combinedEmbeddings.map(e => e.length),
+        hasUndefined: combinedEmbeddings.some(e => e === undefined || e === null),
       },
     });
+    /* eslint-enable @typescript-eslint/no-unnecessary-condition */
 
     const allDimensions = [
-      ...questionEmbeddings.map(e => e?.length),
-      ...answerEmbeddings.map(e => e?.length),
-      ...combinedEmbeddings.map(e => e?.length),
-    ].filter(d => d !== undefined);
+      ...questionEmbeddings.map(e => e.length),
+      ...answerEmbeddings.map(e => e.length),
+      ...combinedEmbeddings.map(e => e.length),
+    ];
     const uniqueDimensions = [...new Set(allDimensions)];
 
     if (uniqueDimensions.length > 1) {
@@ -168,7 +170,7 @@ async function saveResultsStep(
   const { qaPairs, embeddings } = data;
   const { questionEmbeddings, answerEmbeddings, combinedEmbeddings } = embeddings;
 
-  await updateJob(job.id!, {
+  await updateJob(job.id, {
     currentStep: 'Saving Q&A pairs...',
     progress: config.PROCESSOR_QA_SAVING_PROGRESS,
   });
@@ -180,18 +182,18 @@ async function saveResultsStep(
       questionLength: qa.question.length,
       answerLength: qa.answer.length,
       embeddingQuestion: {
-        exists: !!questionEmbeddings[i],
-        dimension: questionEmbeddings[i]?.length,
+        exists: true,
+        dimension: questionEmbeddings[i].length,
         isArray: Array.isArray(questionEmbeddings[i]),
       },
       embeddingAnswer: {
-        exists: !!answerEmbeddings[i],
-        dimension: answerEmbeddings[i]?.length,
+        exists: true,
+        dimension: answerEmbeddings[i].length,
         isArray: Array.isArray(answerEmbeddings[i]),
       },
       embeddingBoth: {
-        exists: !!combinedEmbeddings[i],
-        dimension: combinedEmbeddings[i]?.length,
+        exists: true,
+        dimension: combinedEmbeddings[i].length,
         isArray: Array.isArray(combinedEmbeddings[i]),
       },
     });
@@ -210,7 +212,7 @@ async function saveResultsStep(
   }
 
   // Complete QA job (job timing is managed by the caller)
-  await completeJob(job.id!, {
+  await completeJob(job.id, {
     pairsGenerated: qaPairs.length,
   });
 
@@ -289,7 +291,7 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
   } catch (error) {
     console.error(`Error processing bookmark ${bookmark.id}:`, error);
 
-    if (markdownJobId) {
+    if (markdownJobId !== undefined) {
       try {
         await failJob(markdownJobId, getErrorMessage(error));
       } catch (e) {
@@ -297,7 +299,7 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
       }
     }
 
-    if (qaJobId) {
+    if (qaJobId !== undefined) {
       try {
         await failJob(qaJobId, getErrorMessage(error));
       } catch (e) {

@@ -13,14 +13,6 @@ const debugWarn = __DEBUG_EMBEDDINGS__
   : (_msg: string, _data?: unknown) => {};
 
 export function cosineSimilarity(a: number[], b: number[]): number {
-  if (!a || !b) {
-    debugError('cosineSimilarity called with null/undefined vectors', {
-      aExists: !!a,
-      bExists: !!b,
-    });
-    throw new Error('Vectors cannot be null or undefined');
-  }
-
   if (!Array.isArray(a) || !Array.isArray(b)) {
     debugError('cosineSimilarity called with non-array values', {
       aType: typeof a,
@@ -63,16 +55,16 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 
 export function findTopK<T>(
   queryEmbedding: number[],
-  items: Array<{ item: T; embedding: number[] }>,
+  items: { item: T; embedding: number[] }[],
   k: number
-): Array<{ item: T; score: number }> {
+): { item: T; score: number }[] {
   debugLog('findTopK called', {
-    queryDimension: queryEmbedding?.length,
-    itemCount: items?.length,
+    queryDimension: queryEmbedding.length,
+    itemCount: items.length,
     k,
   });
 
-  if (!queryEmbedding || !Array.isArray(queryEmbedding)) {
+  if (!Array.isArray(queryEmbedding)) {
     debugError('Invalid query embedding', {
       queryEmbedding,
       type: typeof queryEmbedding,
@@ -80,7 +72,7 @@ export function findTopK<T>(
     throw new Error('Query embedding must be a valid array');
   }
 
-  if (!items || !Array.isArray(items)) {
+  if (!Array.isArray(items)) {
     debugError('Invalid items array', {
       items,
       type: typeof items,
@@ -88,7 +80,7 @@ export function findTopK<T>(
     throw new Error('Items must be a valid array');
   }
 
-  const errors: Array<{ index: number; error: string }> = [];
+  const errors: { index: number; error: string }[] = [];
 
   const scored = items.map(({ item, embedding }, index) => {
     try {
