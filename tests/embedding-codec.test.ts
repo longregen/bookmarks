@@ -2,10 +2,11 @@ import { describe, it, expect } from 'vitest';
 import {
   encodeEmbedding,
   decodeEmbedding,
-  maxQuantizationError,
-  compressionRatio,
   isEncodedEmbedding,
 } from '../src/lib/embedding-codec';
+
+const QUANTIZE_SCALE = 32767;
+const maxQuantizationError = (): number => 1 / QUANTIZE_SCALE;
 
 describe('Embedding Codec', () => {
   describe('encodeEmbedding and decodeEmbedding', () => {
@@ -148,54 +149,6 @@ describe('Embedding Codec', () => {
       const encodedSimilarity = cosineSim(aEncoded, bEncoded);
 
       expect(encodedSimilarity).toBeCloseTo(originalSimilarity, 4);
-    });
-  });
-
-  describe('compressionRatio', () => {
-    it('should achieve significant compression for realistic embeddings', () => {
-      const embedding: number[] = [];
-      for (let i = 0; i < 1536; i++) {
-        embedding.push(Math.random() * 2 - 1);
-      }
-
-      const { jsonSize, encodedSize, ratio } = compressionRatio(embedding);
-
-      console.log(`1536-dim embedding:`);
-      console.log(`  JSON size: ${jsonSize} bytes`);
-      console.log(`  Encoded size: ${encodedSize} bytes`);
-      console.log(`  Compression ratio: ${ratio.toFixed(2)}x`);
-
-      expect(ratio).toBeGreaterThan(3);
-
-      expect(encodedSize).toBeLessThan(5000);
-
-      expect(jsonSize).toBeGreaterThan(15000);
-    });
-
-    it('should show size savings for multiple embeddings', () => {
-      const numQAPairs = 10;
-      const embeddingsPerQA = 3;
-      const embeddingDim = 1536;
-
-      let totalJsonSize = 0;
-      let totalEncodedSize = 0;
-
-      for (let i = 0; i < numQAPairs * embeddingsPerQA; i++) {
-        const embedding: number[] = [];
-        for (let j = 0; j < embeddingDim; j++) {
-          embedding.push(Math.random() * 2 - 1);
-        }
-        const { jsonSize, encodedSize } = compressionRatio(embedding);
-        totalJsonSize += jsonSize;
-        totalEncodedSize += encodedSize;
-      }
-
-      console.log(`\nTotal for ${numQAPairs} Q&A pairs (${numQAPairs * embeddingsPerQA} embeddings):`);
-      console.log(`  JSON size: ${(totalJsonSize / 1024).toFixed(1)} KB`);
-      console.log(`  Encoded size: ${(totalEncodedSize / 1024).toFixed(1)} KB`);
-      console.log(`  Savings: ${((totalJsonSize - totalEncodedSize) / 1024).toFixed(1)} KB`);
-
-      expect(totalJsonSize / totalEncodedSize).toBeGreaterThan(3);
     });
   });
 

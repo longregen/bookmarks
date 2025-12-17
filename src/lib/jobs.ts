@@ -27,39 +27,38 @@ export async function getRecentJobs(options?: {
   status?: JobStatus;
   parentJobId?: string;
 }): Promise<Job[]> {
-  let jobs = await db.jobs.orderBy('createdAt').reverse().toArray();
+  const limit = options?.limit ?? 100;
 
-  if (options?.type !== undefined) {
-    jobs = jobs.filter(job => job.type === options.type);
+  // Use indexed queries when possible for better performance
+  if (options?.parentJobId !== undefined) {
+    let jobs = await db.jobs.where('parentJobId').equals(options.parentJobId).toArray();
+    if (options.type !== undefined) {
+      jobs = jobs.filter(job => job.type === options.type);
+    }
+    if (options.status !== undefined) {
+      jobs = jobs.filter(job => job.status === options.status);
+    }
+    jobs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return jobs.slice(0, limit);
   }
 
   if (options?.status !== undefined) {
-    jobs = jobs.filter(job => job.status === options.status);
+    let jobs = await db.jobs.where('status').equals(options.status).toArray();
+    if (options.type !== undefined) {
+      jobs = jobs.filter(job => job.type === options.type);
+    }
+    jobs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return jobs.slice(0, limit);
   }
 
-  if (options?.parentJobId !== undefined) {
-    jobs = jobs.filter(job => job.parentJobId === options.parentJobId);
+  if (options?.type !== undefined) {
+    const jobs = await db.jobs.where('type').equals(options.type).toArray();
+    jobs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return jobs.slice(0, limit);
   }
 
-  return jobs.slice(0, options?.limit ?? 100);
-}
-
-export async function getJobsByParent(parentJobId: string): Promise<Job[]> {
-  return db.jobs.where('parentJobId').equals(parentJobId).toArray();
-}
-
-export async function cleanupOldJobs(daysOld = 30): Promise<number> {
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-
-  const oldJobs = await db.jobs
-    .filter(job => job.createdAt < cutoffDate)
-    .toArray();
-
-  const jobIds = oldJobs.map(job => job.id);
-  await db.jobs.bulkDelete(jobIds);
-
-  return jobIds.length;
+  // No filters - use createdAt index for ordering
+  return db.jobs.orderBy('createdAt').reverse().limit(limit).toArray();
 }
 
 export async function deleteJob(jobId: string): Promise<void> {

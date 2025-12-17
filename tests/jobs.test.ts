@@ -2,9 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { db, JobType, JobStatus } from '../src/db/schema';
 import {
   createJob,
-  getJobsByParent,
   getRecentJobs,
-  cleanupOldJobs,
   deleteJob,
 } from '../src/lib/jobs';
 
@@ -73,42 +71,6 @@ describe('Jobs Library', () => {
     });
   });
 
-  describe('getJobsByParent', () => {
-    it('should return child jobs of a parent', async () => {
-      const parentJob = await createJob({
-        type: JobType.BULK_URL_IMPORT,
-        status: JobStatus.COMPLETED,
-      });
-
-      await createJob({
-        type: JobType.URL_FETCH,
-        status: JobStatus.COMPLETED,
-        parentJobId: parentJob.id,
-      });
-
-      await createJob({
-        type: JobType.URL_FETCH,
-        status: JobStatus.COMPLETED,
-        parentJobId: parentJob.id,
-      });
-
-      await createJob({
-        type: JobType.URL_FETCH,
-        status: JobStatus.COMPLETED,
-        parentJobId: 'other-parent',
-      });
-
-      const childJobs = await getJobsByParent(parentJob.id);
-      expect(childJobs).toHaveLength(2);
-      expect(childJobs.every(j => j.parentJobId === parentJob.id)).toBe(true);
-    });
-
-    it('should return empty array if no child jobs found', async () => {
-      const jobs = await getJobsByParent('non-existent-parent');
-      expect(jobs).toEqual([]);
-    });
-  });
-
   describe('getRecentJobs', () => {
     it('should return recent jobs with default limit', async () => {
       for (let i = 0; i < 5; i++) {
@@ -173,54 +135,6 @@ describe('Jobs Library', () => {
       const jobs = await getRecentJobs();
       expect(jobs[0].id).toBe(job2.id);
       expect(jobs[1].id).toBe(job1.id);
-    });
-  });
-
-  describe('cleanupOldJobs', () => {
-    it('should delete jobs older than specified days', async () => {
-      const oldDate = new Date();
-      oldDate.setDate(oldDate.getDate() - 31);
-
-      const oldJob = await createJob({
-        type: JobType.FILE_IMPORT,
-        status: JobStatus.COMPLETED,
-      });
-      await db.jobs.update(oldJob.id, { createdAt: oldDate });
-
-      await createJob({
-        type: JobType.FILE_IMPORT,
-        status: JobStatus.COMPLETED,
-      });
-
-      const deletedCount = await cleanupOldJobs(30);
-      expect(deletedCount).toBe(1);
-
-      const remaining = await db.jobs.toArray();
-      expect(remaining).toHaveLength(1);
-    });
-
-    it('should not delete recent jobs', async () => {
-      await createJob({
-        type: JobType.FILE_IMPORT,
-        status: JobStatus.COMPLETED,
-      });
-
-      const deletedCount = await cleanupOldJobs(30);
-      expect(deletedCount).toBe(0);
-    });
-
-    it('should handle custom days parameter', async () => {
-      const oldDate = new Date();
-      oldDate.setDate(oldDate.getDate() - 8);
-
-      const oldJob = await createJob({
-        type: JobType.FILE_IMPORT,
-        status: JobStatus.COMPLETED,
-      });
-      await db.jobs.update(oldJob.id, { createdAt: oldDate });
-
-      const deletedCount = await cleanupOldJobs(7);
-      expect(deletedCount).toBe(1);
     });
   });
 
