@@ -1,5 +1,9 @@
 # Claude Code Guidelines
 
+## Codebase Architecture
+
+See [AGENTS.md](./AGENTS.md) for a complete overview of the codebase structure, including descriptions of each module, the database schema, job system, and platform adapter pattern.
+
 ## Code Style
 
 - Keep comments to a minimum - code should be self-documenting
