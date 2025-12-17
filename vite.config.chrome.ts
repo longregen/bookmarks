@@ -28,7 +28,9 @@ export default defineConfig({
         jobs: 'src/jobs/jobs.html',
         offscreen: 'src/offscreen/offscreen.html',
       },
-      output: sharedOutput,
+      // Disable manual chunking for coverage builds - each file needs its own chunk
+      // for accurate source map line mapping
+      output: isCoverage ? {} : sharedOutput,
     },
   },
 });
