@@ -1,5 +1,5 @@
 import { db, type Bookmark, type Markdown, type QuestionAnswer, JobType, JobStatus, getBookmarkContent } from '../db/schema';
-import { createJob, updateJob, completeJob, failJob } from './jobs';
+import { createJob } from './jobs';
 import { encodeEmbedding, decodeEmbedding, isEncodedEmbedding } from './embedding-codec';
 import { getErrorMessage } from './errors';
 
@@ -211,27 +211,11 @@ export async function importBookmarks(data: BookmarkExport, fileName?: string): 
     errors: [],
   };
 
-  const job = await createJob({
-    type: JobType.FILE_IMPORT,
-    status: JobStatus.IN_PROGRESS,
-    progress: 0,
-    metadata: {
-      fileName: fileName ?? 'bookmarks-export.json',
-      totalBookmarks: data.bookmarks.length,
-      importedCount: 0,
-      skippedCount: 0,
-      errorCount: 0,
-      errors: [],
-    },
-  });
-
   try {
     const existingBookmarks = await db.bookmarks.toArray();
     const existingUrls = new Set(existingBookmarks.map(b => b.url));
 
-    for (let i = 0; i < data.bookmarks.length; i++) {
-      const exportedBookmark = data.bookmarks[i];
-
+    for (const exportedBookmark of data.bookmarks) {
       try {
         if (existingUrls.has(exportedBookmark.url)) {
           result.skipped++;
@@ -248,16 +232,6 @@ export async function importBookmarks(data: BookmarkExport, fileName?: string): 
 
         result.imported++;
         existingUrls.add(exportedBookmark.url);
-
-        const progress = Math.round(((i + 1) / data.bookmarks.length) * 100);
-        await updateJob(job.id, {
-          progress,
-          metadata: {
-            importedCount: result.imported,
-            skippedCount: result.skipped,
-            errorCount: result.errors.length,
-          },
-        });
       } catch (error) {
         const errorMsg = `Failed to import "${exportedBookmark.title}": ${getErrorMessage(error)}`;
         result.errors.push(errorMsg);
@@ -268,18 +242,28 @@ export async function importBookmarks(data: BookmarkExport, fileName?: string): 
       result.success = result.imported > 0;
     }
 
-    await completeJob(job.id, {
-      fileName: fileName ?? 'bookmarks-export.json',
-      totalBookmarks: data.bookmarks.length,
-      importedCount: result.imported,
-      skippedCount: result.skipped,
-      errorCount: result.errors.length,
-      errors: result.errors.slice(0, 10).map(err => ({ url: '', error: err })),
+    // Create completed job log entry
+    await createJob({
+      type: JobType.FILE_IMPORT,
+      status: JobStatus.COMPLETED,
+      metadata: {
+        fileName: fileName ?? 'bookmarks-export.json',
+        importedCount: result.imported,
+        skippedCount: result.skipped,
+      },
     });
 
     return result;
   } catch (error) {
-    await failJob(job.id, getErrorMessage(error));
+    // Create failed job log entry
+    await createJob({
+      type: JobType.FILE_IMPORT,
+      status: JobStatus.FAILED,
+      metadata: {
+        fileName: fileName ?? 'bookmarks-export.json',
+        errorMessage: getErrorMessage(error),
+      },
+    });
     throw error;
   }
 }

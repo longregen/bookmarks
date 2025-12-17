@@ -2,22 +2,11 @@ import { getRecentJobs, type Job } from '../../lib/jobs';
 import { JobType, JobStatus } from '../../db/schema';
 import { createElement } from '../../ui/dom';
 import { formatTimeAgo } from '../../lib/time';
-import { createPoller, type Poller } from '../../lib/polling-manager';
 
 const jobTypeFilter = document.getElementById('jobTypeFilter') as HTMLSelectElement;
 const jobStatusFilter = document.getElementById('jobStatusFilter') as HTMLSelectElement;
 const refreshJobsBtn = document.getElementById('refreshJobsBtn') as HTMLButtonElement;
 const jobsList = document.getElementById('jobsList') as HTMLDivElement;
-
-const jobsPoller: Poller = createPoller(
-  () => {
-    const hasActiveJobs = document.querySelectorAll('.job-status-badge.in_progress').length > 0;
-    if (hasActiveJobs) {
-      void loadJobs();
-    }
-  },
-  2000
-);
 
 async function loadJobs(): Promise<void> {
   try {
@@ -81,27 +70,11 @@ function renderJobItemElement(job: Job): HTMLElement {
   header.appendChild(createElement('div', { className: `job-status-badge ${statusClass}`, textContent: statusLabel }));
   jobItem.appendChild(header);
 
-  if (job.progress > 0 && job.status === JobStatus.IN_PROGRESS) {
-    const progressDiv = createElement('div', { className: 'job-progress' });
-    const progressBar = createElement('div', { className: 'job-progress-bar' });
-    progressBar.appendChild(createElement('div', {
-      className: 'job-progress-fill',
-      style: { width: `${job.progress}%` }
-    }));
-    progressDiv.appendChild(progressBar);
-    progressDiv.appendChild(createElement('div', { className: 'job-progress-text', textContent: `${job.progress}%` }));
-    jobItem.appendChild(progressDiv);
-  }
-
-  if (job.currentStep !== undefined && job.currentStep !== '') {
-    jobItem.appendChild(createElement('div', { className: 'job-step', textContent: job.currentStep }));
-  }
-
   const metadataDiv = createElement('div', { className: 'job-metadata' });
   appendMetadataElements(metadataDiv, job);
   jobItem.appendChild(metadataDiv);
 
-  if (job.status === JobStatus.FAILED && (job.metadata.errorMessage !== undefined && job.metadata.errorMessage !== '')) {
+  if (job.status === JobStatus.FAILED && job.metadata.errorMessage) {
     const errorDiv = createElement('div', { className: 'job-error' });
     errorDiv.appendChild(createElement('strong', { textContent: 'Error: ' }));
     errorDiv.appendChild(document.createTextNode(job.metadata.errorMessage));
@@ -118,40 +91,16 @@ function createMetadataItem(label: string, value: string | number): HTMLElement 
   return item;
 }
 
-// eslint-disable-next-line complexity
 function appendMetadataElements(container: HTMLElement, job: Job): void {
   let hasMetadata = false;
 
-  if (job.metadata.url !== undefined && job.metadata.url !== '') {
+  if (job.metadata.url) {
     container.appendChild(createMetadataItem('URL', job.metadata.url));
     hasMetadata = true;
   }
 
-  if (job.metadata.title !== undefined && job.metadata.title !== '') {
-    container.appendChild(createMetadataItem('Title', job.metadata.title));
-    hasMetadata = true;
-  }
-
-  if (job.type === JobType.MARKDOWN_GENERATION) {
-    if (job.metadata.characterCount !== undefined && job.metadata.characterCount !== 0) {
-      container.appendChild(createMetadataItem('Characters', job.metadata.characterCount.toLocaleString()));
-      hasMetadata = true;
-    }
-    if (job.metadata.wordCount !== undefined && job.metadata.wordCount !== 0) {
-      container.appendChild(createMetadataItem('Words', job.metadata.wordCount.toLocaleString()));
-      hasMetadata = true;
-    }
-  }
-
-  if (job.type === JobType.QA_GENERATION) {
-    if (job.metadata.pairsGenerated !== undefined && job.metadata.pairsGenerated !== 0) {
-      container.appendChild(createMetadataItem('Q&A Pairs', job.metadata.pairsGenerated));
-      hasMetadata = true;
-    }
-  }
-
   if (job.type === JobType.FILE_IMPORT) {
-    if (job.metadata.fileName !== undefined && job.metadata.fileName !== '') {
+    if (job.metadata.fileName) {
       container.appendChild(createMetadataItem('File', job.metadata.fileName));
       hasMetadata = true;
     }
@@ -166,16 +115,8 @@ function appendMetadataElements(container: HTMLElement, job: Job): void {
   }
 
   if (job.type === JobType.BULK_URL_IMPORT) {
-    if (job.metadata.totalUrls !== undefined && job.metadata.totalUrls !== 0) {
+    if (job.metadata.totalUrls !== undefined) {
       container.appendChild(createMetadataItem('Total URLs', job.metadata.totalUrls));
-      hasMetadata = true;
-    }
-    if (job.metadata.successCount !== undefined) {
-      container.appendChild(createMetadataItem('Success', job.metadata.successCount));
-      hasMetadata = true;
-    }
-    if (job.metadata.failureCount !== undefined) {
-      container.appendChild(createMetadataItem('Failed', job.metadata.failureCount));
       hasMetadata = true;
     }
   }
@@ -187,9 +128,6 @@ function appendMetadataElements(container: HTMLElement, job: Job): void {
 
 function formatJobType(type: JobType): string {
   const labels: Record<JobType, string> = {
-    [JobType.MANUAL_ADD]: 'Manual Add',
-    [JobType.MARKDOWN_GENERATION]: 'Markdown Generation',
-    [JobType.QA_GENERATION]: 'Q&A Generation',
     [JobType.FILE_IMPORT]: 'File Import',
     [JobType.BULK_URL_IMPORT]: 'Bulk URL Import',
     [JobType.URL_FETCH]: 'URL Fetch',
@@ -201,23 +139,7 @@ jobTypeFilter.addEventListener('change', () => void loadJobs());
 jobStatusFilter.addEventListener('change', () => void loadJobs());
 refreshJobsBtn.addEventListener('click', () => void loadJobs());
 
-function startJobsPolling(): void {
-  jobsPoller.start();
-}
-
-function stopJobsPolling(): void {
-  jobsPoller.stop();
-}
-
-window.addEventListener('refresh-jobs', () => {
-  void loadJobs();
-});
-
 export function initJobsModule(): () => void {
   void loadJobs();
-  startJobsPolling();
-
-  return (): void => {
-    stopJobsPolling();
-  };
+  return () => {};
 }

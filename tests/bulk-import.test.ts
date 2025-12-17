@@ -213,80 +213,97 @@ describe('Bulk Import Library', () => {
   });
 
   describe('createBulkImportJob', () => {
-    it('should create parent job and child jobs', async () => {
+    it('should create job and bookmarks with fetching status', async () => {
       const urls = [
-        'https://example.com',
-        'https://github.com',
-        'https://google.com',
+        'https://example.com/',
+        'https://github.com/',
+        'https://google.com/',
       ];
 
-      const parentJobId = await createBulkImportJob(urls);
+      const jobId = await createBulkImportJob(urls);
 
-      const parentJob = await db.jobs.get(parentJobId);
-      expect(parentJob).toBeDefined();
-      expect(parentJob?.type).toBe(JobType.BULK_URL_IMPORT);
-      expect(parentJob?.status).toBe(JobStatus.IN_PROGRESS);
-      expect(parentJob?.progress).toBe(0);
-      expect(parentJob?.metadata.totalUrls).toBe(3);
-      expect(parentJob?.metadata.successCount).toBe(0);
-      expect(parentJob?.metadata.failureCount).toBe(0);
+      const job = await db.jobs.get(jobId);
+      expect(job).toBeDefined();
+      expect(job?.type).toBe(JobType.BULK_URL_IMPORT);
+      expect(job?.status).toBe(JobStatus.COMPLETED);
+      expect(job?.metadata.totalUrls).toBe(3);
 
-      const childJobs = await db.jobs.where('parentJobId').equals(parentJobId).toArray();
-      expect(childJobs).toHaveLength(3);
-
-      childJobs.sort((a, b) => (a.metadata.url || '').localeCompare(b.metadata.url || ''));
-      const sortedUrls = [...urls].sort();
-
-      for (let i = 0; i < childJobs.length; i++) {
-        const childJob = childJobs[i];
-        expect(childJob.type).toBe(JobType.URL_FETCH);
-        expect(childJob.status).toBe(JobStatus.PENDING);
-        expect(childJob.parentJobId).toBe(parentJobId);
-        expect(childJob.metadata.url).toBe(sortedUrls[i]);
-      }
+      const bookmarks = await db.bookmarks.toArray();
+      expect(bookmarks).toHaveLength(3);
+      expect(bookmarks.every(b => b.status === 'fetching')).toBe(true);
+      expect(bookmarks.every(b => b.html === '')).toBe(true);
     });
 
     it('should handle single URL', async () => {
-      const urls = ['https://example.com'];
-      const parentJobId = await createBulkImportJob(urls);
+      const urls = ['https://example.com/'];
+      const jobId = await createBulkImportJob(urls);
 
-      const parentJob = await db.jobs.get(parentJobId);
-      expect(parentJob?.metadata.totalUrls).toBe(1);
+      const job = await db.jobs.get(jobId);
+      expect(job?.metadata.totalUrls).toBe(1);
 
-      const childJobs = await db.jobs.where('parentJobId').equals(parentJobId).toArray();
-      expect(childJobs).toHaveLength(1);
+      const bookmarks = await db.bookmarks.toArray();
+      expect(bookmarks).toHaveLength(1);
+      expect(bookmarks[0].url).toBe('https://example.com/');
+      expect(bookmarks[0].status).toBe('fetching');
     });
 
     it('should handle many URLs', async () => {
-      const urls = Array.from({ length: 50 }, (_, i) => `https://example${i}.com`);
-      const parentJobId = await createBulkImportJob(urls);
+      const urls = Array.from({ length: 50 }, (_, i) => `https://example${i}.com/`);
+      const jobId = await createBulkImportJob(urls);
 
-      const parentJob = await db.jobs.get(parentJobId);
-      expect(parentJob?.metadata.totalUrls).toBe(50);
+      const job = await db.jobs.get(jobId);
+      expect(job?.metadata.totalUrls).toBe(50);
 
-      const childJobs = await db.jobs.where('parentJobId').equals(parentJobId).toArray();
-      expect(childJobs).toHaveLength(50);
+      const bookmarks = await db.bookmarks.toArray();
+      expect(bookmarks).toHaveLength(50);
     });
 
-    it('should create jobs with unique IDs', async () => {
-      const urls = ['https://example.com', 'https://github.com'];
-      const parentJobId = await createBulkImportJob(urls);
+    it('should create bookmarks with unique IDs', async () => {
+      const urls = ['https://example.com/', 'https://github.com/'];
+      await createBulkImportJob(urls);
 
-      const childJobs = await db.jobs.where('parentJobId').equals(parentJobId).toArray();
-      const ids = childJobs.map(j => j.id);
+      const bookmarks = await db.bookmarks.toArray();
+      const ids = bookmarks.map(b => b.id);
       const uniqueIds = new Set(ids);
       expect(uniqueIds.size).toBe(2);
     });
 
-    it('should return parent job ID', async () => {
-      const urls = ['https://example.com'];
-      const parentJobId = await createBulkImportJob(urls);
+    it('should return job ID', async () => {
+      const urls = ['https://example.com/'];
+      const jobId = await createBulkImportJob(urls);
 
-      expect(parentJobId).toBeDefined();
-      expect(typeof parentJobId).toBe('string');
+      expect(jobId).toBeDefined();
+      expect(typeof jobId).toBe('string');
 
-      const parentJob = await db.jobs.get(parentJobId);
-      expect(parentJob).toBeDefined();
+      const job = await db.jobs.get(jobId);
+      expect(job).toBeDefined();
+    });
+
+    it('should reset existing bookmark to fetching status', async () => {
+      await db.bookmarks.add({
+        id: 'existing-1',
+        url: 'https://example.com/',
+        title: 'Old Title',
+        html: '<html>old content</html>',
+        status: 'complete',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await createBulkImportJob(['https://example.com/']);
+
+      const bookmarks = await db.bookmarks.toArray();
+      expect(bookmarks).toHaveLength(1);
+      expect(bookmarks[0].id).toBe('existing-1');
+      expect(bookmarks[0].status).toBe('fetching');
+      expect(bookmarks[0].html).toBe('');
+    });
+
+    it('should set bookmark title to URL initially', async () => {
+      await createBulkImportJob(['https://example.com/test']);
+
+      const bookmarks = await db.bookmarks.toArray();
+      expect(bookmarks[0].title).toBe('https://example.com/test');
     });
   });
 
@@ -361,12 +378,13 @@ describe('Bulk Import Library', () => {
       expect(validation.invalidUrls).toHaveLength(1);
       expect(validation.duplicates).toHaveLength(1);
 
-      const parentJobId = await createBulkImportJob(validation.validUrls);
-      const parentJob = await db.jobs.get(parentJobId);
-      expect(parentJob?.metadata.totalUrls).toBe(3);
+      const jobId = await createBulkImportJob(validation.validUrls);
+      const job = await db.jobs.get(jobId);
+      expect(job?.metadata.totalUrls).toBe(3);
 
-      const childJobs = await db.jobs.where('parentJobId').equals(parentJobId).toArray();
-      expect(childJobs).toHaveLength(3);
+      const bookmarks = await db.bookmarks.toArray();
+      expect(bookmarks).toHaveLength(3);
+      expect(bookmarks.every(b => b.status === 'fetching')).toBe(true);
     });
   });
 });

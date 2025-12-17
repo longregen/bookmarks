@@ -1,18 +1,13 @@
 import { getSettings, saveSetting, type ApiSettings } from './settings';
 import { exportAllBookmarks, importBookmarks, type BookmarkExport } from './export';
 import { db } from '../db/schema';
-import { createStateManager } from './state-manager';
 import { broadcastEvent } from './events';
 import { config } from './config-registry';
 import { validateWebDAVUrl } from './url-validator';
 import { getErrorMessage } from './errors';
 import type { SyncStatus } from './messages';
 
-const syncState = createStateManager({
-  name: 'WebDAVSync',
-  timeoutMs: config.WEBDAV_SYNC_TIMEOUT_MS,
-});
-
+let isSyncing = false;
 let lastSyncAttempt = 0;
 
 export interface SyncResult {
@@ -28,7 +23,7 @@ export async function getSyncStatus(): Promise<SyncStatus> {
   return {
     lastSyncTime: settings.webdavLastSyncTime || null,
     lastSyncError: settings.webdavLastSyncError || null,
-    isSyncing: syncState.isActive(),
+    isSyncing,
   };
 }
 
@@ -213,13 +208,15 @@ export async function performSync(force = false): Promise<SyncResult> {
     };
   }
 
-  if (!syncState.start()) {
+  if (isSyncing) {
     return {
       success: true,
       action: 'skipped',
       message: 'Sync already in progress',
     };
   }
+
+  isSyncing = true;
 
   await broadcastEvent('SYNC_STATUS_UPDATED', { isSyncing: true });
 
@@ -283,7 +280,7 @@ export async function performSync(force = false): Promise<SyncResult> {
       message: errorMessage,
     };
   } finally {
-    syncState.reset();
+    isSyncing = false;
   }
 }
 

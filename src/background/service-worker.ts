@@ -1,20 +1,15 @@
-import { db, JobType, JobStatus } from '../db/schema';
+import { db } from '../db/schema';
 import { startProcessingQueue } from './queue';
-import { createJob, completeJob, failJob } from '../lib/jobs';
 import { createBulkImportJob } from '../lib/bulk-import';
-import { processBulkFetch } from './fetcher';
 import { ensureOffscreenDocument } from '../lib/offscreen';
-import { resumeInterruptedJobs } from './job-resumption';
 import { setPlatformAdapter } from '../lib/platform';
 import { extensionAdapter } from '../lib/adapters/extension';
 import { getSettings } from '../lib/settings';
 import { getErrorMessage } from '../lib/errors';
 import type {
   Message,
-  MessageHandler,
   SaveBookmarkResponse,
   StartBulkImportResponse,
-  GetJobStatusResponse,
 } from '../lib/messages';
 
 setPlatformAdapter(extensionAdapter);
@@ -47,12 +42,6 @@ async function initializeExtension(): Promise<void> {
   console.log('Initializing extension...');
 
   try {
-    const { resumedBulkImports, resetFetchJobs } = await resumeInterruptedJobs();
-
-    if (resumedBulkImports > 0 || resetFetchJobs > 0) {
-      console.log(`Job recovery: resumed ${resumedBulkImports} bulk imports, reset ${resetFetchJobs} fetch jobs`);
-    }
-
     void startProcessingQueue();
 
     void setupSyncAlarm().catch((err: unknown) => {
@@ -96,23 +85,40 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   }
 });
 
-const asyncMessageHandlers = {
-  'SAVE_BOOKMARK': (async (msg) => handleSaveBookmark(msg.data)) as MessageHandler<'SAVE_BOOKMARK'>,
-  'START_BULK_IMPORT': (async (msg) => handleBulkImport(msg.urls)) as MessageHandler<'START_BULK_IMPORT'>,
-  'GET_JOB_STATUS': (async (msg) => handleGetJobStatus(msg.jobId)) as MessageHandler<'GET_JOB_STATUS'>,
-  'TRIGGER_SYNC': (async () => import('../lib/webdav-sync').then(m => m.performSync(true))) as MessageHandler<'TRIGGER_SYNC'>,
-  'GET_SYNC_STATUS': (async () => import('../lib/webdav-sync').then(m => m.getSyncStatus())) as MessageHandler<'GET_SYNC_STATUS'>,
-  'UPDATE_SYNC_SETTINGS': (async () => {
-    await setupSyncAlarm();
-    return { success: true };
-  }) as MessageHandler<'UPDATE_SYNC_SETTINGS'>,
-} as const;
+chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
+  if (message.type === 'SAVE_BOOKMARK') {
+    handleSaveBookmark(message.data)
+      .then(sendResponse)
+      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
+    return true;
+  }
 
-chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
-  if (message.type in asyncMessageHandlers) {
-    const handler = asyncMessageHandlers[message.type as keyof typeof asyncMessageHandlers];
-    (handler as (msg: Message) => Promise<unknown>)(message)
-      .then((result: unknown) => sendResponse(result))
+  if (message.type === 'START_BULK_IMPORT') {
+    handleBulkImport(message.urls)
+      .then(sendResponse)
+      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
+    return true;
+  }
+
+  if (message.type === 'TRIGGER_SYNC') {
+    import('../lib/webdav-sync')
+      .then(m => m.performSync(true))
+      .then(sendResponse)
+      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
+    return true;
+  }
+
+  if (message.type === 'GET_SYNC_STATUS') {
+    import('../lib/webdav-sync')
+      .then(m => m.getSyncStatus())
+      .then(sendResponse)
+      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
+    return true;
+  }
+
+  if (message.type === 'UPDATE_SYNC_SETTINGS') {
+    setupSyncAlarm()
+      .then(() => sendResponse({ success: true }))
       .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
     return true;
   }
@@ -144,10 +150,6 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
     return true;
   }
 
-  if (message.type === 'FETCH_URL' || message.type === 'EXTRACT_CONTENT') {
-    return;
-  }
-
   return false;
 });
 
@@ -177,138 +179,52 @@ chrome.commands.onCommand.addListener((command) => {
 });
 
 async function handleSaveBookmark(data: { url: string; title: string; html: string }): Promise<SaveBookmarkResponse> {
-  const startTime = Date.now();
-  let jobId: string | undefined;
+  const { url, title, html } = data;
 
-  try {
-    const { url, title, html } = data;
+  const existing = await db.bookmarks.where('url').equals(url).first();
 
-    const job = await createJob({
-      type: JobType.MANUAL_ADD,
-      status: JobStatus.IN_PROGRESS,
-      metadata: {
-        url,
-        title,
-        source: 'manual',
-      },
-    });
-    jobId = job.id;
-
-    const existing = await db.bookmarks.where('url').equals(url).first();
-
-    if (existing) {
-      const now = new Date();
-      await db.bookmarks.update(existing.id, {
-        title,
-        html,
-        status: 'pending',
-        errorMessage: undefined,
-        errorStack: undefined,
-        updatedAt: now,
-      });
-
-      const captureTimeMs = Date.now() - startTime;
-      await completeJob(jobId, {
-        url,
-        title,
-        htmlSize: html.length,
-        captureTimeMs,
-      });
-
-      await db.jobs.update(jobId, { bookmarkId: existing.id });
-
-      void startProcessingQueue();
-
-      return { success: true, bookmarkId: existing.id, updated: true };
-    }
-
-    const id = crypto.randomUUID();
-    const now = new Date();
-
-    await db.bookmarks.add({
-      id,
-      url,
+  if (existing) {
+    await db.bookmarks.update(existing.id, {
       title,
       html,
       status: 'pending',
-      createdAt: now,
-      updatedAt: now,
+      errorMessage: undefined,
+      updatedAt: new Date(),
     });
-
-    const captureTimeMs = Date.now() - startTime;
-    await completeJob(jobId, {
-      url,
-      title,
-      htmlSize: html.length,
-      captureTimeMs,
-    });
-
-    await db.jobs.update(jobId, { bookmarkId: id });
 
     void startProcessingQueue();
-
-    return { success: true, bookmarkId: id };
-  } catch (error) {
-    console.error('Error saving bookmark:', error);
-
-    if (jobId !== undefined) {
-      await failJob(jobId, getErrorMessage(error));
-    }
-
-    throw error;
+    return { success: true, bookmarkId: existing.id, updated: true };
   }
+
+  const id = crypto.randomUUID();
+  const now = new Date();
+
+  await db.bookmarks.add({
+    id,
+    url,
+    title,
+    html,
+    status: 'pending',
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  void startProcessingQueue();
+  return { success: true, bookmarkId: id };
 }
 
 async function handleBulkImport(urls: string[]): Promise<StartBulkImportResponse> {
-  try {
-    if (__IS_CHROME__) {
-      await ensureOffscreenDocument();
-    }
-
-    const parentJobId = await createBulkImportJob(urls);
-
-    void processBulkFetch(parentJobId).catch((error: unknown) => {
-      console.error('Error in bulk fetch processing:', error);
-    });
-
-    return {
-      success: true,
-      jobId: parentJobId,
-      totalUrls: urls.length,
-    };
-  } catch (error) {
-    console.error('Error starting bulk import:', error);
-    throw error;
+  if (__IS_CHROME__) {
+    await ensureOffscreenDocument();
   }
-}
 
-async function handleGetJobStatus(jobId: string): Promise<GetJobStatusResponse> {
-  try {
-    const job = await db.jobs.get(jobId);
+  const jobId = await createBulkImportJob(urls);
 
-    if (!job) {
-      return {
-        success: false,
-        error: 'Job not found',
-      };
-    }
+  void startProcessingQueue();
 
-    return {
-      success: true,
-      job: {
-        id: job.id,
-        type: job.type,
-        status: job.status,
-        progress: job.progress,
-        currentStep: job.currentStep,
-        metadata: job.metadata,
-        createdAt: job.createdAt.toISOString(),
-        updatedAt: job.updatedAt.toISOString(),
-        completedAt: job.completedAt?.toISOString(),
-      },
-    };
-  } catch (error) {
-    console.error('Error getting job status:', error);
-    throw error;
-  }
+  return {
+    success: true,
+    jobId,
+    totalUrls: urls.length,
+  };
 }
