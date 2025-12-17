@@ -13,6 +13,17 @@ import { processBulkFetch } from '../background/fetcher';
 let selectedTag = 'All';
 let sortBy = 'newest';
 
+// Map bookmark status to BEM modifier for status dots
+function getStatusModifier(status: string): string {
+  const statusMap: { [key: string]: string } = {
+    'complete': 'status-dot--success',
+    'pending': 'status-dot--warning',
+    'processing': 'status-dot--info',
+    'error': 'status-dot--error'
+  };
+  return statusMap[status] || 'status-dot--warning';
+}
+
 const tagList = document.getElementById('tagList')!;
 const bookmarkList = document.getElementById('bookmarkList')!;
 const bookmarkCount = document.getElementById('bookmarkCount')!;
@@ -135,7 +146,7 @@ async function loadBookmarks() {
 
     const header = createElement('div', { className: 'card-header' });
     header.appendChild(createElement('div', { className: 'card-title', textContent: bookmark.title }));
-    header.appendChild(createElement('div', { className: `status-dot status-${bookmark.status}` }));
+    header.appendChild(createElement('div', { className: `status-dot ${getStatusModifier(bookmark.status)}` }));
     card.appendChild(header);
 
     const meta = createElement('div', { className: 'card-meta' });
