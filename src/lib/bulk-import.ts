@@ -1,4 +1,4 @@
-import { db, JobType, JobStatus } from '../db/schema';
+import { JobType, JobStatus } from '../db/schema';
 import { createJob } from './jobs';
 import { validateWebUrl } from './url-validator';
 

@@ -1,5 +1,4 @@
-import { db } from '../db/schema';
-import type { BookmarkTag } from '../db/schema';
+import { db, type BookmarkTag } from '../db/schema';
 import { createElement } from './dom';
 
 export interface TagFilterConfig {

@@ -83,7 +83,7 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
   const content = data.choices[0]?.message?.content;
 
-  if (!content) {
+  if (content === undefined || content === null || content === '') {
     throw new Error('Empty response from chat API');
   }
 

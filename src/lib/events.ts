@@ -21,7 +21,7 @@ export async function broadcastEvent(type: EventType, payload?: unknown): Promis
     timestamp: Date.now(),
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime check for test environments
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions -- runtime check for test environments
   if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
     try {
       await chrome.runtime.sendMessage({
@@ -56,7 +56,7 @@ export function addEventListener(listener: EventListener): () => void {
     listener(customEvent.detail);
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime check for test environments
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions -- runtime check for test environments
   if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
     chrome.runtime.onMessage.addListener(chromeListener);
   }
@@ -66,7 +66,7 @@ export function addEventListener(listener: EventListener): () => void {
   }
 
   return (): void => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime check for test environments
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions -- runtime check for test environments
     if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
       chrome.runtime.onMessage.removeListener(chromeListener);
     }

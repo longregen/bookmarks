@@ -119,6 +119,7 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
     (handler as any)(message)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
       .then((result: any) => sendResponse(result))
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
     return true; // Keep message channel open for async response
   }
