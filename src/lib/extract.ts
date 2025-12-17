@@ -93,7 +93,7 @@ export async function extractMarkdownAsync(html: string, url: string): Promise<E
   }
 }
 
-/** @deprecated Use extractMarkdownAsync instead */
+/** Synchronous markdown extraction for testing purposes */
 export function extractMarkdown(html: string, url: string): ExtractedContent {
   return extractMarkdownNative(html, url);
 }

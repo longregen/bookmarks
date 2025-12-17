@@ -433,9 +433,6 @@ export function getAllConfigEntries(): (ConfigEntry & { currentValue: number | s
   }));
 }
 
-export function getConfigEntriesByCategory(category: string): (ConfigEntry & { currentValue: number | string | boolean; isModified: boolean })[] {
-  return getAllConfigEntries().filter(entry => entry.category === category);
-}
 
 export function searchConfigEntries(query: string): (ConfigEntry & { currentValue: number | string | boolean; isModified: boolean })[] {
   const lowerQuery = query.toLowerCase();
@@ -490,10 +487,6 @@ export interface ConfigValues {
   SIMILARITY_THRESHOLD_POOR: number;
 }
 
-export const CONFIG_DEFAULTS: ConfigValues = CONFIG_REGISTRY.reduce((acc, entry) => {
-  acc[entry.key as keyof ConfigValues] = entry.defaultValue as never;
-  return acc;
-}, {} as ConfigValues);
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const config: ConfigValues = Object.create(null);

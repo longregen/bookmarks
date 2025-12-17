@@ -98,6 +98,3 @@ importBtn.addEventListener('click', async () => {
     importStatus.classList.remove('hidden');
   }
 });
-
-// eslint-disable-next-line @typescript-eslint/no-empty-function
-export function initImportExportModule(): void {}

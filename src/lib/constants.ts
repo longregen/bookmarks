@@ -1,4 +1,4 @@
-export { config, CONFIG_DEFAULTS } from './config-registry';
+export { config } from './config-registry';
 
 export const TIME = {
   SECONDS_PER_MINUTE: 60,

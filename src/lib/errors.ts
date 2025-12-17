@@ -7,17 +7,3 @@ export function getErrorMessage(error: unknown): string {
   }
   return String(error);
 }
-
-export function getErrorStack(error: unknown): string | undefined {
-  if (error instanceof Error) {
-    return error.stack;
-  }
-  return undefined;
-}
-
-export function normalizeError(error: unknown): { message: string; stack?: string } {
-  return {
-    message: getErrorMessage(error),
-    stack: getErrorStack(error),
-  };
-}
