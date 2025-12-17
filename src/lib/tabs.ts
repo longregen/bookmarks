@@ -57,9 +57,13 @@ export async function openExtensionPage(pagePath: string): Promise<void> {
       url: targetUrl
     });
 
-    // Also bring the window to the front
-    if (existingTab.windowId !== undefined) {
-      await chrome.windows.update(existingTab.windowId, { focused: true });
+    // Also bring the window to the front (not available on Firefox Android)
+    if (existingTab.windowId !== undefined && typeof chrome.windows !== 'undefined') {
+      try {
+        await chrome.windows.update(existingTab.windowId, { focused: true });
+      } catch {
+        // Ignore errors on mobile where windows API is limited/unavailable
+      }
     }
   } else {
     // No extension tab exists - create a new one
