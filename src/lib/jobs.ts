@@ -73,28 +73,6 @@ export async function deleteBookmarkWithData(bookmarkId: string): Promise<void> 
   await db.bookmarks.delete(bookmarkId);
 }
 
-// JobItem management functions
-
-export async function createJobItem(params: {
-  jobId: string;
-  bookmarkId: string;
-  status?: JobItemStatus;
-}): Promise<JobItem> {
-  const now = new Date();
-  const jobItem: JobItem = {
-    id: crypto.randomUUID(),
-    jobId: params.jobId,
-    bookmarkId: params.bookmarkId,
-    status: params.status ?? JobItemStatus.PENDING,
-    retryCount: 0,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await db.jobItems.add(jobItem);
-  return jobItem;
-}
-
 export async function createJobItems(jobId: string, bookmarkIds: string[]): Promise<void> {
   const now = new Date();
   const jobItems: JobItem[] = bookmarkIds.map(bookmarkId => ({
