@@ -1,14 +1,19 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { StateManager, createStateManager } from '../src/lib/state-manager';
 
 describe('StateManager', () => {
   let stateManager: StateManager;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     stateManager = createStateManager({
       name: 'TestOperation',
       timeoutMs: 1000, // 1 second timeout for tests
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe('initialization', () => {
@@ -84,21 +89,21 @@ describe('StateManager', () => {
       expect(stateManager.isActive()).toBe(false);
     });
 
-    it('should return false after timeout', async () => {
+    it('should return false after timeout', () => {
       stateManager.start();
       expect(stateManager.isActive()).toBe(true);
 
-      // Wait for timeout
-      await new Promise(resolve => setTimeout(resolve, 1100));
+      // Advance time past timeout
+      vi.advanceTimersByTime(1100);
 
       expect(stateManager.isActive()).toBe(false);
     });
 
-    it('should auto-reset on timeout', async () => {
+    it('should auto-reset on timeout', () => {
       stateManager.start();
 
-      // Wait for timeout
-      await new Promise(resolve => setTimeout(resolve, 1100));
+      // Advance time past timeout
+      vi.advanceTimersByTime(1100);
 
       // Check that it's no longer active (auto-reset)
       expect(stateManager.isActive()).toBe(false);
@@ -170,19 +175,18 @@ describe('StateManager', () => {
       expect(stateManager.getElapsedTime()).toBe(0);
     });
 
-    it('should return elapsed time when active', async () => {
+    it('should return elapsed time when active', () => {
       stateManager.start();
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      vi.advanceTimersByTime(100);
 
       const elapsed = stateManager.getElapsedTime();
-      expect(elapsed).toBeGreaterThanOrEqual(90); // Allow some variance
-      expect(elapsed).toBeLessThan(200);
+      expect(elapsed).toBe(100);
     });
 
-    it('should return 0 after reset', async () => {
+    it('should return 0 after reset', () => {
       stateManager.start();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      vi.advanceTimersByTime(100);
       stateManager.reset();
 
       expect(stateManager.getElapsedTime()).toBe(0);
@@ -199,18 +203,18 @@ describe('StateManager', () => {
       expect(stateManager.isNearTimeout()).toBe(false);
     });
 
-    it('should return true when close to timeout', async () => {
+    it('should return true when close to timeout', () => {
       stateManager.start();
 
-      // Wait for 90% of timeout (900ms out of 1000ms)
-      await new Promise(resolve => setTimeout(resolve, 900));
+      // Advance to 90% of timeout (900ms out of 1000ms)
+      vi.advanceTimersByTime(900);
 
       expect(stateManager.isNearTimeout()).toBe(true);
     });
 
-    it('should return false after reset', async () => {
+    it('should return false after reset', () => {
       stateManager.start();
-      await new Promise(resolve => setTimeout(resolve, 900));
+      vi.advanceTimersByTime(900);
       stateManager.reset();
 
       expect(stateManager.isNearTimeout()).toBe(false);
@@ -218,22 +222,22 @@ describe('StateManager', () => {
   });
 
   describe('timeout behavior', () => {
-    it('should automatically recover from timeout', async () => {
+    it('should automatically recover from timeout', () => {
       // Start first operation
       expect(stateManager.start()).toBe(true);
 
-      // Wait for timeout
-      await new Promise(resolve => setTimeout(resolve, 1100));
+      // Advance time past timeout
+      vi.advanceTimersByTime(1100);
 
       // Should be able to start a new operation
       expect(stateManager.start()).toBe(true);
       expect(stateManager.isActive()).toBe(true);
     });
 
-    it('should handle multiple timeout cycles', async () => {
+    it('should handle multiple timeout cycles', () => {
       for (let i = 0; i < 3; i++) {
         expect(stateManager.start()).toBe(true);
-        await new Promise(resolve => setTimeout(resolve, 1100));
+        vi.advanceTimersByTime(1100);
         expect(stateManager.isActive()).toBe(false);
       }
     });
@@ -285,7 +289,7 @@ describe('StateManager', () => {
       expect(manager).toBeInstanceOf(StateManager);
     });
 
-    it('should respect custom timeout values', async () => {
+    it('should respect custom timeout values', () => {
       const manager = createStateManager({
         name: 'Custom Timeout',
         timeoutMs: 500,
@@ -294,7 +298,7 @@ describe('StateManager', () => {
       manager.start();
       expect(manager.isActive()).toBe(true);
 
-      await new Promise(resolve => setTimeout(resolve, 600));
+      vi.advanceTimersByTime(600);
 
       expect(manager.isActive()).toBe(false);
     });
@@ -313,11 +317,11 @@ describe('StateManager', () => {
       consoleSpy.mockRestore();
     });
 
-    it('should log when operation times out', async () => {
+    it('should log when operation times out', () => {
       const consoleSpy = vi.spyOn(console, 'warn');
 
       stateManager.start();
-      await new Promise(resolve => setTimeout(resolve, 1100));
+      vi.advanceTimersByTime(1100);
 
       // Trigger timeout check
       stateManager.isActive();
