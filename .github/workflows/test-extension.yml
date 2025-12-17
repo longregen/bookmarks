@@ -58,13 +58,6 @@ jobs:
       - name: Run unit tests with coverage
         run: npm run test:unit:coverage
 
-      - name: Upload unit coverage artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: unit-coverage
-          path: coverage/
-          retention-days: 1
-
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -141,7 +134,7 @@ jobs:
           if-no-files-found: ignore
 
   test-e2e-chrome:
-    needs: [build, test-unit]
+    needs: build
     runs-on: ubuntu-latest
     env:
       HAS_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
@@ -163,12 +156,6 @@ jobs:
           name: extension-chrome
           path: dist-chrome/
 
-      - name: Download unit coverage artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: unit-coverage
-          path: coverage/
-
       - name: Cache Chromium
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
@@ -181,7 +168,7 @@ jobs:
       - name: Install xvfb
         run: sudo apt-get update && sudo apt-get install -y xvfb
 
-      - name: Run E2E tests with coverage
+      - name: Run E2E tests
         if: env.HAS_API_KEY == 'true'
         env:
           BROWSER_TYPE: chrome
@@ -189,11 +176,7 @@ jobs:
           EXTENSION_PATH: dist-chrome
         run: |
           CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
-          BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npm run test:e2e:chrome:coverage
-
-      - name: Merge coverage reports
-        if: env.HAS_API_KEY == 'true'
-        run: npm run coverage:merge
+          BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npm run test:e2e:chrome
 
       - name: Skip E2E tests (no API key)
         if: env.HAS_API_KEY != 'true'
