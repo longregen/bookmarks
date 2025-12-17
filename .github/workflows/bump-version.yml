@@ -84,7 +84,8 @@ jobs:
       - name: Update manifest.base.ts
         run: |
           NEW_VERSION="${{ steps.new_version.outputs.version }}"
-          sed -i "s/version: '[^']*'/version: '$NEW_VERSION'/" manifest.base.ts
+          # Only update the extension version, not strict_min_version for browsers
+          sed -i "s/^\s*version: '[^']*'/  version: '$NEW_VERSION'/" manifest.base.ts
           echo "Updated manifest.base.ts to version $NEW_VERSION"
 
       - name: Commit and push version bump
