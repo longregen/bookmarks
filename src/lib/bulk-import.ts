@@ -107,8 +107,3 @@ export function extractTitleFromHtml(html: string): string {
   }
   return '';
 }
-
-export async function bookmarkExists(url: string): Promise<boolean> {
-  const existing = await db.bookmarks.where('url').equals(url).first();
-  return !!existing;
-}

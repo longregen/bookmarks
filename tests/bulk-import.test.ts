@@ -5,7 +5,6 @@ import {
   validateSingleUrl,
   createBulkImportJob,
   extractTitleFromHtml,
-  bookmarkExists,
 } from '../src/lib/bulk-import';
 
 describe('Bulk Import Library', () => {
@@ -348,43 +347,6 @@ describe('Bulk Import Library', () => {
       const html = '<html><head><title>Test &lt;Page&gt; "Quotes"</title></head><body></body></html>';
       const title = extractTitleFromHtml(html);
       expect(title).toBe('Test <Page> "Quotes"');
-    });
-  });
-
-  describe('bookmarkExists', () => {
-    it('should return true if bookmark exists', async () => {
-      await db.bookmarks.add({
-        id: 'test-id',
-        url: 'https://example.com',
-        title: 'Test',
-        html: '<html></html>',
-        status: 'pending',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      const exists = await bookmarkExists('https://example.com');
-      expect(exists).toBe(true);
-    });
-
-    it('should return false if bookmark does not exist', async () => {
-      const exists = await bookmarkExists('https://nonexistent.com');
-      expect(exists).toBe(false);
-    });
-
-    it('should be case-sensitive', async () => {
-      await db.bookmarks.add({
-        id: 'test-id',
-        url: 'https://example.com',
-        title: 'Test',
-        html: '<html></html>',
-        status: 'pending',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      const exists = await bookmarkExists('https://EXAMPLE.COM');
-      expect(exists).toBe(false);
     });
   });
 

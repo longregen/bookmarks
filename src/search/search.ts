@@ -11,6 +11,7 @@ import { BookmarkDetailManager } from '../lib/bookmark-detail';
 import { loadTagFilters } from '../lib/tag-filter';
 import { config } from '../lib/config-registry';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
+import { getErrorMessage } from '../lib/errors';
 
 const selectedTags = new Set<string>();
 
@@ -295,7 +296,7 @@ async function performSearch(): Promise<void> {
     resultStatus.textContent = 'Search failed';
     resultsList.innerHTML = '';
 
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     const isApiKeyError = errorMessage.toLowerCase().includes('api key') ||
                           errorMessage.toLowerCase().includes('not configured') ||
                           errorMessage.toLowerCase().includes('401') ||

@@ -1,5 +1,6 @@
 import { getPlatformAdapter } from './platform';
 import { config } from './config-registry';
+import { getErrorMessage } from './errors';
 
 export interface QAPair {
   question: string;
@@ -82,14 +83,18 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
   const content = data.choices[0]?.message?.content;
 
-  if (content === undefined || content === null) {
+  if (!content) {
     throw new Error('Empty response from chat API');
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument
-  const parsed = JSON.parse(content);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/strict-boolean-expressions
-  return parsed.pairs || [];
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument
+    const parsed = JSON.parse(content);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/strict-boolean-expressions
+    return parsed.pairs || [];
+  } catch (error) {
+    throw new Error(`Failed to parse Q&A pairs from API response: ${getErrorMessage(error)}`);
+  }
 }
 
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
@@ -132,8 +137,8 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
     console.log('[Embeddings API] Extracted embeddings', {
       count: embeddings.length,
       dimensions: embeddings.map((e) => e.length),
-      allSameDimension: embeddings.every((e) => e.length === embeddings[0].length),
-      firstEmbeddingSample: embeddings[0].slice(0, 5),
+      allSameDimension: embeddings.length > 0 && embeddings.every((e) => e.length === embeddings[0].length),
+      firstEmbeddingSample: embeddings.length > 0 ? embeddings[0].slice(0, 5) : [],
     });
 
     embeddings.forEach((embedding, index) => {

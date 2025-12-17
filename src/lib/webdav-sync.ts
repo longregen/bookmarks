@@ -57,7 +57,7 @@ function buildFolderUrl(settings: ApiSettings): string {
 }
 
 function getAuthHeader(settings: ApiSettings): string {
-  return `Basic ${  btoa(`${settings.webdavUsername}:${settings.webdavPassword}`)}`;
+  return `Basic ${btoa(`${settings.webdavUsername}:${settings.webdavPassword}`)}`;
 }
 
 async function ensureFolderExists(settings: ApiSettings): Promise<void> {
@@ -91,7 +91,7 @@ async function ensureFolderExists(settings: ApiSettings): Promise<void> {
     let currentPath = settings.webdavUrl.replace(/\/$/, '');
 
     for (const part of pathParts) {
-      currentPath += `/${  part  }/`;
+      currentPath += `/${part}/`;
       await fetch(currentPath, {
         method: 'MKCOL',
         headers: {

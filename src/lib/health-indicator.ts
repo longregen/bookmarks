@@ -16,18 +16,20 @@ export interface HealthStatus {
 
 export async function getHealthStatus(): Promise<HealthStatus> {
   try {
-    const allJobs = await db.jobs.toArray();
-
-    const pendingCount = allJobs.filter(job => job.status === JobStatus.PENDING).length;
-    const inProgressCount = allJobs.filter(job => job.status === JobStatus.IN_PROGRESS).length;
-    const failedCount = allJobs.filter(job => job.status === JobStatus.FAILED).length;
+    // Use indexed counts instead of loading all jobs into memory
+    const [pendingCount, inProgressCount, failedCount, totalCount] = await Promise.all([
+      db.jobs.where('status').equals(JobStatus.PENDING).count(),
+      db.jobs.where('status').equals(JobStatus.IN_PROGRESS).count(),
+      db.jobs.where('status').equals(JobStatus.FAILED).count(),
+      db.jobs.count()
+    ]);
 
     const details = { pendingCount, inProgressCount, failedCount };
 
     if (failedCount > 0) {
       return {
         state: 'error',
-        message: `${failedCount} failed job${failedCount > 1 ? 's' : ''} need${failedCount === 1 ? 's' : ''} attention`,
+        message: `${failedCount} failed job${failedCount !== 1 ? 's' : ''} need${failedCount === 1 ? 's' : ''} attention`,
         details
       };
     }
@@ -36,12 +38,12 @@ export async function getHealthStatus(): Promise<HealthStatus> {
       const total = pendingCount + inProgressCount;
       return {
         state: 'processing',
-        message: `Processing ${total} job${total > 1 ? 's' : ''}`,
+        message: `Processing ${total} job${total !== 1 ? 's' : ''}`,
         details
       };
     }
 
-    if (allJobs.length === 0) {
+    if (totalCount === 0) {
       return {
         state: 'idle',
         message: 'No jobs in queue',

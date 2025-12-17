@@ -1,4 +1,5 @@
-import { db, type BookmarkTag } from '../db/schema';
+import { db } from '../db/schema';
+import type { BookmarkTag } from '../db/schema';
 import { createElement } from './dom';
 
 export interface TagFilterConfig {
@@ -8,13 +9,9 @@ export interface TagFilterConfig {
 }
 
 export async function loadTagFilters(config: TagFilterConfig): Promise<void> {
-  const bookmarks = await db.bookmarks.toArray();
-  const allTags = new Set<string>();
-
-  for (const bookmark of bookmarks) {
-    const tags = await db.bookmarkTags.where('bookmarkId').equals(bookmark.id).toArray();
-    tags.forEach((t: BookmarkTag) => allTags.add(t.tagName));
-  }
+  // Load all tags in a single query instead of N+1 queries per bookmark
+  const allBookmarkTags = await db.bookmarkTags.toArray();
+  const allTags = new Set<string>(allBookmarkTags.map((t: BookmarkTag) => t.tagName));
 
   config.container.innerHTML = '';
 

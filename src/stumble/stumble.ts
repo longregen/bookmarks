@@ -1,6 +1,7 @@
 import { db, type BookmarkTag, getBookmarkQAPairs } from '../db/schema';
 import { createElement, getElement } from '../lib/dom';
 import { formatDateByAge } from '../lib/date-format';
+import { getErrorMessage } from '../lib/errors';
 import { onThemeChange, applyTheme } from '../shared/theme';
 import { initExtension } from '../lib/init-extension';
 import { initWeb } from '../web/init-web';
@@ -64,9 +65,14 @@ async function loadStumble(): Promise<void> {
     let bookmarks = await db.bookmarks.where('status').equals('complete').toArray();
 
     if (selectedTags.size > 0) {
+      // Query all selected tags in parallel instead of sequentially
+      const tagResults = await Promise.all(
+        Array.from(selectedTags).map(tag =>
+          db.bookmarkTags.where('tagName').equals(tag).toArray()
+        )
+      );
       const taggedIds = new Set<string>();
-      for (const tag of selectedTags) {
-        const tagged = await db.bookmarkTags.where('tagName').equals(tag).toArray();
+      for (const tagged of tagResults) {
         tagged.forEach((t: BookmarkTag) => taggedIds.add(t.bookmarkId));
       }
       bookmarks = bookmarks.filter(b => taggedIds.has(b.id));
@@ -121,8 +127,7 @@ async function loadStumble(): Promise<void> {
   } catch (error) {
     console.error('Stumble error:', error);
     stumbleList.innerHTML = '';
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    stumbleList.appendChild(createElement('div', { className: 'error-message', textContent: `Failed to load: ${errorMessage}` }));
+    stumbleList.appendChild(createElement('div', { className: 'error-message', textContent: `Failed to load: ${getErrorMessage(error)}` }));
   } finally {
     shuffleBtn.disabled = false;
     shuffleBtn.textContent = '↻ Shuffle';

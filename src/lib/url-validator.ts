@@ -57,7 +57,7 @@ export function validateUrl(url: string, options: UrlValidationOptions = {}): Ur
   }
 
   if (autoAddProtocol && !processedUrl.includes('://')) {
-    processedUrl = `https://${  processedUrl}`;
+    processedUrl = `https://${processedUrl}`;
   }
 
   let urlObj: URL;
