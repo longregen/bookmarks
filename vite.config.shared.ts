@@ -24,47 +24,9 @@ export const sharedDefine = {
  * This configuration consolidates JavaScript into optimized chunks for better
  * compression and caching while avoiding too many small files.
  */
-export const sharedOutput: OutputOptions = {
-  manualChunks(id) {
-    if (id.includes('node_modules')) {
-      return 'vendor';
-    }
-    // UI components must be separate from shared to keep DOM code out of service worker
-    if (id.includes('/src/ui/')) {
-      return 'ui';
-    }
-    // Library code goes in 'lib' chunk - these are pure functions with no side effects
-    // IMPORTANT: This must be separate from service-worker to prevent side effects
-    // from running when offscreen/popup documents import library functions
-    if (id.includes('/src/lib/')) {
-      return 'lib';
-    }
-    // Theme utilities have DOM manipulation, keep with UI
-    if (id.includes('/src/shared/')) {
-      return 'ui';
-    }
-    // Database schema in its own chunk to avoid bundling with service worker side effects
-    if (id.includes('/src/db/')) {
-      return 'lib';
-    }
-    // Service worker entry point - do NOT put in shared chunk
-    // Let it be bundled as its own entry point to avoid side effects
-    // running in other contexts (offscreen, popup, etc.)
-    if (id.includes('/src/background/service-worker')) {
-      return undefined; // Let rollup handle as entry point
-    }
-    // Other background modules (queue, processor, etc.)
-    if (id.includes('/src/background/')) {
-      return 'lib';
-    }
-    if (id.includes('/src/web/init-web')) {
-      return 'lib';
-    }
-    if (id.includes('/src/options/modules/')) {
-      return 'options-modules';
-    }
-  },
-};
+// Let Rollup handle chunking naturally for optimal tree-shaking.
+// Avoid manualChunks that force all node_modules into one vendor bundle.
+export const sharedOutput: OutputOptions = {};
 
 export const sharedConfig: Partial<UserConfig> = {
   define: sharedDefine,
