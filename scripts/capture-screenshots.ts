@@ -144,7 +144,8 @@ async function setTheme(page: Page, theme: string): Promise<void> {
 async function injectMockSettings(page: Page): Promise<void> {
   await page.evaluate(`(async () => {
     const DB_NAME = 'BookmarkRAG';
-    const DB_VERSION = 5;
+    // Dexie multiplies version by 10 internally, so Dexie v5 = IndexedDB v50
+    const DB_VERSION = 50;
 
     function openDb() {
       return new Promise((resolve, reject) => {
