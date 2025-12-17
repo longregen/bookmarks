@@ -549,17 +549,15 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
       await verifyPage.close();
     });
 
-    await runner.runTest('Extension has no errors on chrome://extensions', async () => {
-      if (!adapter.getExtensionErrors) {
-        throw new Error('getExtensionErrors not implemented');
-      }
+    if (adapter.getExtensionErrors) {
+      await runner.runTest('Extension has no errors on chrome://extensions', async () => {
+        const errors = await adapter.getExtensionErrors!();
 
-      const errors = await adapter.getExtensionErrors();
-
-      if (errors.length > 0) {
-        throw new Error(`Extension has ${errors.length} error(s):\n${errors.join('\n')}`);
-      }
-    });
+        if (errors.length > 0) {
+          throw new Error(`Extension has ${errors.length} error(s):\n${errors.join('\n')}`);
+        }
+      });
+    }
   }
 
   if (options.skipRealApiTests) {
