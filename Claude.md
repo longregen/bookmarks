@@ -40,6 +40,6 @@ Do not read or modify: `node_modules/`, `dist/`, `dist-*/`, `coverage/`
 
 0. Claude can only run Chromium tests right now.
 1. Download Chromium from `storage.googleapis.com`; `apt install xvfb`\
-2. Build with `npm run build:chrome`, run with `BROWSER_PATH=/path/to/chrome OPENAI_API_KEY=your-key \
+2. Build with `npm run build:chrome`, run with `BROWSER_PATH=/path/to/chrome OPENAI_API_KEY=not-needed-for-tests \
   xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" \
   npm run test:e2e:chrome`
