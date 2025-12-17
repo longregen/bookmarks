@@ -7,7 +7,7 @@ import { initWeb } from '../web/init-web';
 import { createHealthIndicator } from '../lib/health-indicator';
 import { BookmarkDetailManager } from '../lib/bookmark-detail';
 import { loadTagFilters } from '../lib/tag-filter';
-import { STUMBLE_COUNT } from '../lib/constants';
+import { config } from '../lib/config-registry';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
 
 let selectedTags: Set<string> = new Set();
@@ -66,7 +66,7 @@ async function loadStumble() {
       [bookmarks[i], bookmarks[j]] = [bookmarks[j], bookmarks[i]];
     }
 
-    const selected = bookmarks.slice(0, STUMBLE_COUNT);
+    const selected = bookmarks.slice(0, config.STUMBLE_COUNT);
     resultCount.textContent = selected.length.toString();
 
     stumbleList.innerHTML = '';

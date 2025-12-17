@@ -1,6 +1,6 @@
 import { getPlatformAdapter } from './platform';
 import { getSettings } from './settings';
-import { API_CONTENT_MAX_CHARS, API_CHAT_TEMPERATURE } from './constants';
+import { config } from './config-registry';
 
 interface QAPair {
   question: string;
@@ -41,7 +41,7 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
   }
 
   // Truncate content to avoid exceeding context window
-  const truncatedContent = markdownContent.slice(0, API_CONTENT_MAX_CHARS);
+  const truncatedContent = markdownContent.slice(0, config.API_CONTENT_MAX_CHARS);
 
   const response = await fetch(`${settings.apiBaseUrl}/chat/completions`, {
     method: 'POST',
@@ -56,7 +56,7 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
         { role: 'user', content: truncatedContent },
       ],
       response_format: { type: 'json_object' },
-      temperature: API_CHAT_TEMPERATURE,
+      temperature: config.API_CHAT_TEMPERATURE,
     }),
   });
 

@@ -1693,3 +1693,354 @@ input[type="number"]:focus {
 #about .option-panel:last-child {
   margin-bottom: 0;
 }
+
+/* ===== Advanced Config Section (about:config style) ===== */
+
+.config-status {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+}
+
+.config-status.hidden {
+  display: none;
+}
+
+.config-status.success {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+
+.config-status.error {
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+}
+
+.config-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+@media (min-width: 768px) {
+  .config-controls {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.config-search {
+  flex: 1;
+  min-width: 200px;
+}
+
+.config-search-input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-base);
+  font-family: inherit;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  transition: all var(--transition-base);
+}
+
+.config-search-input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+.config-filters {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.config-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.config-checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.config-actions-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.modified-count-wrapper {
+  font-size: var(--text-sm);
+  color: var(--warning-text);
+  background: var(--warning-bg);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+}
+
+.modified-count-wrapper.hidden {
+  display: none;
+}
+
+.btn-sm {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.config-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+}
+
+.config-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.config-table thead {
+  background: var(--bg-tertiary);
+  position: sticky;
+  top: 0;
+}
+
+.config-table th {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  white-space: nowrap;
+}
+
+.config-th-key {
+  min-width: 200px;
+}
+
+.config-th-type {
+  width: 80px;
+}
+
+.config-th-value {
+  min-width: 150px;
+}
+
+.config-th-default {
+  min-width: 100px;
+}
+
+.config-th-actions {
+  width: 70px;
+}
+
+.config-row {
+  border-bottom: none;
+}
+
+.config-row td {
+  padding: var(--space-3) var(--space-4);
+  vertical-align: top;
+}
+
+.config-row.config-modified {
+  background: var(--warning-bg);
+}
+
+.config-row.config-modified .key-name {
+  font-weight: var(--font-semibold);
+}
+
+.config-description-row {
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.config-description-row.config-modified {
+  background: var(--warning-bg);
+}
+
+.config-description-row:last-child {
+  border-bottom: none;
+}
+
+.config-key {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.key-name {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.key-category {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.config-type {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.config-value {
+  font-family: var(--font-mono);
+}
+
+.config-default {
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.config-description {
+  padding: var(--space-2) var(--space-4) var(--space-4) var(--space-4);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed);
+}
+
+.config-actions {
+  text-align: right;
+}
+
+.config-empty {
+  text-align: center;
+  padding: var(--space-8) !important;
+  color: var(--text-tertiary);
+}
+
+/* Value display styles */
+.value-display {
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+  display: inline-block;
+}
+
+.value-display:hover {
+  background: var(--bg-hover);
+}
+
+.value-display:focus {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.value-boolean {
+  color: var(--info-text);
+}
+
+.value-number {
+  color: var(--accent-primary);
+}
+
+.value-string {
+  color: var(--success-text);
+}
+
+/* Edit input styles */
+.config-edit-input,
+.config-edit-select {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-focus);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  width: 100%;
+  max-width: 200px;
+  margin-right: var(--space-2);
+}
+
+.config-edit-input:focus,
+.config-edit-select:focus {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* Button styles for config table */
+.btn-save,
+.btn-cancel,
+.btn-reset {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: none;
+}
+
+.btn-save {
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  margin-right: var(--space-1);
+}
+
+.btn-save:hover {
+  background: var(--btn-primary-hover);
+}
+
+.btn-cancel {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.btn-cancel:hover {
+  background: var(--bg-hover);
+}
+
+.btn-reset {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border: 1px solid var(--warning-border);
+}
+
+.btn-reset:hover {
+  background: var(--warning-border);
+}
+
+/* Responsive adjustments for config table */
+@media (max-width: 767px) {
+  .config-table th,
+  .config-table td {
+    padding: var(--space-2);
+  }
+
+  .config-th-default,
+  .config-default {
+    display: none;
+  }
+
+  .config-th-type,
+  .config-type {
+    display: none;
+  }
+
+  .config-edit-input,
+  .config-edit-select {
+    max-width: 120px;
+  }
+}

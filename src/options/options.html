@@ -43,6 +43,9 @@
         <a href="#about" class="nav-item" data-section="about">
           <span class="nav-label">About</span>
         </a>
+        <a href="#advanced-config" class="nav-item" data-section="advanced-config">
+          <span class="nav-label">Advanced Config</span>
+        </a>
       </nav>
     </aside>
 
@@ -508,6 +511,67 @@
                 This project is open source and available under the <strong>MIT License</strong>.
                 See the <a href="https://github.com/longregen/bookmarks/blob/main/LICENSE.md" target="_blank" rel="noopener">LICENSE.md file</a> for details.
               </p>
+            </div>
+          </div>
+        </section>
+
+        <section id="advanced-config" class="settings-section">
+          <div class="option-panel">
+            <div class="option-panel__header">
+              <h2>Advanced Configuration</h2>
+              <p class="section-description">
+                Modify internal settings similar to Firefox's about:config.
+                <strong>Warning:</strong> Changing these values may affect application behavior.
+                Only modify if you understand what you're doing.
+              </p>
+            </div>
+            <div class="option-panel__content">
+              <div id="configStatus" class="config-status hidden"></div>
+
+              <div class="config-controls">
+                <div class="config-search">
+                  <input
+                    type="text"
+                    id="configSearch"
+                    placeholder="Search configuration..."
+                    class="config-search-input"
+                  />
+                </div>
+                <div class="config-filters">
+                  <select id="configCategoryFilter" class="filter-select">
+                    <!-- Options populated by JavaScript -->
+                  </select>
+                  <label class="config-checkbox-label">
+                    <input type="checkbox" id="showModifiedOnly" />
+                    <span>Show modified only</span>
+                  </label>
+                </div>
+                <div class="config-actions-header">
+                  <span class="modified-count-wrapper hidden">
+                    <span id="modifiedConfigCount">0</span> modified
+                  </span>
+                  <button type="button" id="resetAllConfig" class="btn btn-secondary btn-sm" disabled>
+                    Reset All
+                  </button>
+                </div>
+              </div>
+
+              <div class="config-table-wrapper">
+                <table class="config-table">
+                  <thead>
+                    <tr>
+                      <th class="config-th-key">Setting</th>
+                      <th class="config-th-type">Type</th>
+                      <th class="config-th-value">Value</th>
+                      <th class="config-th-default">Default</th>
+                      <th class="config-th-actions"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="configTableBody">
+                    <!-- Rows populated by JavaScript -->
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </section>

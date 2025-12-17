@@ -3,11 +3,11 @@ import { exportAllBookmarks, importBookmarks, type BookmarkExport } from './expo
 import { db } from '../db/schema';
 import { createStateManager } from './state-manager';
 import { broadcastEvent } from './events';
-import { WEBDAV_SYNC_TIMEOUT_MS, WEBDAV_SYNC_DEBOUNCE_MS } from './constants';
+import { config } from './config-registry';
 
 const syncState = createStateManager({
   name: 'WebDAVSync',
-  timeoutMs: WEBDAV_SYNC_TIMEOUT_MS,
+  timeoutMs: config.WEBDAV_SYNC_TIMEOUT_MS,
 });
 
 let lastSyncAttempt = 0;
@@ -217,7 +217,7 @@ async function completeSyncSuccess(action: SyncResult['action'], message: string
 
 export async function performSync(force = false): Promise<SyncResult> {
   const now = Date.now();
-  if (!force && now - lastSyncAttempt < WEBDAV_SYNC_DEBOUNCE_MS) {
+  if (!force && now - lastSyncAttempt < config.WEBDAV_SYNC_DEBOUNCE_MS) {
     return {
       success: true,
       action: 'skipped',

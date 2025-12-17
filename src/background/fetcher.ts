@@ -3,7 +3,7 @@ import { updateJob, completeJob, failJob, getJobsByParent, incrementParentJobPro
 import { browserFetch } from '../lib/browser-fetch';
 import { extractTitleFromHtml } from '../lib/bulk-import';
 import { startProcessingQueue } from './queue';
-import { FETCH_CONCURRENCY, FETCH_TIMEOUT_MS } from '../lib/constants';
+import { config } from '../lib/config-registry';
 
 export async function processBulkFetch(parentJobId: string, isResumption: boolean = false): Promise<void> {
   try {
@@ -16,8 +16,8 @@ export async function processBulkFetch(parentJobId: string, isResumption: boolea
       .sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime());
     const pendingJobIds = pendingJobs.map(job => job.id);
 
-    for (let i = 0; i < pendingJobIds.length; i += FETCH_CONCURRENCY) {
-      const batch = pendingJobIds.slice(i, i + FETCH_CONCURRENCY);
+    for (let i = 0; i < pendingJobIds.length; i += config.FETCH_CONCURRENCY) {
+      const batch = pendingJobIds.slice(i, i + config.FETCH_CONCURRENCY);
       await Promise.allSettled(batch.map(jobId => processSingleFetch(jobId, parentJobId)));
     }
 
@@ -49,7 +49,7 @@ async function processSingleFetch(jobId: string, parentJobId: string): Promise<v
     await updateJob(jobId, { status: JobStatus.IN_PROGRESS });
 
     const startTime = Date.now();
-    const html = await browserFetch(url, FETCH_TIMEOUT_MS);
+    const html = await browserFetch(url, config.FETCH_TIMEOUT_MS);
     const fetchTimeMs = Date.now() - startTime;
 
     const existing = await db.bookmarks.where('url').equals(url).first();
