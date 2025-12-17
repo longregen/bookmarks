@@ -83,7 +83,8 @@ async function convertToIstanbul(entries: CoverageEntry[]): Promise<CoverageMapD
         source: sourceFromDisk,
       };
 
-      if (fs.existsSync(sourceMapPath)) {
+      const hasSourceMap = fs.existsSync(sourceMapPath);
+      if (hasSourceMap) {
         try {
           const sourceMapContent = JSON.parse(fs.readFileSync(sourceMapPath, 'utf-8'));
           converterOptions.sourceMap = { sourcemap: sourceMapContent };
@@ -92,6 +93,8 @@ async function convertToIstanbul(entries: CoverageEntry[]): Promise<CoverageMapD
         }
       }
 
+      console.log(`[E2E Coverage] Processing: ${filePath} (sourceMap: ${hasSourceMap})`);
+
       const converter = v8ToIstanbul(filePath, 0, converterOptions);
 
       await converter.load();
@@ -99,6 +102,10 @@ async function convertToIstanbul(entries: CoverageEntry[]): Promise<CoverageMapD
       converter.applyCoverage(entry.functions || []);
 
       const istanbulCoverage = converter.toIstanbul();
+      const mappedPaths = Object.keys(istanbulCoverage);
+      if (mappedPaths.length > 0) {
+        console.log(`[E2E Coverage] Mapped to: ${mappedPaths.join(', ')}`);
+      }
 
       for (const [, coverage] of Object.entries(istanbulCoverage)) {
         coverageMap.merge(createCoverageMap({ [coverage.path]: coverage }));

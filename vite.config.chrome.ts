@@ -18,6 +18,7 @@ export default defineConfig({
     sourcemap: isCoverage,
     minify: !isCoverage,
     rollupOptions: {
+      treeshake: !isCoverage,
       input: {
         popup: 'src/popup/popup.html',
         options: 'src/options/options.html',
