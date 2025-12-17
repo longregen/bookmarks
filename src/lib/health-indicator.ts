@@ -116,10 +116,12 @@ export function createHealthIndicator(container: HTMLElement): () => void {
   // Track current health state for click handling
   let currentHealthState: HealthState = 'idle';
 
-  // Click handler to navigate to jobs page (filtered to failed) when in error state
+  // Click handler to navigate to jobs page with appropriate filter based on state
   indicator.addEventListener('click', () => {
     if (currentHealthState === 'error') {
       openExtensionPage('src/jobs/jobs.html?status=failed');
+    } else {
+      openExtensionPage('src/jobs/jobs.html');
     }
   });
 
@@ -138,8 +140,8 @@ export function createHealthIndicator(container: HTMLElement): () => void {
     // Update classes for animation
     indicator.className = `health-indicator ${style.className}`;
 
-    // Make cursor pointer when in error state to indicate clickability
-    indicator.style.cursor = health.state === 'error' ? 'pointer' : 'default';
+    // Make cursor pointer to indicate clickability
+    indicator.style.cursor = 'pointer';
 
     // Update tooltip
     tooltip.textContent = health.message;

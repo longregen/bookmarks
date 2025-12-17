@@ -204,7 +204,7 @@ describe('Health Indicator', () => {
       expect(indicator.style.cursor).toBe('pointer');
     });
 
-    it('should set cursor to default when not in error state', async () => {
+    it('should set cursor to pointer when in healthy state', async () => {
       // Create a completed job to trigger healthy state
       await db.jobs.add({
         id: 'job-1',
@@ -222,7 +222,7 @@ describe('Health Indicator', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       const indicator = container.querySelector('.health-indicator') as HTMLElement;
-      expect(indicator.style.cursor).toBe('default');
+      expect(indicator.style.cursor).toBe('pointer');
     });
 
     it('should navigate to jobs page (filtered to failed) when clicked in error state', async () => {
@@ -248,7 +248,7 @@ describe('Health Indicator', () => {
       expect(tabs.openExtensionPage).toHaveBeenCalledWith('src/jobs/jobs.html?status=failed');
     });
 
-    it('should not navigate to settings when clicked in healthy state', async () => {
+    it('should navigate to jobs page when clicked in healthy state', async () => {
       // Create a completed job to trigger healthy state
       await db.jobs.add({
         id: 'job-1',
@@ -268,10 +268,10 @@ describe('Health Indicator', () => {
       const indicator = container.querySelector('.health-indicator') as HTMLElement;
       indicator.click();
 
-      expect(tabs.openExtensionPage).not.toHaveBeenCalled();
+      expect(tabs.openExtensionPage).toHaveBeenCalledWith('src/jobs/jobs.html');
     });
 
-    it('should not navigate to settings when clicked in processing state', async () => {
+    it('should navigate to jobs page when clicked in processing state', async () => {
       // Create a pending job to trigger processing state
       await db.jobs.add({
         id: 'job-1',
@@ -291,7 +291,7 @@ describe('Health Indicator', () => {
       const indicator = container.querySelector('.health-indicator') as HTMLElement;
       indicator.click();
 
-      expect(tabs.openExtensionPage).not.toHaveBeenCalled();
+      expect(tabs.openExtensionPage).toHaveBeenCalledWith('src/jobs/jobs.html');
     });
 
     it('should update tooltip with error message', async () => {
