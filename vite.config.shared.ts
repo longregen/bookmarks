@@ -1,5 +1,5 @@
 import type { UserConfig } from 'vite';
-import type { OutputOptions } from 'rollup';
+import type { OutputOptions, InputOption } from 'rollup';
 
 /**
  * Shared Vite configuration for both Chrome and Firefox builds.
@@ -10,12 +10,40 @@ import type { OutputOptions } from 'rollup';
  *   when you want to reduce console noise.
  * - __IS_CHROME__: true when building for Chrome, false otherwise
  * - __IS_FIREFOX__: true when building for Firefox, false otherwise
+ * - __IS_WEB__: true when building for web, false otherwise
  *
  * Use these flags to conditionally compile browser-specific code:
  *   if (__IS_CHROME__) { ... } // Dead code eliminated in Firefox builds
  */
 export const sharedDefine = {
   __DEBUG_EMBEDDINGS__: JSON.stringify(false),
+};
+
+type Platform = 'chrome' | 'firefox' | 'web';
+
+/** Creates platform-specific define flags */
+export function createDefine(platform: Platform): Record<string, string> {
+  return {
+    ...sharedDefine,
+    __IS_CHROME__: JSON.stringify(platform === 'chrome'),
+    __IS_FIREFOX__: JSON.stringify(platform === 'firefox'),
+    __IS_WEB__: JSON.stringify(platform === 'web'),
+  };
+}
+
+/** Shared HTML input entries across all builds */
+export const sharedInput: InputOption = {
+  options: 'src/options/options.html',
+  library: 'src/library/library.html',
+  search: 'src/search/search.html',
+  stumble: 'src/stumble/stumble.html',
+  jobs: 'src/jobs/jobs.html',
+};
+
+/** Extension-specific input (Chrome & Firefox) */
+export const extensionInput: InputOption = {
+  ...sharedInput,
+  popup: 'src/popup/popup.html',
 };
 
 /**

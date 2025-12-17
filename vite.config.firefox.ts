@@ -1,9 +1,9 @@
 import { defineConfig, type Plugin } from 'vite';
 import { crx } from '@crxjs/vite-plugin';
-import manifest from './manifest.firefox.json';
+import { firefoxManifest } from './manifest.base';
 import * as fs from 'fs';
 import * as path from 'path';
-import { sharedDefine, sharedOutput } from './vite.config.shared';
+import { createDefine, extensionInput, sharedOutput } from './vite.config.shared';
 
 // Plugin to clean up Firefox manifest by removing Chrome-only properties
 function firefoxManifestCleanup(): Plugin {
@@ -31,25 +31,13 @@ function firefoxManifestCleanup(): Plugin {
 }
 
 export default defineConfig({
-  define: {
-    ...sharedDefine,
-    __IS_CHROME__: JSON.stringify(false),
-    __IS_FIREFOX__: JSON.stringify(true),
-    __IS_WEB__: JSON.stringify(false),
-  },
-  plugins: [crx({ manifest }), firefoxManifestCleanup()],
+  define: createDefine('firefox'),
+  plugins: [crx({ manifest: firefoxManifest }), firefoxManifestCleanup()],
   build: {
     outDir: 'dist-firefox',
     sourcemap: false,
     rollupOptions: {
-      input: {
-        popup: 'src/popup/popup.html',
-        options: 'src/options/options.html',
-        library: 'src/library/library.html',
-        search: 'src/search/search.html',
-        stumble: 'src/stumble/stumble.html',
-        jobs: 'src/jobs/jobs.html',
-      },
+      input: extensionInput,
       output: sharedOutput,
     },
   },
