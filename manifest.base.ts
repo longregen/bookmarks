@@ -56,6 +56,8 @@ export const basePermissions = ['storage', 'activeTab', 'scripting', 'alarms'] a
 /** Chrome-specific manifest configuration */
 export const chromeManifest = {
   ...manifestBase,
+  // Matches Vite's baseline-widely-available target (Chrome 107+)
+  minimum_chrome_version: '107',
   permissions: [...basePermissions, 'tabs', 'offscreen'],
   background: {
     service_worker: 'src/background/service-worker.ts',

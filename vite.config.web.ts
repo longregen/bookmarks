@@ -1,12 +1,12 @@
 import { defineConfig } from 'vite';
-import { createDefine, sharedInput, sharedOutput } from './vite.config.shared';
+import { createDefine, sharedInput, sharedOutput, sharedBuildOptions } from './vite.config.shared';
 
 export default defineConfig({
   define: createDefine('web'),
   base: '/webapp/',
   build: {
+    ...sharedBuildOptions,
     outDir: 'dist-web',
-    sourcemap: false,
     rollupOptions: {
       input: {
         ...sharedInput,

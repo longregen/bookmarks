@@ -1,4 +1,4 @@
-import type { UserConfig } from 'vite';
+import type { UserConfig, BuildOptions } from 'vite';
 import type { OutputOptions, InputOption } from 'rollup';
 
 /**
@@ -108,9 +108,19 @@ export const sharedOutput: OutputOptions = {
   },
 };
 
+/**
+ * Shared build options for all builds.
+ * - target: Uses Vite 7's baseline-widely-available (Chrome 107+, Firefox 104+, Safari 16+)
+ * - emptyOutDir: Ensures clean builds without stale chunks
+ * - sourcemap: Disabled for production to reduce bundle size
+ */
+export const sharedBuildOptions: BuildOptions = {
+  target: 'baseline-widely-available',
+  emptyOutDir: true,
+  sourcemap: false,
+};
+
 export const sharedConfig: Partial<UserConfig> = {
   define: sharedDefine,
-  build: {
-    sourcemap: false,
-  },
+  build: sharedBuildOptions,
 };
