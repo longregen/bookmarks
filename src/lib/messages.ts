@@ -3,6 +3,7 @@ import type { EventData } from './events';
 export type Message =
   | { type: 'SAVE_BOOKMARK'; data: { url: string; title: string; html: string } }
   | { type: 'CAPTURE_PAGE' }
+  | { type: 'GET_PAGE_HTML' }
   | { type: 'START_BULK_IMPORT'; urls: string[] }
   | { type: 'GET_JOB_STATUS'; jobId: string }
   | { type: 'GET_CURRENT_TAB_INFO' }
@@ -99,6 +100,12 @@ export interface CapturePageResponse {
   success: boolean;
 }
 
+export interface GetPageHtmlResponse {
+  success: boolean;
+  html?: string;
+  error?: string;
+}
+
 export type MessageType = Message['type'];
 
 export type MessageOfType<T extends MessageType> = Extract<Message, { type: T }>;
@@ -115,6 +122,7 @@ export type MessageResponse<T extends MessageType> =
   : T extends 'FETCH_URL' ? FetchUrlResponse
   : T extends 'EXTRACT_CONTENT' ? ExtractContentResponse
   : T extends 'CAPTURE_PAGE' ? CapturePageResponse
+  : T extends 'GET_PAGE_HTML' ? GetPageHtmlResponse
   : T extends 'EVENT_BROADCAST' ? undefined
   : never;
 
