@@ -1,5 +1,5 @@
 import { db, getBookmarkContent } from '../db/schema';
-import { createElement } from './dom';
+import { createElement, setSanitizedHTML } from './dom';
 import { formatDateByAge } from '../lib/date-format';
 import { exportSingleBookmark } from '../lib/export';
 import { downloadExport } from './export-download';
@@ -105,7 +105,7 @@ export class BookmarkDetailManager {
 
     if (markdown) {
       const content = createElement('div', { className: 'markdown-content' });
-      content.innerHTML = parseMarkdown(markdown.content);
+      setSanitizedHTML(content, parseMarkdown(markdown.content));
       fragment.appendChild(content);
     }
 

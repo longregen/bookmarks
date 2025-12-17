@@ -120,12 +120,10 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
 
     // Stats summary
     const statsDiv = createElement('div', { className: 'job-stats' });
-    statsDiv.innerHTML = `
-      <span class="stat complete">${stats.complete} complete</span>
-      <span class="stat pending">${stats.pending + stats.inProgress} pending</span>
-      <span class="stat error">${stats.error} failed</span>
-      <span class="stat total">${stats.total} total</span>
-    `;
+    statsDiv.appendChild(createElement('span', { className: 'stat complete', textContent: `${stats.complete} complete` }));
+    statsDiv.appendChild(createElement('span', { className: 'stat pending', textContent: `${stats.pending + stats.inProgress} pending` }));
+    statsDiv.appendChild(createElement('span', { className: 'stat error', textContent: `${stats.error} failed` }));
+    statsDiv.appendChild(createElement('span', { className: 'stat total', textContent: `${stats.total} total` }));
     progressContainer.appendChild(statsDiv);
 
     jobItem.appendChild(progressContainer);
