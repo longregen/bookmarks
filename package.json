@@ -1,6 +1,6 @@
 {
   "name": "bookmark-rag-extension",
-  "version": "4.2.2",
+  "version": "4.2.3",
   "description": "Capture and semantically search your bookmarks using RAG",
   "type": "module",
   "scripts": {
