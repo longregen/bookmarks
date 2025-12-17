@@ -34,6 +34,7 @@ export function createDefine(platform: Platform): Record<string, string> {
 /** Shared HTML input entries across all builds */
 export const sharedInput: InputOption = {
   options: 'src/options/options.html',
+  'advanced-config': 'src/options/advanced-config.html',
   library: 'src/library/library.html',
   search: 'src/search/search.html',
   stumble: 'src/stumble/stumble.html',
