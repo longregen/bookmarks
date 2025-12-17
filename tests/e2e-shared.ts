@@ -350,6 +350,90 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
+  // Test 7b: CORS/Fetch - Bulk import fetches real Paul Graham article
+  // This test verifies that the webapp can actually fetch external URLs (CORS/fetch working)
+  await runner.runTest('CORS/Fetch - Bulk import fetches Paul Graham article', async () => {
+    const paulGrahamUrl = 'https://paulgraham.com/hwh.html';
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('#bulkUrlsInput');
+    await waitForSettingsLoad(page);
+
+    // Enter the Paul Graham article URL
+    await page.evaluate(`(() => {
+      const el = document.getElementById('bulkUrlsInput');
+      el.value = '${paulGrahamUrl}';
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+
+    // Wait for validation to show 1 valid URL
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Click start bulk import button
+    await page.click('#startBulkImport');
+
+    // Wait for the fetch to complete - check for status updates indicating fetch progress/completion
+    // The bulk import fetches URLs and creates bookmark entries
+    await page.waitForFunction(
+      `(() => {
+        const feedback = document.getElementById('bulkImportFeedback');
+        const status = document.getElementById('bulkImportStatus');
+        // Check if import is complete or has progress
+        if (feedback && feedback.textContent) {
+          const text = feedback.textContent.toLowerCase();
+          // Success indicators: completed, finished, or shows URL count
+          if (text.includes('complete') || text.includes('finished') || text.includes('created') || text.includes('1 of 1') || text.includes('fetched')) {
+            return true;
+          }
+        }
+        if (status && status.textContent) {
+          const text = status.textContent.toLowerCase();
+          if (text.includes('complete') || text.includes('finished') || text.includes('created')) {
+            return true;
+          }
+        }
+        return false;
+      })()`,
+      60000 // Allow up to 60 seconds for real network fetch
+    );
+
+    await page.close();
+
+    // Verify the bookmark was created in the library
+    const libraryPage = await adapter.newPage();
+    await libraryPage.goto(adapter.getPageUrl('library'));
+    await libraryPage.waitForSelector('#bookmarkList');
+
+    // Wait for bookmarks to load
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Check if a bookmark with paulgraham.com URL exists
+    const bookmarkFound = await libraryPage.evaluate(`
+      (() => {
+        const cards = document.querySelectorAll('.bookmark-card');
+        for (const card of cards) {
+          const url = card.querySelector('.card-url');
+          // Check if the URL contains paulgraham.com
+          if (url && url.textContent && url.textContent.includes('paulgraham.com')) {
+            return true;
+          }
+          // Also check href attribute if present
+          const link = card.querySelector('a[href*="paulgraham.com"]');
+          if (link) {
+            return true;
+          }
+        }
+        return false;
+      })()
+    `);
+
+    if (!bookmarkFound) {
+      throw new Error('Paul Graham article bookmark was not found in library after fetch');
+    }
+
+    await libraryPage.close();
+  });
+
   // Test 8: Export button exists
   await runner.runTest('Export button exists', async () => {
     const page = await adapter.newPage();
