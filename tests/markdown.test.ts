@@ -143,7 +143,7 @@ Also [link3](https://example3.com).
       expect(html.trim()).toBe('');
     });
 
-    it('should handle raw HTML in markdown (marked allows HTML by default)', () => {
+    it('should handle raw HTML in markdown', () => {
       const markdown = '<script>alert("xss")</script>';
       const html = parseMarkdown(markdown);
       expect(html).toBeDefined();

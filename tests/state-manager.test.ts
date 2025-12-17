@@ -39,7 +39,6 @@ describe('StateManager', () => {
       const manager1 = createStateManager({ name: 'Test1', timeoutMs: 1000 });
       const manager2 = createStateManager({ name: 'Test2', timeoutMs: 1000 });
 
-      // Both should share the same session ID (module-level)
       expect(manager1.getSessionId()).toBe(manager2.getSessionId());
     });
   });

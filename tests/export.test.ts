@@ -199,7 +199,7 @@ describe('Export utilities', () => {
         version: 2,
         bookmarks: [
           { url: 'https://example1.com', title: 'Valid' },
-          { url: 'https://example2.com' }, // Missing title
+          { url: 'https://example2.com' },
           { url: 'https://example3.com', title: 'Valid' },
         ],
       };
