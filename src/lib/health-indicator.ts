@@ -116,10 +116,10 @@ export function createHealthIndicator(container: HTMLElement): () => void {
   // Track current health state for click handling
   let currentHealthState: HealthState = 'idle';
 
-  // Click handler to navigate to settings when in error state
+  // Click handler to navigate to jobs page (filtered to failed) when in error state
   indicator.addEventListener('click', () => {
     if (currentHealthState === 'error') {
-      openExtensionPage('src/options/options.html');
+      openExtensionPage('src/jobs/jobs.html?status=failed');
     }
   });
 

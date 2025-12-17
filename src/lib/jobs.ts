@@ -337,3 +337,98 @@ export async function incrementParentJobProgress(
   });
   await broadcastEvent('JOB_UPDATED', { jobId: parentJobId });
 }
+
+/**
+ * Retry a failed job by resetting its associated bookmark to pending status.
+ * This allows the bookmark to be reprocessed by the queue.
+ */
+export async function retryJob(jobId: string): Promise<boolean> {
+  const job = await db.jobs.get(jobId);
+  if (!job || job.status !== JobStatus.FAILED) {
+    return false;
+  }
+
+  // If the job has an associated bookmark, reset it to pending
+  if (job.bookmarkId) {
+    const bookmark = await db.bookmarks.get(job.bookmarkId);
+    if (bookmark) {
+      await db.bookmarks.update(job.bookmarkId, {
+        status: 'pending',
+        errorMessage: undefined,
+        errorStack: undefined,
+        retryCount: 0,
+        lastRetryAt: undefined,
+        nextRetryAt: undefined,
+        updatedAt: new Date(),
+      });
+    }
+  }
+
+  // For URL_FETCH jobs, we can reset the job itself to pending
+  if (job.type === JobType.URL_FETCH) {
+    await db.jobs.update(jobId, {
+      status: JobStatus.PENDING,
+      progress: 0,
+      metadata: {
+        ...job.metadata,
+        errorMessage: undefined,
+        errorStack: undefined,
+        retryCount: (job.metadata.retryCount || 0) + 1,
+      },
+      updatedAt: new Date(),
+      completedAt: undefined,
+    });
+    await broadcastEvent('JOB_UPDATED', { jobId, status: JobStatus.PENDING });
+    return true;
+  }
+
+  // For other job types, just dismiss the failed job
+  // The bookmark reset above will trigger new jobs when processed
+  await dismissJob(jobId);
+  return true;
+}
+
+/**
+ * Dismiss a failed job by removing it from the database.
+ * This is useful when the user wants to acknowledge an error without retrying.
+ */
+export async function dismissJob(jobId: string): Promise<void> {
+  const job = await db.jobs.get(jobId);
+  if (!job) return;
+
+  await db.jobs.delete(jobId);
+  await broadcastEvent('JOB_UPDATED', { jobId, deleted: true });
+}
+
+/**
+ * Delete a bookmark and all its associated data (markdown, Q&A, jobs, tags).
+ */
+export async function deleteBookmarkWithData(bookmarkId: string): Promise<void> {
+  // Delete all associated data
+  await db.markdown.where('bookmarkId').equals(bookmarkId).delete();
+  await db.questionsAnswers.where('bookmarkId').equals(bookmarkId).delete();
+  await db.bookmarkTags.where('bookmarkId').equals(bookmarkId).delete();
+  await db.jobs.where('bookmarkId').equals(bookmarkId).delete();
+
+  // Delete the bookmark itself
+  await db.bookmarks.delete(bookmarkId);
+
+  await broadcastEvent('BOOKMARK_UPDATED', { bookmarkId, deleted: true });
+}
+
+/**
+ * Get the associated bookmark for a job (if any).
+ */
+export async function getJobBookmark(jobId: string): Promise<{ id: string; url: string; title: string } | null> {
+  const job = await db.jobs.get(jobId);
+  if (!job?.bookmarkId) return null;
+
+  const bookmark = await db.bookmarks.get(job.bookmarkId);
+  if (!bookmark) return null;
+
+  return {
+    id: bookmark.id,
+    url: bookmark.url,
+    title: bookmark.title,
+  };
+}
