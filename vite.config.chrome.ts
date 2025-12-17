@@ -1,27 +1,17 @@
 import { defineConfig } from 'vite';
 import { crx } from '@crxjs/vite-plugin';
-import manifest from './manifest.chrome.json';
-import { sharedDefine, sharedOutput } from './vite.config.shared';
+import { chromeManifest } from './manifest.base';
+import { createDefine, extensionInput, sharedOutput } from './vite.config.shared';
 
 export default defineConfig({
-  define: {
-    ...sharedDefine,
-    __IS_CHROME__: JSON.stringify(true),
-    __IS_FIREFOX__: JSON.stringify(false),
-    __IS_WEB__: JSON.stringify(false),
-  },
-  plugins: [crx({ manifest })],
+  define: createDefine('chrome'),
+  plugins: [crx({ manifest: chromeManifest })],
   build: {
     outDir: 'dist-chrome',
     sourcemap: true,
     rollupOptions: {
       input: {
-        popup: 'src/popup/popup.html',
-        options: 'src/options/options.html',
-        library: 'src/library/library.html',
-        search: 'src/search/search.html',
-        stumble: 'src/stumble/stumble.html',
-        jobs: 'src/jobs/jobs.html',
+        ...extensionInput,
         offscreen: 'src/offscreen/offscreen.html',
       },
       output: sharedOutput,
