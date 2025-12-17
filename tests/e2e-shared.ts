@@ -147,6 +147,7 @@ export interface TestOptions {
   skipRealApiTests?: boolean;
   skipApiConnectionTest?: boolean;
   skipCorsFetchTest?: boolean;
+  skipBulkImportTest?: boolean;
 }
 
 export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, options: TestOptions = {}): Promise<void> {
@@ -304,8 +305,11 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
-  // Test bulk import with mock pages (no external network required)
-  await runner.runTest('Bulk import processes 3 iconic documents with Q&A generation', async () => {
+  // Test bulk import with mock pages (requires tab renderer - extension only)
+  if (options.skipBulkImportTest) {
+    console.log('  (Skipping bulk import test for this platform)');
+  } else {
+    await runner.runTest('Bulk import processes 3 iconic documents with Q&A generation', async () => {
     const mockUrls = adapter.getMockPageUrls();
     if (mockUrls.length !== 3) {
       throw new Error(`Expected 3 mock URLs, got ${mockUrls.length}`);
@@ -326,11 +330,15 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
 
     await new Promise(resolve => setTimeout(resolve, 600));
 
-    // Verify validation shows 3 valid URLs
-    const feedbackText = await page.$eval<string>('#urlValidationFeedback', 'el => el.textContent');
-    if (!feedbackText?.includes('3 valid')) {
-      throw new Error(`Expected "3 valid URLs" in feedback, got: ${feedbackText}`);
-    }
+    // Wait for validation to complete and button to be enabled
+    await page.waitForFunction(
+      `(() => {
+        const feedback = document.getElementById('urlValidationFeedback');
+        const btn = document.getElementById('startBulkImport');
+        return feedback?.textContent?.includes('3 valid') && btn && !btn.disabled;
+      })()`,
+      10000
+    );
 
     // Start the import
     await page.click('#startBulkImport');
@@ -403,7 +411,8 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     console.log(`  ✓ Found ${qaCount} Q&A pairs for imported document`);
 
     await libraryPage.close();
-  });
+    });
+  }
 
   if (options.skipCorsFetchTest) {
     console.log('  (Skipping CORS/fetch test for this platform)');
