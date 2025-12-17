@@ -10,6 +10,11 @@ async function stopKeepalive(): Promise<void> {
   await chrome.alarms.clear(KEEPALIVE_ALARM_NAME);
 }
 
+async function sleep(ms: number): Promise<void> {
+  if (ms <= 0) return;
+  return new Promise(resolve => { setTimeout(resolve, ms); });
+}
+
 export async function renderPage(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
   let tabId: number | undefined;
 
@@ -46,6 +51,12 @@ export async function renderPage(url: string, timeoutMs: number = config.FETCH_T
       } catch (closeError) {
         console.error('Failed to close tab:', closeError);
       }
+    }
+
+    // Add delay between tab operations to prevent browser overload during bulk imports
+    const delayMs = config.TAB_CREATION_DELAY_MS;
+    if (delayMs > 0) {
+      await sleep(delayMs);
     }
   }
 }

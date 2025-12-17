@@ -11,11 +11,13 @@ describe('Bulk Import Library', () => {
   beforeEach(async () => {
     await db.jobs.clear();
     await db.bookmarks.clear();
+    await db.jobItems.clear();
   });
 
   afterEach(async () => {
     await db.jobs.clear();
     await db.bookmarks.clear();
+    await db.jobItems.clear();
   });
 
   describe('validateSingleUrl', () => {
@@ -225,13 +227,19 @@ describe('Bulk Import Library', () => {
       const job = await db.jobs.get(jobId);
       expect(job).toBeDefined();
       expect(job?.type).toBe(JobType.BULK_URL_IMPORT);
-      expect(job?.status).toBe(JobStatus.COMPLETED);
+      // Job starts as IN_PROGRESS and is updated as items complete
+      expect(job?.status).toBe(JobStatus.IN_PROGRESS);
       expect(job?.metadata.totalUrls).toBe(3);
 
       const bookmarks = await db.bookmarks.toArray();
       expect(bookmarks).toHaveLength(3);
       expect(bookmarks.every(b => b.status === 'fetching')).toBe(true);
       expect(bookmarks.every(b => b.html === '')).toBe(true);
+
+      // Job items should be created for each bookmark
+      const jobItems = await db.jobItems.toArray();
+      expect(jobItems).toHaveLength(3);
+      expect(jobItems.every(item => item.jobId === jobId)).toBe(true);
     });
 
     it('should handle single URL', async () => {

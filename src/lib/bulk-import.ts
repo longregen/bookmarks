@@ -1,5 +1,5 @@
 import { db, JobType, JobStatus } from '../db/schema';
-import { createJob } from './jobs';
+import { createJob, createJobItems } from './jobs';
 import { validateWebUrl } from './url-validator';
 
 export interface UrlValidation {
@@ -63,39 +63,48 @@ export function validateSingleUrl(url: string): UrlValidation {
 
 export async function createBulkImportJob(urls: string[]): Promise<string> {
   const now = new Date();
+  const bookmarkIds: string[] = [];
 
   // Create bookmarks with status='fetching' for each URL
   for (const url of urls) {
     const existing = await db.bookmarks.where('url').equals(url).first();
     if (!existing) {
+      const id = crypto.randomUUID();
       await db.bookmarks.add({
-        id: crypto.randomUUID(),
+        id,
         url,
         title: url,
         html: '',
         status: 'fetching',
+        retryCount: 0,
         createdAt: now,
         updatedAt: now,
       });
+      bookmarkIds.push(id);
     } else {
       // Reset existing bookmark to be re-fetched
       await db.bookmarks.update(existing.id, {
         status: 'fetching',
         html: '',
         errorMessage: undefined,
+        retryCount: 0,
         updatedAt: now,
       });
+      bookmarkIds.push(existing.id);
     }
   }
 
-  // Create job as completed log entry
+  // Create job with IN_PROGRESS status (will be updated as items complete)
   const job = await createJob({
     type: JobType.BULK_URL_IMPORT,
-    status: JobStatus.COMPLETED,
+    status: JobStatus.IN_PROGRESS,
     metadata: {
       totalUrls: urls.length,
     },
   });
+
+  // Create job items for each bookmark
+  await createJobItems(job.id, bookmarkIds);
 
   return job.id;
 }

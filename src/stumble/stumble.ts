@@ -40,8 +40,10 @@ const detailManager = new BookmarkDetailManager({
   deleteBtn: getElement<HTMLButtonElement>('deleteBtn'),
   exportBtn: getElement<HTMLButtonElement>('exportBtn'),
   debugBtn: getElement<HTMLButtonElement>('debugBtn'),
+  retryBtn: getElement<HTMLButtonElement>('retryBtn'),
   onDelete: () => void loadStumble(),
-  onTagsChange: () => void loadFilters()
+  onTagsChange: () => void loadFilters(),
+  onRetry: () => void loadStumble()
 });
 
 shuffleBtn.addEventListener('click', () => void loadStumble());

@@ -11,16 +11,32 @@ vi.mock('../src/lib/webdav-sync', () => ({
   triggerSyncIfEnabled: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('../src/lib/jobs', () => ({
+  updateJobItemByBookmark: vi.fn().mockResolvedValue(undefined),
+  getJobItemByBookmark: vi.fn().mockResolvedValue(undefined),
+  updateJobStatus: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../src/lib/config-registry', () => ({
+  config: {
+    QUEUE_MAX_RETRIES: 0, // Disable retries in tests for predictable behavior
+    QUEUE_RETRY_BASE_DELAY_MS: 0,
+    QUEUE_RETRY_MAX_DELAY_MS: 0,
+  },
+}));
+
 describe('Queue Management', () => {
   beforeEach(async () => {
     await db.bookmarks.clear();
     await db.jobs.clear();
+    await db.jobItems.clear();
     vi.clearAllMocks();
   });
 
   afterEach(async () => {
     await db.bookmarks.clear();
     await db.jobs.clear();
+    await db.jobItems.clear();
   });
 
   describe('startProcessingQueue', () => {
@@ -140,7 +156,8 @@ describe('Queue Management', () => {
 
       const updatedBookmark = await db.bookmarks.get('test-1');
       expect(updatedBookmark?.status).toBe('error');
-      expect(updatedBookmark?.errorMessage).toBe('Processing failed');
+      // Error message includes retry context
+      expect(updatedBookmark?.errorMessage).toContain('Processing failed');
     });
 
     it('should continue processing after error', async () => {

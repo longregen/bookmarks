@@ -1,6 +1,6 @@
-import { db, type Job, JobType, JobStatus } from '../db/schema';
+import { db, type Job, type JobItem, JobType, JobStatus, JobItemStatus } from '../db/schema';
 
-export { type Job, JobType, JobStatus };
+export { type Job, type JobItem, JobType, JobStatus, JobItemStatus };
 
 export async function createJob(params: {
   type: JobType;
@@ -70,5 +70,167 @@ export async function deleteBookmarkWithData(bookmarkId: string): Promise<void> 
   await db.markdown.where('bookmarkId').equals(bookmarkId).delete();
   await db.questionsAnswers.where('bookmarkId').equals(bookmarkId).delete();
   await db.bookmarkTags.where('bookmarkId').equals(bookmarkId).delete();
+  await db.jobItems.where('bookmarkId').equals(bookmarkId).delete();
   await db.bookmarks.delete(bookmarkId);
+}
+
+// JobItem management functions
+
+export async function createJobItem(params: {
+  jobId: string;
+  bookmarkId: string;
+  status?: JobItemStatus;
+}): Promise<JobItem> {
+  const now = new Date();
+  const jobItem: JobItem = {
+    id: crypto.randomUUID(),
+    jobId: params.jobId,
+    bookmarkId: params.bookmarkId,
+    status: params.status ?? JobItemStatus.PENDING,
+    retryCount: 0,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await db.jobItems.add(jobItem);
+  return jobItem;
+}
+
+export async function createJobItems(jobId: string, bookmarkIds: string[]): Promise<void> {
+  const now = new Date();
+  const jobItems: JobItem[] = bookmarkIds.map(bookmarkId => ({
+    id: crypto.randomUUID(),
+    jobId,
+    bookmarkId,
+    status: JobItemStatus.PENDING,
+    retryCount: 0,
+    createdAt: now,
+    updatedAt: now,
+  }));
+
+  await db.jobItems.bulkAdd(jobItems);
+}
+
+export async function getJobItems(jobId: string): Promise<JobItem[]> {
+  return db.jobItems.where('jobId').equals(jobId).toArray();
+}
+
+export async function getJobItemByBookmark(bookmarkId: string): Promise<JobItem | undefined> {
+  return db.jobItems.where('bookmarkId').equals(bookmarkId).first();
+}
+
+export async function updateJobItem(
+  id: string,
+  updates: Partial<Pick<JobItem, 'status' | 'retryCount' | 'errorMessage'>>
+): Promise<void> {
+  await db.jobItems.update(id, {
+    ...updates,
+    updatedAt: new Date(),
+  });
+}
+
+export async function updateJobItemByBookmark(
+  bookmarkId: string,
+  updates: Partial<Pick<JobItem, 'status' | 'retryCount' | 'errorMessage'>>
+): Promise<void> {
+  const jobItem = await getJobItemByBookmark(bookmarkId);
+  if (jobItem) {
+    await updateJobItem(jobItem.id, updates);
+  }
+}
+
+export async function getJobStats(jobId: string): Promise<{
+  total: number;
+  pending: number;
+  inProgress: number;
+  complete: number;
+  error: number;
+}> {
+  const items = await getJobItems(jobId);
+  return {
+    total: items.length,
+    pending: items.filter(i => i.status === JobItemStatus.PENDING).length,
+    inProgress: items.filter(i => i.status === JobItemStatus.IN_PROGRESS).length,
+    complete: items.filter(i => i.status === JobItemStatus.COMPLETE).length,
+    error: items.filter(i => i.status === JobItemStatus.ERROR).length,
+  };
+}
+
+export async function updateJobStatus(jobId: string): Promise<void> {
+  const stats = await getJobStats(jobId);
+  let status: JobStatus;
+
+  if (stats.total === 0) {
+    status = JobStatus.COMPLETED;
+  } else if (stats.complete === stats.total) {
+    status = JobStatus.COMPLETED;
+  } else if (stats.error > 0 && stats.pending === 0 && stats.inProgress === 0) {
+    // All items are either complete or error, and at least one error
+    status = stats.complete > 0 ? JobStatus.COMPLETED : JobStatus.FAILED;
+  } else if (stats.inProgress > 0 || stats.pending > 0) {
+    status = JobStatus.IN_PROGRESS;
+  } else {
+    status = JobStatus.COMPLETED;
+  }
+
+  await db.jobs.update(jobId, { status });
+}
+
+export async function retryFailedJobItems(jobId: string): Promise<number> {
+  const items = await db.jobItems
+    .where('[jobId+status]')
+    .equals([jobId, JobItemStatus.ERROR])
+    .toArray();
+
+  const now = new Date();
+  const bookmarkIds: string[] = [];
+
+  for (const item of items) {
+    await db.jobItems.update(item.id, {
+      status: JobItemStatus.PENDING,
+      retryCount: 0,
+      errorMessage: undefined,
+      updatedAt: now,
+    });
+    bookmarkIds.push(item.bookmarkId);
+  }
+
+  // Reset bookmarks to fetching status
+  for (const bookmarkId of bookmarkIds) {
+    await db.bookmarks.update(bookmarkId, {
+      status: 'fetching',
+      errorMessage: undefined,
+      retryCount: 0,
+      updatedAt: now,
+    });
+  }
+
+  // Update job status
+  await updateJobStatus(jobId);
+
+  return items.length;
+}
+
+export async function retryBookmark(bookmarkId: string): Promise<void> {
+  const now = new Date();
+
+  // Reset the bookmark
+  await db.bookmarks.update(bookmarkId, {
+    status: 'fetching',
+    errorMessage: undefined,
+    retryCount: 0,
+    updatedAt: now,
+  });
+
+  // Reset the job item if exists
+  const jobItem = await getJobItemByBookmark(bookmarkId);
+  if (jobItem) {
+    await db.jobItems.update(jobItem.id, {
+      status: JobItemStatus.PENDING,
+      retryCount: 0,
+      errorMessage: undefined,
+      updatedAt: now,
+    });
+    await updateJobStatus(jobItem.jobId);
+  }
 }

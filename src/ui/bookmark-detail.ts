@@ -5,6 +5,7 @@ import { exportSingleBookmark } from '../lib/export';
 import { downloadExport } from './export-download';
 import { createTagEditor } from './tag-editor';
 import { parseMarkdown } from '../lib/markdown';
+import { retryBookmark } from '../lib/jobs';
 
 export interface BookmarkDetailConfig {
   detailPanel: HTMLElement;
@@ -14,8 +15,10 @@ export interface BookmarkDetailConfig {
   deleteBtn: HTMLButtonElement;
   exportBtn: HTMLButtonElement;
   debugBtn: HTMLButtonElement;
+  retryBtn?: HTMLButtonElement;
   onDelete?: () => void;
   onTagsChange?: () => void;
+  onRetry?: () => void;
 }
 
 export class BookmarkDetailManager {
@@ -33,6 +36,9 @@ export class BookmarkDetailManager {
     this.config.deleteBtn.addEventListener('click', () => this.deleteCurrentBookmark());
     this.config.exportBtn.addEventListener('click', () => this.exportCurrentBookmark());
     this.config.debugBtn.addEventListener('click', () => this.debugCurrentBookmark());
+    if (this.config.retryBtn) {
+      this.config.retryBtn.addEventListener('click', () => this.retryCurrentBookmark());
+    }
   }
 
   async showDetail(bookmarkId: string): Promise<void> {
@@ -41,6 +47,11 @@ export class BookmarkDetailManager {
     if (!bookmark) return;
 
     const { markdown, qaPairs } = await getBookmarkContent(bookmarkId);
+
+    // Show/hide retry button based on status
+    if (this.config.retryBtn) {
+      this.config.retryBtn.style.display = bookmark.status === 'error' ? '' : 'none';
+    }
 
     this.config.detailContent.innerHTML = '';
     this.config.detailContent.appendChild(
@@ -58,6 +69,23 @@ export class BookmarkDetailManager {
     });
     meta.appendChild(url);
     meta.appendChild(document.createTextNode(` · ${formatDateByAge(bookmark.createdAt)} · ${bookmark.status}`));
+
+    // Show error message if present
+    if (bookmark.status === 'error' && bookmark.errorMessage !== undefined && bookmark.errorMessage !== '') {
+      const errorDiv = createElement('div', {
+        style: {
+          marginTop: 'var(--space-2)',
+          padding: 'var(--space-3)',
+          backgroundColor: 'var(--danger-bg, #fef2f2)',
+          color: 'var(--danger-text, #dc2626)',
+          borderRadius: 'var(--radius-sm)',
+          fontSize: 'var(--text-sm)',
+        },
+        textContent: bookmark.errorMessage,
+      });
+      meta.appendChild(errorDiv);
+    }
+
     this.config.detailContent.appendChild(meta);
 
     const tagEditorContainer = createElement('div', { style: { marginBottom: 'var(--space-6)' } });
@@ -141,5 +169,34 @@ export class BookmarkDetailManager {
 
     // eslint-disable-next-line no-alert
     alert(`HTML Length: ${bookmark.html.length} chars\nStatus: ${bookmark.status}\n\n${bookmark.html.slice(0, 500)}...`);
+  }
+
+  async retryCurrentBookmark(): Promise<void> {
+    if (this.currentBookmarkId === null) return;
+
+    const retryBtn = this.config.retryBtn;
+    if (retryBtn) {
+      retryBtn.disabled = true;
+      retryBtn.textContent = 'Retrying...';
+    }
+
+    try {
+      await retryBookmark(this.currentBookmarkId);
+
+      // Trigger the processing queue
+      await chrome.runtime.sendMessage({ type: 'START_PROCESSING' });
+
+      this.closeDetail();
+      this.config.onRetry?.();
+    } catch (error) {
+      console.error('Failed to retry bookmark:', error);
+      // eslint-disable-next-line no-alert
+      alert('Failed to retry bookmark. Please try again.');
+    } finally {
+      if (retryBtn) {
+        retryBtn.disabled = false;
+        retryBtn.textContent = 'Retry';
+      }
+    }
   }
 }

@@ -72,6 +72,15 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     max: 30000,
   },
   {
+    key: 'TAB_CREATION_DELAY_MS',
+    defaultValue: 500,
+    type: 'number',
+    description: 'Delay between creating tabs during bulk import to prevent overloading the browser (in milliseconds)',
+    category: CONFIG_CATEGORIES.FETCHER,
+    min: 0,
+    max: 5000,
+  },
+  {
     key: 'DEFAULT_API_BASE_URL',
     defaultValue: 'https://api.openai.com/v1',
     type: 'string',
@@ -443,6 +452,7 @@ export interface ConfigValues {
   FETCH_MAX_HTML_SIZE: number;
   FETCH_OFFSCREEN_BUFFER_MS: number;
   PAGE_SETTLE_TIME_MS: number;
+  TAB_CREATION_DELAY_MS: number;
   DEFAULT_API_BASE_URL: string;
   API_CONTENT_MAX_CHARS: number;
   API_CHAT_TEMPERATURE: number;
