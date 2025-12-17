@@ -97,6 +97,13 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     max: 2,
   },
   {
+    key: 'API_CHAT_USE_TEMPERATURE',
+    defaultValue: true,
+    type: 'boolean',
+    description: 'Include temperature parameter in chat API requests (disable for APIs that reject it)',
+    category: CONFIG_CATEGORIES.API,
+  },
+  {
     key: 'SEARCH_HISTORY_LIMIT',
     defaultValue: 50,
     type: 'number',
@@ -425,6 +432,7 @@ export interface ConfigValues {
   DEFAULT_API_BASE_URL: string;
   API_CONTENT_MAX_CHARS: number;
   API_CHAT_TEMPERATURE: number;
+  API_CHAT_USE_TEMPERATURE: boolean;
   SEARCH_HISTORY_LIMIT: number;
   SEARCH_AUTOCOMPLETE_LIMIT: number;
   SEARCH_TOP_K_RESULTS: number;
