@@ -29,6 +29,13 @@
     </aside>
 
     <main class="middle">
+      <div id="addUrlSection" class="add-url-section hidden">
+        <div class="add-url-box">
+          <input type="url" id="addUrlInput" class="input" placeholder="Enter URL to bookmark...">
+          <button id="addUrlBtn" class="btn btn-primary">Add</button>
+        </div>
+        <div id="addUrlStatus" class="add-url-status hidden"></div>
+      </div>
       <div class="controls">
         <h2 style="margin: 0; font-size: var(--text-lg);">Bookmarks (<span id="bookmarkCount">0</span>)</h2>
         <select id="sortSelect" class="input" style="width: auto; padding: var(--space-2) var(--space-3);">

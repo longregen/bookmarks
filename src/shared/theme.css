@@ -733,6 +733,26 @@
   max-width: 320px;
 }
 
+/* Error Message */
+.error-message {
+  padding: var(--space-4);
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.error-link {
+  color: var(--error-text);
+  text-decoration: underline;
+  font-weight: var(--font-medium);
+}
+
+.error-link:hover {
+  text-decoration: none;
+}
+
 /* Loading State */
 .loading {
   display: flex;
