@@ -1,5 +1,4 @@
 import { getPlatformAdapter } from './platform';
-import { getSettings as _getSettings } from './settings';
 import { config } from './config-registry';
 
 interface QAPair {

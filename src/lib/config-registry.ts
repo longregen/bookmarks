@@ -353,13 +353,12 @@ export async function saveConfigOverrides(): Promise<void> {
  * Get a config value (with override if set)
  * Uses pre-computed cache for O(1) lookups
  */
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
-export function getConfigValue<T extends number | string | boolean>(key: string): T {
+export function getConfigValue(key: string): number | string | boolean {
   if (!registryMap.has(key)) {
     throw new Error(`Unknown config key: ${key}`);
   }
 
-  return configCache[key] as T;
+  return configCache[key];
 }
 
 /**

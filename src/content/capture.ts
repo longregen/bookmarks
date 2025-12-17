@@ -1,5 +1,5 @@
 import { getTheme, getEffectiveTheme } from '../shared/theme';
-import type { SaveBookmarkResponse as _SaveBookmarkResponse, CapturePageResponse } from '../lib/messages';
+import type { SaveBookmarkResponse, CapturePageResponse } from '../lib/messages';
 
 const themeCssVariables = {
   light: `
@@ -50,7 +50,7 @@ async function capturePage(): Promise<void> {
   const html = document.documentElement.outerHTML;
 
   try {
-    const response: { success?: boolean } | undefined = await chrome.runtime.sendMessage({
+    const response: SaveBookmarkResponse | undefined = await chrome.runtime.sendMessage({
       type: 'SAVE_BOOKMARK',
       data: { url, title, html }
     });

@@ -6,7 +6,6 @@
 
 import { config } from './config-registry';
 import { renderPage } from './tab-renderer';
-import type { FetchUrlResponse } from './messages';
 
 export async function fetchWithTimeout(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
   const controller = new AbortController();
@@ -39,37 +38,4 @@ export async function fetchWithTimeout(url: string, timeoutMs: number = config.F
 export async function browserFetch(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
   // Use tab-based rendering to capture dynamically-rendered content that simple fetch() would miss
   return renderPage(url, timeoutMs);
-}
-
-/**
- * @deprecated No longer used - service workers can fetch directly with host_permissions
- */
-async function _fetchViaOffscreen(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error('Fetch timeout via offscreen document'));
-    }, timeoutMs + config.FETCH_OFFSCREEN_BUFFER_MS);
-
-    chrome.runtime.sendMessage(
-      {
-        type: 'FETCH_URL',
-        url,
-        timeoutMs,
-      },
-      (response: FetchUrlResponse) => {
-        clearTimeout(timeout);
-
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-          return;
-        }
-
-        if (response.success && response.html !== undefined) {
-          resolve(response.html);
-        } else {
-          reject(new Error(response.error ?? 'Unknown fetch error'));
-        }
-      }
-    );
-  });
 }
