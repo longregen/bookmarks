@@ -4,7 +4,7 @@ npm run lint
 npm run typecheck
 npm run test:unit
 
-# E2E tests - use Playwright's Chromium if available (non-blocking)
+# E2E tests - use Playwright's Chromium if available
 if [ -z "$BROWSER_PATH" ]; then
   PLAYWRIGHT_CHROME="$HOME/.cache/ms-playwright/chromium-1194/chrome-linux/chrome"
   if [ -x "$PLAYWRIGHT_CHROME" ]; then
