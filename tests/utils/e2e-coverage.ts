@@ -74,12 +74,25 @@ async function convertToIstanbul(entries: CoverageEntry[]): Promise<CoverageMapD
         continue;
       }
 
-      // Read source from disk to get sourceMappingURL comment for source map support
+      // Read source from disk to get sourceMappingURL comment
       const sourceFromDisk = fs.readFileSync(filePath, 'utf-8');
 
-      const converter = v8ToIstanbul(filePath, 0, {
+      // Try to load source map explicitly for accurate mapping to source files
+      const sourceMapPath = filePath + '.map';
+      let converterOptions: { source: string; sourceMap?: { sourcemap: unknown } } = {
         source: sourceFromDisk,
-      });
+      };
+
+      if (fs.existsSync(sourceMapPath)) {
+        try {
+          const sourceMapContent = JSON.parse(fs.readFileSync(sourceMapPath, 'utf-8'));
+          converterOptions.sourceMap = { sourcemap: sourceMapContent };
+        } catch {
+          // Source map parsing failed, continue without it
+        }
+      }
+
+      const converter = v8ToIstanbul(filePath, 0, converterOptions);
 
       await converter.load();
 
