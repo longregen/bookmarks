@@ -26,7 +26,21 @@ export const sharedDefine = {
  */
 export const sharedOutput: OutputOptions = {
   manualChunks(id) {
+    // Split vendor dependencies by usage pattern for optimal code splitting
     if (id.includes('node_modules')) {
+      // Database (dexie) - used by all pages that access bookmarks
+      if (id.includes('dexie')) {
+        return 'vendor-db';
+      }
+      // Content extraction - only needed for capture operations
+      if (id.includes('@mozilla/readability') || id.includes('turndown')) {
+        return 'vendor-capture';
+      }
+      // Markdown rendering - only needed for displaying formatted content
+      if (id.includes('marked')) {
+        return 'vendor-markdown';
+      }
+      // Other vendor code (should be minimal)
       return 'vendor';
     }
     // UI components must be separate from shared to keep DOM code out of service worker
@@ -69,6 +83,6 @@ export const sharedOutput: OutputOptions = {
 export const sharedConfig: Partial<UserConfig> = {
   define: sharedDefine,
   build: {
-    sourcemap: true,
+    sourcemap: false,
   },
 };

@@ -11,7 +11,7 @@ export default defineConfig({
   base: '/webapp/',
   build: {
     outDir: 'dist-web',
-    sourcemap: true,
+    sourcemap: false,
     rollupOptions: {
       input: {
         index: 'src/web/index.html',
