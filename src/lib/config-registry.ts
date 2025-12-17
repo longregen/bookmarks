@@ -459,3 +459,82 @@ export async function ensureConfigLoaded(): Promise<void> {
     await loadConfigOverrides();
   }
 }
+
+// ============================================================================
+// CONFIG OBJECT WITH GETTERS/SETTERS
+// ============================================================================
+
+/**
+ * Type definition for the config object
+ * Each property corresponds to a configurable constant
+ */
+export interface ConfigValues {
+  // Fetcher
+  FETCH_CONCURRENCY: number;
+  FETCH_TIMEOUT_MS: number;
+  FETCH_MAX_HTML_SIZE: number;
+  FETCH_OFFSCREEN_BUFFER_MS: number;
+  // API
+  DEFAULT_API_BASE_URL: string;
+  API_CONTENT_MAX_CHARS: number;
+  API_CHAT_TEMPERATURE: number;
+  // Search
+  SEARCH_HISTORY_LIMIT: number;
+  SEARCH_AUTOCOMPLETE_LIMIT: number;
+  SEARCH_TOP_K_RESULTS: number;
+  // Queue
+  QUEUE_PROCESSING_TIMEOUT_MS: number;
+  QUEUE_STATE_TIMEOUT_MS: number;
+  QUEUE_MAX_RETRIES: number;
+  QUEUE_RETRY_BASE_DELAY_MS: number;
+  QUEUE_RETRY_MAX_DELAY_MS: number;
+  // Processor
+  PROCESSOR_QA_GENERATION_PROGRESS: number;
+  PROCESSOR_QA_SAVING_PROGRESS: number;
+  // WebDAV
+  WEBDAV_SYNC_TIMEOUT_MS: number;
+  WEBDAV_SYNC_DEBOUNCE_MS: number;
+  // Stumble
+  STUMBLE_COUNT: number;
+  // Date
+  DATE_RELATIVE_TIME_THRESHOLD_DAYS: number;
+  DATE_FULL_DATE_THRESHOLD_DAYS: number;
+  // Health
+  HEALTH_REFRESH_INTERVAL_MS: number;
+  // Similarity
+  SIMILARITY_THRESHOLD_EXCELLENT: number;
+  SIMILARITY_THRESHOLD_GOOD: number;
+  SIMILARITY_THRESHOLD_FAIR: number;
+  SIMILARITY_THRESHOLD_POOR: number;
+}
+
+/**
+ * Default values for all config entries (used as fallback in tests)
+ */
+export const CONFIG_DEFAULTS: ConfigValues = CONFIG_REGISTRY.reduce((acc, entry) => {
+  acc[entry.key as keyof ConfigValues] = entry.defaultValue as never;
+  return acc;
+}, {} as ConfigValues);
+
+/**
+ * Config object with getters that read from the config registry.
+ * Use this instead of importing constants directly to respect user overrides.
+ *
+ * Example usage:
+ *   import { config } from './config-registry';
+ *   const timeout = config.FETCH_TIMEOUT_MS;
+ *
+ * For tests that need predictable values, use CONFIG_DEFAULTS instead.
+ */
+export const config: ConfigValues = Object.create(null);
+
+// Create getters for each config entry
+CONFIG_REGISTRY.forEach(entry => {
+  Object.defineProperty(config, entry.key, {
+    get(): number | string | boolean {
+      return getConfigValue(entry.key);
+    },
+    enumerable: true,
+    configurable: false,
+  });
+});

@@ -1,8 +1,5 @@
-import {
-  TIME,
-  DATE_RELATIVE_TIME_THRESHOLD_DAYS,
-  DATE_FULL_DATE_THRESHOLD_DAYS
-} from './constants';
+import { TIME } from './constants';
+import { config } from './config-registry';
 
 /**
  * Format a date as relative time (e.g., "2h ago", "3 days ago")
@@ -30,9 +27,9 @@ export function formatDateByAge(date: Date, now = new Date()): string {
   const diffMs = now.getTime() - date.getTime();
   const diffDays = diffMs / TIME.MS_PER_DAY;
 
-  if (diffDays < DATE_RELATIVE_TIME_THRESHOLD_DAYS) {
+  if (diffDays < config.DATE_RELATIVE_TIME_THRESHOLD_DAYS) {
     return formatRelativeTime(date, now);
-  } else if (diffDays < DATE_FULL_DATE_THRESHOLD_DAYS) {
+  } else if (diffDays < config.DATE_FULL_DATE_THRESHOLD_DAYS) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   } else {
     return date.toISOString().split('T')[0];

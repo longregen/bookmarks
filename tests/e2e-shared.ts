@@ -107,7 +107,7 @@ export function getMockModelsResponse(): object {
 // E2E TEST HELPERS
 // ============================================================================
 
-import { DEFAULT_API_BASE_URL, FETCH_OFFSCREEN_BUFFER_MS } from '../src/lib/constants';
+import { CONFIG_DEFAULTS } from '../src/lib/config-registry';
 
 /**
  * Wait for settings to load from IndexedDB.
@@ -116,7 +116,7 @@ import { DEFAULT_API_BASE_URL, FETCH_OFFSCREEN_BUFFER_MS } from '../src/lib/cons
 export async function waitForSettingsLoad(page: PageHandle): Promise<void> {
   await page.waitForFunction(
     `document.getElementById('apiBaseUrl')?.value?.length > 0`,
-    FETCH_OFFSCREEN_BUFFER_MS
+    CONFIG_DEFAULTS.FETCH_OFFSCREEN_BUFFER_MS
   );
 }
 
@@ -573,7 +573,7 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
       await waitForSettingsLoad(page);
 
       // Set real API settings
-      await page.evaluate(`document.getElementById('apiBaseUrl').value = '${DEFAULT_API_BASE_URL}'`);
+      await page.evaluate(`document.getElementById('apiBaseUrl').value = '${CONFIG_DEFAULTS.DEFAULT_API_BASE_URL}'`);
       await page.evaluate(`document.getElementById('apiKey').value = '${adapter.getRealApiKey()}'`);
       await page.evaluate(`document.getElementById('chatModel').value = 'gpt-4o-mini'`);
       await page.evaluate(`document.getElementById('embeddingModel').value = 'text-embedding-3-small'`);

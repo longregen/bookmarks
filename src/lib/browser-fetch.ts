@@ -4,11 +4,7 @@
  * Build-time constants ensure only the relevant code path is included in each build.
  */
 
-import {
-  FETCH_TIMEOUT_MS,
-  FETCH_MAX_HTML_SIZE,
-  FETCH_OFFSCREEN_BUFFER_MS
-} from './constants';
+import { config } from './config-registry';
 
 /**
  * Fetch a URL with timeout
@@ -16,7 +12,7 @@ import {
  * @param timeoutMs Timeout in milliseconds
  * @returns HTML content
  */
-export async function fetchWithTimeout(url: string, timeoutMs: number = FETCH_TIMEOUT_MS): Promise<string> {
+export async function fetchWithTimeout(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -35,7 +31,7 @@ export async function fetchWithTimeout(url: string, timeoutMs: number = FETCH_TI
     const html = await response.text();
 
     // Limit HTML size
-    if (html.length > FETCH_MAX_HTML_SIZE) {
+    if (html.length > config.FETCH_MAX_HTML_SIZE) {
       throw new Error(`HTML content too large: ${(html.length / 1024 / 1024).toFixed(2)} MB`);
     }
 
@@ -52,7 +48,7 @@ export async function fetchWithTimeout(url: string, timeoutMs: number = FETCH_TI
  * @param timeoutMs Timeout in milliseconds
  * @returns HTML content
  */
-export async function browserFetch(url: string, timeoutMs: number = FETCH_TIMEOUT_MS): Promise<string> {
+export async function browserFetch(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
   if (__IS_WEB__ || __IS_FIREFOX__) {
     // Web and Firefox can fetch directly (no CORS restrictions for direct fetch)
     return fetchWithTimeout(url, timeoutMs);
@@ -69,11 +65,11 @@ export async function browserFetch(url: string, timeoutMs: number = FETCH_TIMEOU
  * @param timeoutMs Timeout in milliseconds
  * @returns HTML content
  */
-async function fetchViaOffscreen(url: string, timeoutMs: number = FETCH_TIMEOUT_MS): Promise<string> {
+async function fetchViaOffscreen(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error('Fetch timeout via offscreen document'));
-    }, timeoutMs + FETCH_OFFSCREEN_BUFFER_MS); // Add buffer for message passing
+    }, timeoutMs + config.FETCH_OFFSCREEN_BUFFER_MS); // Add buffer for message passing
 
     chrome.runtime.sendMessage(
       {

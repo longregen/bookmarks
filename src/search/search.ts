@@ -9,11 +9,7 @@ import { initWeb } from '../web/init-web';
 import { createHealthIndicator } from '../lib/health-indicator';
 import { BookmarkDetailManager } from '../lib/bookmark-detail';
 import { loadTagFilters } from '../lib/tag-filter';
-import {
-  SEARCH_HISTORY_LIMIT,
-  SEARCH_AUTOCOMPLETE_LIMIT,
-  SEARCH_TOP_K_RESULTS
-} from '../lib/constants';
+import { config } from '../lib/config-registry';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
 
 let selectedTags: Set<string> = new Set();
@@ -68,8 +64,8 @@ async function saveSearchHistory(query: string, resultCount: number) {
     });
 
     const allHistory = await db.searchHistory.orderBy('createdAt').toArray();
-    if (allHistory.length > SEARCH_HISTORY_LIMIT) {
-      const toDelete = allHistory.slice(0, allHistory.length - SEARCH_HISTORY_LIMIT);
+    if (allHistory.length > config.SEARCH_HISTORY_LIMIT) {
+      const toDelete = allHistory.slice(0, allHistory.length - config.SEARCH_HISTORY_LIMIT);
       await Promise.all(toDelete.map(h => db.searchHistory.delete(h.id)));
     }
   } catch (error) {
@@ -98,7 +94,7 @@ async function showAutocomplete() {
 
   const matchingHistory = allHistory.filter(h =>
     h.query.toLowerCase().includes(query) && h.query.toLowerCase() !== query
-  ).slice(0, SEARCH_AUTOCOMPLETE_LIMIT);
+  ).slice(0, config.SEARCH_AUTOCOMPLETE_LIMIT);
 
   if (!matchingHistory.length) {
     hideAutocomplete();
@@ -227,7 +223,7 @@ async function performSearch() {
       return;
     }
 
-    const topResults = findTopK(queryEmbedding, items, SEARCH_TOP_K_RESULTS);
+    const topResults = findTopK(queryEmbedding, items, config.SEARCH_TOP_K_RESULTS);
     const bookmarkMap = new Map<string, { qa: QuestionAnswer; score: number }[]>();
 
     for (const result of topResults) {

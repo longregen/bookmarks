@@ -3,7 +3,7 @@ import { extractMarkdownAsync } from '../lib/extract';
 import { generateQAPairs, generateEmbeddings } from '../lib/api';
 import { createJob, updateJob, completeJob, failJob } from '../lib/jobs';
 import { broadcastEvent } from '../lib/events';
-import { PROCESSOR_QA_GENERATION_PROGRESS, PROCESSOR_QA_SAVING_PROGRESS } from '../lib/constants';
+import { config } from '../lib/config-registry';
 
 // Debug logger that compiles away when __DEBUG_EMBEDDINGS__ is false
 const debugLog = __DEBUG_EMBEDDINGS__
@@ -98,7 +98,7 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
     // Step 3: Generate embeddings for Q&A pairs
     await updateJob(qaJobId, {
       currentStep: 'Generating embeddings...',
-      progress: PROCESSOR_QA_GENERATION_PROGRESS,
+      progress: config.PROCESSOR_QA_GENERATION_PROGRESS,
     });
     debugLog(`Generating embeddings for ${qaPairs.length} Q&A pairs`);
 
@@ -127,7 +127,7 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
     // Update progress
     await updateJob(qaJobId, {
       currentStep: 'Saving Q&A pairs...',
-      progress: PROCESSOR_QA_SAVING_PROGRESS,
+      progress: config.PROCESSOR_QA_SAVING_PROGRESS,
     });
 
     if (__DEBUG_EMBEDDINGS__) {
