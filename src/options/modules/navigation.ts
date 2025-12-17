@@ -22,10 +22,9 @@ navItems.forEach(item => {
       const section = document.getElementById(sectionId);
       const scrollContainer = document.querySelector('.middle');
       if (section && scrollContainer) {
-        // Calculate scroll position relative to the container
         const sectionRect = section.getBoundingClientRect();
         const containerRect = scrollContainer.getBoundingClientRect();
-        const scrollTop = scrollContainer.scrollTop + sectionRect.top - containerRect.top;
+        const scrollTop = scrollContainer.scrollTop + sectionRect.top - containerRect.top - 24; // margin-top * 75%
         scrollContainer.scrollTo({
           top: scrollTop,
           behavior: 'smooth'
@@ -36,7 +35,6 @@ navItems.forEach(item => {
 });
 
 function setupScrollObserver(): void {
-  // Clean up existing observer to prevent memory leaks
   if (scrollObserver) {
     scrollObserver.disconnect();
   }
@@ -49,6 +47,7 @@ function setupScrollObserver(): void {
   };
 
   scrollObserver = new IntersectionObserver((entries) => {
+          console.log('e')
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         const sectionId = entry.target.id;
