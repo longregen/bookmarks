@@ -1,6 +1,6 @@
 #!/bin/sh
 
-npm run lint
+npx eslint src --quiet
 npm run typecheck
 npm run test:unit
 
