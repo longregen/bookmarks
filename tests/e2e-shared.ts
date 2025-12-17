@@ -406,16 +406,14 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await libraryPage.goto(adapter.getPageUrl('library'));
     await libraryPage.waitForSelector('#bookmarkList');
 
-    // Wait for bookmarks to load
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Check if a bookmark with paulgraham.com URL exists
-    const bookmarkFound = await libraryPage.evaluate(`
-      (() => {
+    // Wait for bookmark to appear in the library (poll with retries)
+    // The bookmark may take time to be saved to IndexedDB and loaded
+    await libraryPage.waitForFunction(
+      `(() => {
         const cards = document.querySelectorAll('.bookmark-card');
         for (const card of cards) {
           const url = card.querySelector('.card-url');
-          // Check if the URL contains paulgraham.com
+          // Check if the URL contains paulgraham.com (displayed as hostname)
           if (url && url.textContent && url.textContent.includes('paulgraham.com')) {
             return true;
           }
@@ -426,12 +424,9 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
           }
         }
         return false;
-      })()
-    `);
-
-    if (!bookmarkFound) {
-      throw new Error('Paul Graham article bookmark was not found in library after fetch');
-    }
+      })()`,
+      30000 // Allow up to 30 seconds for bookmark to appear
+    );
 
     await libraryPage.close();
   });
