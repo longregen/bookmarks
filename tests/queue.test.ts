@@ -4,7 +4,15 @@ import { startProcessingQueue } from '../src/background/queue';
 import * as processor from '../src/background/processor';
 
 vi.mock('../src/background/processor', () => ({
-  processBookmark: vi.fn(),
+  processBookmarkContent: vi.fn(),
+  fetchBookmarkHtml: vi.fn().mockImplementation(async (bookmark) => {
+    // Simulate successful fetch by updating bookmark status to 'downloaded'
+    await db.bookmarks.update(bookmark.id, {
+      status: 'downloaded',
+      updatedAt: new Date(),
+    });
+    return { ...bookmark, status: 'downloaded' };
+  }),
 }));
 
 vi.mock('../src/lib/webdav-sync', () => ({
@@ -22,6 +30,7 @@ vi.mock('../src/lib/config-registry', () => ({
     QUEUE_MAX_RETRIES: 0, // Disable retries in tests for predictable behavior
     QUEUE_RETRY_BASE_DELAY_MS: 0,
     QUEUE_RETRY_MAX_DELAY_MS: 0,
+    FETCH_CONCURRENCY: 5,
   },
 }));
 
@@ -53,7 +62,7 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark);
 
-      const processMock = vi.spyOn(processor, 'processBookmark').mockResolvedValue(undefined);
+      const processMock = vi.spyOn(processor, 'processBookmarkContent').mockResolvedValue(undefined);
 
       await startProcessingQueue();
 
@@ -78,7 +87,7 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark);
 
-      const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(
+      const processMock = vi.spyOn(processor, 'processBookmarkContent').mockImplementation(
         async () => {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
@@ -104,16 +113,21 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark);
 
-      const processMock = vi.spyOn(processor, 'processBookmark').mockResolvedValue(undefined);
+      const fetchMock = vi.spyOn(processor, 'fetchBookmarkHtml');
+      const processMock = vi.spyOn(processor, 'processBookmarkContent').mockResolvedValue(undefined);
 
       await startProcessingQueue();
 
-      expect(processMock).toHaveBeenCalledWith(
+      // Fetch should be called for 'fetching' status bookmarks
+      expect(fetchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'test-1',
           status: 'fetching',
         })
       );
+
+      // Content processing should be called after fetch completes
+      expect(processMock).toHaveBeenCalled();
     });
 
     it('should mark bookmark as complete on success', async () => {
@@ -129,7 +143,7 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark);
 
-      vi.spyOn(processor, 'processBookmark').mockResolvedValue(undefined);
+      vi.spyOn(processor, 'processBookmarkContent').mockResolvedValue(undefined);
 
       await startProcessingQueue();
 
@@ -150,7 +164,7 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark);
 
-      vi.spyOn(processor, 'processBookmark').mockRejectedValue(new Error('Processing failed'));
+      vi.spyOn(processor, 'processBookmarkContent').mockRejectedValue(new Error('Processing failed'));
 
       await startProcessingQueue();
 
@@ -184,7 +198,7 @@ describe('Queue Management', () => {
       await db.bookmarks.add(bookmark1);
       await db.bookmarks.add(bookmark2);
 
-      const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(async (bookmark) => {
+      const processMock = vi.spyOn(processor, 'processBookmarkContent').mockImplementation(async (bookmark) => {
         if (bookmark.id === 'test-1') {
           throw new Error('Processing failed');
         }
@@ -201,7 +215,7 @@ describe('Queue Management', () => {
     });
 
     it('should handle empty queue', async () => {
-      const processMock = vi.spyOn(processor, 'processBookmark').mockResolvedValue(undefined);
+      const processMock = vi.spyOn(processor, 'processBookmarkContent').mockResolvedValue(undefined);
 
       await startProcessingQueue();
 
@@ -231,7 +245,7 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark);
 
-      const processMock = vi.spyOn(processor, 'processBookmark').mockResolvedValue(undefined);
+      const processMock = vi.spyOn(processor, 'processBookmarkContent').mockResolvedValue(undefined);
 
       await startProcessingQueue();
 
@@ -252,7 +266,7 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark);
 
-      const processMock = vi.spyOn(processor, 'processBookmark').mockResolvedValue(undefined);
+      const processMock = vi.spyOn(processor, 'processBookmarkContent').mockResolvedValue(undefined);
 
       await startProcessingQueue();
 
@@ -274,7 +288,7 @@ describe('Queue Management', () => {
         await db.bookmarks.add(bookmark);
       }
 
-      const processMock = vi.spyOn(processor, 'processBookmark').mockResolvedValue(undefined);
+      const processMock = vi.spyOn(processor, 'processBookmarkContent').mockResolvedValue(undefined);
 
       await startProcessingQueue();
 
@@ -294,7 +308,7 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark);
 
-      const processMock = vi.spyOn(processor, 'processBookmark').mockResolvedValue(undefined);
+      const processMock = vi.spyOn(processor, 'processBookmarkContent').mockResolvedValue(undefined);
 
       await startProcessingQueue();
 
@@ -331,7 +345,7 @@ describe('Queue Management', () => {
       await db.bookmarks.add(bookmark);
 
       let processCount = 0;
-      vi.spyOn(processor, 'processBookmark').mockImplementation(
+      vi.spyOn(processor, 'processBookmarkContent').mockImplementation(
         async () => {
           processCount++;
           await new Promise(resolve => setTimeout(resolve, 100));
