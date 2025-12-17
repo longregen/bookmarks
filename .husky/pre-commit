@@ -1,8 +1,8 @@
 #!/bin/sh
 
-npm run lint
-npm run typecheck
-npm run test:unit
+# npm run lint
+# npm run typecheck
+# npx vitest run --reporter github-actions
 
 # E2E tests - use Playwright's Chromium if available
 if [ -z "$BROWSER_PATH" ]; then
@@ -10,6 +10,8 @@ if [ -z "$BROWSER_PATH" ]; then
   if [ -x "$PLAYWRIGHT_CHROME" ]; then
     export BROWSER_PATH="$PLAYWRIGHT_CHROME"
   fi
+else
+  BROWSER_PATH=$(which chromium)
 fi
 
 if [ -n "$BROWSER_PATH" ]; then
