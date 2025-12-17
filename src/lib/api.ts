@@ -94,7 +94,7 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
 
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   const settings = await getPlatformAdapter().getSettings();
-
+  // TODO: use helper function
   if (__DEBUG_EMBEDDINGS__) {
     console.log('[Embeddings API] Starting embedding generation', {
       inputCount: texts.length,
