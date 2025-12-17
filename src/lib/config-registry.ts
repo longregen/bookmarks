@@ -75,6 +75,15 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     min: 1000,
     max: 30000,
   },
+  {
+    key: 'PAGE_SETTLE_TIME_MS',
+    defaultValue: 2000,
+    type: 'number',
+    description: 'Time to wait for DOM to stop changing before extracting HTML (in milliseconds)',
+    category: CONFIG_CATEGORIES.FETCHER,
+    min: 500,
+    max: 10000,
+  },
 
   // API Configuration
   {
@@ -500,6 +509,7 @@ export interface ConfigValues {
   FETCH_TIMEOUT_MS: number;
   FETCH_MAX_HTML_SIZE: number;
   FETCH_OFFSCREEN_BUFFER_MS: number;
+  PAGE_SETTLE_TIME_MS: number;
   // API
   DEFAULT_API_BASE_URL: string;
   API_CONTENT_MAX_CHARS: number;

@@ -1,10 +1,11 @@
 /**
  * Browser-agnostic fetch wrapper for bulk URL import
- * All extension platforms (Chrome, Firefox) can fetch directly with host_permissions
+ * For extensions: Uses tab-based rendering to capture fully rendered HTML with JavaScript execution
  * Build-time constants ensure only the relevant code path is included in each build.
  */
 
 import { config } from './config-registry';
+import { renderPage } from './tab-renderer';
 import type { FetchUrlResponse } from './messages';
 
 /**
@@ -44,17 +45,17 @@ export async function fetchWithTimeout(url: string, timeoutMs: number = config.F
 
 /**
  * Browser-agnostic fetch that works in Chrome, Firefox, and web contexts
+ * For extensions: Uses tab-based rendering to capture fully rendered HTML with JavaScript execution
  * Build-time branching ensures only the relevant implementation is included.
  * @param url URL to fetch
  * @param timeoutMs Timeout in milliseconds
  * @returns HTML content
  */
 export async function browserFetch(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
-  // All platforms with extension permissions can fetch directly
-  // Chrome service workers have host_permissions: <all_urls>
-  // Firefox service workers can fetch directly
-  // Web is handled separately (CORS proxy or disabled)
-  return fetchWithTimeout(url, timeoutMs);
+  // Extension platforms: Use tab-based rendering for full JavaScript execution
+  // This captures dynamically-rendered content that simple fetch() would miss
+  // Chrome and Firefox service workers have host_permissions: <all_urls>
+  return renderPage(url, timeoutMs);
 }
 
 /**
