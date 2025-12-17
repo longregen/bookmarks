@@ -34,13 +34,12 @@ export async function openExtensionPage(pagePath: string): Promise<void> {
       url: targetUrl
     });
 
-    // chrome.windows API is not available on Firefox Android
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- limited support on Firefox Android
     if (existingTab.windowId !== undefined) {
       try {
         await chrome.windows.update(existingTab.windowId, { focused: true });
-      // eslint-disable-next-line no-empty
-      } catch {}
+      // eslint-disable-next-line no-empty -- `chrome.windows` might be available but `.update` not
+      } catch { }
     }
   } else {
     await chrome.tabs.create({ url: targetUrl });
