@@ -68,6 +68,9 @@ export const firefoxManifest = {
     gecko: {
       id: 'bookmarks@localforge.org',
       strict_min_version: '142.0',
+      data_collection_permissions: {
+        required: ['websiteContent'],
+      },
     },
     gecko_android: {
       strict_min_version: '142.0',

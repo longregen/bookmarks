@@ -1,5 +1,5 @@
 import { db, type BookmarkTag, type QuestionAnswer } from '../db/schema';
-import { createElement, getElement } from '../ui/dom';
+import { createElement, getElement, setSpinnerContent } from '../ui/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { generateEmbeddings } from '../lib/api';
 import { findTopK } from '../lib/similarity';
@@ -186,7 +186,7 @@ function showResultsMode(): void {
   searchPage.classList.remove('search-page--centered');
   searchHero.classList.add('hidden');
   resultHeader.classList.remove('hidden');
-  resultStatus.innerHTML = '<span class="spinner"></span> Searching...';
+  setSpinnerContent(resultStatus, 'Searching...');
   resultStatus.classList.add('loading');
 }
 
@@ -207,8 +207,8 @@ async function performSearch(): Promise<void> {
 
   showResultsMode();
   searchBtn.disabled = true;
-  const originalBtnContent = searchBtn.innerHTML;
-  searchBtn.innerHTML = '<span class="spinner"></span> Searching...';
+  const originalBtnText = searchBtn.textContent || 'Search';
+  setSpinnerContent(searchBtn, 'Searching...');
   searchBtn.classList.add('loading');
 
   try {
@@ -335,7 +335,7 @@ async function performSearch(): Promise<void> {
     resultsList.appendChild(errorDiv);
   } finally {
     searchBtn.disabled = false;
-    searchBtn.innerHTML = originalBtnContent;
+    searchBtn.textContent = originalBtnText;
     searchBtn.classList.remove('loading');
   }
 }
