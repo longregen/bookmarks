@@ -1,7 +1,7 @@
 export const manifestBase = {
   manifest_version: 3,
   name: 'Bookmark RAG',
-  version: '4.1.0',
+  version: '4.2.0',
   description: 'Capture and semantically search your bookmarks',
 
   host_permissions: ['<all_urls>'],
@@ -50,7 +50,7 @@ export const basePermissions = ['storage', 'activeTab', 'scripting', 'alarms'] a
 export const chromeManifest = {
   ...manifestBase,
   permissions: [...basePermissions, 'tabs', 'offscreen'],
-  minimum_chrome_version: '4.1.0',
+  minimum_chrome_version: '4.2.0',
   background: {
     service_worker: 'src/background/service-worker.ts',
     type: 'module' as const,
@@ -67,13 +67,13 @@ export const firefoxManifest = {
   browser_specific_settings: {
     gecko: {
       id: 'bookmarks@localforge.org',
-      strict_min_version: '4.1.0',
+      strict_min_version: '4.2.0',
       data_collection_permissions: {
         required: ['none'],
       },
     },
     gecko_android: {
-      strict_min_version: '4.1.0',
+      strict_min_version: '4.2.0',
     },
   },
 };
