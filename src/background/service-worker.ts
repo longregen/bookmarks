@@ -143,11 +143,17 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
     return true;
   }
 
-  // IMPORTANT: Don't return false for EXTRACT_CONTENT and FETCH_URL messages
+  // IMPORTANT: Don't return false for offscreen document messages.
   // These are handled by the offscreen document. Returning false closes the
   // message port before the offscreen document can respond.
-  if (message.type === 'EXTRACT_CONTENT' || message.type === 'FETCH_URL') {
+  // OFFSCREEN_READY is sent by the offscreen document when it loads - we just ignore it.
+  if (message.type === 'EXTRACT_CONTENT' || message.type === 'FETCH_URL' || message.type === 'OFFSCREEN_PING') {
     return;  // Return undefined to keep port open for offscreen document
+  }
+
+  if (message.type === 'OFFSCREEN_READY') {
+    // Offscreen document is signaling it's ready - just acknowledge
+    return;
   }
 
   return false;

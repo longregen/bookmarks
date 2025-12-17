@@ -3,8 +3,14 @@ import { Readability } from '@mozilla/readability';
 import TurndownService from 'turndown';
 import type { ExtractedContent } from '../lib/extract';
 import { getErrorMessage } from '../lib/errors';
+import type { OffscreenReadyResponse } from '../lib/messages';
 
-console.log('Offscreen document loaded');
+console.log('[Offscreen] Document loaded');
+
+// Signal that the offscreen document is ready
+chrome.runtime.sendMessage({ type: 'OFFSCREEN_READY' }).catch(() => {
+  // Ignore errors - service worker may not be listening yet
+});
 
 let turndownInstance: TurndownService | null = null;
 function getTurndown(): TurndownService {
@@ -60,6 +66,12 @@ function extractMarkdownInOffscreen(html: string, url: string): ExtractedContent
 }
 
 chrome.runtime.onMessage.addListener((message: { type: string; url?: string; timeoutMs?: number; html?: string }, _sender, sendResponse) => {
+  if (message.type === 'OFFSCREEN_PING') {
+    const response: OffscreenReadyResponse = { ready: true };
+    sendResponse(response);
+    return true;
+  }
+
   if (message.type === 'FETCH_URL') {
     const { url, timeoutMs } = message;
 
