@@ -70,6 +70,11 @@ chrome.runtime.onMessage.addListener((message: { type: string; url?: string; tim
   if (message.type === 'FETCH_URL') {
     const { url, timeoutMs } = message;
 
+    if (url === undefined || url === '') {
+      sendResponse({ success: false, error: 'URL is required' });
+      return true;
+    }
+
     fetchWithTimeout(url, timeoutMs ?? 30000)
       .then(html => {
         sendResponse({ success: true, html });
@@ -86,6 +91,11 @@ chrome.runtime.onMessage.addListener((message: { type: string; url?: string; tim
 
   if (message.type === 'EXTRACT_CONTENT') {
     const { html, url } = message;
+
+    if (html === undefined || html === '' || url === undefined || url === '') {
+      sendResponse({ success: false, error: 'HTML and URL are required' });
+      return true;
+    }
 
     try {
       const result = extractMarkdownInOffscreen(html, url);

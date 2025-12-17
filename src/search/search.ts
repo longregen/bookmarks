@@ -1,5 +1,5 @@
 import { db, type BookmarkTag, type QuestionAnswer } from '../db/schema';
-import { createElement } from '../lib/dom';
+import { createElement, getElement } from '../lib/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { generateEmbeddings } from '../lib/api';
 import { findTopK } from '../lib/similarity';
@@ -14,39 +14,30 @@ import { addEventListener as addBookmarkEventListener } from '../lib/events';
 
 const selectedTags = new Set<string>();
 
-const tagFilters = document.getElementById('tagFilters');
-if (!tagFilters) {
-  throw new Error('Required DOM element tagFilters not found');
-}
-const searchInput = document.getElementById('searchInput') as HTMLInputElement;
-const searchBtn = document.getElementById('searchBtn') as HTMLButtonElement;
-const autocompleteDropdown = document.getElementById('autocompleteDropdown');
-const resultsList = document.getElementById('resultsList');
-const resultStatus = document.getElementById('resultStatus');
-const searchPage = document.getElementById('searchPage');
-const searchHero = document.getElementById('searchHero');
-const resultHeader = document.getElementById('resultHeader');
-if (!autocompleteDropdown || !resultsList || !resultStatus || !searchPage || !searchHero || !resultHeader) {
-  throw new Error('Required DOM elements not found');
-}
+const tagFilters = getElement('tagFilters');
+const searchInput = getElement<HTMLInputElement>('searchInput');
+const searchBtn = getElement<HTMLButtonElement>('searchBtn');
+const autocompleteDropdown = getElement('autocompleteDropdown');
+const resultsList = getElement('resultsList');
+const resultStatus = getElement('resultStatus');
+const searchPage = getElement('searchPage');
+const searchHero = getElement('searchHero');
+const resultHeader = getElement('resultHeader');
 
 searchPage.classList.add('search-page--centered');
 
-const detailPanel2 = document.getElementById('detailPanel');
-const detailBackdrop2 = document.getElementById('detailBackdrop');
-const detailContent2 = document.getElementById('detailContent');
-if (!detailPanel2 || !detailBackdrop2 || !detailContent2) {
-  throw new Error('Required DOM elements for detail panel not found');
-}
+const detailPanel2 = getElement('detailPanel');
+const detailBackdrop2 = getElement('detailBackdrop');
+const detailContent2 = getElement('detailContent');
 
 const detailManager = new BookmarkDetailManager({
   detailPanel: detailPanel2,
   detailBackdrop: detailBackdrop2,
   detailContent: detailContent2,
-  closeBtn: document.getElementById('closeDetailBtn') as HTMLButtonElement,
-  deleteBtn: document.getElementById('deleteBtn') as HTMLButtonElement,
-  exportBtn: document.getElementById('exportBtn') as HTMLButtonElement,
-  debugBtn: document.getElementById('debugBtn') as HTMLButtonElement,
+  closeBtn: getElement<HTMLButtonElement>('closeDetailBtn'),
+  deleteBtn: getElement<HTMLButtonElement>('deleteBtn'),
+  exportBtn: getElement<HTMLButtonElement>('exportBtn'),
+  debugBtn: getElement<HTMLButtonElement>('debugBtn'),
   onDelete: () => void performSearch(),
   onTagsChange: () => void loadFilters()
 });
@@ -59,7 +50,7 @@ searchInput.addEventListener('blur', () => setTimeout(hideAutocomplete, 200));
 
 async function getSearchAutocompleteSetting(): Promise<boolean> {
   const setting = await db.settings.get('searchAutocomplete');
-  return setting?.value ?? true;
+  return (setting?.value ?? true) as boolean;
 }
 
 async function saveSearchHistory(query: string, resultCount: number): Promise<void> {

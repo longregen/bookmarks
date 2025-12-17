@@ -83,8 +83,8 @@ webdavUrlInput.addEventListener('input', validateWebDAVUrl);
 webdavForm.addEventListener('submit', async (e) => {
   e.preventDefault();
 
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const submitBtn = webdavForm.querySelector('[type="submit"]')!;
+  const submitBtn = webdavForm.querySelector<HTMLButtonElement>('[type="submit"]');
+  if (!submitBtn) return;
 
   try {
     await withButtonState(submitBtn, 'Saving...', async () => {

@@ -34,7 +34,7 @@ saveBtn.addEventListener('click', async () => {
     }
 
     const restrictedSchemes = ['chrome:', 'about:', 'chrome-extension:', 'edge:', 'moz-extension:'];
-    if (restrictedSchemes.some(scheme => tab.url.startsWith(scheme))) {
+    if (restrictedSchemes.some(scheme => tab.url?.startsWith(scheme) ?? false)) {
       showStatusMessage(statusDiv, 'Cannot save browser internal pages', 'error');
       return;
     }
@@ -53,7 +53,7 @@ saveBtn.addEventListener('click', async () => {
       }
     });
 
-    const response: SaveBookmarkResponse | undefined = result[0]?.result;
+    const response: SaveBookmarkResponse | undefined = result[0]?.result as SaveBookmarkResponse | undefined;
     if (response?.success === true && response.bookmarkId !== undefined) {
       showSuccessWithCTA(response.bookmarkId);
     } else {

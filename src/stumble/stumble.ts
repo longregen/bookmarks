@@ -1,5 +1,5 @@
 import { db, type BookmarkTag, getBookmarkQAPairs } from '../db/schema';
-import { createElement } from '../lib/dom';
+import { createElement, getElement } from '../lib/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { onThemeChange, applyTheme } from '../shared/theme';
 import { initExtension } from '../lib/init-extension';
@@ -22,32 +22,23 @@ function getStatusModifier(status: string): string {
   return statusMap[status] || 'status-dot--warning';
 }
 
-const tagFilters = document.getElementById('tagFilters');
-const stumbleList = document.getElementById('stumbleList');
-if (!tagFilters || !stumbleList) {
-  throw new Error('Required DOM elements not found');
-}
-const shuffleBtn = document.getElementById('shuffleBtn') as HTMLButtonElement;
-const resultCount = document.getElementById('resultCount');
-if (!resultCount) {
-  throw new Error('Required DOM element resultCount not found');
-}
+const tagFilters = getElement('tagFilters');
+const stumbleList = getElement('stumbleList');
+const shuffleBtn = getElement<HTMLButtonElement>('shuffleBtn');
+const resultCount = getElement('resultCount');
 
-const detailPanel = document.getElementById('detailPanel');
-const detailBackdrop = document.getElementById('detailBackdrop');
-const detailContent = document.getElementById('detailContent');
-if (!detailPanel || !detailBackdrop || !detailContent) {
-  throw new Error('Required DOM elements for detail panel not found');
-}
+const detailPanel = getElement('detailPanel');
+const detailBackdrop = getElement('detailBackdrop');
+const detailContent = getElement('detailContent');
 
 const detailManager = new BookmarkDetailManager({
   detailPanel,
   detailBackdrop,
   detailContent,
-  closeBtn: document.getElementById('closeDetailBtn') as HTMLButtonElement,
-  deleteBtn: document.getElementById('deleteBtn') as HTMLButtonElement,
-  exportBtn: document.getElementById('exportBtn') as HTMLButtonElement,
-  debugBtn: document.getElementById('debugBtn') as HTMLButtonElement,
+  closeBtn: getElement<HTMLButtonElement>('closeDetailBtn'),
+  deleteBtn: getElement<HTMLButtonElement>('deleteBtn'),
+  exportBtn: getElement<HTMLButtonElement>('exportBtn'),
+  debugBtn: getElement<HTMLButtonElement>('debugBtn'),
   onDelete: () => void loadStumble(),
   onTagsChange: () => void loadFilters()
 });

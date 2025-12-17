@@ -10,14 +10,14 @@ import {
   ensureConfigLoaded,
   type ConfigEntry,
 } from '../../lib/config-registry';
-import { createElement } from '../../lib/dom';
+import { createElement, getElement } from '../../lib/dom';
 import { getErrorMessage } from '../../lib/errors';
 
-let searchInput: HTMLInputElement | null = null;
-let categoryFilter: HTMLSelectElement | null = null;
-let showModifiedOnly: HTMLInputElement | null = null;
-let configTableBody: HTMLTableSectionElement | null = null;
-let resetAllBtn: HTMLButtonElement | null = null;
+let searchInput: HTMLInputElement;
+let categoryFilter: HTMLSelectElement;
+let showModifiedOnly: HTMLInputElement;
+let configTableBody: HTMLTableSectionElement;
+let resetAllBtn: HTMLButtonElement;
 let modifiedCountSpan: HTMLElement | null = null;
 
 let editingKey: string | null = null;
@@ -25,18 +25,12 @@ let editingKey: string | null = null;
 export async function initAdvancedConfigModule(): Promise<void> {
   await ensureConfigLoaded();
 
-  searchInput = document.getElementById('configSearch') as HTMLInputElement;
-  categoryFilter = document.getElementById('configCategoryFilter') as HTMLSelectElement;
-  showModifiedOnly = document.getElementById('showModifiedOnly') as HTMLInputElement;
-  configTableBody = document.getElementById('configTableBody') as HTMLTableSectionElement;
-  resetAllBtn = document.getElementById('resetAllConfig') as HTMLButtonElement;
+  searchInput = getElement<HTMLInputElement>('configSearch');
+  categoryFilter = getElement<HTMLSelectElement>('configCategoryFilter');
+  showModifiedOnly = getElement<HTMLInputElement>('showModifiedOnly');
+  configTableBody = getElement<HTMLTableSectionElement>('configTableBody');
+  resetAllBtn = getElement<HTMLButtonElement>('resetAllConfig');
   modifiedCountSpan = document.getElementById('modifiedConfigCount');
-
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions
-  if (!configTableBody) {
-    console.warn('Advanced config table body not found');
-    return;
-  }
 
   populateCategoryFilter();
 
@@ -47,8 +41,6 @@ export async function initAdvancedConfigModule(): Promise<void> {
 }
 
 function populateCategoryFilter(): void {
-  if (!categoryFilter) return;
-
   categoryFilter.appendChild(
     createElement('option', { textContent: 'All Categories', attributes: { value: '' } })
   );
@@ -61,19 +53,19 @@ function populateCategoryFilter(): void {
 }
 
 function setupEventListeners(): void {
-  searchInput?.addEventListener('input', () => {
+  searchInput.addEventListener('input', () => {
     renderConfigTable();
   });
 
-  categoryFilter?.addEventListener('change', () => {
+  categoryFilter.addEventListener('change', () => {
     renderConfigTable();
   });
 
-  showModifiedOnly?.addEventListener('change', () => {
+  showModifiedOnly.addEventListener('change', () => {
     renderConfigTable();
   });
 
-  resetAllBtn?.addEventListener('click', async () => {
+  resetAllBtn.addEventListener('click', async () => {
     if (getModifiedCount() === 0) return;
 
     // eslint-disable-next-line no-alert
@@ -90,14 +82,14 @@ function setupEventListeners(): void {
     }
   });
 
-  configTableBody?.addEventListener('click', handleTableClick);
-  configTableBody?.addEventListener('keydown', handleTableKeydown);
+  configTableBody.addEventListener('click', handleTableClick);
+  configTableBody.addEventListener('keydown', handleTableKeydown);
 }
 
 function getFilteredEntries(): (ConfigEntry & { currentValue: number | string | boolean; isModified: boolean })[] {
-  const query = searchInput?.value.trim() ?? '';
-  const category = categoryFilter?.value ?? '';
-  const modifiedOnly = showModifiedOnly?.checked ?? false;
+  const query = searchInput.value.trim();
+  const category = categoryFilter.value;
+  const modifiedOnly = showModifiedOnly.checked;
 
   let entries = query ? searchConfigEntries(query) : getAllConfigEntries();
 
@@ -119,8 +111,6 @@ function clearChildren(element: HTMLElement): void {
 }
 
 function renderConfigTable(): void {
-  if (!configTableBody) return;
-
   clearChildren(configTableBody);
 
   const entries = getFilteredEntries();
@@ -337,12 +327,9 @@ function startEditing(key: string): void {
   editingKey = key;
   renderConfigTable();
 
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const input = document.querySelector(`.config-edit-input[data-key="${key}"], .config-edit-select[data-key="${key}"]`)!;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions
+  const input = document.querySelector(`.config-edit-input[data-key="${key}"], .config-edit-select[data-key="${key}"]`);
   if (input) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    input.focus();
+    (input as HTMLElement).focus();
     if (input instanceof HTMLInputElement) {
       input.select();
     }
@@ -358,25 +345,23 @@ async function saveEdit(key: string): Promise<void> {
   const entry = CONFIG_REGISTRY.find(e => e.key === key);
   if (!entry) return;
 
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const input = document.querySelector(`.config-edit-input[data-key="${key}"], .config-edit-select[data-key="${key}"]`)!;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions
+  const input = document.querySelector(`.config-edit-input[data-key="${key}"], .config-edit-select[data-key="${key}"]`);
   if (!input) return;
 
   try {
     let newValue: number | string | boolean;
 
     if (entry.type === 'boolean') {
-      newValue = input.value === 'true';
+      newValue = (input as HTMLSelectElement).value === 'true';
     } else if (entry.type === 'number') {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      newValue = parseFloat(input.value);
+       
+      newValue = parseFloat((input as HTMLInputElement).value);
       if (isNaN(newValue)) {
         throw new Error('Invalid number');
       }
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      newValue = input.value;
+       
+      newValue = (input as HTMLInputElement).value;
     }
 
     await setConfigValue(key, newValue);
@@ -406,9 +391,7 @@ function updateModifiedCount(): void {
     modifiedCountSpan.textContent = count.toString();
     modifiedCountSpan.parentElement?.classList.toggle('hidden', count === 0);
   }
-  if (resetAllBtn) {
-    resetAllBtn.disabled = count === 0;
-  }
+  resetAllBtn.disabled = count === 0;
 }
 
 function showStatus(message: string, type: 'success' | 'error'): void {

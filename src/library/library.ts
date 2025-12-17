@@ -1,5 +1,5 @@
 import { db, type BookmarkTag } from '../db/schema';
-import { createElement } from '../lib/dom';
+import { createElement, getElement } from '../lib/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { onThemeChange, applyTheme } from '../shared/theme';
 import { initExtension } from '../lib/init-extension';
@@ -23,32 +23,23 @@ function getStatusModifier(status: string): string {
   return statusMap[status] || 'status-dot--warning';
 }
 
-const tagList = document.getElementById('tagList');
-const bookmarkList = document.getElementById('bookmarkList');
-if (!tagList || !bookmarkList) {
-  throw new Error('Required DOM elements not found');
-}
-const bookmarkCount = document.getElementById('bookmarkCount');
-const sortSelect = document.getElementById('sortSelect') as HTMLSelectElement;
-if (!bookmarkCount) {
-  throw new Error('Required DOM element bookmarkCount not found');
-}
+const tagList = getElement('tagList');
+const bookmarkList = getElement('bookmarkList');
+const bookmarkCount = getElement('bookmarkCount');
+const sortSelect = getElement<HTMLSelectElement>('sortSelect');
 
-const detailPanel = document.getElementById('detailPanel');
-const detailBackdrop = document.getElementById('detailBackdrop');
-const detailContent = document.getElementById('detailContent');
-if (!detailPanel || !detailBackdrop || !detailContent) {
-  throw new Error('Required DOM elements for detail panel not found');
-}
+const detailPanel = getElement('detailPanel');
+const detailBackdrop = getElement('detailBackdrop');
+const detailContent = getElement('detailContent');
 
 const detailManager = new BookmarkDetailManager({
   detailPanel,
   detailBackdrop,
   detailContent,
-  closeBtn: document.getElementById('closeDetailBtn') as HTMLButtonElement,
-  deleteBtn: document.getElementById('deleteBtn') as HTMLButtonElement,
-  exportBtn: document.getElementById('exportBtn') as HTMLButtonElement,
-  debugBtn: document.getElementById('debugBtn') as HTMLButtonElement,
+  closeBtn: getElement<HTMLButtonElement>('closeDetailBtn'),
+  deleteBtn: getElement<HTMLButtonElement>('deleteBtn'),
+  exportBtn: getElement<HTMLButtonElement>('exportBtn'),
+  debugBtn: getElement<HTMLButtonElement>('debugBtn'),
   onDelete: () => {
     void loadTags();
     void loadBookmarks();
@@ -201,6 +192,7 @@ function _initAddUrlSection(): void {
 
   const typedInput = addUrlInput as HTMLInputElement;
   const typedBtn = addUrlBtn as HTMLButtonElement;
+  const typedStatus = addUrlStatus;
 
   addUrlSection.classList.remove('hidden');
 
@@ -236,13 +228,13 @@ function _initAddUrlSection(): void {
   }
 
   function showAddUrlStatus(message: string, type: 'success' | 'error' | 'info'): void {
-    addUrlStatus.textContent = message;
-    addUrlStatus.className = `add-url-status ${type}`;
-    addUrlStatus.classList.remove('hidden');
+    typedStatus.textContent = message;
+    typedStatus.className = `add-url-status ${type}`;
+    typedStatus.classList.remove('hidden');
 
     if (type === 'success') {
       setTimeout(() => {
-        addUrlStatus.classList.add('hidden');
+        typedStatus.classList.add('hidden');
       }, 3000);
     }
   }
