@@ -35,3 +35,11 @@ Do not read or modify: `node_modules/`, `dist/`, `dist-*/`, `coverage/`
 5. **Optimize queries** - Avoid N+1 patterns in database operations
 6. **Verify assumptions** - Research external APIs and browser behaviors
 7. **Ensure test coverage** - Add tests that cover the new code
+
+## Running E2E Tests Locally
+
+0. Claude can only run Chromium tests right now.
+1. Download Chromium from `storage.googleapis.com`; `apt install xvfb`\
+2. Build with `npm run build:chrome`, run with `BROWSER_PATH=/path/to/chrome OPENAI_API_KEY=not-needed-for-tests \
+  xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" \
+  npm run test:e2e:chrome`
