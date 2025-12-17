@@ -2,13 +2,28 @@
  * Tab-based page renderer for browser extensions
  * Renders pages fully in background tabs with JavaScript execution before extracting HTML.
  * This captures dynamically-rendered content that simple fetch() would miss.
+ *
+ * Uses chrome.alarms to keep the service worker alive during long render operations.
  */
 
 import { config } from './config-registry';
 
-interface RenderResult {
-  html: string;
-  finalUrl: string; // In case of redirects
+const KEEPALIVE_ALARM_NAME = 'tab-renderer-keepalive';
+
+/**
+ * Start a keepalive alarm to prevent service worker termination
+ * In MV3, service workers can be killed after ~30s of inactivity
+ */
+async function startKeepalive(): Promise<void> {
+  // Create an alarm that fires every 25 seconds to keep the service worker alive
+  await chrome.alarms.create(KEEPALIVE_ALARM_NAME, { periodInMinutes: 25 / 60 });
+}
+
+/**
+ * Stop the keepalive alarm
+ */
+async function stopKeepalive(): Promise<void> {
+  await chrome.alarms.clear(KEEPALIVE_ALARM_NAME);
 }
 
 /**
@@ -23,6 +38,9 @@ interface RenderResult {
  */
 export async function renderPage(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
   let tabId: number | undefined;
+
+  // Start keepalive to prevent service worker termination during long renders
+  await startKeepalive();
 
   try {
     // 1. Create a background tab (not active/focused)
@@ -57,7 +75,10 @@ export async function renderPage(url: string, timeoutMs: number = config.FETCH_T
   } catch (error) {
     throw error instanceof Error ? error : new Error(String(error));
   } finally {
-    // 6. Always close the tab, even on errors
+    // 6. Stop keepalive alarm
+    await stopKeepalive();
+
+    // 7. Always close the tab, even on errors
     if (tabId !== undefined) {
       try {
         await chrome.tabs.remove(tabId);
