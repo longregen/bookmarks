@@ -50,6 +50,7 @@ export const basePermissions = ['storage', 'activeTab', 'scripting', 'alarms'] a
 export const chromeManifest = {
   ...manifestBase,
   permissions: [...basePermissions, 'tabs', 'offscreen'],
+  minimum_chrome_version: '107',
   background: {
     service_worker: 'src/background/service-worker.ts',
     type: 'module' as const,
