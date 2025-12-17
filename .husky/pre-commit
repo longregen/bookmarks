@@ -1,0 +1,12 @@
+#!/bin/sh
+
+npm run lint
+npm run typecheck
+npm run test:unit
+
+# E2E tests require BROWSER_PATH - run if available
+if [ -n "$BROWSER_PATH" ]; then
+  npm run test:e2e:chrome
+else
+  echo "Skipping e2e tests (BROWSER_PATH not set)"
+fi
