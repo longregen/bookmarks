@@ -12,6 +12,17 @@ import { addEventListener as addBookmarkEventListener } from '../lib/events';
 
 let selectedTags: Set<string> = new Set();
 
+// Map bookmark status to BEM modifier for status dots
+function getStatusModifier(status: string): string {
+  const statusMap: { [key: string]: string } = {
+    'complete': 'status-dot--success',
+    'pending': 'status-dot--warning',
+    'processing': 'status-dot--info',
+    'error': 'status-dot--error'
+  };
+  return statusMap[status] || 'status-dot--warning';
+}
+
 const tagFilters = document.getElementById('tagFilters')!;
 const stumbleList = document.getElementById('stumbleList')!;
 const shuffleBtn = document.getElementById('shuffleBtn') as HTMLButtonElement;
@@ -85,7 +96,7 @@ async function loadStumble() {
 
       const header = createElement('div', { className: 'card-header' });
       header.appendChild(createElement('div', { className: 'card-title', textContent: bookmark.title }));
-      header.appendChild(createElement('div', { className: `status-dot status-${bookmark.status}` }));
+      header.appendChild(createElement('div', { className: `status-dot ${getStatusModifier(bookmark.status)}` }));
       card.appendChild(header);
 
       const meta = createElement('div', { className: 'card-meta' });

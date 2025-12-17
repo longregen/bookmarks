@@ -989,33 +989,6 @@
   margin: 0;
 }
 
-.tag-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-2) var(--space-6);
-  font-size: var(--text-base);
-  color: var(--text-tertiary);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.tag-item:hover {
-  background: var(--bg-hover);
-  color: var(--text-secondary);
-}
-
-.tag-item.active {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  font-weight: var(--font-medium);
-}
-
-.tag-item__count {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
 /* Bookmark Card */
 .bookmark-card {
   background: var(--bg-secondary);
@@ -1194,13 +1167,13 @@
 }
 
 /* Health Indicator */
-@keyframes health-pulse {
+@keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
 
 .health-indicator.processing {
-  animation: health-pulse 2s ease-in-out infinite;
+  animation: pulse 2s ease-in-out infinite;
 }
 
 .health-indicator:hover {

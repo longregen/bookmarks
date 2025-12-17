@@ -92,6 +92,30 @@ body {
   margin-bottom: var(--space-4);
 }
 
+/* Controls Title */
+.controls-title {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+/* Compact Select (for sort dropdowns) */
+.select-compact {
+  width: auto;
+  padding: var(--space-2) var(--space-3);
+}
+
+/* Shuffle Box Text */
+.shuffle-box-title {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.shuffle-box-subtitle {
+  margin: var(--space-2) 0 0 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
 /* ===== Tag Items (Library Sidebar) ===== */
 .tag-item {
   display: flex;
@@ -188,28 +212,6 @@ body {
   flex: 1;
 }
 
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-left: var(--space-2);
-}
-
-.status-complete {
-  background: var(--success-text);
-}
-
-.status-pending {
-  background: var(--text-muted);
-}
-
-.status-processing {
-  background: var(--info-text);
-}
-
-.status-error {
-  background: var(--error-text);
-}
 
 .card-meta {
   font-size: var(--text-sm);
@@ -309,15 +311,11 @@ body {
   border: 2px solid var(--border-secondary);
   border-top-color: var(--accent-primary);
   border-radius: 50%;
-  animation: result-spin 0.8s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 .result-status.loading .spinner {
   display: inline-block;
-}
-
-@keyframes result-spin {
-  to { transform: rotate(360deg); }
 }
 
 .result-card {
@@ -577,15 +575,15 @@ body {
 .health-indicator {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: background 200ms ease;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-base);
 }
 
 .health-indicator-dot {
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1;
   user-select: none;
 }
@@ -594,18 +592,18 @@ body {
   position: absolute;
   top: 100%;
   right: 0;
-  margin-top: 8px;
-  padding: 8px 12px;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  font-size: 13px;
+  font-size: var(--text-sm);
   white-space: nowrap;
   z-index: 1000;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 150ms ease;
+  transition: opacity var(--transition-fast);
 }
 
 /* ===== Tag Editor (from tag-editor.ts) ===== */
@@ -913,14 +911,6 @@ input:focus {
 .button-group {
   display: flex;
   gap: var(--space-3);
-}
-
-/* Section Description */
-.section-description {
-  color: var(--text-tertiary);
-  font-size: var(--text-base);
-  margin-bottom: var(--space-6);
-  line-height: var(--leading-relaxed);
 }
 
 /* Data Actions (Import/Export) */
@@ -1564,11 +1554,6 @@ input:focus {
 .connection-status.testing .status-indicator {
   background: var(--warning-text);
   animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
 }
 
 /* Sync Status Section */
