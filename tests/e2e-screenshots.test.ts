@@ -370,7 +370,10 @@ async function testSearchSpinners(adapter: ChromeAdapter): Promise<void> {
   await page.type('#searchInput', 'test query');
   await new Promise(resolve => setTimeout(resolve, 100));
 
-  // Capture the loading state quickly
+  // Click the search button to actually trigger the search
+  await page.click('#searchBtn');
+
+  // Capture the loading state quickly (spinner should be visible)
   await captureScreenshot(page, '26-search-loading-state.png');
 
   await new Promise(resolve => setTimeout(resolve, 3000));
