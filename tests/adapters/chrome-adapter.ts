@@ -101,6 +101,9 @@ export class ChromeAdapter implements TestAdapter {
   async newPage(): Promise<PageHandle> {
     const page = await this.browser!.newPage();
 
+    // Set viewport to match xvfb screen size for consistent screenshots
+    await page.setViewport({ width: 1280, height: 800 });
+
     if (COLLECT_COVERAGE) {
       try {
         await page.coverage.startJSCoverage({

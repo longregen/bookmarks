@@ -147,6 +147,9 @@ function showAcknowledgmentDialog(): Promise<void> {
 
     document.body.appendChild(backdrop);
     document.body.appendChild(dialog);
+
+    // Focus the cancel button for accessibility
+    cancelBtn.focus();
   });
 }
 
