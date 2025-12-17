@@ -2,7 +2,6 @@ import { onThemeChange, applyTheme, getTheme, setTheme, type Theme } from '../..
 import { initExtension } from '../../lib/init-extension';
 import { initWeb } from '../../web/init-web';
 
-// Theme selector
 const themeRadios = document.querySelectorAll<HTMLInputElement>('input[name="theme"]');
 
 async function loadTheme() {
@@ -23,7 +22,6 @@ themeRadios.forEach(radio => {
 });
 
 export function initThemeModule() {
-  // Initialize platform (web or extension)
   if (__IS_WEB__) {
     initWeb();
   } else {
@@ -31,6 +29,5 @@ export function initThemeModule() {
   }
   onThemeChange((theme) => applyTheme(theme));
 
-  // Load current theme
   loadTheme();
 }

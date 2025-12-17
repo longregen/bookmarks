@@ -1,81 +1,55 @@
-// Theme management utilities
 import { getPlatformAdapter } from '../lib/platform';
 
 export type Theme = 'auto' | 'light' | 'dark' | 'terminal' | 'tufte';
 
 const THEME_STORAGE_KEY = 'bookmark-rag-theme';
 
-/**
- * Get the current theme preference from storage
- */
 export async function getTheme(): Promise<Theme> {
   return getPlatformAdapter().getTheme();
 }
 
-/**
- * Set the theme preference in storage and apply it
- */
 export async function setTheme(theme: Theme): Promise<void> {
   await getPlatformAdapter().setTheme(theme);
   applyTheme(theme);
 }
 
-/**
- * Apply the theme to the document
- */
 export function applyTheme(theme: Theme): void {
   const root = document.documentElement;
 
-  // Remove any existing theme data attribute
   root.removeAttribute('data-theme');
 
-  // Apply the appropriate theme
   if (theme === 'auto') {
-    // Let the CSS media query handle it - no data-theme attribute needed
     return;
   }
 
   root.setAttribute('data-theme', theme);
 }
 
-/**
- * Initialize the theme on page load
- */
 export async function initTheme(): Promise<void> {
   const theme = await getTheme();
   applyTheme(theme);
 }
 
-/**
- * Get the effective theme (resolves 'auto' to actual light/dark)
- */
 export function getEffectiveTheme(theme: Theme): 'light' | 'dark' | 'terminal' | 'tufte' {
   if (theme === 'terminal') return 'terminal';
   if (theme === 'tufte') return 'tufte';
   if (theme === 'light') return 'light';
   if (theme === 'dark') return 'dark';
 
-  // Auto - check system preference
   if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
     return 'dark';
   }
   return 'light';
 }
 
-/**
- * Listen for theme changes from storage (for syncing across pages)
- * In web context, uses localStorage storage event; in extension context, uses chrome.storage
- */
 export function onThemeChange(callback: (theme: Theme) => void): void {
   if (__IS_WEB__) {
-    // Web: listen for localStorage changes from other tabs
     window.addEventListener('storage', (event) => {
       if (event.key === THEME_STORAGE_KEY && event.newValue) {
         callback(event.newValue as Theme);
       }
     });
   } else {
-    // Extension: listen for chrome.storage changes
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName === 'local' && changes[THEME_STORAGE_KEY]) {
         const newTheme = changes[THEME_STORAGE_KEY].newValue as Theme;

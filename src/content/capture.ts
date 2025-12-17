@@ -1,10 +1,6 @@
-// Content script for capturing the current page as a bookmark
-// This script is injected when the user triggers the bookmark action
-
 import { getTheme, getEffectiveTheme } from '../shared/theme';
 import type { SaveBookmarkResponse, CapturePageResponse } from '../lib/messages';
 
-// CSS variables for each theme (injected into the page for toast styling)
 const themeCssVariables = {
   light: `
     --toast-success-bg: #d1fae5;
@@ -70,7 +66,6 @@ async function capturePage() {
   }
 }
 
-// Inject CSS variables for the current theme into the page
 function injectThemeVariables(effectiveTheme: 'light' | 'dark' | 'terminal' | 'tufte') {
   const styleId = 'bookmark-rag-toast-theme';
   let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
@@ -85,12 +80,10 @@ function injectThemeVariables(effectiveTheme: 'light' | 'dark' | 'terminal' | 't
 }
 
 async function showNotification(message: string, type: 'success' | 'error') {
-  // Get the user's theme preference and inject CSS variables
   const theme = await getTheme();
   const effectiveTheme = getEffectiveTheme(theme);
   injectThemeVariables(effectiveTheme);
 
-  // Create a simple toast notification using CSS variables
   const toast = document.createElement('div');
   toast.textContent = message;
   toast.style.cssText = `
@@ -118,7 +111,6 @@ async function showNotification(message: string, type: 'success' | 'error') {
   }, 1500);
 }
 
-// Add CSS animations
 const style = document.createElement('style');
 style.textContent = `
   @keyframes slideIn {
@@ -144,7 +136,6 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Listen for messages from the service worker
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'CAPTURE_PAGE') {
     capturePage();

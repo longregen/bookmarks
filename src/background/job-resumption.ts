@@ -19,7 +19,6 @@ export async function resumeInterruptedJobs(): Promise<{
 }> {
   console.log('Checking for interrupted jobs...');
 
-  // First, reset any IN_PROGRESS fetch jobs back to PENDING
   const { bulkImportsReset, fetchJobsReset } = await resetInterruptedJobs();
 
   if (bulkImportsReset === 0 && fetchJobsReset === 0) {
@@ -29,18 +28,15 @@ export async function resumeInterruptedJobs(): Promise<{
 
   console.log(`Found ${bulkImportsReset} interrupted bulk imports, ${fetchJobsReset} fetch jobs reset`);
 
-  // Get bulk imports that need resumption
   const bulkImportsToResume = await getBulkImportsToResume();
 
   if (bulkImportsToResume.length > 0) {
     console.log(`Resuming ${bulkImportsToResume.length} bulk import(s)...`);
 
-    // Ensure offscreen document exists (Chrome only)
     if (__IS_CHROME__) {
       await ensureOffscreenDocument();
     }
 
-    // Resume each bulk import
     for (const parentJob of bulkImportsToResume) {
       const retryCount = parentJob.metadata.retryCount || 0;
       console.log(`Resuming bulk import: ${parentJob.id} (${parentJob.metadata.successCount || 0}/${parentJob.metadata.totalUrls} complete, retry ${retryCount})`);

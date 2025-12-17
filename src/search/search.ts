@@ -24,10 +24,8 @@ const searchPage = document.getElementById('searchPage')!;
 const searchHero = document.getElementById('searchHero')!;
 const resultHeader = document.getElementById('resultHeader')!;
 
-// Start in centered mode
 searchPage.classList.add('search-page--centered');
 
-// Initialize bookmark detail manager
 const detailManager = new BookmarkDetailManager({
   detailPanel: document.getElementById('detailPanel')!,
   detailBackdrop: document.getElementById('detailBackdrop')!,
@@ -163,13 +161,11 @@ function buildResultCard(
 }
 
 async function loadFilters() {
-  // Load tag filters using shared utility
   await loadTagFilters({
     container: tagFilters,
     selectedTags,
     onChange: () => {
       loadFilters();
-      // Re-run search if there's a query to reflect tag filter changes
       if (searchInput.value.trim()) {
         performSearch();
       }
@@ -207,8 +203,6 @@ async function performSearch() {
     const [queryEmbedding] = await generateEmbeddings([query]);
     if (!queryEmbedding?.length) throw new Error('Failed to generate embedding');
 
-    // Load Q&A pairs - for semantic search we need embeddings to compute similarity
-    // Note: A production system would use a vector database with indexed similarity search
     const allQAs = await db.questionsAnswers.toArray();
     const items = allQAs.flatMap(qa => [
       { item: qa, embedding: qa.embeddingQuestion, type: 'question' },
@@ -323,7 +317,6 @@ async function performSearch() {
   }
 }
 
-// Initialize platform and theme
 if (__IS_WEB__) {
   initWeb();
 } else {
@@ -332,7 +325,6 @@ if (__IS_WEB__) {
 onThemeChange((theme) => applyTheme(theme));
 loadFilters();
 
-// Check for query parameter and auto-search
 const urlParams = new URLSearchParams(window.location.search);
 const initialQuery = urlParams.get('q');
 if (initialQuery) {
@@ -340,10 +332,8 @@ if (initialQuery) {
   performSearch();
 }
 
-// Focus search input on page load
 searchInput.focus();
 
-// Ctrl+K shortcut to focus search
 document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
     e.preventDefault();
@@ -351,20 +341,17 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Initialize health indicator
 const healthIndicatorContainer = document.getElementById('healthIndicator');
 if (healthIndicatorContainer) {
   createHealthIndicator(healthIndicatorContainer);
 }
 
-// Event-driven updates for tag changes
 const removeEventListener = addBookmarkEventListener((event) => {
   if (event.type === 'TAG_UPDATED') {
     loadFilters();
   }
 });
 
-// Cleanup on page unload
 window.addEventListener('beforeunload', () => {
   removeEventListener();
 });

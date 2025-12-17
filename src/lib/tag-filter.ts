@@ -1,18 +1,12 @@
 import { db, BookmarkTag } from '../db/schema';
 import { createElement } from './dom';
 
-/**
- * Configuration for tag filter
- */
 export interface TagFilterConfig {
   container: HTMLElement;
   selectedTags: Set<string>;
   onChange: () => void;
 }
 
-/**
- * Loads and renders tag filters
- */
 export async function loadTagFilters(config: TagFilterConfig) {
   const bookmarks = await db.bookmarks.toArray();
   const allTags = new Set<string>();
@@ -24,7 +18,6 @@ export async function loadTagFilters(config: TagFilterConfig) {
 
   config.container.innerHTML = '';
 
-  // Create "Clear selection" button (only shown when tags are selected)
   if (config.selectedTags.size > 0) {
     const clearBtn = createElement('button', {
       className: 'clear-selection-btn',
@@ -37,7 +30,6 @@ export async function loadTagFilters(config: TagFilterConfig) {
     config.container.appendChild(clearBtn);
   }
 
-  // Create individual tag checkboxes
   for (const tag of Array.from(allTags).sort()) {
     const label = createElement('label', { className: 'filter-item' });
     const cb = createElement('input', {

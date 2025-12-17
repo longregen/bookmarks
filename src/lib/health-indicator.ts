@@ -14,9 +14,6 @@ export interface HealthStatus {
   };
 }
 
-/**
- * Query db.jobs and determine the current health state
- */
 export async function getHealthStatus(): Promise<HealthStatus> {
   try {
     const allJobs = await db.jobs.toArray();
@@ -27,7 +24,6 @@ export async function getHealthStatus(): Promise<HealthStatus> {
 
     const details = { pendingCount, inProgressCount, failedCount };
 
-    // Priority order: error > processing > idle > healthy
     if (failedCount > 0) {
       return {
         state: 'error',
@@ -53,7 +49,6 @@ export async function getHealthStatus(): Promise<HealthStatus> {
       };
     }
 
-    // All jobs completed successfully
     return {
       state: 'healthy',
       message: 'All systems healthy',
@@ -68,9 +63,6 @@ export async function getHealthStatus(): Promise<HealthStatus> {
   }
 }
 
-/**
- * Get the appropriate symbol and color for the health state
- */
 function getHealthIndicatorStyle(state: HealthState): { symbol: string; color: string; className: string } {
   switch (state) {
     case 'healthy':
@@ -84,11 +76,7 @@ function getHealthIndicatorStyle(state: HealthState): { symbol: string; color: s
   }
 }
 
-/**
- * Create or update the health indicator DOM element
- */
 export function createHealthIndicator(container: HTMLElement): () => void {
-  // Create the indicator element
   const indicator = document.createElement('div');
   indicator.className = 'health-indicator';
 
@@ -98,13 +86,11 @@ export function createHealthIndicator(container: HTMLElement): () => void {
   indicator.appendChild(dot);
   container.appendChild(indicator);
 
-  // Tooltip element
   const tooltip = document.createElement('div');
   tooltip.className = 'health-indicator-tooltip';
   container.style.position = 'relative';
   container.appendChild(tooltip);
 
-  // Show/hide tooltip on hover
   indicator.addEventListener('mouseenter', () => {
     tooltip.style.opacity = '1';
   });
@@ -113,10 +99,8 @@ export function createHealthIndicator(container: HTMLElement): () => void {
     tooltip.style.opacity = '0';
   });
 
-  // Track current health state for click handling
   let currentHealthState: HealthState = 'idle';
 
-  // Click handler to navigate to jobs page with appropriate filter based on state
   indicator.addEventListener('click', () => {
     if (currentHealthState === 'error') {
       openExtensionPage('src/jobs/jobs.html?status=failed');
@@ -125,35 +109,26 @@ export function createHealthIndicator(container: HTMLElement): () => void {
     }
   });
 
-  // Update function
   async function updateIndicator() {
     const health = await getHealthStatus();
     const style = getHealthIndicatorStyle(health.state);
 
-    // Update current health state
     currentHealthState = health.state;
 
-    // Update dot
     dot.textContent = style.symbol;
     dot.style.color = style.color;
 
-    // Update classes for animation
     indicator.className = `health-indicator ${style.className}`;
 
-    // Make cursor pointer to indicate clickability
     indicator.style.cursor = 'pointer';
 
-    // Update tooltip
     tooltip.textContent = health.message;
   }
 
-  // Initial update
   updateIndicator();
 
-  // Auto-refresh
   const intervalId = setInterval(updateIndicator, config.HEALTH_REFRESH_INTERVAL_MS);
 
-  // Return cleanup function
   return () => {
     clearInterval(intervalId);
     container.removeChild(indicator);

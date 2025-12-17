@@ -1,4 +1,3 @@
-// Sidebar Navigation
 const navItems = document.querySelectorAll<HTMLAnchorElement>('.nav-item');
 const sections = document.querySelectorAll<HTMLElement>('.settings-section');
 
@@ -12,7 +11,6 @@ function setActiveNavItem(sectionId: string) {
   });
 }
 
-// Handle nav item clicks
 navItems.forEach(item => {
   item.addEventListener('click', (e) => {
     e.preventDefault();
@@ -27,7 +25,6 @@ navItems.forEach(item => {
   });
 });
 
-// Track scroll position to update active nav item
 function setupScrollObserver() {
   const scrollContainer = document.querySelector('.app-layout__content');
   const observerOptions: IntersectionObserverInit = {
@@ -50,12 +47,10 @@ function setupScrollObserver() {
   });
 }
 
-// Only setup scroll observer on desktop
 if (window.matchMedia('(min-width: 1024px)').matches) {
   setupScrollObserver();
 }
 
-// Re-setup observer on resize
 window.addEventListener('resize', () => {
   if (window.matchMedia('(min-width: 1024px)').matches) {
     setupScrollObserver();
@@ -63,9 +58,7 @@ window.addEventListener('resize', () => {
 });
 
 export function initNavigationModule() {
-  // Module is initialized via event listeners
-
-  // Hide bulk import nav item for web platform (CORS limitation)
+  // Hide bulk import nav item for web platform (CORS prevents fetching external URLs)
   if (__IS_WEB__) {
     const bulkImportNavItem = document.querySelector<HTMLAnchorElement>('.nav-item[data-section="bulk-import"]');
     if (bulkImportNavItem) {

@@ -14,12 +14,6 @@ const CORS_PROXIES = [
   },
 ];
 
-/**
- * Web platform adapter
- * - Uses IndexedDB (Dexie) for settings (same as extension)
- * - Uses localStorage for theme (chrome.storage not available)
- * - Uses CORS proxies for content fetching
- */
 export const webAdapter: PlatformAdapter = {
   async getSettings(): Promise<ApiSettings> {
     return getSettingsFromDb();
@@ -30,7 +24,6 @@ export const webAdapter: PlatformAdapter = {
   },
 
   async getTheme(): Promise<Theme> {
-    // Use localStorage since chrome.storage isn't available in web
     try {
       const theme = localStorage.getItem(THEME_KEY);
       return (theme as Theme) || 'auto';
@@ -44,7 +37,6 @@ export const webAdapter: PlatformAdapter = {
   },
 
   async fetchContent(url: string): Promise<{ html: string; finalUrl: string }> {
-    // Try direct fetch first
     try {
       const response = await fetch(url);
       if (response.ok) {
@@ -55,7 +47,6 @@ export const webAdapter: PlatformAdapter = {
       console.log('Direct fetch failed, trying CORS proxies:', e);
     }
 
-    // Try CORS proxies in sequence
     for (const proxy of CORS_PROXIES) {
       try {
         const proxyUrl = proxy.format(url);

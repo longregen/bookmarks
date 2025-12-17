@@ -13,12 +13,6 @@ export interface CreateElementOptions {
   attributes?: Record<string, string>;
 }
 
-/**
- * Create a DOM element safely without innerHTML
- * @param tag HTML tag name
- * @param options Element options (className, textContent, href, etc.)
- * @param children Child elements or text strings to append
- */
 export function createElement<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   options?: CreateElementOptions,
@@ -57,13 +51,6 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
-/**
- * Show a temporary status message in a status div
- * @param statusDiv The status div element
- * @param message Message to display
- * @param type Type of status (success, error, warning)
- * @param timeoutMs Duration to show the message (default: 3000ms)
- */
 export function showStatusMessage(
   statusDiv: HTMLElement,
   message: string,

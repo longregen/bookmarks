@@ -1,22 +1,22 @@
 import Dexie, { Table } from 'dexie';
 
 export interface Bookmark {
-  id: string;                  // crypto.randomUUID()
+  id: string;
   url: string;
   title: string;
   html: string;                // full document.documentElement.outerHTML
   status: 'pending' | 'processing' | 'complete' | 'error';
   errorMessage?: string;
-  errorStack?: string;         // Stack trace for debugging
-  retryCount?: number;         // Number of retry attempts (for error recovery)
-  lastRetryAt?: Date;          // Timestamp of last retry attempt
+  errorStack?: string;
+  retryCount?: number;
+  lastRetryAt?: Date;
   nextRetryAt?: Date;          // Timestamp when next retry should occur (exponential backoff)
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface Markdown {
-  id: string;                  // crypto.randomUUID()
+  id: string;
   bookmarkId: string;          // foreign key → Bookmark.id
   content: string;             // Readability output converted to Markdown
   createdAt: Date;
@@ -24,7 +24,7 @@ export interface Markdown {
 }
 
 export interface QuestionAnswer {
-  id: string;                  // crypto.randomUUID()
+  id: string;
   bookmarkId: string;          // foreign key → Bookmark.id
   question: string;
   answer: string;
@@ -36,8 +36,8 @@ export interface QuestionAnswer {
 }
 
 export interface Settings {
-  key: string;                 // primary key, e.g., 'api'
-  value: any;                  // JSON-serializable value
+  key: string;
+  value: any;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -73,19 +73,17 @@ export enum JobStatus {
 }
 
 export interface Job {
-  id: string;                    // UUID
+  id: string;
   type: JobType;
   status: JobStatus;
   parentJobId?: string;          // For hierarchical jobs (e.g., bulk import -> individual fetches)
-  bookmarkId?: string;           // Associated bookmark (if applicable)
+  bookmarkId?: string;
 
-  // Progress tracking
   progress: number;              // 0-100
-  currentStep?: string;          // Human-readable current step
-  totalSteps?: number;           // For multi-step operations
-  completedSteps?: number;       // Completed steps count
+  currentStep?: string;
+  totalSteps?: number;
+  completedSteps?: number;
 
-  // Metadata (flexible JSON)
   metadata: {
     // For MARKDOWN_GENERATION
     characterCount?: number;
@@ -183,10 +181,6 @@ export class BookmarkDatabase extends Dexie {
 
 export const db = new BookmarkDatabase();
 
-// ============================================================================
-// Database Query Helpers
-// ============================================================================
-
 /**
  * Get all content related to a bookmark (markdown, Q&A pairs, tags)
  * Uses Promise.all for efficient parallel queries
@@ -204,23 +198,14 @@ export async function getBookmarkContent(bookmarkId: string): Promise<{
   return { markdown, qaPairs, tags };
 }
 
-/**
- * Get just markdown for a bookmark
- */
 export async function getBookmarkMarkdown(bookmarkId: string): Promise<Markdown | undefined> {
   return db.markdown.where('bookmarkId').equals(bookmarkId).first();
 }
 
-/**
- * Get Q&A pairs for a bookmark
- */
 export async function getBookmarkQAPairs(bookmarkId: string): Promise<QuestionAnswer[]> {
   return db.questionsAnswers.where('bookmarkId').equals(bookmarkId).toArray();
 }
 
-/**
- * Get tags for a bookmark
- */
 export async function getBookmarkTags(bookmarkId: string): Promise<BookmarkTag[]> {
   return db.bookmarkTags.where('bookmarkId').equals(bookmarkId).toArray();
 }

@@ -4,7 +4,6 @@ import { createElement } from '../../lib/dom';
 import { formatTimeAgo } from '../../lib/time';
 import { createPoller, type Poller } from '../../lib/polling-manager';
 
-// Jobs Dashboard elements
 const jobTypeFilter = document.getElementById('jobTypeFilter') as HTMLSelectElement;
 const jobStatusFilter = document.getElementById('jobStatusFilter') as HTMLSelectElement;
 const refreshJobsBtn = document.getElementById('refreshJobsBtn') as HTMLButtonElement;
@@ -18,19 +17,16 @@ const jobsPoller: Poller = createPoller(
       loadJobs();
     }
   },
-  2000 // Poll every 2 seconds
+  2000
 );
 
 async function loadJobs() {
   try {
-    // Clear and show loading using DOM APIs (CSP-safe)
     jobsList.textContent = '';
     jobsList.appendChild(createElement('div', { className: 'loading', textContent: 'Loading jobs...' }));
 
-    // Get recent jobs from database
     const jobs = await getRecentJobs({ limit: 100 });
 
-    // Apply filters
     const typeFilter = jobTypeFilter.value;
     const statusFilter = jobStatusFilter.value;
 
@@ -50,7 +46,6 @@ async function loadJobs() {
       return;
     }
 
-    // Render jobs using DOM APIs
     jobsList.textContent = '';
     for (const job of filteredJobs) {
       const jobEl = renderJobItemElement(job);
@@ -66,9 +61,6 @@ async function loadJobs() {
   }
 }
 
-/**
- * Create a job item element using DOM APIs (CSP-safe)
- */
 function renderJobItemElement(job: Job): HTMLElement {
   const typeLabel = formatJobType(job.type);
   const statusClass = job.status.toLowerCase();
@@ -80,7 +72,6 @@ function renderJobItemElement(job: Job): HTMLElement {
     attributes: { 'data-job-id': job.id }
   });
 
-  // Job header
   const header = createElement('div', { className: 'job-header' });
   const jobInfo = createElement('div', { className: 'job-info' });
   jobInfo.appendChild(createElement('div', { className: 'job-type', textContent: typeLabel }));
@@ -89,7 +80,6 @@ function renderJobItemElement(job: Job): HTMLElement {
   header.appendChild(createElement('div', { className: `job-status-badge ${statusClass}`, textContent: statusLabel }));
   jobItem.appendChild(header);
 
-  // Progress bar (if applicable)
   if (job.progress > 0 && job.status === JobStatus.IN_PROGRESS) {
     const progressDiv = createElement('div', { className: 'job-progress' });
     const progressBar = createElement('div', { className: 'job-progress-bar' });
@@ -102,17 +92,14 @@ function renderJobItemElement(job: Job): HTMLElement {
     jobItem.appendChild(progressDiv);
   }
 
-  // Current step
   if (job.currentStep) {
     jobItem.appendChild(createElement('div', { className: 'job-step', textContent: job.currentStep }));
   }
 
-  // Metadata
   const metadataDiv = createElement('div', { className: 'job-metadata' });
   appendMetadataElements(metadataDiv, job);
   jobItem.appendChild(metadataDiv);
 
-  // Error message
   if (job.status === JobStatus.FAILED && job.metadata.errorMessage) {
     const errorDiv = createElement('div', { className: 'job-error' });
     errorDiv.appendChild(createElement('strong', { textContent: 'Error: ' }));
@@ -123,9 +110,6 @@ function renderJobItemElement(job: Job): HTMLElement {
   return jobItem;
 }
 
-/**
- * Helper to create a metadata item element
- */
 function createMetadataItem(label: string, value: string | number): HTMLElement {
   const item = createElement('div', { className: 'job-metadata-item' });
   item.appendChild(createElement('strong', { textContent: `${label}: ` }));
@@ -133,13 +117,9 @@ function createMetadataItem(label: string, value: string | number): HTMLElement 
   return item;
 }
 
-/**
- * Append metadata elements to container using DOM APIs
- */
 function appendMetadataElements(container: HTMLElement, job: Job): void {
   let hasMetadata = false;
 
-  // Common metadata
   if (job.metadata.url) {
     container.appendChild(createMetadataItem('URL', job.metadata.url));
     hasMetadata = true;
@@ -150,7 +130,6 @@ function appendMetadataElements(container: HTMLElement, job: Job): void {
     hasMetadata = true;
   }
 
-  // Type-specific metadata
   if (job.type === JobType.MARKDOWN_GENERATION) {
     if (job.metadata.characterCount) {
       container.appendChild(createMetadataItem('Characters', job.metadata.characterCount.toLocaleString()));
@@ -216,12 +195,10 @@ function formatJobType(type: JobType): string {
   return labels[type] || type;
 }
 
-// Jobs filter handlers
 jobTypeFilter.addEventListener('change', loadJobs);
 jobStatusFilter.addEventListener('change', loadJobs);
 refreshJobsBtn.addEventListener('click', loadJobs);
 
-// Start polling for jobs updates
 function startJobsPolling() {
   jobsPoller.start();
 }
@@ -230,7 +207,6 @@ function stopJobsPolling() {
   jobsPoller.stop();
 }
 
-// Listen for refresh events from other modules
 window.addEventListener('refresh-jobs', () => {
   loadJobs();
 });
@@ -239,7 +215,6 @@ export function initJobsModule() {
   loadJobs();
   startJobsPolling();
 
-  // Return cleanup function
   return () => {
     stopJobsPolling();
   };

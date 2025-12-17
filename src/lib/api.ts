@@ -27,15 +27,6 @@ interface ApiSettings {
   apiBaseUrl: string;
 }
 
-/**
- * Makes an API request with standard error handling and authentication.
- *
- * @param endpoint - The API endpoint path (e.g., '/chat/completions' or '/embeddings')
- * @param body - The request body object to be JSON-stringified
- * @param settings - API settings containing apiKey and apiBaseUrl
- * @returns The parsed JSON response
- * @throws Error if API key is missing or if the request fails
- */
 export async function makeApiRequest<T>(
   endpoint: string,
   body: object,
@@ -76,7 +67,6 @@ Respond with JSON only, no other text. Format:
 export async function generateQAPairs(markdownContent: string): Promise<QAPair[]> {
   const settings = await getPlatformAdapter().getSettings();
 
-  // Truncate content to avoid exceeding context window
   const truncatedContent = markdownContent.slice(0, config.API_CONTENT_MAX_CHARS);
 
   const data = await makeApiRequest<any>('/chat/completions', {
@@ -133,12 +123,10 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
     });
   }
 
-  // Sort by index to ensure correct order
   const sorted = data.data.sort((a, b) => a.index - b.index);
   const embeddings = sorted.map((item) => item.embedding);
 
   if (__DEBUG_EMBEDDINGS__) {
-    // Debug: Validate embeddings
     console.log('[Embeddings API] Extracted embeddings', {
       count: embeddings.length,
       dimensions: embeddings.map((e: number[] | undefined) => e?.length ?? 'undefined'),
@@ -146,7 +134,6 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
       firstEmbeddingSample: embeddings[0]?.slice(0, 5),
     });
 
-    // Validate each embedding
     embeddings.forEach((embedding: number[] | undefined, index: number) => {
       if (!embedding) {
         console.error(`[Embeddings API] Embedding at index ${index} is undefined`);

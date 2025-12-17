@@ -54,7 +54,6 @@ export class StateManager {
    * - Session changed (service worker restarted)
    */
   isActive(): boolean {
-    // If not active, return false
     if (!this.state.isActive) {
       return false;
     }
@@ -68,7 +67,6 @@ export class StateManager {
       return false;
     }
 
-    // Check for timeout
     const elapsed = Date.now() - this.state.startTime;
     if (elapsed > this.options.timeoutMs) {
       console.warn(
@@ -92,7 +90,6 @@ export class StateManager {
       return false;
     }
 
-    // Start the operation
     this.state = {
       isActive: true,
       startTime: Date.now(),
