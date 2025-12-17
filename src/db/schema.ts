@@ -5,12 +5,8 @@ export interface Bookmark {
   url: string;
   title: string;
   html: string;
-  status: 'pending' | 'processing' | 'complete' | 'error';
+  status: 'fetching' | 'pending' | 'processing' | 'complete' | 'error';
   errorMessage?: string;
-  errorStack?: string;
-  retryCount?: number;
-  lastRetryAt?: Date;
-  nextRetryAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -56,9 +52,6 @@ export interface SearchHistory {
 }
 
 export enum JobType {
-  MANUAL_ADD = 'manual_add',
-  MARKDOWN_GENERATION = 'markdown_generation',
-  QA_GENERATION = 'qa_generation',
   FILE_IMPORT = 'file_import',
   BULK_URL_IMPORT = 'bulk_url_import',
   URL_FETCH = 'url_fetch'
@@ -77,55 +70,27 @@ export interface Job {
   type: JobType;
   status: JobStatus;
   parentJobId?: string;
-  bookmarkId?: string;
-
-  progress: number;
-  currentStep?: string;
-  totalSteps?: number;
-  completedSteps?: number;
 
   metadata: {
-    characterCount?: number;
-    wordCount?: number;
-    extractionTimeMs?: number;
-
-    pairsGenerated?: number;
-    truncatedChars?: number;
-    apiTimeMs?: number;
-    embeddingTimeMs?: number;
-
+    // FILE_IMPORT
     fileName?: string;
-    totalBookmarks?: number;
     importedCount?: number;
     skippedCount?: number;
-    errorCount?: number;
-    errors?: { url: string; error: string }[];
 
+    // BULK_URL_IMPORT
     totalUrls?: number;
     successCount?: number;
     failureCount?: number;
 
+    // URL_FETCH
     url?: string;
-    fetchTimeMs?: number;
-    htmlSize?: number;
     bookmarkId?: string;
 
-    title?: string;
-    captureTimeMs?: number;
-    source?: string;
-
+    // Error info
     errorMessage?: string;
-    errorStack?: string;
-    retryCount?: number;
-
-    lastInterruptedAt?: string;
-    resumedAt?: string;
-    resumedAndCompleted?: boolean;
   };
 
   createdAt: Date;
-  updatedAt: Date;
-  completedAt?: Date;
 }
 
 export class BookmarkDatabase extends Dexie {
@@ -163,6 +128,16 @@ export class BookmarkDatabase extends Dexie {
       questionsAnswers: 'id, bookmarkId, createdAt, updatedAt',
       settings: 'key, createdAt, updatedAt',
       jobs: 'id, bookmarkId, parentJobId, status, type, createdAt, updatedAt, [parentJobId+status], [bookmarkId+type]',
+      bookmarkTags: '[bookmarkId+tagName], bookmarkId, tagName, addedAt',
+      searchHistory: 'id, query, createdAt',
+    });
+
+    this.version(4).stores({
+      bookmarks: 'id, url, status, createdAt, updatedAt',
+      markdown: 'id, bookmarkId, createdAt, updatedAt',
+      questionsAnswers: 'id, bookmarkId, createdAt, updatedAt',
+      settings: 'key, createdAt, updatedAt',
+      jobs: 'id, parentJobId, status, type, createdAt',
       bookmarkTags: '[bookmarkId+tagName], bookmarkId, tagName, addedAt',
       searchHistory: 'id, query, createdAt',
     });
