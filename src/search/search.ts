@@ -1,5 +1,5 @@
 import { db, type BookmarkTag, type QuestionAnswer } from '../db/schema';
-import { createElement } from '../lib/dom';
+import { createElement, getElement } from '../lib/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { generateEmbeddings } from '../lib/api';
 import { findTopK } from '../lib/similarity';
@@ -14,39 +14,30 @@ import { addEventListener as addBookmarkEventListener } from '../lib/events';
 
 const selectedTags = new Set<string>();
 
-const tagFilters = document.getElementById('tagFilters');
-if (!tagFilters) {
-  throw new Error('Required DOM element tagFilters not found');
-}
-const searchInput = document.getElementById('searchInput') as HTMLInputElement;
-const searchBtn = document.getElementById('searchBtn') as HTMLButtonElement;
-const autocompleteDropdown = document.getElementById('autocompleteDropdown');
-const resultsList = document.getElementById('resultsList');
-const resultStatus = document.getElementById('resultStatus');
-const searchPage = document.getElementById('searchPage');
-const searchHero = document.getElementById('searchHero');
-const resultHeader = document.getElementById('resultHeader');
-if (!autocompleteDropdown || !resultsList || !resultStatus || !searchPage || !searchHero || !resultHeader) {
-  throw new Error('Required DOM elements not found');
-}
+const tagFilters = getElement('tagFilters');
+const searchInput = getElement<HTMLInputElement>('searchInput');
+const searchBtn = getElement<HTMLButtonElement>('searchBtn');
+const autocompleteDropdown = getElement('autocompleteDropdown');
+const resultsList = getElement('resultsList');
+const resultStatus = getElement('resultStatus');
+const searchPage = getElement('searchPage');
+const searchHero = getElement('searchHero');
+const resultHeader = getElement('resultHeader');
 
 searchPage.classList.add('search-page--centered');
 
-const detailPanel2 = document.getElementById('detailPanel');
-const detailBackdrop2 = document.getElementById('detailBackdrop');
-const detailContent2 = document.getElementById('detailContent');
-if (!detailPanel2 || !detailBackdrop2 || !detailContent2) {
-  throw new Error('Required DOM elements for detail panel not found');
-}
+const detailPanel2 = getElement('detailPanel');
+const detailBackdrop2 = getElement('detailBackdrop');
+const detailContent2 = getElement('detailContent');
 
 const detailManager = new BookmarkDetailManager({
   detailPanel: detailPanel2,
   detailBackdrop: detailBackdrop2,
   detailContent: detailContent2,
-  closeBtn: document.getElementById('closeDetailBtn') as HTMLButtonElement,
-  deleteBtn: document.getElementById('deleteBtn') as HTMLButtonElement,
-  exportBtn: document.getElementById('exportBtn') as HTMLButtonElement,
-  debugBtn: document.getElementById('debugBtn') as HTMLButtonElement,
+  closeBtn: getElement<HTMLButtonElement>('closeDetailBtn'),
+  deleteBtn: getElement<HTMLButtonElement>('deleteBtn'),
+  exportBtn: getElement<HTMLButtonElement>('exportBtn'),
+  debugBtn: getElement<HTMLButtonElement>('debugBtn'),
   onDelete: () => void performSearch(),
   onTagsChange: () => void loadFilters()
 });
@@ -112,7 +103,7 @@ async function showAutocomplete(): Promise<void> {
     return;
   }
 
-  autocompleteDropdown!.innerHTML = '';
+  autocompleteDropdown.innerHTML = '';
 
   for (const history of matchingHistory) {
     const item = createElement('div', { className: 'autocomplete-item' });
@@ -136,14 +127,14 @@ async function showAutocomplete(): Promise<void> {
       void performSearch();
     };
 
-    autocompleteDropdown!.appendChild(item);
+    autocompleteDropdown.appendChild(item);
   }
 
-  autocompleteDropdown!.classList.add('active');
+  autocompleteDropdown.classList.add('active');
 }
 
 function hideAutocomplete(): void {
-  autocompleteDropdown!.classList.remove('active');
+  autocompleteDropdown.classList.remove('active');
 }
 
 function buildResultCard(
@@ -175,7 +166,7 @@ function buildResultCard(
 
 async function loadFilters(): Promise<void> {
   await loadTagFilters({
-    container: tagFilters!,
+    container: tagFilters,
     selectedTags,
     onChange: () => {
       void loadFilters();
@@ -187,17 +178,17 @@ async function loadFilters(): Promise<void> {
 }
 
 function showResultsMode(): void {
-  searchPage!.classList.remove('search-page--centered');
-  searchHero!.classList.add('hidden');
-  resultHeader!.classList.remove('hidden');
-  resultStatus!.innerHTML = '<span class="spinner"></span> Searching...';
-  resultStatus!.classList.add('loading');
+  searchPage.classList.remove('search-page--centered');
+  searchHero.classList.add('hidden');
+  resultHeader.classList.remove('hidden');
+  resultStatus.innerHTML = '<span class="spinner"></span> Searching...';
+  resultStatus.classList.add('loading');
 }
 
 function showCenteredMode(): void {
-  searchPage!.classList.add('search-page--centered');
-  searchHero!.classList.remove('hidden');
-  resultHeader!.classList.add('hidden');
+  searchPage.classList.add('search-page--centered');
+  searchHero.classList.remove('hidden');
+  resultHeader.classList.add('hidden');
 }
 
 // eslint-disable-next-line complexity
@@ -205,7 +196,7 @@ async function performSearch(): Promise<void> {
   const query = searchInput.value.trim();
   if (!query) {
     showCenteredMode();
-    resultsList!.innerHTML = '';
+    resultsList.innerHTML = '';
     return;
   }
 
@@ -224,10 +215,10 @@ async function performSearch(): Promise<void> {
     ]).filter(({ embedding }) => Array.isArray(embedding) && embedding.length === queryEmbedding.length);
 
     if (!items.length) {
-      resultStatus!.classList.remove('loading');
-      resultStatus!.textContent = 'No bookmarks indexed yet';
-      resultsList!.innerHTML = '';
-      resultsList!.appendChild(createElement('div', { className: 'empty-state', textContent: 'Save some bookmarks first to enable search' }));
+      resultStatus.classList.remove('loading');
+      resultStatus.textContent = 'No bookmarks indexed yet';
+      resultsList.innerHTML = '';
+      resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'Save some bookmarks first to enable search' }));
       return;
     }
 
@@ -277,14 +268,14 @@ async function performSearch(): Promise<void> {
     }
 
     const count = filteredResults.length;
-    resultStatus!.classList.remove('loading');
-    resultStatus!.textContent = count === 0
+    resultStatus.classList.remove('loading');
+    resultStatus.textContent = count === 0
       ? 'No results found'
       : `${count} result${count === 1 ? '' : 's'}`;
-    resultsList!.innerHTML = '';
+    resultsList.innerHTML = '';
 
     if (!filteredResults.length) {
-      resultsList!.appendChild(createElement('div', { className: 'empty-state', textContent: 'Try a different search term or check your filters' }));
+      resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'Try a different search term or check your filters' }));
       await saveSearchHistory(query, 0);
       return;
     }
@@ -296,13 +287,13 @@ async function performSearch(): Promise<void> {
       const bestQA = qaResults[0].qa;
 
       const card = buildResultCard(bookmark, maxScore, bestQA, () => detailManager.showDetail(bookmark.id));
-      resultsList!.appendChild(card);
+      resultsList.appendChild(card);
     }
   } catch (error) {
     console.error('Search error:', error);
-    resultStatus!.classList.remove('loading');
-    resultStatus!.textContent = 'Search failed';
-    resultsList!.innerHTML = '';
+    resultStatus.classList.remove('loading');
+    resultStatus.textContent = 'Search failed';
+    resultsList.innerHTML = '';
 
     const errorMessage = error instanceof Error ? error.message : String(error);
     const isApiKeyError = errorMessage.toLowerCase().includes('api key') ||
@@ -330,7 +321,7 @@ async function performSearch(): Promise<void> {
       errorDiv.appendChild(settingsLink);
     }
 
-    resultsList!.appendChild(errorDiv);
+    resultsList.appendChild(errorDiv);
   } finally {
     searchBtn.disabled = false;
     searchBtn.textContent = '🔍 Search';

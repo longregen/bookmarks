@@ -1,5 +1,5 @@
 import { db, type BookmarkTag, getBookmarkQAPairs } from '../db/schema';
-import { createElement } from '../lib/dom';
+import { createElement, getElement } from '../lib/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { onThemeChange, applyTheme } from '../shared/theme';
 import { initExtension } from '../lib/init-extension';
@@ -22,32 +22,23 @@ function getStatusModifier(status: string): string {
   return statusMap[status] || 'status-dot--warning';
 }
 
-const tagFilters = document.getElementById('tagFilters');
-const stumbleList = document.getElementById('stumbleList');
-if (!tagFilters || !stumbleList) {
-  throw new Error('Required DOM elements not found');
-}
-const shuffleBtn = document.getElementById('shuffleBtn') as HTMLButtonElement;
-const resultCount = document.getElementById('resultCount');
-if (!resultCount) {
-  throw new Error('Required DOM element resultCount not found');
-}
+const tagFilters = getElement('tagFilters');
+const stumbleList = getElement('stumbleList');
+const shuffleBtn = getElement<HTMLButtonElement>('shuffleBtn');
+const resultCount = getElement('resultCount');
 
-const detailPanel = document.getElementById('detailPanel');
-const detailBackdrop = document.getElementById('detailBackdrop');
-const detailContent = document.getElementById('detailContent');
-if (!detailPanel || !detailBackdrop || !detailContent) {
-  throw new Error('Required DOM elements for detail panel not found');
-}
+const detailPanel = getElement('detailPanel');
+const detailBackdrop = getElement('detailBackdrop');
+const detailContent = getElement('detailContent');
 
 const detailManager = new BookmarkDetailManager({
   detailPanel,
   detailBackdrop,
   detailContent,
-  closeBtn: document.getElementById('closeDetailBtn') as HTMLButtonElement,
-  deleteBtn: document.getElementById('deleteBtn') as HTMLButtonElement,
-  exportBtn: document.getElementById('exportBtn') as HTMLButtonElement,
-  debugBtn: document.getElementById('debugBtn') as HTMLButtonElement,
+  closeBtn: getElement<HTMLButtonElement>('closeDetailBtn'),
+  deleteBtn: getElement<HTMLButtonElement>('deleteBtn'),
+  exportBtn: getElement<HTMLButtonElement>('exportBtn'),
+  debugBtn: getElement<HTMLButtonElement>('debugBtn'),
   onDelete: () => void loadStumble(),
   onTagsChange: () => void loadFilters()
 });
@@ -56,7 +47,7 @@ shuffleBtn.addEventListener('click', () => void loadStumble());
 
 async function loadFilters(): Promise<void> {
   await loadTagFilters({
-    container: tagFilters!,
+    container: tagFilters,
     selectedTags,
     onChange: () => {
       void loadFilters();
@@ -88,12 +79,12 @@ async function loadStumble(): Promise<void> {
     }
 
     const selected = bookmarks.slice(0, config.STUMBLE_COUNT);
-    resultCount!.textContent = selected.length.toString();
+    resultCount.textContent = selected.length.toString();
 
-    stumbleList!.innerHTML = '';
+    stumbleList.innerHTML = '';
 
     if (selected.length === 0) {
-      stumbleList!.appendChild(createElement('div', { className: 'empty-state', textContent: 'No complete bookmarks to stumble through' }));
+      stumbleList.appendChild(createElement('div', { className: 'empty-state', textContent: 'No complete bookmarks to stumble through' }));
       return;
     }
 
@@ -125,13 +116,13 @@ async function loadStumble(): Promise<void> {
         card.appendChild(qaPreview);
       }
 
-      stumbleList!.appendChild(card);
+      stumbleList.appendChild(card);
     }
   } catch (error) {
     console.error('Stumble error:', error);
-    stumbleList!.innerHTML = '';
+    stumbleList.innerHTML = '';
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    stumbleList!.appendChild(createElement('div', { className: 'error-message', textContent: `Failed to load: ${errorMessage}` }));
+    stumbleList.appendChild(createElement('div', { className: 'error-message', textContent: `Failed to load: ${errorMessage}` }));
   } finally {
     shuffleBtn.disabled = false;
     shuffleBtn.textContent = '↻ Shuffle';

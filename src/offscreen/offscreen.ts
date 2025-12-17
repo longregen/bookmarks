@@ -70,7 +70,7 @@ chrome.runtime.onMessage.addListener((message: { type: string; url?: string; tim
   if (message.type === 'FETCH_URL') {
     const { url, timeoutMs } = message;
 
-    if (!url) {
+    if (url === undefined || url === '') {
       sendResponse({ success: false, error: 'URL is required' });
       return true;
     }
@@ -92,7 +92,7 @@ chrome.runtime.onMessage.addListener((message: { type: string; url?: string; tim
   if (message.type === 'EXTRACT_CONTENT') {
     const { html, url } = message;
 
-    if (!html || !url) {
+    if (html === undefined || html === '' || url === undefined || url === '') {
       sendResponse({ success: false, error: 'HTML and URL are required' });
       return true;
     }

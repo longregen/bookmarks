@@ -1,5 +1,5 @@
 import { db, type BookmarkTag } from '../db/schema';
-import { createElement } from '../lib/dom';
+import { createElement, getElement } from '../lib/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { onThemeChange, applyTheme } from '../shared/theme';
 import { initExtension } from '../lib/init-extension';
@@ -23,32 +23,23 @@ function getStatusModifier(status: string): string {
   return statusMap[status] || 'status-dot--warning';
 }
 
-const tagList = document.getElementById('tagList');
-const bookmarkList = document.getElementById('bookmarkList');
-if (!tagList || !bookmarkList) {
-  throw new Error('Required DOM elements not found');
-}
-const bookmarkCount = document.getElementById('bookmarkCount');
-const sortSelect = document.getElementById('sortSelect') as HTMLSelectElement;
-if (!bookmarkCount) {
-  throw new Error('Required DOM element bookmarkCount not found');
-}
+const tagList = getElement('tagList');
+const bookmarkList = getElement('bookmarkList');
+const bookmarkCount = getElement('bookmarkCount');
+const sortSelect = getElement<HTMLSelectElement>('sortSelect');
 
-const detailPanel = document.getElementById('detailPanel');
-const detailBackdrop = document.getElementById('detailBackdrop');
-const detailContent = document.getElementById('detailContent');
-if (!detailPanel || !detailBackdrop || !detailContent) {
-  throw new Error('Required DOM elements for detail panel not found');
-}
+const detailPanel = getElement('detailPanel');
+const detailBackdrop = getElement('detailBackdrop');
+const detailContent = getElement('detailContent');
 
 const detailManager = new BookmarkDetailManager({
   detailPanel,
   detailBackdrop,
   detailContent,
-  closeBtn: document.getElementById('closeDetailBtn') as HTMLButtonElement,
-  deleteBtn: document.getElementById('deleteBtn') as HTMLButtonElement,
-  exportBtn: document.getElementById('exportBtn') as HTMLButtonElement,
-  debugBtn: document.getElementById('debugBtn') as HTMLButtonElement,
+  closeBtn: getElement<HTMLButtonElement>('closeDetailBtn'),
+  deleteBtn: getElement<HTMLButtonElement>('deleteBtn'),
+  exportBtn: getElement<HTMLButtonElement>('exportBtn'),
+  debugBtn: getElement<HTMLButtonElement>('debugBtn'),
   onDelete: () => {
     void loadTags();
     void loadBookmarks();
@@ -79,30 +70,30 @@ async function loadTags(): Promise<void> {
 
   const untaggedCount = bookmarks.length - taggedBookmarkIds.size;
 
-  tagList!.innerHTML = '';
+  tagList.innerHTML = '';
 
   const allTag = createElement('div', { className: `tag-item ${selectedTag === 'All' ? 'active' : ''}` });
   allTag.onclick = () => selectTag('All');
   allTag.appendChild(createElement('span', { className: 'tag-name', textContent: 'All' }));
   allTag.appendChild(createElement('span', { className: 'tag-count', textContent: bookmarks.length.toString() }));
-  tagList!.appendChild(allTag);
+  tagList.appendChild(allTag);
 
   if (untaggedCount > 0) {
     const untaggedTag = createElement('div', { className: `tag-item ${selectedTag === 'Untagged' ? 'active' : ''}` });
     untaggedTag.onclick = () => selectTag('Untagged');
     untaggedTag.appendChild(createElement('span', { className: 'tag-name', textContent: 'Untagged' }));
     untaggedTag.appendChild(createElement('span', { className: 'tag-count', textContent: untaggedCount.toString() }));
-    tagList!.appendChild(untaggedTag);
+    tagList.appendChild(untaggedTag);
   }
 
-  tagList!.appendChild(createElement('hr', { style: { border: 'none', borderTop: '1px solid var(--border-primary)', margin: 'var(--space-3) 0' } }));
+  tagList.appendChild(createElement('hr', { style: { border: 'none', borderTop: '1px solid var(--border-primary)', margin: 'var(--space-3) 0' } }));
 
   for (const [tagName, count] of Object.entries(allTags).sort()) {
     const tagItem = createElement('div', { className: `tag-item ${selectedTag === tagName ? 'active' : ''}` });
     tagItem.onclick = () => selectTag(tagName);
     tagItem.appendChild(createElement('span', { className: 'tag-name', textContent: `#${tagName}` }));
     tagItem.appendChild(createElement('span', { className: 'tag-count', textContent: count.toString() }));
-    tagList!.appendChild(tagItem);
+    tagList.appendChild(tagItem);
   }
 }
 
@@ -129,11 +120,11 @@ async function loadBookmarks(): Promise<void> {
   else if (sortBy === 'oldest') bookmarks.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   else if (sortBy === 'title') bookmarks.sort((a, b) => a.title.localeCompare(b.title));
 
-  bookmarkList!.innerHTML = '';
-  bookmarkCount!.textContent = bookmarks.length.toString();
+  bookmarkList.innerHTML = '';
+  bookmarkCount.textContent = bookmarks.length.toString();
 
   if (bookmarks.length === 0) {
-    bookmarkList!.appendChild(createElement('div', { className: 'empty-state', textContent: 'No bookmarks found' }));
+    bookmarkList.appendChild(createElement('div', { className: 'empty-state', textContent: 'No bookmarks found' }));
     return;
   }
 
@@ -176,7 +167,7 @@ async function loadBookmarks(): Promise<void> {
       card.appendChild(tagContainer);
     }
 
-    bookmarkList!.appendChild(card);
+    bookmarkList.appendChild(card);
   }
 }
 
@@ -201,6 +192,7 @@ function _initAddUrlSection(): void {
 
   const typedInput = addUrlInput as HTMLInputElement;
   const typedBtn = addUrlBtn as HTMLButtonElement;
+  const typedStatus = addUrlStatus;
 
   addUrlSection.classList.remove('hidden');
 
@@ -236,13 +228,13 @@ function _initAddUrlSection(): void {
   }
 
   function showAddUrlStatus(message: string, type: 'success' | 'error' | 'info'): void {
-    addUrlStatus!.textContent = message;
-    addUrlStatus!.className = `add-url-status ${type}`;
-    addUrlStatus!.classList.remove('hidden');
+    typedStatus.textContent = message;
+    typedStatus.className = `add-url-status ${type}`;
+    typedStatus.classList.remove('hidden');
 
     if (type === 'success') {
       setTimeout(() => {
-        addUrlStatus!.classList.add('hidden');
+        typedStatus.classList.add('hidden');
       }, 3000);
     }
   }
