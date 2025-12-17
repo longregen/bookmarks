@@ -37,13 +37,12 @@ async function loadJobs(): Promise<void> {
     }
 
     jobsList.textContent = '';
+    const fragment = document.createDocumentFragment();
     for (const job of filteredJobs) {
       const jobEl = renderJobItemElement(job);
-      jobEl.addEventListener('click', () => {
-        jobEl.classList.toggle('expanded');
-      });
-      jobsList.appendChild(jobEl);
+      fragment.appendChild(jobEl);
     }
+    jobsList.appendChild(fragment);
   } catch (error) {
     console.error('Error loading jobs:', error);
     jobsList.textContent = '';
@@ -138,6 +137,13 @@ function formatJobType(type: JobType): string {
 jobTypeFilter.addEventListener('change', () => void loadJobs());
 jobStatusFilter.addEventListener('change', () => void loadJobs());
 refreshJobsBtn.addEventListener('click', () => void loadJobs());
+
+jobsList.addEventListener('click', (e) => {
+  const jobEl = (e.target as HTMLElement).closest('.job-item');
+  if (jobEl) {
+    jobEl.classList.toggle('expanded');
+  }
+});
 
 export function initJobsModule(): () => void {
   void loadJobs();

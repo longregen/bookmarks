@@ -108,6 +108,7 @@ async function showAutocomplete(): Promise<void> {
 
   autocompleteDropdown.innerHTML = '';
 
+  const fragment = document.createDocumentFragment();
   for (const history of matchingHistory) {
     const item = createElement('div', { className: 'autocomplete-item' });
 
@@ -130,8 +131,9 @@ async function showAutocomplete(): Promise<void> {
       void performSearch();
     };
 
-    autocompleteDropdown.appendChild(item);
+    fragment.appendChild(item);
   }
+  autocompleteDropdown.appendChild(fragment);
 
   autocompleteDropdown.classList.add('active');
 }
@@ -237,10 +239,14 @@ async function performSearch(): Promise<void> {
       }
     }
 
-    const sortedResults = Array.from(bookmarkMap.entries())
-      .sort((a, b) => Math.max(...b[1].map(r => r.score)) - Math.max(...a[1].map(r => r.score)));
+    const resultsWithMax = Array.from(bookmarkMap.entries()).map(([id, results]) => ({
+      bookmarkId: id,
+      qaResults: results,
+      maxScore: Math.max(...results.map(r => r.score))
+    }));
+    resultsWithMax.sort((a, b) => b.maxScore - a.maxScore);
 
-    const bookmarkIds = sortedResults.map(([bookmarkId]) => bookmarkId);
+    const bookmarkIds = resultsWithMax.map(r => r.bookmarkId);
     const bookmarks = await db.bookmarks.bulkGet(bookmarkIds);
     const bookmarksById = new Map(bookmarks.filter((b): b is NonNullable<typeof b> => b !== undefined).map(b => [b.id, b]));
 
@@ -256,16 +262,16 @@ async function performSearch(): Promise<void> {
     }
 
     const filteredResults = [];
-    for (const [bookmarkId, qaResults] of sortedResults) {
-      const bookmark = bookmarksById.get(bookmarkId);
+    for (const result of resultsWithMax) {
+      const bookmark = bookmarksById.get(result.bookmarkId);
       if (!bookmark) continue;
 
       if (selectedTags.size > 0) {
-        const tags = tagsByBookmarkId.get(bookmarkId) ?? [];
+        const tags = tagsByBookmarkId.get(result.bookmarkId) ?? [];
         if (!tags.some(t => selectedTags.has(t.tagName))) continue;
       }
 
-      filteredResults.push({ bookmark, qaResults });
+      filteredResults.push({ bookmark, qaResults: result.qaResults, maxScore: result.maxScore });
     }
 
     const count = filteredResults.length;
@@ -283,13 +289,14 @@ async function performSearch(): Promise<void> {
 
     await saveSearchHistory(query, filteredResults.length);
 
-    for (const { bookmark, qaResults } of filteredResults) {
-      const maxScore = Math.max(...qaResults.map(r => r.score));
+    const fragment = document.createDocumentFragment();
+    for (const { bookmark, qaResults, maxScore } of filteredResults) {
       const bestQA = qaResults[0].qa;
 
       const card = buildResultCard(bookmark, maxScore, bestQA, () => detailManager.showDetail(bookmark.id));
-      resultsList.appendChild(card);
+      fragment.appendChild(card);
     }
+    resultsList.appendChild(fragment);
   } catch (error) {
     console.error('Search error:', error);
     resultStatus.classList.remove('loading');
@@ -345,12 +352,13 @@ if (initialQuery !== null && initialQuery !== '') {
 
 searchInput.focus();
 
-document.addEventListener('keydown', (e) => {
+const keydownHandler = (e: KeyboardEvent): void => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
     e.preventDefault();
     searchInput.focus();
   }
-});
+};
+document.addEventListener('keydown', keydownHandler);
 
 const healthIndicatorContainer = document.getElementById('healthIndicator');
 if (healthIndicatorContainer) {
@@ -364,5 +372,6 @@ const removeEventListener = addBookmarkEventListener((event) => {
 });
 
 window.addEventListener('beforeunload', () => {
+  document.removeEventListener('keydown', keydownHandler);
   removeEventListener();
 });

@@ -665,6 +665,10 @@ body {
   font-size: var(--text-sm);
 }
 
+.tag-dropdown-item:hover {
+  background: var(--bg-secondary);
+}
+
 .sidebar-nav {
   display: flex;
   flex-direction: column;

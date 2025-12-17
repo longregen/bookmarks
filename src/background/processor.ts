@@ -72,19 +72,18 @@ async function generateQAIfNeeded(bookmark: Bookmark, markdownContent: string): 
   ]);
 
   console.log(`[Processor] Saving ${qaPairs.length} Q&A pairs with embeddings`);
-  for (let i = 0; i < qaPairs.length; i++) {
-    await db.questionsAnswers.add({
-      id: crypto.randomUUID(),
-      bookmarkId: bookmark.id,
-      question: qaPairs[i].question,
-      answer: qaPairs[i].answer,
-      embeddingQuestion: questionEmbeddings[i],
-      embeddingAnswer: answerEmbeddings[i],
-      embeddingBoth: combinedEmbeddings[i],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-  }
+  const qaRecords = qaPairs.map((qa, i) => ({
+    id: crypto.randomUUID(),
+    bookmarkId: bookmark.id,
+    question: qa.question,
+    answer: qa.answer,
+    embeddingQuestion: questionEmbeddings[i],
+    embeddingAnswer: answerEmbeddings[i],
+    embeddingBoth: combinedEmbeddings[i],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }));
+  await db.questionsAnswers.bulkAdd(qaRecords);
 
   console.log(`[Processor] Completed Q&A generation for: ${bookmark.title}`);
 }

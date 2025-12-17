@@ -65,17 +65,24 @@ export async function createBulkImportJob(urls: string[]): Promise<string> {
   const now = new Date();
   const bookmarkIds: string[] = [];
 
-  // Create bookmarks with status='fetching' for each URL
+  // Load all existing bookmarks for the given URLs in one query
+  const existingBookmarks = await db.bookmarks.where('url').anyOf(urls).toArray();
+  const existingByUrl = new Map(existingBookmarks.map(b => [b.url, b]));
+
+  // Separate new URLs from existing ones
+  const newBookmarks = [];
+  const updatedBookmarks = [];
+
   for (const url of urls) {
-    const existing = await db.bookmarks.where('url').equals(url).first();
+    const existing = existingByUrl.get(url);
     if (!existing) {
       const id = crypto.randomUUID();
-      await db.bookmarks.add({
+      newBookmarks.push({
         id,
         url,
         title: url,
         html: '',
-        status: 'fetching',
+        status: 'fetching' as const,
         retryCount: 0,
         createdAt: now,
         updatedAt: now,
@@ -83,8 +90,9 @@ export async function createBulkImportJob(urls: string[]): Promise<string> {
       bookmarkIds.push(id);
     } else {
       // Reset existing bookmark to be re-fetched
-      await db.bookmarks.update(existing.id, {
-        status: 'fetching',
+      updatedBookmarks.push({
+        ...existing,
+        status: 'fetching' as const,
         html: '',
         errorMessage: undefined,
         retryCount: 0,
@@ -92,6 +100,14 @@ export async function createBulkImportJob(urls: string[]): Promise<string> {
       });
       bookmarkIds.push(existing.id);
     }
+  }
+
+  // Use bulk operations for better performance
+  if (newBookmarks.length > 0) {
+    await db.bookmarks.bulkAdd(newBookmarks);
+  }
+  if (updatedBookmarks.length > 0) {
+    await db.bookmarks.bulkPut(updatedBookmarks);
   }
 
   // Create job with IN_PROGRESS status (will be updated as items complete)
@@ -110,16 +126,21 @@ export async function createBulkImportJob(urls: string[]): Promise<string> {
 }
 
 function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#(\d+);/g, (_: string, code: string) => String.fromCharCode(parseInt(code, 10)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_: string, code: string) => String.fromCharCode(parseInt(code, 16)))
-    .replace(/&amp;/g, '&');
+  const entities: Record<string, string> = {
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&apos;': "'",
+    '&nbsp;': ' ',
+    '&amp;': '&',
+  };
+  return text.replace(/&(?:#(\d+)|#x([0-9a-fA-F]+)|([a-z]+));/gi, (match, dec?: string, hex?: string, named?: string) => {
+    if (dec !== undefined) return String.fromCharCode(parseInt(dec, 10));
+    if (hex !== undefined) return String.fromCharCode(parseInt(hex, 16));
+    if (named !== undefined) return entities[`&${named};`] ?? match;
+    return match;
+  });
 }
 
 export function extractTitleFromHtml(html: string): string {

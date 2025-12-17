@@ -54,17 +54,12 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
 
   const existingTagNames = tags.map(t => t.tagName);
 
-  const addHoverStyles = (element: HTMLElement): void => {
-    element.addEventListener('mouseenter', () => { element.style.background = 'var(--bg-secondary)'; });
-    element.addEventListener('mouseleave', () => { element.style.background = 'transparent'; });
-  };
-
   input.addEventListener('input', () => {
     const value = input.value.trim().toLowerCase();
-    dropdown.innerHTML = '';
 
     if (!value) {
       dropdown.style.display = 'none';
+      dropdown.innerHTML = '';
       return;
     }
 
@@ -72,14 +67,15 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
       .filter(t => t.includes(value) && !existingTagNames.includes(t))
       .slice(0, 5);
 
+    const fragment = document.createDocumentFragment();
+
     for (const match of matches) {
       const item = createElement('div', {
         textContent: `#${match}`,
         className: 'tag-dropdown-item'
       });
-      addHoverStyles(item);
       item.addEventListener('click', () => addTag(normalizeTagName(match), bookmarkId, container, onTagsChange));
-      dropdown.appendChild(item);
+      fragment.appendChild(item);
     }
 
     const normalizedValue = normalizeTagName(value);
@@ -92,12 +88,13 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
         createItem.style.borderTop = '1px solid var(--border-primary)';
       }
       createItem.style.color = 'var(--accent-link)';
-      addHoverStyles(createItem);
       createItem.addEventListener('click', () => addTag(normalizedValue, bookmarkId, container, onTagsChange));
-      dropdown.appendChild(createItem);
+      fragment.appendChild(createItem);
     }
 
-    dropdown.style.display = dropdown.children.length > 0 ? 'block' : 'none';
+    dropdown.innerHTML = '';
+    dropdown.appendChild(fragment);
+    dropdown.style.display = fragment.childElementCount > 0 ? 'block' : 'none';
   });
 
   input.addEventListener('keydown', async (e) => {

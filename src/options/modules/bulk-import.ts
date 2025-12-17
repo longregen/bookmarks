@@ -57,6 +57,8 @@ bulkUrlsInput.addEventListener('input', () => {
 
 async function pollProgress(urls: string[]): Promise<void> {
   const total = urls.length;
+  let lastPercent = -1;
+  let lastCompleted = -1;
 
   const checkProgress = async (): Promise<void> => {
     try {
@@ -65,12 +67,27 @@ async function pollProgress(urls: string[]): Promise<void> {
         .anyOf(urls)
         .toArray();
 
-      const completed = bookmarks.filter(b => b.status === 'complete' || b.status === 'error').length;
-      const errors = bookmarks.filter(b => b.status === 'error').length;
+      let completed = 0;
+      let errors = 0;
+      for (const b of bookmarks) {
+        if (b.status === 'error') {
+          errors++;
+          completed++;
+        } else if (b.status === 'complete') {
+          completed++;
+        }
+      }
       const percent = Math.round((completed / total) * 100);
 
-      bulkImportProgressBar.style.width = `${percent}%`;
-      bulkImportStatus.textContent = `Imported ${completed} of ${total}`;
+      // Only update DOM if values changed
+      if (percent !== lastPercent) {
+        bulkImportProgressBar.style.width = `${percent}%`;
+        lastPercent = percent;
+      }
+      if (completed !== lastCompleted) {
+        bulkImportStatus.textContent = `Imported ${completed} of ${total}`;
+        lastCompleted = completed;
+      }
 
       if (completed >= total) {
         // All done

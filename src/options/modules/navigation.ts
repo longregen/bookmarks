@@ -42,40 +42,57 @@ function setupScrollTracking(): void {
   const scrollContainer = document.querySelector('.middle');
   if (!scrollContainer) return;
 
-  const handleScroll = (): void => {
-    // Query sections fresh each time in case DOM changed
-    const sections = document.querySelectorAll<HTMLElement>('.settings-section');
-    if (sections.length === 0) return;
+  const sectionsNodeList = document.querySelectorAll<HTMLElement>('.settings-section');
+  if (sectionsNodeList.length === 0) return;
 
-    const containerTop = scrollContainer.getBoundingClientRect().top;
+  const sections = Array.from(sectionsNodeList);
 
-    // Find the section whose top is closest to (but not below) the container top
-    let activeSection: HTMLElement | null = null;
+  // Track which sections are currently intersecting the top area
+  const intersectingSections = new Set<HTMLElement>();
 
-    for (const section of sections) {
-      const sectionTop = section.getBoundingClientRect().top;
-      // Section is at or above the container top (with some margin)
-      if (sectionTop <= containerTop + 50) {
-        activeSection = section;
-      } else {
-        // First section below the threshold - stop here
-        // If we haven't found any yet, use this one (we're at the top)
-        if (!activeSection) {
-          activeSection = section;
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach(entry => {
+        const section = entry.target as HTMLElement;
+        if (entry.isIntersecting) {
+          intersectingSections.add(section);
+        } else {
+          intersectingSections.delete(section);
         }
-        break;
+      });
+
+      // Find the first intersecting section in DOM order (topmost visible section)
+      let activeSection: HTMLElement | null = null;
+      for (const section of sections) {
+        if (intersectingSections.has(section)) {
+          activeSection = section;
+          break;
+        }
       }
-    }
 
-    if (activeSection) {
-      setActiveNavItem(activeSection.id);
+      // If no section is intersecting, default to the first section
+      if (!activeSection && sections.length > 0) {
+        activeSection = sections[0];
+      }
+
+      if (activeSection) {
+        setActiveNavItem(activeSection.id);
+      }
+    },
+    {
+      root: scrollContainer,
+      threshold: 0,
+      // Negative top margin creates an offset 50px below the container top
+      // This matches the original logic's "containerTop + 50" threshold
+      rootMargin: '-50px 0px 0px 0px'
     }
+  );
+
+  sections.forEach(section => observer.observe(section));
+
+  scrollCleanup = () => {
+    observer.disconnect();
   };
-
-  scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-  handleScroll(); // Initial check
-
-  scrollCleanup = () => scrollContainer.removeEventListener('scroll', handleScroll);
 }
 
 function handleResponsiveTracking(): void {
