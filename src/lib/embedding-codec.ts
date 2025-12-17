@@ -24,24 +24,6 @@ export function decodeEmbedding(encoded: string): number[] {
   return embedding;
 }
 
-export function maxQuantizationError(): number {
-  return 1 / QUANTIZE_SCALE;
-}
-
-export function compressionRatio(embedding: number[]): {
-  jsonSize: number;
-  encodedSize: number;
-  ratio: number;
-} {
-  const jsonSize = JSON.stringify(embedding).length;
-  const encodedSize = encodeEmbedding(embedding).length;
-  return {
-    jsonSize,
-    encodedSize,
-    ratio: jsonSize / encodedSize,
-  };
-}
-
 export function isEncodedEmbedding(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   return value.length >= 4 && /^[A-Za-z0-9+/]+=*$/.test(value);
