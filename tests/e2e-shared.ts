@@ -23,6 +23,7 @@ export interface TestAdapter {
   getPageUrl(page: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs'): string;
   getMockApiUrl(): string;
   getRealApiKey(): string;
+  hasRealApiKey(): boolean;
   startCoverage?(): Promise<void>;
   stopCoverage?(): Promise<void>;
   writeCoverage?(): Promise<void>;
@@ -145,6 +146,12 @@ export interface TestOptions {
 }
 
 export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, options: TestOptions = {}): Promise<void> {
+  // Auto-skip real API tests if no API key is available
+  if (!adapter.hasRealApiKey() && !options.skipRealApiTests) {
+    console.log('No OPENAI_API_KEY provided - real API tests will be skipped');
+    options = { ...options, skipRealApiTests: true };
+  }
+
   console.log('\n--- MOCKED API TESTS ---\n');
 
   if (adapter.isExtension) {
