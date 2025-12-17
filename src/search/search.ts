@@ -39,8 +39,10 @@ const detailManager = new BookmarkDetailManager({
   deleteBtn: getElement<HTMLButtonElement>('deleteBtn'),
   exportBtn: getElement<HTMLButtonElement>('exportBtn'),
   debugBtn: getElement<HTMLButtonElement>('debugBtn'),
+  retryBtn: getElement<HTMLButtonElement>('retryBtn'),
   onDelete: () => void performSearch(),
-  onTagsChange: () => void loadFilters()
+  onTagsChange: () => void loadFilters(),
+  onRetry: () => void performSearch()
 });
 
 searchBtn.addEventListener('click', () => void performSearch());

@@ -38,11 +38,16 @@ const detailManager = new BookmarkDetailManager({
   deleteBtn: getElement<HTMLButtonElement>('deleteBtn'),
   exportBtn: getElement<HTMLButtonElement>('exportBtn'),
   debugBtn: getElement<HTMLButtonElement>('debugBtn'),
+  retryBtn: getElement<HTMLButtonElement>('retryBtn'),
   onDelete: () => {
     void loadTags();
     void loadBookmarks();
   },
   onTagsChange: () => {
+    void loadTags();
+    void loadBookmarks();
+  },
+  onRetry: () => {
     void loadTags();
     void loadBookmarks();
   }

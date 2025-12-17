@@ -7,6 +7,7 @@ export interface Bookmark {
   html: string;
   status: 'fetching' | 'pending' | 'processing' | 'complete' | 'error';
   errorMessage?: string;
+  retryCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,6 +66,24 @@ export enum JobStatus {
   CANCELLED = 'cancelled'
 }
 
+export enum JobItemStatus {
+  PENDING = 'pending',
+  IN_PROGRESS = 'in_progress',
+  COMPLETE = 'complete',
+  ERROR = 'error'
+}
+
+export interface JobItem {
+  id: string;
+  jobId: string;
+  bookmarkId: string;
+  status: JobItemStatus;
+  retryCount: number;
+  errorMessage?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Job {
   id: string;
   type: JobType;
@@ -99,6 +118,7 @@ export class BookmarkDatabase extends Dexie {
   questionsAnswers!: Table<QuestionAnswer>;
   settings!: Table<Settings>;
   jobs!: Table<Job>;
+  jobItems!: Table<JobItem>;
   bookmarkTags!: Table<BookmarkTag>;
   searchHistory!: Table<SearchHistory>;
 
@@ -138,6 +158,17 @@ export class BookmarkDatabase extends Dexie {
       questionsAnswers: 'id, bookmarkId, createdAt, updatedAt',
       settings: 'key, createdAt, updatedAt',
       jobs: 'id, parentJobId, status, type, createdAt',
+      bookmarkTags: '[bookmarkId+tagName], bookmarkId, tagName, addedAt',
+      searchHistory: 'id, query, createdAt',
+    });
+
+    this.version(5).stores({
+      bookmarks: 'id, url, status, createdAt, updatedAt',
+      markdown: 'id, bookmarkId, createdAt, updatedAt',
+      questionsAnswers: 'id, bookmarkId, createdAt, updatedAt',
+      settings: 'key, createdAt, updatedAt',
+      jobs: 'id, parentJobId, status, type, createdAt',
+      jobItems: 'id, jobId, bookmarkId, status, createdAt, updatedAt, [jobId+status]',
       bookmarkTags: '[bookmarkId+tagName], bookmarkId, tagName, addedAt',
       searchHistory: 'id, query, createdAt',
     });
