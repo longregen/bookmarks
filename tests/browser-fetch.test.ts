@@ -1,6 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fetchWithTimeout, browserFetch } from '../src/lib/browser-fetch';
 
+// Mock the tab-renderer module since it uses Chrome APIs not available in unit tests
+vi.mock('../src/lib/tab-renderer', () => ({
+  renderPage: vi.fn(),
+}));
+
+import { renderPage } from '../src/lib/tab-renderer';
+const mockRenderPage = vi.mocked(renderPage);
+
 describe('Browser Fetch Library', () => {
   // Mock global fetch
   const mockFetch = vi.fn();
@@ -8,6 +16,7 @@ describe('Browser Fetch Library', () => {
 
   beforeEach(() => {
     mockFetch.mockReset();
+    mockRenderPage.mockReset();
   });
 
   describe('fetchWithTimeout', () => {
@@ -250,62 +259,39 @@ describe('Browser Fetch Library', () => {
       });
     });
 
-    it('should use fetchWithTimeout directly for Chrome (with host_permissions)', async () => {
-      // Chrome service workers can now fetch directly with host_permissions: <all_urls>
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        text: async () => 'chrome test',
-      });
+    it('should use renderPage for tab-based rendering', async () => {
+      // browserFetch now uses tab-based rendering for full JS execution
+      mockRenderPage.mockResolvedValueOnce('<html>rendered content</html>');
 
       const html = await browserFetch('https://example.com');
-      expect(html).toBe('chrome test');
-      expect(mockFetch).toHaveBeenCalled();
+      expect(html).toBe('<html>rendered content</html>');
+      expect(mockRenderPage).toHaveBeenCalledWith('https://example.com', expect.any(Number));
     });
 
-    it('should handle fetch errors in Chrome', async () => {
-      // Chrome fetches directly and handles errors the same way as fetchWithTimeout
-      mockFetch.mockRejectedValueOnce(new Error('Fetch failed'));
+    it('should handle render errors', async () => {
+      // Errors from renderPage should propagate
+      mockRenderPage.mockRejectedValueOnce(new Error('Tab creation failed'));
 
       await expect(
         browserFetch('https://example.com')
-      ).rejects.toThrow('Fetch failed');
+      ).rejects.toThrow('Tab creation failed');
     });
 
-    it('should handle HTTP errors in Chrome', async () => {
-      // Chrome uses direct fetch, so HTTP errors are handled the same way as fetchWithTimeout
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
-        text: async () => '',
-      });
+    it('should pass timeout to renderPage', async () => {
+      // browserFetch passes the timeout to renderPage
+      mockRenderPage.mockResolvedValueOnce('<html>test</html>');
 
-      await expect(
-        browserFetch('https://example.com')
-      ).rejects.toThrow('HTTP 500: Internal Server Error');
+      await browserFetch('https://example.com', 5000);
+      expect(mockRenderPage).toHaveBeenCalledWith('https://example.com', 5000);
     });
 
-    it('should pass timeout to fetchWithTimeout', async () => {
-      // Chrome now uses fetchWithTimeout directly, so timeout is handled there
-      let abortCalled = false;
-      mockFetch.mockImplementationOnce((_url: any, options: any) => {
-        return new Promise((_resolve, reject) => {
-          options.signal.addEventListener('abort', () => {
-            abortCalled = true;
-            reject(new Error('The operation was aborted'));
-          });
-        });
-      });
+    it('should use default timeout when not specified', async () => {
+      // When no timeout is specified, the default from config should be used
+      mockRenderPage.mockResolvedValueOnce('<html>test</html>');
 
-      try {
-        await browserFetch('https://example.com', 100);
-      } catch {
-        // Expected to throw on timeout
-      }
-
-      // Wait for abort signal
-      await new Promise(resolve => setTimeout(resolve, 150));
-      expect(abortCalled).toBe(true);
+      await browserFetch('https://example.com');
+      // Default timeout is 30000ms from config
+      expect(mockRenderPage).toHaveBeenCalledWith('https://example.com', 30000);
     });
   });
 
