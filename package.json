@@ -21,9 +21,11 @@
     "test:unit:watch": "vitest",
     "test:unit:coverage": "vitest run --coverage",
     "test:e2e:chrome": "npx tsx tests/e2e.test.ts",
+    "test:e2e:chrome:coverage": "E2E_COVERAGE=true npx tsx tests/e2e.test.ts",
     "test:e2e:firefox": "npx tsx tests/e2e-firefox.test.ts",
     "test:e2e:web": "npx tsx tests/e2e-web.test.ts",
     "test:all": "npm run test:unit && npm run test:e2e:chrome && npm run test:e2e:web",
+    "test:all:coverage": "npm run test:unit:coverage && npm run test:e2e:chrome:coverage && npm run coverage:merge",
     "coverage:merge": "npx tsx scripts/merge-coverage.ts",
     "screenshots": "npx tsx scripts/capture-screenshots.ts"
   },
