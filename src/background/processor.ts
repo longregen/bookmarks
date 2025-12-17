@@ -118,6 +118,7 @@ async function generateEmbeddingsStep(
   const embeddingTimeMs = Date.now() - embeddingStartTime;
 
   if (__DEBUG_EMBEDDINGS__) {
+    /* eslint-disable @typescript-eslint/no-unnecessary-condition -- defensive runtime checks for API responses */
     console.log('[Processor] Received embeddings from API', {
       questionEmbeddings: {
         count: questionEmbeddings.length,
@@ -135,6 +136,7 @@ async function generateEmbeddingsStep(
         hasUndefined: combinedEmbeddings.some(e => e === undefined || e === null),
       },
     });
+    /* eslint-enable @typescript-eslint/no-unnecessary-condition */
 
     const allDimensions = [
       ...questionEmbeddings.map(e => e.length),

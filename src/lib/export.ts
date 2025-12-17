@@ -88,6 +88,7 @@ function formatBookmarkForExport(
     createdAt: bookmark.createdAt.toISOString(),
     updatedAt: bookmark.updatedAt.toISOString(),
     markdown: markdown?.content,
+    /* eslint-disable @typescript-eslint/no-unnecessary-condition -- defensive check for missing embeddings */
     questionsAnswers: qaPairs.map(qa => ({
       question: qa.question,
       answer: qa.answer,
@@ -95,6 +96,7 @@ function formatBookmarkForExport(
       embeddingAnswer: qa.embeddingAnswer !== undefined ? encodeEmbedding(qa.embeddingAnswer) : undefined,
       embeddingBoth: qa.embeddingBoth !== undefined ? encodeEmbedding(qa.embeddingBoth) : undefined,
     })),
+    /* eslint-enable @typescript-eslint/no-unnecessary-condition */
   };
 }
 
