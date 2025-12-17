@@ -12,7 +12,6 @@ const mockChrome = {
   },
 };
 
-// @ts-ignore
 global.chrome = mockChrome as any;
 
 function handleTabInfoMessage(sendResponse: (response: any) => void) {

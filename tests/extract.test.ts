@@ -561,11 +561,9 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      // HTTP URL
       let result = extractMarkdown(html, 'http://example.com');
       expect(result.content).toBeDefined();
 
-      // HTTPS URL
       result = extractMarkdown(html, 'https://example.com');
       expect(result.content).toBeDefined();
     });

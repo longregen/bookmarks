@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fetchWithTimeout, browserFetch } from '../src/lib/browser-fetch';
 
-// Mock the tab-renderer module since it uses Chrome APIs not available in unit tests
 vi.mock('../src/lib/tab-renderer', () => ({
   renderPage: vi.fn(),
 }));
@@ -130,7 +129,6 @@ describe('Browser Fetch Library', () => {
     });
 
     it('should timeout on slow requests', async () => {
-      // Mock a slow response that rejects when aborted
       mockFetch.mockImplementationOnce((_url: any, options: any) => {
         return new Promise((_resolve, reject) => {
           options.signal.addEventListener('abort', () => {
@@ -208,8 +206,6 @@ describe('Browser Fetch Library', () => {
   });
 
   describe('browserFetch', () => {
-    // These tests are skipped because __IS_FIREFOX__ is a build-time constant
-    // In unit tests, __IS_FIREFOX__ = false, so browserFetch always uses Chrome path
     it.skip('should use fetchWithTimeout in Firefox', async () => {
       const originalNavigator = global.navigator;
       Object.defineProperty(global, 'navigator', {

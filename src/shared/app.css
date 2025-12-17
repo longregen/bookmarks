@@ -1,7 +1,4 @@
-/* Main Application Styles - Consolidated from all pages */
 @import './theme.css';
-
-/* ===== Reset & Base ===== */
 * {
   margin: 0;
   padding: 0;
@@ -20,7 +17,6 @@ body {
   line-height: var(--leading-relaxed);
 }
 
-/* ===== Common Layout ===== */
 .layout {
   display: flex;
   flex-direction: column;
@@ -33,19 +29,16 @@ body {
   overflow: hidden;
 }
 
-/* ===== Sidebar (Common across Library, Search, Stumble) ===== */
 .sidebar {
-  display: none; /* Hidden on mobile by default */
+  display: none;
   width: 200px;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-primary);
   padding: var(--space-6);
   overflow-y: auto;
-  min-height: 0; /* Allow flex item to shrink for scrolling */
+  min-height: 0;
   flex-shrink: 0;
 }
-
-/* Show sidebar on tablet and up */
 @media (min-width: 768px) {
   .sidebar {
     display: block;
@@ -60,17 +53,15 @@ body {
   margin-bottom: var(--space-4);
 }
 
-/* Search/Stumble specific: multiple sidebar titles */
 .sidebar-title:not(:first-child) {
   margin-top: var(--space-6);
 }
 
-/* ===== Middle Content Area ===== */
 .middle {
   flex: 1;
   overflow-y: auto;
   padding: var(--space-4);
-  min-height: 0; /* Allow flex item to shrink for scrolling */
+  min-height: 0;
 }
 
 @media (min-width: 768px) {
@@ -79,12 +70,10 @@ body {
   }
 }
 
-/* When middle contains settings-content, remove padding (settings-content handles its own) */
 .middle:has(.settings-content) {
   padding: 0;
 }
 
-/* ===== Common Controls ===== */
 .controls {
   display: flex;
   justify-content: space-between;
@@ -92,19 +81,16 @@ body {
   margin-bottom: var(--space-4);
 }
 
-/* Controls Title */
 .controls-title {
   margin: 0;
   font-size: var(--text-lg);
 }
 
-/* Compact Select (for sort dropdowns) */
 .select-compact {
   width: auto;
   padding: var(--space-2) var(--space-3);
 }
 
-/* Shuffle Box Text */
 .shuffle-box-title {
   margin: 0;
   font-size: var(--text-lg);
@@ -116,7 +102,6 @@ body {
   font-size: var(--text-sm);
 }
 
-/* ===== Tag Items (Library Sidebar) ===== */
 .tag-item {
   display: flex;
   justify-content: space-between;
@@ -151,7 +136,6 @@ body {
   opacity: 0.8;
 }
 
-/* ===== Filter Items (Search/Stumble Sidebar) ===== */
 .filter-item {
   display: flex;
   align-items: center;
@@ -165,7 +149,6 @@ body {
   border-radius: var(--radius-sm);
 }
 
-/* Clear selection button - small and unobtrusive */
 .clear-selection-btn {
   background: none;
   border: none;
@@ -182,7 +165,6 @@ body {
   color: var(--text-primary);
 }
 
-/* ===== Bookmark Cards (Library) ===== */
 .bookmark-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
@@ -243,7 +225,6 @@ body {
   font-size: var(--text-xs);
 }
 
-/* ===== Search Page Layout ===== */
 .search-page {
   display: flex;
   flex-direction: column;
@@ -276,7 +257,6 @@ body {
   margin-bottom: var(--space-2);
 }
 
-/* ===== Search Results (Search) ===== */
 .search-box {
   display: flex;
   gap: var(--space-3);
@@ -340,7 +320,6 @@ body {
   margin-bottom: var(--space-2);
 }
 
-/* Search/Stumble Q&A preview */
 .qa-preview {
   background: var(--bg-tertiary);
   padding: var(--space-3);
@@ -361,7 +340,6 @@ body {
   line-height: var(--leading-normal);
 }
 
-/* ===== Autocomplete (Search) ===== */
 .autocomplete-container {
   position: relative;
   flex: 1;
@@ -414,7 +392,6 @@ body {
   font-size: var(--text-xs);
 }
 
-/* ===== Stumble Page Specific ===== */
 .shuffle-box {
   display: flex;
   justify-content: space-between;
@@ -451,7 +428,6 @@ body {
   font-style: italic;
 }
 
-/* ===== Detail Panel (Common across all pages) ===== */
 .detail-panel {
   position: fixed;
   top: 0;
@@ -505,7 +481,6 @@ body {
   gap: var(--space-2);
 }
 
-/* ===== Q&A Section (Detail Panel) ===== */
 .qa-section {
   margin-top: var(--space-6);
   padding-top: var(--space-6);
@@ -527,7 +502,6 @@ body {
   line-height: var(--leading-relaxed);
 }
 
-/* ===== Markdown Content (Detail Panel) ===== */
 .markdown-content {
   line-height: var(--leading-relaxed);
 }
@@ -571,7 +545,6 @@ body {
   margin-bottom: var(--space-4);
 }
 
-/* ===== Health Indicator (from health-indicator.ts) ===== */
 .health-indicator {
   display: flex;
   align-items: center;
@@ -604,11 +577,6 @@ body {
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--transition-fast);
-}
-
-/* ===== Tag Editor (from tag-editor.ts) ===== */
-.tag-editor {
-  /* Container styles - can be customized by parent */
 }
 
 .tag-editor h3 {
@@ -665,9 +633,6 @@ body {
   font-size: var(--text-sm);
 }
 
-/* ===== Options/Settings Page Styles ===== */
-
-/* Settings Navigation in Sidebar */
 .sidebar-nav {
   display: flex;
   flex-direction: column;
@@ -701,21 +666,17 @@ body {
   flex: 1;
 }
 
-/* Settings Content Area */
 .settings-content {
   max-width: 800px;
   margin: 0 auto;
   padding: var(--space-4);
 }
-
-/* Tablet: Better padding */
 @media (min-width: 768px) {
   .settings-content {
     padding: var(--space-6);
   }
 }
 
-/* Desktop: Larger content width */
 @media (min-width: 1024px) {
   .settings-content {
     max-width: 900px;
@@ -723,19 +684,15 @@ body {
   }
 }
 
-/* Large desktop */
 @media (min-width: 1400px) {
   .settings-content {
     max-width: 1000px;
   }
 }
 
-/* Settings sections smooth scroll */
 .settings-section {
   scroll-margin-top: var(--space-6);
 }
-
-/* Typography */
 h1 {
   font-size: var(--text-2xl);
   font-weight: var(--font-bold);
@@ -762,7 +719,6 @@ h3 {
   margin-bottom: var(--space-2);
 }
 
-/* Status Messages */
 .status {
   padding: var(--space-4);
   border-radius: var(--radius-lg);
@@ -787,12 +743,10 @@ h3 {
   border: 1px solid var(--error-border);
 }
 
-/* Card/Section Base */
 .settings-section {
   margin-bottom: var(--space-7);
 }
 
-/* Standardized Option Panel Structure */
 .option-panel {
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
@@ -818,10 +772,6 @@ h3 {
   margin-bottom: 0;
 }
 
-.option-panel__content {
-  /* Content container */
-}
-
 .option-panel__content p {
   margin-bottom: var(--space-3);
   color: var(--text-secondary);
@@ -832,7 +782,6 @@ h3 {
   margin-bottom: 0;
 }
 
-/* Legacy form/section styles for backward compatibility */
 form.option-panel__content,
 .data-section,
 .theme-section,
@@ -844,7 +793,6 @@ form.option-panel__content,
   margin-bottom: 0;
 }
 
-/* Jobs Page Specific */
 .jobs-page-content {
   max-width: 1000px;
   margin: 0 auto;
@@ -863,7 +811,6 @@ form.option-panel__content,
   }
 }
 
-/* Forms */
 .form-group {
   margin-bottom: var(--space-6);
 }
@@ -913,7 +860,6 @@ input:focus {
   gap: var(--space-3);
 }
 
-/* Data Actions (Import/Export) */
 .data-actions {
   display: grid;
   gap: var(--space-6);
@@ -966,7 +912,6 @@ input:focus {
   margin-right: var(--space-3);
 }
 
-/* Import Status */
 .import-status {
   margin-top: var(--space-6);
 }
@@ -1009,7 +954,6 @@ input:focus {
   margin-bottom: var(--space-1);
 }
 
-/* Info Section */
 .info-section p {
   margin-bottom: var(--space-3);
   color: var(--text-secondary);
@@ -1020,7 +964,6 @@ input:focus {
   margin-bottom: 0;
 }
 
-/* Theme Selector */
 .theme-options {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -1115,7 +1058,6 @@ input:focus {
   margin-bottom: 0;
 }
 
-/* Bulk Import */
 .bulk-import-container {
   display: flex;
   flex-direction: column;
@@ -1171,7 +1113,6 @@ input:focus {
   border: 1px solid var(--warning-border);
 }
 
-/* Progress Bar */
 .bulk-import-progress {
   padding: var(--space-4);
   background: var(--bg-tertiary);
@@ -1212,7 +1153,6 @@ input:focus {
   color: var(--text-tertiary);
 }
 
-/* Jobs Dashboard */
 .jobs-controls {
   display: flex;
   justify-content: space-between;
@@ -1249,7 +1189,6 @@ input:focus {
   box-shadow: var(--shadow-focus);
 }
 
-/* Jobs List */
 .jobs-list {
   max-height: none;
   overflow-y: visible;
@@ -1302,7 +1241,6 @@ input:focus {
   color: var(--text-tertiary);
 }
 
-/* Job Status Badge */
 .job-status-badge {
   display: inline-flex;
   align-items: center;
@@ -1339,7 +1277,6 @@ input:focus {
   color: var(--text-tertiary);
 }
 
-/* Job Progress */
 .job-progress {
   display: flex;
   align-items: center;
@@ -1368,7 +1305,6 @@ input:focus {
   text-align: right;
 }
 
-/* Job Metadata */
 .job-metadata {
   margin-top: var(--space-3);
   padding: var(--space-3);
@@ -1405,7 +1341,6 @@ input:focus {
   color: var(--error-text);
 }
 
-/* Job Actions */
 .job-actions {
   display: flex;
   gap: var(--space-2);
@@ -1466,7 +1401,6 @@ input:focus {
   border-color: var(--error-text);
 }
 
-/* Job Metadata Bookmark Link */
 .job-metadata-bookmark a {
   color: var(--accent-primary);
   text-decoration: none;
@@ -1477,9 +1411,6 @@ input:focus {
   text-decoration: underline;
 }
 
-/* ===== WebDAV Sync Section ===== */
-
-/* Toggle switch styling */
 .toggle-label {
   display: flex;
   align-items: center;
@@ -1529,7 +1460,6 @@ input:focus {
   color: var(--text-primary);
 }
 
-/* Conditional fields (shown/hidden based on toggle) */
 .conditional-fields {
   margin-top: var(--space-6);
   padding-top: var(--space-6);
@@ -1540,7 +1470,6 @@ input:focus {
   display: none;
 }
 
-/* Code snippets in help text */
 .help-text code {
   background: var(--bg-tertiary);
   padding: var(--space-1) var(--space-2);
@@ -1549,7 +1478,6 @@ input:focus {
   font-size: var(--text-xs);
 }
 
-/* Security warnings */
 .security-warning {
   display: block;
   margin-top: var(--space-3);
@@ -1575,7 +1503,6 @@ input:focus {
   font-style: italic;
 }
 
-/* Connection status indicator */
 .connection-status {
   display: flex;
   align-items: center;
@@ -1628,7 +1555,6 @@ input:focus {
   animation: pulse 1s infinite;
 }
 
-/* Sync Status Section */
 .sync-status-section {
   margin-top: var(--space-6);
   padding-top: var(--space-6);
@@ -1687,7 +1613,6 @@ input:focus {
   cursor: not-allowed;
 }
 
-/* Number input styling */
 input[type="number"] {
   width: 100%;
   padding: var(--space-3) var(--space-4);
@@ -1706,7 +1631,6 @@ input[type="number"]:focus {
   box-shadow: var(--shadow-focus);
 }
 
-/* ===== About Section ===== */
 .about-links,
 .about-deps {
   list-style: none;
@@ -1742,7 +1666,6 @@ input[type="number"]:focus {
   color: var(--text-primary);
 }
 
-/* About section panels - add spacing between them */
 #about .option-panel {
   margin-bottom: var(--space-5);
 }
@@ -1750,8 +1673,6 @@ input[type="number"]:focus {
 #about .option-panel:last-child {
   margin-bottom: 0;
 }
-
-/* ===== Advanced Config Section (about:config style) ===== */
 
 .config-status {
   padding: var(--space-3) var(--space-4);
@@ -1987,7 +1908,6 @@ input[type="number"]:focus {
   color: var(--text-tertiary);
 }
 
-/* Value display styles */
 .value-display {
   cursor: pointer;
   padding: var(--space-1) var(--space-2);
@@ -2017,7 +1937,6 @@ input[type="number"]:focus {
   color: var(--success-text);
 }
 
-/* Edit input styles */
 .config-edit-input,
 .config-edit-select {
   padding: var(--space-2) var(--space-3);
@@ -2061,7 +1980,6 @@ input[type="number"]:focus {
   font-style: italic;
 }
 
-/* Button styles for config table */
 .btn-save,
 .btn-cancel,
 .btn-reset {
@@ -2102,7 +2020,6 @@ input[type="number"]:focus {
   background: var(--warning-border);
 }
 
-/* Responsive adjustments for config table */
 @media (max-width: 767px) {
   .config-table th,
   .config-table td {
@@ -2130,7 +2047,6 @@ input[type="number"]:focus {
   }
 }
 
-/* ===== Add URL Section (Library - Web Version) ===== */
 .add-url-section {
   margin-bottom: var(--space-6);
   padding: var(--space-4);

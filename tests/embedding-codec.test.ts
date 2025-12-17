@@ -167,7 +167,6 @@ describe('Embedding Codec', () => {
 
       expect(ratio).toBeGreaterThan(3);
 
-      // Encoded size should be approximately 1536 * 2 * 4/3 = 4096 bytes (base64 overhead)
       expect(encodedSize).toBeLessThan(5000);
 
       expect(jsonSize).toBeGreaterThan(15000);

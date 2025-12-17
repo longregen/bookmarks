@@ -9,13 +9,11 @@ on:
     branches: ['main']
   workflow_dispatch:
 
-# Pin browser versions for consistent caching
 env:
   FIREFOX_VERSION: '145.0'
   GECKODRIVER_VERSION: '0.36.0'
 
 jobs:
-  # Build Chrome, Firefox, and Web in parallel using matrix strategy
   build:
     runs-on: ubuntu-latest
     strategy:
@@ -43,7 +41,6 @@ jobs:
           path: dist-${{ matrix.browser }}/
           retention-days: 1
 
-  # Run unit tests (vitest) with coverage - no build artifacts needed
   test-unit:
     runs-on: ubuntu-latest
     steps:
@@ -68,7 +65,6 @@ jobs:
           path: coverage/
           retention-days: 1
 
-  # Run ESLint - no build artifacts needed
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -86,7 +82,6 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
-  # Run TypeScript type checking - no build artifacts needed
   typecheck:
     runs-on: ubuntu-latest
     steps:
@@ -104,7 +99,6 @@ jobs:
       - name: Run TypeScript type check
         run: npm run typecheck
 
-  # Lint and package Firefox extension
   lint-firefox:
     needs: build
     runs-on: ubuntu-latest
@@ -175,7 +169,6 @@ jobs:
           name: unit-coverage
           path: coverage/
 
-      # Cache Puppeteer's Chromium download
       - name: Cache Chromium
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
@@ -251,7 +244,6 @@ jobs:
           firefox-version: ${{ env.FIREFOX_VERSION }}
         id: setup-firefox
 
-      # Install GeckoDriver directly from Mozilla releases (action is broken)
       - name: Install GeckoDriver
         run: |
           GECKODRIVER_URL="https://github.com/mozilla/geckodriver/releases/download/v${{ env.GECKODRIVER_VERSION }}/geckodriver-v${{ env.GECKODRIVER_VERSION }}-linux64.tar.gz"
@@ -298,7 +290,6 @@ jobs:
           name: webapp
           path: dist-web/
 
-      # Cache Puppeteer's Chromium download
       - name: Cache Chromium
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:

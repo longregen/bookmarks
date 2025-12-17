@@ -337,7 +337,6 @@ describe('Queue Management', () => {
 
       await startProcessingQueue();
 
-      // Should process second bookmark
       expect(processMock).toHaveBeenCalledTimes(2);
     });
 

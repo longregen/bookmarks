@@ -37,14 +37,10 @@ jobs:
       - name: Prepare deployment directory
         run: |
           mkdir -p deploy
-          # Copy landing page to root
           cp -r landing/* deploy/
-          # Copy webapp to /webapp/ subdirectory
           cp -r dist-web deploy/webapp
-          # Copy favicon from extension icons to webapp root
           cp public/icons/icon.svg deploy/webapp/favicon.svg
           cp public/icons/icon-48.png deploy/webapp/favicon.png
-          # Create root index.html for /webapp/ that redirects to library
           cat > deploy/webapp/index.html << 'EOF'
           <!DOCTYPE html>
           <html lang="en">

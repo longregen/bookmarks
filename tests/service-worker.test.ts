@@ -427,19 +427,15 @@ describe('Service Worker Core Functionality', () => {
 
   describe('Edge cases and error handling', () => {
     it('should handle missing required fields gracefully', async () => {
-      // TypeScript would prevent this, but test runtime behavior
-      // IndexedDB doesn't validate non-indexed fields, so this will actually succeed
       const invalidBookmark: any = {
         id: 'invalid-1',
         url: 'https://example.com',
-        // missing title - IndexedDB allows this since title is not an indexed field
         html: '<html></html>',
         status: 'pending',
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      // IndexedDB will accept this since it only validates keys/indices
       await db.bookmarks.add(invalidBookmark);
       const retrieved = await db.bookmarks.get('invalid-1');
       expect(retrieved).toBeDefined();
@@ -467,7 +463,6 @@ describe('Service Worker Core Functionality', () => {
         title: 'New Title',
       });
 
-      // Dexie returns 0 for unsuccessful updates
       expect(result).toBe(0);
     });
   });

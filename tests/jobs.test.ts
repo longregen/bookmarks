@@ -225,7 +225,6 @@ describe('Jobs Library', () => {
 
       const originalUpdatedAt = job.updatedAt;
 
-      // Wait a bit to ensure timestamp difference
       await new Promise(resolve => setTimeout(resolve, 10));
 
       await updateJob(job.id, {

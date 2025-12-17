@@ -179,11 +179,9 @@ describe('Adapters Common', () => {
     });
 
     it('should handle false boolean values', async () => {
-      // First set to true
       await saveSettingToDb('webdavEnabled', true);
       expect((await db.settings.get('webdavEnabled'))?.value).toBe(true);
 
-      // Then set to false
       await saveSettingToDb('webdavEnabled', false);
       expect((await db.settings.get('webdavEnabled'))?.value).toBe(false);
     });

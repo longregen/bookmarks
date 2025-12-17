@@ -44,8 +44,6 @@ describe('Stumble Algorithm', () => {
 
       const uniqueResults = new Set(results);
 
-      // With 10 items and 100 shuffles, we should get many different orderings
-      // (There are 10! = 3,628,800 possible permutations, so getting the same one is unlikely)
       expect(uniqueResults.size).toBeGreaterThan(50);
     });
 
@@ -87,7 +85,6 @@ describe('Stumble Algorithm', () => {
     });
 
     it('should produce uniform distribution over many runs', () => {
-      // Test with a small array to verify randomness
       const original = [1, 2, 3];
       const positionCounts: { [key: string]: number } = {
         '1,2,3': 0,
@@ -98,16 +95,13 @@ describe('Stumble Algorithm', () => {
         '3,2,1': 0,
       };
 
-      const iterations = 6000; // 1000 per possible permutation
+      const iterations = 6000;
       for (let i = 0; i < iterations; i++) {
         const shuffled = fisherYatesShuffle(original);
         const key = shuffled.join(',');
         positionCounts[key]++;
       }
 
-      // Each permutation should appear roughly equally
-      // With 6 permutations and 6000 iterations, expect ~1000 each
-      // Allow for statistical variance (should be within 700-1300)
       for (const count of Object.values(positionCounts)) {
         expect(count).toBeGreaterThan(700);
         expect(count).toBeLessThan(1300);
@@ -126,10 +120,6 @@ describe('Stumble Algorithm', () => {
       const original = [1, 2, 3, 4];
       const shuffled = fisherYatesShuffle(original);
 
-      // With mocked random values, we can predict the outcome
-      // i=3: j=floor(0.9*4)=3, swap arr[3] with arr[3] -> [1,2,3,4]
-      // i=2: j=floor(0.5*3)=1, swap arr[2] with arr[1] -> [1,3,2,4]
-      // i=1: j=floor(0.1*2)=0, swap arr[1] with arr[0] -> [3,1,2,4]
       expect(shuffled).toEqual([3, 1, 2, 4]);
 
       vi.restoreAllMocks();

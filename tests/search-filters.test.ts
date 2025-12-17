@@ -46,7 +46,6 @@ describe('Search Filters Logic', () => {
     { bookmarkId: 'b2', tagName: 'python' },
     { bookmarkId: 'b3', tagName: 'javascript' },
     { bookmarkId: 'b4', tagName: 'tutorial' },
-    // b5 has no tags
   ];
 
   describe('filterByTags', () => {
