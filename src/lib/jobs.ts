@@ -1,5 +1,6 @@
 import { db, Job, JobType, JobStatus } from '../db/schema';
 import { broadcastEvent } from './events';
+import { getErrorMessage, getErrorStack } from './errors';
 
 export type { Job };
 
@@ -114,10 +115,10 @@ export async function completeJob(
 
 export async function failJob(
   jobId: string,
-  error: Error | string
+  error: unknown
 ): Promise<void> {
-  const errorMessage = error instanceof Error ? error.message : error;
-  const errorStack = error instanceof Error ? error.stack : undefined;
+  const errorMessage = getErrorMessage(error);
+  const errorStack = getErrorStack(error);
 
   await setJobFinalStatus(jobId, JobStatus.FAILED, {
     errorMessage,

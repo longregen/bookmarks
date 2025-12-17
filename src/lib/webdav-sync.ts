@@ -4,6 +4,8 @@ import { db } from '../db/schema';
 import { createStateManager } from './state-manager';
 import { broadcastEvent } from './events';
 import { config } from './config-registry';
+import { validateWebDAVUrl } from './url-validator';
+import { getErrorMessage } from './errors';
 
 const syncState = createStateManager({
   name: 'WebDAVSync',
@@ -27,24 +29,11 @@ export interface SyncStatus {
 }
 
 export function validateSecureConnection(settings: ApiSettings): { valid: boolean; error?: string } {
-  if (!settings.webdavUrl) {
-    return { valid: false, error: 'WebDAV URL is not configured' };
-  }
-
-  try {
-    const url = new URL(settings.webdavUrl);
-    if (url.protocol === 'http:') {
-      if (!settings.webdavAllowInsecure) {
-        return {
-          valid: false,
-          error: 'HTTP connections are not allowed for security reasons. Please use HTTPS or enable "Allow insecure connections" in settings.',
-        };
-      }
-    }
-    return { valid: true };
-  } catch (error) {
-    return { valid: false, error: 'Invalid WebDAV URL format' };
-  }
+  const result = validateWebDAVUrl(settings.webdavUrl, settings.webdavAllowInsecure);
+  return {
+    valid: result.valid,
+    error: result.error,
+  };
 }
 
 export async function getSyncStatus(): Promise<SyncStatus> {
@@ -291,7 +280,7 @@ export async function performSync(force = false): Promise<SyncResult> {
       return completeSyncSuccess('uploaded', `Uploaded ${localData.bookmarkCount} bookmarks`, localData.bookmarkCount);
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = getErrorMessage(error);
     await saveSetting('webdavLastSyncError', errorMessage);
 
     await broadcastEvent('SYNC_STATUS_UPDATED', {

@@ -3,6 +3,8 @@
  * Provides configurable retry logic for failed operations
  */
 
+import { getErrorMessage } from './errors';
+
 export interface RetryOptions {
   maxRetries: number;
   baseDelayMs: number;
@@ -52,7 +54,7 @@ export async function withRetry<T>(
     try {
       return await fn();
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
+      lastError = error instanceof Error ? error : new Error(getErrorMessage(error));
 
       // If this was the last attempt, throw the error
       if (attempt >= maxRetries) {

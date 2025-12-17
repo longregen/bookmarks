@@ -1,5 +1,10 @@
 import { getSettings, saveSetting } from '../../lib/settings';
 import { showStatusMessage } from '../../lib/dom';
+import { createPoller, type Poller } from '../../lib/polling-manager';
+import { validateWebDAVUrl as validateWebDAVUrlShared } from '../../lib/url-validator';
+import { withButtonState } from '../../lib/form-helper';
+import type { UpdateSyncSettingsResponse, SyncStatus, TriggerSyncResponse } from '../../lib/messages';
+import { getErrorMessage } from '../../lib/errors';
 
 // WebDAV form elements
 const webdavForm = document.getElementById('webdavForm') as HTMLFormElement;
@@ -20,7 +25,10 @@ const syncStatusIndicator = document.getElementById('syncStatusIndicator') as HT
 const syncNowBtn = document.getElementById('syncNowBtn') as HTMLButtonElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
 
-let syncStatusPollInterval: number | null = null;
+const syncStatusPoller: Poller = createPoller(
+  () => updateSyncStatus(),
+  10000 // Poll every 10 seconds
+);
 
 async function loadWebDAVSettings() {
   try {
@@ -65,16 +73,14 @@ function validateWebDAVUrl() {
     return;
   }
 
-  try {
-    const urlObj = new URL(url);
-    if (urlObj.protocol === 'http:') {
-      // HTTP URL detected - show warning
-      webdavUrlWarning.classList.remove('hidden');
-    } else {
-      webdavUrlWarning.classList.add('hidden');
-    }
-  } catch {
-    // Invalid URL - hide warning (the browser's built-in validation will handle this)
+  // Use shared validation utility
+  // Note: We pass allowInsecure=true here to get a warning instead of an error for HTTP
+  const result = validateWebDAVUrlShared(url, true);
+
+  if (result.valid && result.warning) {
+    // HTTP URL detected - show warning
+    webdavUrlWarning.classList.remove('hidden');
+  } else {
     webdavUrlWarning.classList.add('hidden');
   }
 }
@@ -88,18 +94,17 @@ webdavForm.addEventListener('submit', async (e) => {
   const submitBtn = webdavForm.querySelector('[type="submit"]') as HTMLButtonElement;
 
   try {
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Saving...';
+    await withButtonState(submitBtn, 'Saving...', async () => {
+      await saveSetting('webdavEnabled', webdavEnabledInput.checked);
+      await saveSetting('webdavUrl', webdavUrlInput.value.trim());
+      await saveSetting('webdavUsername', webdavUsernameInput.value.trim());
+      await saveSetting('webdavPassword', webdavPasswordInput.value);
+      await saveSetting('webdavPath', webdavPathInput.value.trim() || '/bookmarks');
+      await saveSetting('webdavSyncInterval', parseInt(webdavSyncIntervalInput.value, 10) || 15);
 
-    await saveSetting('webdavEnabled', webdavEnabledInput.checked);
-    await saveSetting('webdavUrl', webdavUrlInput.value.trim());
-    await saveSetting('webdavUsername', webdavUsernameInput.value.trim());
-    await saveSetting('webdavPassword', webdavPasswordInput.value);
-    await saveSetting('webdavPath', webdavPathInput.value.trim() || '/bookmarks');
-    await saveSetting('webdavSyncInterval', parseInt(webdavSyncIntervalInput.value, 10) || 15);
-
-    // Notify service worker to update sync alarm
-    await chrome.runtime.sendMessage({ type: 'UPDATE_SYNC_SETTINGS' });
+      // Notify service worker to update sync alarm
+      await chrome.runtime.sendMessage({ type: 'UPDATE_SYNC_SETTINGS' }) as UpdateSyncSettingsResponse;
+    });
 
     showStatusMessage(statusDiv, 'WebDAV settings saved successfully!', 'success', 5000);
 
@@ -110,9 +115,6 @@ webdavForm.addEventListener('submit', async (e) => {
   } catch (error) {
     console.error('Error saving WebDAV settings:', error);
     showStatusMessage(statusDiv, 'Failed to save WebDAV settings', 'error', 5000);
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Save Settings';
   }
 });
 
@@ -127,20 +129,19 @@ testWebdavBtn.addEventListener('click', async () => {
   }
 
   showConnectionStatus('testing', 'Testing connection...');
-  testWebdavBtn.disabled = true;
 
   try {
-    const result = await testWebDAVConnection(url, username, password);
+    await withButtonState(testWebdavBtn, 'Testing...', async () => {
+      const result = await testWebDAVConnection(url, username, password);
 
-    if (result.success) {
-      showConnectionStatus('success', 'Connection successful!');
-    } else {
-      showConnectionStatus('error', result.error || 'Connection failed');
-    }
+      if (result.success) {
+        showConnectionStatus('success', 'Connection successful!');
+      } else {
+        showConnectionStatus('error', result.error || 'Connection failed');
+      }
+    });
   } catch (error) {
-    showConnectionStatus('error', `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  } finally {
-    testWebdavBtn.disabled = false;
+    showConnectionStatus('error', `Connection failed: ${getErrorMessage(error)}`);
   }
 });
 
@@ -204,7 +205,7 @@ async function testWebDAVConnection(
 // Sync status functions
 async function updateSyncStatus() {
   try {
-    const response = await chrome.runtime.sendMessage({ type: 'GET_SYNC_STATUS' });
+    const response = await chrome.runtime.sendMessage({ type: 'GET_SYNC_STATUS' }) as SyncStatus;
 
     if (response) {
       const statusText = syncStatusIndicator.querySelector('.sync-status-text') as HTMLSpanElement;
@@ -260,57 +261,47 @@ function formatSyncTime(isoTime: string): string {
 
 syncNowBtn.addEventListener('click', async () => {
   try {
-    syncNowBtn.disabled = true;
-    syncNowBtn.textContent = 'Syncing...';
+    await withButtonState(syncNowBtn, 'Syncing...', async () => {
+      const statusText = syncStatusIndicator.querySelector('.sync-status-text') as HTMLSpanElement;
+      syncStatusIndicator.classList.remove('success', 'error');
+      syncStatusIndicator.classList.add('syncing');
+      statusText.textContent = 'Syncing...';
 
-    const statusText = syncStatusIndicator.querySelector('.sync-status-text') as HTMLSpanElement;
-    syncStatusIndicator.classList.remove('success', 'error');
-    syncStatusIndicator.classList.add('syncing');
-    statusText.textContent = 'Syncing...';
+      const result = await chrome.runtime.sendMessage({ type: 'TRIGGER_SYNC' }) as TriggerSyncResponse;
 
-    const result = await chrome.runtime.sendMessage({ type: 'TRIGGER_SYNC' });
+      syncStatusIndicator.classList.remove('syncing');
 
-    syncStatusIndicator.classList.remove('syncing');
+      if (result && result.success) {
+        syncStatusIndicator.classList.add('success');
+        statusText.textContent = result.message ?? 'Sync completed';
+        showStatusMessage(statusDiv, `Sync completed: ${result.message ?? 'Success'}`, 'success', 5000);
+      } else {
+        syncStatusIndicator.classList.add('error');
+        statusText.textContent = `Error: ${result?.message || 'Unknown error'}`;
+        showStatusMessage(statusDiv, `Sync failed: ${result?.message || 'Unknown error'}`, 'error', 5000);
+      }
 
-    if (result && result.success) {
-      syncStatusIndicator.classList.add('success');
-      statusText.textContent = result.message;
-      showStatusMessage(statusDiv, `Sync completed: ${result.message}`, 'success', 5000);
-    } else {
-      syncStatusIndicator.classList.add('error');
-      statusText.textContent = `Error: ${result?.message || 'Unknown error'}`;
-      showStatusMessage(statusDiv, `Sync failed: ${result?.message || 'Unknown error'}`, 'error', 5000);
-    }
-
-    // Refresh status after a short delay
-    setTimeout(updateSyncStatus, 1000);
+      // Refresh status after a short delay
+      setTimeout(updateSyncStatus, 1000);
+    });
   } catch (error) {
     console.error('Error triggering sync:', error);
     showStatusMessage(statusDiv, 'Failed to trigger sync', 'error', 5000);
-  } finally {
-    syncNowBtn.disabled = false;
-    syncNowBtn.textContent = 'Sync Now';
   }
 });
 
 // Poll for sync status while on the options page
 function startSyncStatusPolling() {
-  if (syncStatusPollInterval) {
-    clearInterval(syncStatusPollInterval);
-  }
+  syncStatusPoller.stop();
 
   // Only poll if WebDAV is enabled
   if (webdavEnabledInput.checked) {
-    syncStatusPollInterval = window.setInterval(async () => {
-      await updateSyncStatus();
-    }, 10000); // Poll every 10 seconds
+    syncStatusPoller.start();
   }
 }
 
 function stopSyncStatusPolling() {
-  if (syncStatusPollInterval) {
-    clearInterval(syncStatusPollInterval);
-  }
+  syncStatusPoller.stop();
 }
 
 export function initWebDAVModule() {

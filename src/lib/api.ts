@@ -22,6 +22,46 @@ interface EmbeddingsResponse {
   };
 }
 
+interface ApiSettings {
+  apiKey: string;
+  apiBaseUrl: string;
+}
+
+/**
+ * Makes an API request with standard error handling and authentication.
+ *
+ * @param endpoint - The API endpoint path (e.g., '/chat/completions' or '/embeddings')
+ * @param body - The request body object to be JSON-stringified
+ * @param settings - API settings containing apiKey and apiBaseUrl
+ * @returns The parsed JSON response
+ * @throws Error if API key is missing or if the request fails
+ */
+export async function makeApiRequest<T>(
+  endpoint: string,
+  body: object,
+  settings: ApiSettings
+): Promise<T> {
+  if (!settings.apiKey) {
+    throw new Error('API key not configured. Please set your API key in the extension options.');
+  }
+
+  const response = await fetch(`${settings.apiBaseUrl}${endpoint}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${settings.apiKey}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`API error: ${response.status} - ${error}`);
+  }
+
+  return await response.json();
+}
+
 const QA_SYSTEM_PROMPT = `You are a helpful assistant that generates question-answer pairs for semantic search retrieval.
 
 Given a document, generate 5-10 diverse Q&A pairs that:
@@ -36,36 +76,19 @@ Respond with JSON only, no other text. Format:
 export async function generateQAPairs(markdownContent: string): Promise<QAPair[]> {
   const settings = await getPlatformAdapter().getSettings();
 
-  if (!settings.apiKey) {
-    throw new Error('API key not configured. Please set your API key in the extension options.');
-  }
-
   // Truncate content to avoid exceeding context window
   const truncatedContent = markdownContent.slice(0, config.API_CONTENT_MAX_CHARS);
 
-  const response = await fetch(`${settings.apiBaseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${settings.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: settings.chatModel,
-      messages: [
-        { role: 'system', content: QA_SYSTEM_PROMPT },
-        { role: 'user', content: truncatedContent },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: config.API_CHAT_TEMPERATURE,
-    }),
-  });
+  const data = await makeApiRequest<any>('/chat/completions', {
+    model: settings.chatModel,
+    messages: [
+      { role: 'system', content: QA_SYSTEM_PROMPT },
+      { role: 'user', content: truncatedContent },
+    ],
+    response_format: { type: 'json_object' },
+    temperature: config.API_CHAT_TEMPERATURE,
+  }, settings);
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Chat API error: ${response.status} - ${error}`);
-  }
-
-  const data = await response.json();
   const content = data.choices[0]?.message?.content;
 
   if (!content) {
@@ -88,34 +111,18 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
     });
   }
 
-  if (!settings.apiKey) {
-    throw new Error('API key not configured.');
-  }
-
-  const response = await fetch(`${settings.apiBaseUrl}/embeddings`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${settings.apiKey}`,
-    },
-    body: JSON.stringify({
+  let data: EmbeddingsResponse;
+  try {
+    data = await makeApiRequest<EmbeddingsResponse>('/embeddings', {
       model: settings.embeddingModel,
       input: texts,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
+    }, settings);
+  } catch (error) {
     if (__DEBUG_EMBEDDINGS__) {
-      console.error('[Embeddings API] API error response', {
-        status: response.status,
-        error,
-      });
+      console.error('[Embeddings API] API error response', error);
     }
-    throw new Error(`Embeddings API error: ${response.status} - ${error}`);
+    throw error;
   }
-
-  const data: EmbeddingsResponse = await response.json();
 
   if (__DEBUG_EMBEDDINGS__) {
     console.log('[Embeddings API] Raw API response', {

@@ -5,6 +5,7 @@
  */
 
 import { config } from './config-registry';
+import type { FetchUrlResponse } from './messages';
 
 /**
  * Fetch a URL with timeout
@@ -77,7 +78,7 @@ async function fetchViaOffscreen(url: string, timeoutMs: number = config.FETCH_T
         url,
         timeoutMs,
       },
-      (response) => {
+      (response: FetchUrlResponse) => {
         clearTimeout(timeout);
 
         if (chrome.runtime.lastError) {
@@ -86,7 +87,7 @@ async function fetchViaOffscreen(url: string, timeoutMs: number = config.FETCH_T
         }
 
         if (response.success) {
-          resolve(response.html);
+          resolve(response.html!);
         } else {
           reject(new Error(response.error || 'Unknown fetch error'));
         }

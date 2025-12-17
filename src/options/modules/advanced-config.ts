@@ -18,6 +18,7 @@ import {
   type ConfigEntry,
 } from '../../lib/config-registry';
 import { createElement } from '../../lib/dom';
+import { getErrorMessage } from '../../lib/errors';
 
 // DOM Elements
 let searchInput: HTMLInputElement | null = null;
@@ -458,8 +459,7 @@ async function saveEdit(key: string): Promise<void> {
     updateModifiedCount();
     showStatus(`Updated ${key}`, 'success');
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to save value';
-    showStatus(message, 'error');
+    showStatus(getErrorMessage(error), 'error');
   }
 }
 
@@ -473,8 +473,7 @@ async function resetValue(key: string): Promise<void> {
     updateModifiedCount();
     showStatus(`Reset ${key} to default`, 'success');
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to reset value';
-    showStatus(message, 'error');
+    showStatus(getErrorMessage(error), 'error');
   }
 }
 

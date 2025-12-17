@@ -3,6 +3,8 @@ import { onThemeChange, applyTheme } from '../shared/theme';
 import { initExtension } from '../lib/init-extension';
 import { openExtensionPage } from '../lib/tabs';
 import { getSettings } from '../lib/settings';
+import type { SaveBookmarkResponse } from '../lib/messages';
+import { getErrorMessage } from '../lib/errors';
 
 const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
@@ -50,12 +52,12 @@ saveBtn.addEventListener('click', async () => {
         return await chrome.runtime.sendMessage({
           type: 'SAVE_BOOKMARK',
           data: { url, title, html }
-        });
+        }) as SaveBookmarkResponse;
       }
     });
 
     // Extract bookmarkId from response
-    const response = result[0]?.result;
+    const response: SaveBookmarkResponse | undefined = result[0]?.result;
     if (response?.success && response?.bookmarkId) {
       showSuccessWithCTA(response.bookmarkId);
     } else {
@@ -64,7 +66,7 @@ saveBtn.addEventListener('click', async () => {
   } catch (error) {
     console.error('Error saving bookmark:', error);
     // Provide more specific error messages for common cases
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     if (errorMessage.includes('Cannot access') || errorMessage.includes('scripting')) {
       showStatusMessage(statusDiv, 'Cannot access this page (permissions or restrictions)', 'error');
     } else {

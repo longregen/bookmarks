@@ -2,6 +2,7 @@
 // This script is injected when the user triggers the bookmark action
 
 import { getTheme, getEffectiveTheme } from '../shared/theme';
+import type { SaveBookmarkResponse, CapturePageResponse } from '../lib/messages';
 
 // CSS variables for each theme (injected into the page for toast styling)
 const themeCssVariables = {
@@ -56,7 +57,7 @@ async function capturePage() {
     const response = await chrome.runtime.sendMessage({
       type: 'SAVE_BOOKMARK',
       data: { url, title, html }
-    });
+    }) as SaveBookmarkResponse;
 
     if (response?.success) {
       showNotification('Bookmark saved!', 'success');
@@ -147,7 +148,8 @@ document.head.appendChild(style);
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'CAPTURE_PAGE') {
     capturePage();
-    sendResponse({ success: true });
+    const response: CapturePageResponse = { success: true };
+    sendResponse(response);
   }
   return true;
 });

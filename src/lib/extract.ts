@@ -1,6 +1,7 @@
 import { Readability } from '@mozilla/readability';
 import TurndownService from 'turndown';
 import { isFirefox, ensureOffscreenDocument } from './offscreen';
+import type { ExtractContentResponse } from './messages';
 
 export interface ExtractedContent {
   title: string;
@@ -85,7 +86,7 @@ async function extractMarkdownViaOffscreen(html: string, url: string): Promise<E
 
     chrome.runtime.sendMessage(
       { type: 'EXTRACT_CONTENT', html, url },
-      (response) => {
+      (response: ExtractContentResponse) => {
         clearTimeout(timeout);
 
         if (chrome.runtime.lastError) {
@@ -94,7 +95,7 @@ async function extractMarkdownViaOffscreen(html: string, url: string): Promise<E
         }
 
         if (response.success) {
-          resolve(response.result);
+          resolve(response.result!);
         } else {
           reject(new Error(response.error || 'Unknown extraction error'));
         }
