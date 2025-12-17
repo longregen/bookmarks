@@ -1,6 +1,6 @@
 import { db } from '../db/schema';
 
-export type ConfigValueType = 'number' | 'string' | 'boolean';
+export type ConfigValueType = 'number' | 'string' | 'boolean' | 'textarea';
 
 export interface ConfigEntry {
   key: string;
@@ -101,6 +101,22 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     defaultValue: true,
     type: 'boolean',
     description: 'Include temperature parameter in chat API requests (disable for APIs that reject it)',
+    category: CONFIG_CATEGORIES.API,
+  },
+  {
+    key: 'QA_SYSTEM_PROMPT',
+    defaultValue: `You are a helpful assistant that generates question-answer pairs for semantic search retrieval.
+
+Given a document, generate 5-10 diverse Q&A pairs that:
+1. Cover the main topics and key facts in the document
+2. Include both factual questions ("What is X?") and conceptual questions ("How does X work?")
+3. Would help someone find this document when searching with related queries
+4. Have concise but complete answers (1-3 sentences each)
+
+Respond with JSON only, no other text. Format:
+{"pairs": [{"question": "...", "answer": "..."}, ...]}`,
+    type: 'textarea',
+    description: 'System prompt for Q&A generation. Controls how the AI generates question-answer pairs.',
     category: CONFIG_CATEGORIES.API,
   },
   {
@@ -433,6 +449,7 @@ export interface ConfigValues {
   API_CONTENT_MAX_CHARS: number;
   API_CHAT_TEMPERATURE: number;
   API_CHAT_USE_TEMPERATURE: boolean;
+  QA_SYSTEM_PROMPT: string;
   SEARCH_HISTORY_LIMIT: number;
   SEARCH_AUTOCOMPLETE_LIMIT: number;
   SEARCH_TOP_K_RESULTS: number;
