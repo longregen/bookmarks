@@ -57,17 +57,6 @@ export async function makeApiRequest<T>(
   return await response.json() as T;
 }
 
-const QA_SYSTEM_PROMPT = `You are a helpful assistant that generates question-answer pairs for semantic search retrieval.
-
-Given a document, generate 5-10 diverse Q&A pairs that:
-1. Cover the main topics and key facts in the document
-2. Include both factual questions ("What is X?") and conceptual questions ("How does X work?")
-3. Would help someone find this document when searching with related queries
-4. Have concise but complete answers (1-3 sentences each)
-
-Respond with JSON only, no other text. Format:
-{"pairs": [{"question": "...", "answer": "..."}, ...]}`;
-
 export async function generateQAPairs(markdownContent: string): Promise<QAPair[]> {
   const settings = await getPlatformAdapter().getSettings();
   const truncatedContent = markdownContent.slice(0, config.API_CONTENT_MAX_CHARS);
@@ -75,7 +64,7 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
   const data = await makeApiRequest<ChatCompletionResponse>('/chat/completions', {
     model: settings.chatModel,
     messages: [
-      { role: 'system', content: QA_SYSTEM_PROMPT },
+      { role: 'system', content: config.QA_SYSTEM_PROMPT },
       { role: 'user', content: truncatedContent },
     ],
     response_format: { type: 'json_object' },

@@ -19,8 +19,10 @@ let showModifiedOnly: HTMLInputElement;
 let configTableBody: HTMLTableSectionElement;
 let resetAllBtn: HTMLButtonElement;
 let modifiedCountSpan: HTMLElement | null = null;
+let showAllSettingsBtn: HTMLButtonElement | null = null;
 
 let editingKey: string | null = null;
+let showAllSettings = false;
 
 export async function initAdvancedConfigModule(): Promise<void> {
   await ensureConfigLoaded();
@@ -33,11 +35,41 @@ export async function initAdvancedConfigModule(): Promise<void> {
   modifiedCountSpan = document.getElementById('modifiedConfigCount');
 
   populateCategoryFilter();
+  createShowAllSettingsButton();
 
   setupEventListeners();
 
   renderConfigTable();
   updateModifiedCount();
+}
+
+function createShowAllSettingsButton(): void {
+  const actionsHeader = document.querySelector('.config-actions-header');
+  if (!actionsHeader) return;
+
+  showAllSettingsBtn = createElement('button', {
+    className: 'btn btn-secondary btn-sm',
+    textContent: 'Show All Settings',
+    attributes: { type: 'button' }
+  });
+
+  actionsHeader.insertBefore(showAllSettingsBtn, actionsHeader.firstChild);
+
+  showAllSettingsBtn.addEventListener('click', () => {
+    if (!showAllSettings) {
+      // eslint-disable-next-line no-alert
+      const confirmed = confirm(
+        'This will reveal all settings including system prompts.\n\nProceed?'
+      );
+      if (!confirmed) return;
+    }
+
+    showAllSettings = !showAllSettings;
+    if (showAllSettingsBtn) {
+      showAllSettingsBtn.textContent = showAllSettings ? 'Hide Extra Settings' : 'Show All Settings';
+    }
+    renderConfigTable();
+  });
 }
 
 function populateCategoryFilter(): void {
@@ -99,6 +131,11 @@ function getFilteredEntries(): (ConfigEntry & { currentValue: number | string | 
 
   if (modifiedOnly) {
     entries = entries.filter(e => e.isModified);
+  }
+
+  // Hide textarea entries unless showAllSettings is enabled
+  if (!showAllSettings) {
+    entries = entries.filter(e => e.type !== 'textarea');
   }
 
   return entries;
@@ -216,6 +253,18 @@ function renderEditInput(entry: ConfigEntry & { currentValue: number | string | 
       })
     ]);
     container.appendChild(select);
+  } else if (entry.type === 'textarea') {
+    const textarea = createElement('textarea', {
+      className: 'config-edit-textarea',
+      textContent: String(entry.currentValue),
+      attributes: {
+        'data-key': entry.key,
+        autofocus: '',
+        rows: '8',
+        spellcheck: 'false'
+      }
+    });
+    container.appendChild(textarea);
   } else {
     const inputType = entry.type === 'number' ? 'number' : 'text';
     const attrs: Record<string, string> = {
@@ -259,6 +308,12 @@ function formatValue(value: number | string | boolean, type: string): HTMLElemen
     // Format large numbers with commas
     const formatted = typeof value === 'number' ? value.toLocaleString() : String(value);
     return createElement('span', { className: 'value-number', textContent: formatted });
+  }
+  if (type === 'textarea') {
+    const strValue = String(value);
+    const truncated = strValue.length > 50 ? `${strValue.slice(0, 50)}...` : strValue;
+    const firstLine = truncated.split('\n')[0];
+    return createElement('span', { className: 'value-textarea', textContent: `"${firstLine}"` });
   }
   return createElement('span', { className: 'value-string', textContent: `"${value}"` });
 }
@@ -307,6 +362,16 @@ async function handleTableKeydown(event: KeyboardEvent): Promise<void> {
     return;
   }
 
+  // For textarea, use Ctrl+Enter to save (Enter creates new lines)
+  if (target.classList.contains('config-edit-textarea') && event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+    event.preventDefault();
+    const key = target.dataset.key;
+    if (key !== undefined && key !== '') {
+      await saveEdit(key);
+    }
+    return;
+  }
+
   if ((target.classList.contains('config-edit-input') || target.classList.contains('config-edit-select')) && event.key === 'Enter') {
     const key = target.dataset.key;
     if (key !== undefined && key !== '') {
@@ -315,7 +380,7 @@ async function handleTableKeydown(event: KeyboardEvent): Promise<void> {
     return;
   }
 
-  if ((target.classList.contains('config-edit-input') || target.classList.contains('config-edit-select')) && event.key === 'Escape') {
+  if ((target.classList.contains('config-edit-input') || target.classList.contains('config-edit-select') || target.classList.contains('config-edit-textarea')) && event.key === 'Escape') {
     cancelEditing();
     return;
   }
@@ -325,11 +390,13 @@ function startEditing(key: string): void {
   editingKey = key;
   renderConfigTable();
 
-  const input = document.querySelector(`.config-edit-input[data-key="${key}"], .config-edit-select[data-key="${key}"]`);
+  const input = document.querySelector(`.config-edit-input[data-key="${key}"], .config-edit-select[data-key="${key}"], .config-edit-textarea[data-key="${key}"]`);
   if (input) {
     (input as HTMLElement).focus();
     if (input instanceof HTMLInputElement) {
       input.select();
+    } else if (input instanceof HTMLTextAreaElement) {
+      input.setSelectionRange(0, 0);
     }
   }
 }
@@ -343,7 +410,7 @@ async function saveEdit(key: string): Promise<void> {
   const entry = CONFIG_REGISTRY.find(e => e.key === key);
   if (!entry) return;
 
-  const input = document.querySelector(`.config-edit-input[data-key="${key}"], .config-edit-select[data-key="${key}"]`);
+  const input = document.querySelector(`.config-edit-input[data-key="${key}"], .config-edit-select[data-key="${key}"], .config-edit-textarea[data-key="${key}"]`);
   if (!input) return;
 
   try {
@@ -352,13 +419,15 @@ async function saveEdit(key: string): Promise<void> {
     if (entry.type === 'boolean') {
       newValue = (input as HTMLSelectElement).value === 'true';
     } else if (entry.type === 'number') {
-       
+
       newValue = parseFloat((input as HTMLInputElement).value);
       if (isNaN(newValue)) {
         throw new Error('Invalid number');
       }
+    } else if (entry.type === 'textarea') {
+      newValue = (input as HTMLTextAreaElement).value;
     } else {
-       
+
       newValue = (input as HTMLInputElement).value;
     }
 
