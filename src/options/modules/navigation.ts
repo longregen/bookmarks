@@ -33,7 +33,7 @@ function setupScrollObserver(): void {
     scrollObserver.disconnect();
   }
 
-  const scrollContainer = document.querySelector('.app-layout__content');
+  const scrollContainer = document.querySelector('.middle');
   const observerOptions: IntersectionObserverInit = {
     root: scrollContainer,
     rootMargin: '-20% 0px -60% 0px',
