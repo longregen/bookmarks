@@ -36,10 +36,16 @@ Do not read or modify: `node_modules/`, `dist/`, `dist-*/`, `coverage/`
 6. **Verify assumptions** - Research external APIs and browser behaviors
 7. **Ensure test coverage** - Add tests that cover the new code
 
-## Running E2E Tests Locally
+## Running E2E Tests
 
-0. Claude can only run Chromium tests right now.
-1. Download Chromium from `storage.googleapis.com`; `apt install xvfb`\
-2. Build with `npm run build:chrome`, run with `BROWSER_PATH=/path/to/chrome OPENAI_API_KEY=not-needed-for-tests \
-  xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" \
-  npm run test:e2e:chrome`
+```bash
+# Setup: download Chromium, install xvfb
+mkdir -p /tmp/chromium && cd /tmp/chromium && \
+  wget -qO- https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/LAST_CHANGE | \
+  xargs -I{} wget -q "https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/{}/chrome-linux.zip" && \
+  unzip -q chrome-linux.zip
+
+# Run
+npm run build:chrome && BROWSER_PATH=/tmp/chromium/chrome-linux/chrome \
+  xvfb-run --auto-servernum npm run test:e2e:chrome
+```
