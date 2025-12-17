@@ -1031,9 +1031,21 @@ input:focus {
 
 .theme-options {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--space-4);
   margin-top: var(--space-4);
+}
+
+@media (min-width: 480px) {
+  .theme-options {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .theme-options {
+    grid-template-columns: repeat(5, 1fr);
+  }
 }
 
 .theme-option {
@@ -1220,10 +1232,9 @@ input:focus {
 
 .jobs-controls {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   margin-bottom: var(--space-6);
-  gap: var(--space-4);
+  gap: var(--space-3);
   flex-wrap: wrap;
 }
 
@@ -1231,6 +1242,7 @@ input:focus {
   display: flex;
   gap: var(--space-3);
   flex-wrap: wrap;
+  flex: 1;
 }
 
 .filter-select {
@@ -1263,9 +1275,18 @@ input:focus {
 
 .jobs-list .loading,
 .jobs-list .empty {
-  padding: var(--space-8);
+  padding: var(--space-8) var(--space-4);
   text-align: center;
   color: var(--text-tertiary);
+  font-size: var(--text-base);
+}
+
+.jobs-list .empty::before {
+  content: "📋";
+  display: block;
+  font-size: var(--text-2xl);
+  margin-bottom: var(--space-3);
+  opacity: 0.6;
 }
 
 .job-item {
