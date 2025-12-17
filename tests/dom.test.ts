@@ -23,7 +23,7 @@ describe('DOM utilities', () => {
 
       const result = getElement<HTMLButtonElement>('test-button');
       expect(result).toBeInstanceOf(HTMLButtonElement);
-      expect(result.disabled).toBe(false); // TypeScript knows this is a button
+      expect(result.disabled).toBe(false);
     });
 
     it('should throw error if element not found', () => {

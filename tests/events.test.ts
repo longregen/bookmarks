@@ -25,7 +25,6 @@ describe('Event System', () => {
 
       await broadcastEvent('BOOKMARK_UPDATED', { bookmarkId: '123', status: 'complete' });
 
-      // Wait a bit for the event to be processed
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(receivedEvents).toHaveLength(1);
@@ -42,7 +41,6 @@ describe('Event System', () => {
       await broadcastEvent('JOB_UPDATED', { jobId: '2' });
       await broadcastEvent('SYNC_STATUS_UPDATED', { isSyncing: true });
 
-      // Wait a bit for events to be processed
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(receivedEvents).toHaveLength(3);
@@ -58,22 +56,17 @@ describe('Event System', () => {
 
       await broadcastEvent('BOOKMARK_UPDATED', { bookmarkId: '1' });
 
-      // Wait for event
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(receivedEvents).toHaveLength(1);
 
-      // Remove listener
       removeListener();
       removeListener = null;
 
-      // Broadcast another event
       await broadcastEvent('BOOKMARK_UPDATED', { bookmarkId: '2' });
 
-      // Wait again
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // Should still only have 1 event (the first one)
       expect(receivedEvents).toHaveLength(1);
     });
 
@@ -91,7 +84,6 @@ describe('Event System', () => {
 
       await broadcastEvent('BOOKMARK_UPDATED', { bookmarkId: '123' });
 
-      // Wait for events
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(receivedEvents1).toHaveLength(1);
@@ -112,7 +104,6 @@ describe('Event System', () => {
       await broadcastEvent('BOOKMARK_UPDATED', { bookmarkId: '123' });
       const afterTimestamp = Date.now();
 
-      // Wait for event
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(receivedEvents).toHaveLength(1);
@@ -127,7 +118,6 @@ describe('Event System', () => {
 
       await broadcastEvent('PROCESSING_COMPLETE');
 
-      // Wait for event
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(receivedEvents).toHaveLength(1);
@@ -136,7 +126,6 @@ describe('Event System', () => {
     });
 
     it('should not throw errors when no listeners exist', async () => {
-      // This should not throw
       await expect(
         broadcastEvent('BOOKMARK_UPDATED', { bookmarkId: '123' })
       ).resolves.toBeUndefined();

@@ -10,13 +10,12 @@ interface MockBookmarkTag {
   tagName: string;
 }
 
-// Filter bookmarks by tags (OR logic - matches any of the selected tags)
 function filterByTags(
   bookmarks: MockBookmark[],
   tags: MockBookmarkTag[],
   selectedTags: Set<string>
 ): MockBookmark[] {
-  if (selectedTags.size === 0) return bookmarks; // Select All
+  if (selectedTags.size === 0) return bookmarks;
 
   return bookmarks.filter(bookmark => {
     const bookmarkTags = tags.filter(t => t.bookmarkId === bookmark.id);
@@ -24,12 +23,10 @@ function filterByTags(
   });
 }
 
-// Get all unique tags sorted alphabetically
 function getAllTags(tags: MockBookmarkTag[]): string[] {
   return [...new Set(tags.map(t => t.tagName))].sort();
 }
 
-// Check if Clear selection button should be shown for tags
 function shouldShowClearSelection(selectedTags: Set<string>): boolean {
   return selectedTags.size > 0;
 }
@@ -122,9 +119,7 @@ describe('Search Filters Logic', () => {
 
   describe('Edge cases', () => {
     it('should handle bookmark with multiple tags matching selection', () => {
-      // b1 has both 'javascript' and 'tutorial'
       const result = filterByTags(bookmarks, tags, new Set(['javascript', 'tutorial']));
-      // b1 should only appear once
       const b1Count = result.filter(b => b.id === 'b1').length;
       expect(b1Count).toBe(1);
     });

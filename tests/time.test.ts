@@ -85,7 +85,6 @@ describe('Time utilities', () => {
 
       const sevenDaysAgo = new Date('2024-01-08T12:00:00Z');
       const result = formatTimeAgo(sevenDaysAgo);
-      // Should be a date string, not "X days ago"
       expect(result).not.toContain('ago');
     });
 
@@ -146,7 +145,6 @@ describe('Time utilities', () => {
 
       const sevenDaysAgo = new Date('2024-01-08T12:00:00Z');
       const result = formatTimeAgoShort(sevenDaysAgo);
-      // Should be a date string, not "Xd ago"
       expect(result).not.toContain('ago');
     });
 
@@ -154,15 +152,12 @@ describe('Time utilities', () => {
       const now = new Date('2024-01-15T12:00:00Z');
       vi.setSystemTime(now);
 
-      // Exactly 60 seconds ago should be 1m
       const sixtySecondsAgo = new Date('2024-01-15T11:59:00Z');
       expect(formatTimeAgoShort(sixtySecondsAgo)).toBe('1m ago');
 
-      // Exactly 3600 seconds (1 hour) ago should be 1h
       const oneHourExact = new Date('2024-01-15T11:00:00Z');
       expect(formatTimeAgoShort(oneHourExact)).toBe('1h ago');
 
-      // Exactly 86400 seconds (1 day) ago should be 1d
       const oneDayExact = new Date('2024-01-14T12:00:00Z');
       expect(formatTimeAgoShort(oneDayExact)).toBe('1d ago');
     });

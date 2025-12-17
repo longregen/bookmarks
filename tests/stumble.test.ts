@@ -15,15 +15,12 @@ describe('Stumble Algorithm', () => {
       const original = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
       const shuffled = fisherYatesShuffle(original);
 
-      // Should have same length
       expect(shuffled.length).toBe(original.length);
 
-      // Should contain all original items
       for (const item of original) {
         expect(shuffled).toContain(item);
       }
 
-      // Should not have duplicates
       const uniqueItems = new Set(shuffled);
       expect(uniqueItems.size).toBe(original.length);
     });
@@ -40,13 +37,11 @@ describe('Stumble Algorithm', () => {
       const original = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
       const results: string[] = [];
 
-      // Run shuffle 100 times and collect results
       for (let i = 0; i < 100; i++) {
         const shuffled = fisherYatesShuffle(original);
         results.push(JSON.stringify(shuffled));
       }
 
-      // Count unique results
       const uniqueResults = new Set(results);
 
       // With 10 items and 100 shuffles, we should get many different orderings
@@ -120,8 +115,7 @@ describe('Stumble Algorithm', () => {
     });
 
     it('should shuffle with controlled randomness', () => {
-      // Mock Math.random to produce predictable sequence
-      const randomValues = [0.9, 0.5, 0.1]; // High to low
+      const randomValues = [0.9, 0.5, 0.1];
       let callCount = 0;
       vi.spyOn(Math, 'random').mockImplementation(() => {
         const value = randomValues[callCount % randomValues.length];
@@ -157,13 +151,11 @@ describe('Stumble Algorithm', () => {
 
       expect(shuffled.length).toBe(1000);
 
-      // Verify all elements are present
       const sorted = [...shuffled].sort((a, b) => a - b);
       expect(sorted).toEqual(original);
 
-      // Very likely that at least some elements changed position
       const differentPositions = shuffled.filter((val, idx) => val !== original[idx]);
-      expect(differentPositions.length).toBeGreaterThan(900); // Most should be different
+      expect(differentPositions.length).toBeGreaterThan(900);
     });
   });
 });

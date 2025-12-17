@@ -1,8 +1,3 @@
-/**
- * Shared URL validation utilities
- * Consolidates URL validation logic used across WebDAV sync, bulk import, and options UI
- */
-
 export interface UrlValidationResult {
   valid: boolean;
   error?: string;
@@ -27,9 +22,6 @@ const DEFAULT_BLOCKED_SCHEMES: Record<string, string> = {
   'file:': 'File URLs are not allowed',
 };
 
-/**
- * Validate a URL with configurable options
- */
 // eslint-disable-next-line complexity
 export function validateUrl(url: string, options: UrlValidationOptions = {}): UrlValidationResult {
   const {
@@ -102,10 +94,6 @@ export function validateUrl(url: string, options: UrlValidationOptions = {}): Ur
   };
 }
 
-/**
- * Validate a WebDAV URL specifically
- * Used for WebDAV sync configuration
- */
 export function validateWebDAVUrl(url: string, allowInsecure = false): UrlValidationResult {
   if (!url) {
     return { valid: false, error: 'WebDAV URL is not configured' };
@@ -119,10 +107,6 @@ export function validateWebDAVUrl(url: string, allowInsecure = false): UrlValida
   });
 }
 
-/**
- * Validate a general web URL (for bulk import)
- * Allows auto-adding https:// protocol and blocks dangerous schemes
- */
 export function validateWebUrl(url: string): UrlValidationResult {
   return validateUrl(url, {
     requireHttps: false,

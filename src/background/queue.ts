@@ -16,7 +16,6 @@ export async function startProcessingQueue(): Promise<void> {
     return;
   }
 
-  // Extract config values once to avoid repeated property access
   const maxRetries = config.QUEUE_MAX_RETRIES;
   const retryBaseDelayMs = config.QUEUE_RETRY_BASE_DELAY_MS;
   const retryMaxDelayMs = config.QUEUE_RETRY_MAX_DELAY_MS;

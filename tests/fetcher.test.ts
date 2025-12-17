@@ -4,12 +4,10 @@ import { processBulkFetch } from '../src/background/fetcher';
 import * as browserFetch from '../src/lib/browser-fetch';
 import * as queue from '../src/background/queue';
 
-// Mock browser-fetch
 vi.mock('../src/lib/browser-fetch', () => ({
   browserFetch: vi.fn(),
 }));
 
-// Mock queue
 vi.mock('../src/background/queue', () => ({
   startProcessingQueue: vi.fn(),
 }));
@@ -28,7 +26,6 @@ describe('Background Fetcher', () => {
 
   describe('processBulkFetch', () => {
     it('should process all pending child jobs', async () => {
-      // Create parent job
       const parentJob = {
         id: 'parent-1',
         type: JobType.BULK_URL_IMPORT,
@@ -41,7 +38,6 @@ describe('Background Fetcher', () => {
 
       await db.jobs.add(parentJob);
 
-      // Create child jobs
       const childJob1 = {
         id: 'child-1',
         type: JobType.URL_FETCH,
@@ -73,14 +69,11 @@ describe('Background Fetcher', () => {
 
       await processBulkFetch('parent-1');
 
-      // Verify both URLs were fetched
       expect(browserFetch.browserFetch).toHaveBeenCalledTimes(2);
 
-      // Verify bookmarks were created
       const bookmarks = await db.bookmarks.toArray();
       expect(bookmarks).toHaveLength(2);
 
-      // Verify parent job was completed
       const updatedParent = await db.jobs.get('parent-1');
       expect(updatedParent?.status).toBe(JobStatus.COMPLETED);
     });
@@ -123,7 +116,6 @@ describe('Background Fetcher', () => {
     });
 
     it('should update existing bookmarks instead of creating duplicates', async () => {
-      // Create existing bookmark
       const existingBookmark = {
         id: 'existing-1',
         url: 'https://example.com',
@@ -166,11 +158,9 @@ describe('Background Fetcher', () => {
 
       await processBulkFetch('parent-1');
 
-      // Should only have one bookmark
       const bookmarks = await db.bookmarks.toArray();
       expect(bookmarks).toHaveLength(1);
 
-      // Should have updated the existing bookmark
       const bookmark = await db.bookmarks.get('existing-1');
       expect(bookmark?.html).toBe(newHtmlContent);
       expect(bookmark?.title).toBe('New Title');
@@ -190,7 +180,6 @@ describe('Background Fetcher', () => {
 
       await db.jobs.add(parentJob);
 
-      // Create 10 child jobs
       for (let i = 0; i < 10; i++) {
         await db.jobs.add({
           id: `child-${i}`,
@@ -257,15 +246,12 @@ describe('Background Fetcher', () => {
 
       await processBulkFetch('parent-1');
 
-      // First job should be marked as failed
       const failedJob = await db.jobs.get('child-1');
       expect(failedJob?.status).toBe(JobStatus.FAILED);
 
-      // Second job should be completed
       const successJob = await db.jobs.get('child-2');
       expect(successJob?.status).toBe(JobStatus.COMPLETED);
 
-      // Parent job should still complete
       const updatedParent = await db.jobs.get('parent-1');
       expect(updatedParent?.status).toBe(JobStatus.COMPLETED);
     });
@@ -283,7 +269,6 @@ describe('Background Fetcher', () => {
 
       await db.jobs.add(parentJob);
 
-      // One completed job
       const completedJob = {
         id: 'child-1',
         type: JobType.URL_FETCH,
@@ -296,7 +281,6 @@ describe('Background Fetcher', () => {
         completedAt: new Date(),
       };
 
-      // One pending job
       const pendingJob = {
         id: 'child-2',
         type: JobType.URL_FETCH,
@@ -315,7 +299,6 @@ describe('Background Fetcher', () => {
 
       await processBulkFetch('parent-1');
 
-      // Should only fetch the pending job
       expect(browserFetch.browserFetch).toHaveBeenCalledTimes(1);
       expect(browserFetch.browserFetch).toHaveBeenCalledWith('https://example.com/2', 30000);
     });

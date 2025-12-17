@@ -8,7 +8,6 @@ export interface TagFilterConfig {
 }
 
 export async function loadTagFilters(config: TagFilterConfig): Promise<void> {
-  // Load all tags in a single query instead of N+1 queries per bookmark
   const allBookmarkTags = await db.bookmarkTags.toArray();
   const allTags = new Set<string>(allBookmarkTags.map((t: BookmarkTag) => t.tagName));
 

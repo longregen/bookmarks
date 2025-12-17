@@ -16,7 +16,6 @@ export interface HealthStatus {
 
 export async function getHealthStatus(): Promise<HealthStatus> {
   try {
-    // Use indexed counts instead of loading all jobs into memory
     const [pendingCount, inProgressCount, failedCount, totalCount] = await Promise.all([
       db.jobs.where('status').equals(JobStatus.PENDING).count(),
       db.jobs.where('status').equals(JobStatus.IN_PROGRESS).count(),

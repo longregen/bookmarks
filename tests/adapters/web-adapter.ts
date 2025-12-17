@@ -1,9 +1,3 @@
-/**
- * Web App E2E Test Adapter
- *
- * Uses Puppeteer to test the standalone web application.
- */
-
 import puppeteer, { Browser, Page } from 'puppeteer-core';
 import path from 'path';
 import fs from 'fs';
@@ -50,13 +44,9 @@ export class WebAdapter implements TestAdapter {
   }
 
   async setup(): Promise<void> {
-    // Start mock API server
     await this.startMockServer();
-
-    // Start web server
     await this.startWebServer();
 
-    // Launch browser (headless is fine for web tests)
     this.browser = await puppeteer.launch({
       executablePath: this.browserPath,
       headless: true,
@@ -174,12 +164,10 @@ export class WebAdapter implements TestAdapter {
       this.webServer = http.createServer((req, res) => {
         let url = req.url || '/';
 
-        // Remove /webapp prefix if present
         if (url.startsWith('/webapp')) {
           url = url.slice('/webapp'.length) || '/';
         }
 
-        // Default to index.html for root
         if (url === '/' || url === '') {
           url = '/src/web/index.html';
         }
@@ -205,7 +193,6 @@ export class WebAdapter implements TestAdapter {
             return;
           }
 
-          // Set content type based on extension
           const ext = path.extname(filePath).toLowerCase();
           const contentTypes: Record<string, string> = {
             '.html': 'text/html',
@@ -236,9 +223,6 @@ export class WebAdapter implements TestAdapter {
   }
 }
 
-/**
- * Puppeteer PageHandle implementation
- */
 class PuppeteerPageHandle implements PageHandle {
   constructor(private page: Page) {}
 

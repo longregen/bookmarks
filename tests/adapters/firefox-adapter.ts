@@ -1,9 +1,3 @@
-/**
- * Firefox Extension E2E Test Adapter
- *
- * Uses Selenium WebDriver to test the Firefox extension.
- */
-
 import { Builder, Browser, WebDriver, By, until, WebElement } from 'selenium-webdriver';
 import firefox from 'selenium-webdriver/firefox.js';
 import path from 'path';
@@ -56,32 +50,26 @@ export class FirefoxAdapter implements TestAdapter {
   }
 
   async setup(): Promise<void> {
-    // Start mock server
     await this.startMockServer();
 
-    // Create temp directory and XPI
     this.tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'firefox-e2e-'));
     this.xpiPath = path.join(this.tempDir, 'extension.xpi');
     this.createXpi();
 
-    // Configure Firefox options
     const options = new firefox.Options();
     options.setBinary(this.browserPath);
 
-    // Build the driver
     this.driver = await new Builder()
       .forBrowser(Browser.FIREFOX)
       .setFirefoxOptions(options)
       .build();
 
-    // Install the extension
     const firefoxDriver = this.driver as any;
     await firefoxDriver.installAddon(this.xpiPath, true);
 
     // Give Firefox time to load the extension
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Detect extension UUID
     this.extensionUUID = await this.detectExtensionUUID();
     console.log(`Extension UUID: ${this.extensionUUID}`);
   }
@@ -97,12 +85,10 @@ export class FirefoxAdapter implements TestAdapter {
       });
     }
 
-    // Cleanup temp directory
     if (this.tempDir && fs.existsSync(this.tempDir)) {
       try {
         fs.rmSync(this.tempDir, { recursive: true, force: true });
       } catch {
-        // Ignore cleanup errors
       }
     }
   }
@@ -146,20 +132,16 @@ export class FirefoxAdapter implements TestAdapter {
   }
 
   private async detectExtensionUUID(): Promise<string> {
-    // Navigate to about:debugging to find the extension UUID
     await this.driver!.get('about:debugging#/runtime/this-firefox');
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Look for extension entries
     const pageSource = await this.driver!.getPageSource();
 
-    // Try to find UUID in manifest URL pattern
     const uuidMatch = pageSource.match(/moz-extension:\/\/([a-f0-9-]{36})/i);
     if (uuidMatch) {
       return uuidMatch[1];
     }
 
-    // Fallback: try to find internal UUID
     const internalMatch = pageSource.match(/"internalUUID"\s*:\s*"([a-f0-9-]{36})"/i);
     if (internalMatch) {
       return internalMatch[1];
@@ -196,7 +178,7 @@ export class FirefoxAdapter implements TestAdapter {
               try {
                 const parsed = JSON.parse(body);
                 inputCount = Array.isArray(parsed.input) ? parsed.input.length : 1;
-              } catch { /* default */ }
+              } catch { }
             }
             res.statusCode = 200;
             res.end(JSON.stringify(getMockEmbeddingsResponse(inputCount)));
@@ -226,15 +208,11 @@ export class FirefoxAdapter implements TestAdapter {
   }
 }
 
-/**
- * Selenium PageHandle implementation
- */
 class SeleniumPageHandle implements PageHandle {
   constructor(private driver: WebDriver) {}
 
   async goto(url: string): Promise<void> {
     await this.driver.get(url);
-    // Wait for page to be ready
     await this.driver.wait(async () => {
       const readyState = await this.driver.executeScript('return document.readyState');
       return readyState === 'complete';

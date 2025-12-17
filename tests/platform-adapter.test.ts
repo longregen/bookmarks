@@ -3,7 +3,6 @@ import { setPlatformAdapter, getPlatformAdapter, type PlatformAdapter, type ApiS
 
 describe('Platform Adapter', () => {
   beforeEach(() => {
-    // Reset the adapter before each test
     // We need to access the private adapter variable, so we'll just set a new one
     setPlatformAdapter(null as any);
   });

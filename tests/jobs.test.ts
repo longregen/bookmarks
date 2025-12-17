@@ -15,7 +15,6 @@ import {
 } from '../src/lib/jobs';
 
 describe('Jobs Library', () => {
-  // Clean up database before and after each test
   beforeEach(async () => {
     await db.jobs.clear();
   });
@@ -598,14 +597,12 @@ describe('Jobs Library', () => {
       const oldDate = new Date();
       oldDate.setDate(oldDate.getDate() - 31);
 
-      // Create old completed job
       const oldJob = await createJob({
         type: JobType.MANUAL_ADD,
         status: JobStatus.COMPLETED,
       });
       await db.jobs.update(oldJob.id, { createdAt: oldDate });
 
-      // Create recent completed job
       await createJob({
         type: JobType.MANUAL_ADD,
         status: JobStatus.COMPLETED,

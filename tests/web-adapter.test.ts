@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// Mock localStorage for theme tests
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
 
@@ -19,12 +18,9 @@ Object.defineProperty(global, 'localStorage', {
   configurable: true,
 });
 
-// Mock fetch for CORS proxy tests
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-// Import adapter after mocks are set up
-// We need to use dynamic import to avoid db module initialization issues
 describe('Web Adapter', () => {
   let webAdapter: typeof import('../src/lib/adapters/web').webAdapter;
 
@@ -32,7 +28,6 @@ describe('Web Adapter', () => {
     localStorageMock.clear();
     mockFetch.mockReset();
 
-    // Dynamic import to get fresh module
     const module = await import('../src/lib/adapters/web');
     webAdapter = module.webAdapter;
   });
@@ -85,9 +80,7 @@ describe('Web Adapter', () => {
     });
 
     it('should fall back to CORS proxy on direct fetch failure', async () => {
-      // Direct fetch fails
       mockFetch.mockRejectedValueOnce(new Error('CORS error'));
-      // First proxy succeeds
       mockFetch.mockResolvedValueOnce({
         ok: true,
         text: () => Promise.resolve('<html>Proxied content</html>'),
@@ -97,16 +90,12 @@ describe('Web Adapter', () => {
 
       expect(result.html).toBe('<html>Proxied content</html>');
       expect(mockFetch).toHaveBeenCalledTimes(2);
-      // Second call should be to corsproxy.io
       expect(mockFetch.mock.calls[1][0]).toContain('corsproxy.io');
     });
 
     it('should try multiple proxies if first fails', async () => {
-      // Direct fetch fails
       mockFetch.mockRejectedValueOnce(new Error('CORS error'));
-      // First proxy fails
       mockFetch.mockRejectedValueOnce(new Error('Proxy error'));
-      // Second proxy succeeds
       mockFetch.mockResolvedValueOnce({
         ok: true,
         text: () => Promise.resolve('<html>Second proxy</html>'),
@@ -116,7 +105,6 @@ describe('Web Adapter', () => {
 
       expect(result.html).toBe('<html>Second proxy</html>');
       expect(mockFetch).toHaveBeenCalledTimes(3);
-      // Third call should be to allorigins
       expect(mockFetch.mock.calls[2][0]).toContain('allorigins');
     });
 

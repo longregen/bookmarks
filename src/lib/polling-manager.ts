@@ -8,15 +8,6 @@ export interface PollerOptions {
   immediate?: boolean;
 }
 
-/**
- * Creates a poller that executes a callback at a specified interval.
- *
- * @param callback - The function to execute on each interval
- * @param intervalMs - The interval in milliseconds between executions
- * @param options - Optional configuration
- * @param options.immediate - If true, execute callback immediately on start (default: false)
- * @returns A Poller object with start/stop/isRunning methods
- */
 export function createPoller(
   callback: () => Promise<void> | void,
   intervalMs: number,

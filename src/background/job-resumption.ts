@@ -1,18 +1,7 @@
-/**
- * Job Resumption Module
- *
- * Handles recovery of interrupted jobs when the service worker restarts.
- * This is critical for batch imports that may take longer than the service worker's lifetime.
- */
-
 import { resetInterruptedJobs, getBulkImportsToResume } from '../lib/jobs';
 import { processBulkFetch } from './fetcher';
 import { ensureOffscreenDocument } from '../lib/offscreen';
 
-/**
- * Resume all interrupted jobs
- * Should be called on service worker startup
- */
 export async function resumeInterruptedJobs(): Promise<{
   resumedBulkImports: number;
   resetFetchJobs: number;
@@ -47,14 +36,9 @@ export async function resumeInterruptedJobs(): Promise<{
         console.log(`Resuming bulk import: ${parentJob.id} (retry ${retryCount})`);
       }
 
-      // Process in background - don't await to allow parallel resumption
       // eslint-disable-next-line @typescript-eslint/require-await
       processBulkFetch(parentJob.id, true).catch(async (error: unknown) => {
         console.error(`Error resuming bulk import ${parentJob.id} (retry ${retryCount}):`, error);
-
-        // Note: Individual job failures are already handled by processBulkFetch
-        // This catch is for catastrophic failures of the entire bulk fetch process
-        // The job will be marked as FAILED by processBulkFetch's own error handling
       });
     }
   }

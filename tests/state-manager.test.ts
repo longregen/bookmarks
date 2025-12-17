@@ -8,7 +8,7 @@ describe('StateManager', () => {
     vi.useFakeTimers();
     stateManager = createStateManager({
       name: 'TestOperation',
-      timeoutMs: 1000, // 1 second timeout for tests
+      timeoutMs: 1000,
     });
   });
 
@@ -93,7 +93,6 @@ describe('StateManager', () => {
       stateManager.start();
       expect(stateManager.isActive()).toBe(true);
 
-      // Advance time past timeout
       vi.advanceTimersByTime(1100);
 
       expect(stateManager.isActive()).toBe(false);
@@ -102,13 +101,10 @@ describe('StateManager', () => {
     it('should auto-reset on timeout', () => {
       stateManager.start();
 
-      // Advance time past timeout
       vi.advanceTimersByTime(1100);
 
-      // Check that it's no longer active (auto-reset)
       expect(stateManager.isActive()).toBe(false);
 
-      // Should be able to start again
       const result = stateManager.start();
       expect(result).toBe(true);
     });
@@ -164,7 +160,6 @@ describe('StateManager', () => {
       stateManager.start();
       const state = stateManager.getState();
 
-      // Modifying the returned state should not affect internal state
       (state as any).isActive = false;
       expect(stateManager.isActive()).toBe(true);
     });
@@ -206,7 +201,6 @@ describe('StateManager', () => {
     it('should return true when close to timeout', () => {
       stateManager.start();
 
-      // Advance to 90% of timeout (900ms out of 1000ms)
       vi.advanceTimersByTime(900);
 
       expect(stateManager.isNearTimeout()).toBe(true);
@@ -223,13 +217,10 @@ describe('StateManager', () => {
 
   describe('timeout behavior', () => {
     it('should automatically recover from timeout', () => {
-      // Start first operation
       expect(stateManager.start()).toBe(true);
 
-      // Advance time past timeout
       vi.advanceTimersByTime(1100);
 
-      // Should be able to start a new operation
       expect(stateManager.start()).toBe(true);
       expect(stateManager.isActive()).toBe(true);
     });
@@ -323,7 +314,6 @@ describe('StateManager', () => {
       stateManager.start();
       vi.advanceTimersByTime(1100);
 
-      // Trigger timeout check
       stateManager.isActive();
 
       expect(consoleSpy).toHaveBeenCalledWith(

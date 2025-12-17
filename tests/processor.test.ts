@@ -4,12 +4,10 @@ import { processBookmark } from '../src/background/processor';
 import * as extract from '../src/lib/extract';
 import * as api from '../src/lib/api';
 
-// Mock the extract module
 vi.mock('../src/lib/extract', () => ({
   extractMarkdownAsync: vi.fn(),
 }));
 
-// Mock the API module
 vi.mock('../src/lib/api', () => ({
   generateQAPairs: vi.fn(),
   generateEmbeddings: vi.fn(),
@@ -62,24 +60,16 @@ describe('Bookmark Processor', () => {
 
       await processBookmark(bookmark);
 
-      // Verify markdown extraction was called
       expect(extractMock).toHaveBeenCalledWith(bookmark.html, bookmark.url);
-
-      // Verify Q&A generation was called
       expect(qaPairsMock).toHaveBeenCalledWith('Test markdown content');
-
-      // Verify embeddings were generated for questions, answers, and combined
       expect(embeddingsMock).toHaveBeenCalledTimes(3);
 
-      // Verify bookmark status was updated to complete
       const updatedBookmark = await db.bookmarks.get('test-1');
       expect(updatedBookmark?.status).toBe('complete');
 
-      // Verify markdown was saved
       const markdown = await db.markdown.where('bookmarkId').equals('test-1').first();
       expect(markdown?.content).toBe('Test markdown content');
 
-      // Verify Q&A pairs were saved
       const qaPairs = await db.questionsAnswers.where('bookmarkId').equals('test-1').toArray();
       expect(qaPairs).toHaveLength(1);
       expect(qaPairs[0].question).toBe('What is this?');
@@ -100,7 +90,6 @@ describe('Bookmark Processor', () => {
       await db.bookmarks.add(bookmark);
 
       vi.spyOn(extract, 'extractMarkdownAsync').mockImplementation(async () => {
-        // Check status during extraction
         const bookmark = await db.bookmarks.get('test-1');
         expect(bookmark?.status).toBe('processing');
 
@@ -210,11 +199,9 @@ describe('Bookmark Processor', () => {
 
       await processBookmark(bookmark);
 
-      // Should still mark as complete even with no Q&A pairs
       const updatedBookmark = await db.bookmarks.get('test-1');
       expect(updatedBookmark?.status).toBe('complete');
 
-      // No Q&A pairs should be saved
       const qaPairs = await db.questionsAnswers.where('bookmarkId').equals('test-1').toArray();
       expect(qaPairs).toHaveLength(0);
     });

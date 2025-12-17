@@ -56,7 +56,6 @@ sortSelect.addEventListener('change', () => {
 async function loadTags(): Promise<void> {
   const bookmarks = await db.bookmarks.toArray();
 
-  // Batch load all tags at once to avoid N+1 query pattern
   const allTagRecords = await db.bookmarkTags.toArray();
   const allTags: Record<string, number> = {};
   const taggedBookmarkIds = new Set<string>();
@@ -126,7 +125,6 @@ async function loadBookmarks(): Promise<void> {
     return;
   }
 
-  // Batch load all tags for the filtered bookmarks to avoid N+1 query pattern
   const bookmarkIds = bookmarks.map(b => b.id);
   const allTags = await db.bookmarkTags.where('bookmarkId').anyOf(bookmarkIds).toArray();
 
@@ -176,14 +174,12 @@ if (__IS_WEB__) {
 }
 onThemeChange((theme) => applyTheme(theme));
 
-// Initialize data and handle URL parameters
 const urlParams = new URLSearchParams(window.location.search);
 const bookmarkIdParam = urlParams.get('bookmarkId');
 
 async function initializeApp(): Promise<void> {
   await Promise.all([loadTags(), loadBookmarks()]);
 
-  // Show detail panel if bookmarkId is in URL
   if (bookmarkIdParam !== null && bookmarkIdParam !== '') {
     await detailManager.showDetail(bookmarkIdParam);
   }
@@ -191,7 +187,6 @@ async function initializeApp(): Promise<void> {
 
 void initializeApp();
 
-// Event-driven updates instead of constant polling
 const removeEventListener = addBookmarkEventListener((event) => {
   if (event.type === 'BOOKMARK_UPDATED' || event.type === 'PROCESSING_COMPLETE' || event.type === 'TAG_UPDATED') {
     void loadTags();
@@ -199,7 +194,6 @@ const removeEventListener = addBookmarkEventListener((event) => {
   }
 });
 
-// Minimal fallback polling every 30 seconds (instead of 5)
 const fallbackInterval = setInterval(() => {
   void loadTags();
   void loadBookmarks();

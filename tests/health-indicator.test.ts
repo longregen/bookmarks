@@ -3,7 +3,6 @@ import { db, JobType, JobStatus } from '../src/db/schema';
 import { getHealthStatus, createHealthIndicator } from '../src/lib/health-indicator';
 import * as tabs from '../src/lib/tabs';
 
-// Mock the openExtensionPage function
 vi.mock('../src/lib/tabs', () => ({
   openExtensionPage: vi.fn()
 }));
@@ -184,7 +183,6 @@ describe('Health Indicator', () => {
     });
 
     it('should set cursor to pointer when in error state', async () => {
-      // Create a failed job to trigger error state
       await db.jobs.add({
         id: 'job-1',
         type: JobType.URL_FETCH,
@@ -197,7 +195,6 @@ describe('Health Indicator', () => {
 
       createHealthIndicator(container);
 
-      // Wait for initial update
       await new Promise(resolve => setTimeout(resolve, 100));
 
       const indicator = container.querySelector('.health-indicator') as HTMLElement;
@@ -205,7 +202,6 @@ describe('Health Indicator', () => {
     });
 
     it('should set cursor to pointer when in healthy state', async () => {
-      // Create a completed job to trigger healthy state
       await db.jobs.add({
         id: 'job-1',
         type: JobType.URL_FETCH,
@@ -218,7 +214,6 @@ describe('Health Indicator', () => {
 
       createHealthIndicator(container);
 
-      // Wait for initial update
       await new Promise(resolve => setTimeout(resolve, 100));
 
       const indicator = container.querySelector('.health-indicator') as HTMLElement;
@@ -226,7 +221,6 @@ describe('Health Indicator', () => {
     });
 
     it('should navigate to jobs page (filtered to failed) when clicked in error state', async () => {
-      // Create a failed job to trigger error state
       await db.jobs.add({
         id: 'job-1',
         type: JobType.URL_FETCH,
@@ -239,7 +233,6 @@ describe('Health Indicator', () => {
 
       createHealthIndicator(container);
 
-      // Wait for initial update
       await new Promise(resolve => setTimeout(resolve, 100));
 
       const indicator = container.querySelector('.health-indicator') as HTMLElement;
@@ -249,7 +242,6 @@ describe('Health Indicator', () => {
     });
 
     it('should navigate to jobs page when clicked in healthy state', async () => {
-      // Create a completed job to trigger healthy state
       await db.jobs.add({
         id: 'job-1',
         type: JobType.URL_FETCH,
@@ -262,7 +254,6 @@ describe('Health Indicator', () => {
 
       createHealthIndicator(container);
 
-      // Wait for initial update
       await new Promise(resolve => setTimeout(resolve, 100));
 
       const indicator = container.querySelector('.health-indicator') as HTMLElement;
@@ -272,7 +263,6 @@ describe('Health Indicator', () => {
     });
 
     it('should navigate to jobs page when clicked in processing state', async () => {
-      // Create a pending job to trigger processing state
       await db.jobs.add({
         id: 'job-1',
         type: JobType.URL_FETCH,
@@ -285,7 +275,6 @@ describe('Health Indicator', () => {
 
       createHealthIndicator(container);
 
-      // Wait for initial update
       await new Promise(resolve => setTimeout(resolve, 100));
 
       const indicator = container.querySelector('.health-indicator') as HTMLElement;
@@ -295,7 +284,6 @@ describe('Health Indicator', () => {
     });
 
     it('should update tooltip with error message', async () => {
-      // Create failed jobs
       await db.jobs.bulkAdd([
         {
           id: 'job-1',
@@ -319,7 +307,6 @@ describe('Health Indicator', () => {
 
       createHealthIndicator(container);
 
-      // Wait for initial update
       await new Promise(resolve => setTimeout(resolve, 100));
 
       const tooltip = container.querySelector('.health-indicator-tooltip') as HTMLElement;
@@ -327,7 +314,6 @@ describe('Health Indicator', () => {
     });
 
     it('should display error symbol (✕) when in error state', async () => {
-      // Create a failed job
       await db.jobs.add({
         id: 'job-1',
         type: JobType.URL_FETCH,
@@ -340,7 +326,6 @@ describe('Health Indicator', () => {
 
       createHealthIndicator(container);
 
-      // Wait for initial update
       await new Promise(resolve => setTimeout(resolve, 100));
 
       const dot = container.querySelector('.health-indicator-dot') as HTMLElement;

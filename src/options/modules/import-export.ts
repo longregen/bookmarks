@@ -96,6 +96,5 @@ importBtn.addEventListener('click', async () => {
   }
 });
 
-export function initImportExportModule(): void {
-  // Event listeners are registered at module level during import
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+export function initImportExportModule(): void {}

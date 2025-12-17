@@ -3,12 +3,10 @@ import { db } from '../src/db/schema';
 import { startProcessingQueue } from '../src/background/queue';
 import * as processor from '../src/background/processor';
 
-// Mock the processor module
 vi.mock('../src/background/processor', () => ({
   processBookmark: vi.fn(),
 }));
 
-// Mock the webdav-sync module
 vi.mock('../src/lib/webdav-sync', () => ({
   triggerSyncIfEnabled: vi.fn().mockResolvedValue(undefined),
 }));
@@ -73,15 +71,10 @@ describe('Queue Management', () => {
         }
       );
 
-      // Start first processing
       const firstProcess = startProcessingQueue();
-
-      // Try to start second processing immediately
       await startProcessingQueue();
-
       await firstProcess;
 
-      // Should only be called once, not twice
       expect(processMock).toHaveBeenCalledTimes(1);
     });
 
@@ -137,18 +130,15 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(stuckBookmark);
 
-      // Mock getNextRetryTime to return a date in the past so retry happens immediately
       const retryModule = await import('../src/lib/retry');
       const getNextRetryTimeSpy = vi.spyOn(retryModule, 'getNextRetryTime').mockReturnValue(new Date(Date.now() - 1000));
 
       const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(async (bookmark) => {
-        // Update bookmark status to 'complete' to break the loop
         await db.bookmarks.update(bookmark.id, { status: 'complete', updatedAt: new Date() });
       });
 
       await startProcessingQueue();
 
-      // Check that the bookmark was marked as error, then retried and processed
       expect(processMock).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'stuck-1',
@@ -180,7 +170,6 @@ describe('Queue Management', () => {
 
       await startProcessingQueue();
 
-      // Should not process this bookmark since it's not stuck yet
       expect(processMock).not.toHaveBeenCalled();
     });
 
@@ -210,22 +199,19 @@ describe('Queue Management', () => {
 
       const processMock = vi.spyOn(processor, 'processBookmark').mockImplementation(async (bookmark) => {
         if (bookmark.id === 'test-1') {
-          // Mark as error with no retry to prevent infinite loop
           await db.bookmarks.update(bookmark.id, {
             status: 'error',
             errorMessage: 'Processing failed',
-            nextRetryAt: new Date(Date.now() + 1000000) // Far future to prevent retry
+            nextRetryAt: new Date(Date.now() + 1000000)
           });
           throw new Error('Processing failed');
         } else {
-          // Update other bookmarks to complete
           await db.bookmarks.update(bookmark.id, { status: 'complete', updatedAt: new Date() });
         }
       });
 
       await startProcessingQueue();
 
-      // Should process both bookmarks despite first one failing
       expect(processMock).toHaveBeenCalledTimes(2);
     });
 
@@ -244,7 +230,6 @@ describe('Queue Management', () => {
 
       await startProcessingQueue();
 
-      // Give it time for the dynamic import to complete
       await new Promise(resolve => setTimeout(resolve, 100));
 
       expect(triggerSyncIfEnabled).toHaveBeenCalled();
@@ -338,7 +323,6 @@ describe('Queue Management', () => {
 
       await startProcessingQueue();
 
-      // Now add another bookmark and start processing again
       const bookmark2 = {
         id: 'test-2',
         url: 'https://example.com/2',
@@ -377,7 +361,6 @@ describe('Queue Management', () => {
 
       await startProcessingQueue();
 
-      // Now add another bookmark and start processing again
       const bookmark2 = {
         id: 'test-2',
         url: 'https://example.com/2',
@@ -396,7 +379,6 @@ describe('Queue Management', () => {
 
       await startProcessingQueue();
 
-      // Should process second bookmark
       expect(processMock).toHaveBeenCalledTimes(2);
     });
   });
@@ -424,7 +406,6 @@ describe('Queue Management', () => {
         }
       );
 
-      // Start multiple processing attempts concurrently
       const promises = [
         startProcessingQueue(),
         startProcessingQueue(),
@@ -433,12 +414,10 @@ describe('Queue Management', () => {
 
       await Promise.all(promises);
 
-      // Should only process once, not three times
       expect(processCount).toBe(1);
     });
 
     it('should use state manager for processing flag', async () => {
-      // Import the state manager to verify it's being used
       const stateManagerModule = await import('../src/lib/state-manager');
 
       const bookmark = {
@@ -481,12 +460,10 @@ describe('Queue Management', () => {
         await db.bookmarks.update(bookmark.id, { status: 'complete' });
       });
 
-      // Start queue processing multiple times in rapid succession
       await startProcessingQueue();
       await startProcessingQueue();
       await startProcessingQueue();
 
-      // Should only process the bookmarks once (3 times total, once per bookmark)
       expect(processMock).toHaveBeenCalledTimes(3);
     });
 
@@ -507,11 +484,9 @@ describe('Queue Management', () => {
         await db.bookmarks.update(bookmark.id, { status: 'complete' });
       });
 
-      // First processing
       await startProcessingQueue();
       expect(processMock).toHaveBeenCalledTimes(1);
 
-      // Add another bookmark
       const bookmark2 = {
         id: 'test-2',
         url: 'https://example.com/2',
@@ -524,7 +499,6 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark2);
 
-      // Second processing should work (state was properly cleaned up)
       await startProcessingQueue();
       expect(processMock).toHaveBeenCalledTimes(2);
     });
@@ -547,11 +521,10 @@ describe('Queue Management', () => {
         if (bookmark.id === 'test-1') {
           test1CallCount++;
           if (test1CallCount === 1) {
-            // First call: fail with error and set nextRetryAt far in future
             await db.bookmarks.update(bookmark.id, {
               status: 'error',
               errorMessage: 'Processing failed',
-              nextRetryAt: new Date(Date.now() + 1000000) // Far future to prevent retry in this test
+              nextRetryAt: new Date(Date.now() + 1000000)
             });
             throw new Error('Processing failed');
           }
@@ -559,10 +532,8 @@ describe('Queue Management', () => {
         await db.bookmarks.update(bookmark.id, { status: 'complete' });
       });
 
-      // First processing (will fail)
       await startProcessingQueue();
 
-      // Add another bookmark
       const bookmark2 = {
         id: 'test-2',
         url: 'https://example.com/2',
@@ -575,9 +546,7 @@ describe('Queue Management', () => {
 
       await db.bookmarks.add(bookmark2);
 
-      // Second processing should work (state was properly cleaned up despite error)
       await startProcessingQueue();
-      // Total calls: test-1 fails (1), test-2 succeeds (2)
       expect(processMock).toHaveBeenCalledTimes(2);
     });
   });

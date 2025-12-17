@@ -49,8 +49,6 @@ export async function withRetry<T>(
     }
   }
 
-  // TypeScript requires this for type safety, though it's logically unreachable
-  // because the loop either returns on success or throws on the last retry attempt
   throw lastError;
 }
 

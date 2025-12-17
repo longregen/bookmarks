@@ -11,7 +11,6 @@ const jobsList = document.getElementById('jobsList') as HTMLDivElement;
 
 const jobsPoller: Poller = createPoller(
   () => {
-    // Only auto-refresh if there are active jobs
     const hasActiveJobs = document.querySelectorAll('.job-status-badge.in_progress').length > 0;
     if (hasActiveJobs) {
       void loadJobs();

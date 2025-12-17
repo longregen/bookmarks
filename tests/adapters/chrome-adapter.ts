@@ -1,10 +1,3 @@
-/**
- * Chrome Extension E2E Test Adapter
- *
- * Uses Puppeteer to test the Chrome extension.
- * Supports coverage collection for E2E tests.
- */
-
 import puppeteer, { Browser, Page, CoverageEntry } from 'puppeteer-core';
 import path from 'path';
 import fs from 'fs';
@@ -21,7 +14,6 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Coverage collection flag - set via environment variable
 const COLLECT_COVERAGE = process.env.E2E_COVERAGE === 'true';
 
 export class ChromeAdapter implements TestAdapter {
@@ -38,7 +30,6 @@ export class ChromeAdapter implements TestAdapter {
   private browserPath: string;
   private apiKey: string;
 
-  // Coverage collection
   private collectedCoverage: CoverageEntry[] = [];
   private activePagesForCoverage: Set<Page> = new Set();
 
@@ -61,13 +52,10 @@ export class ChromeAdapter implements TestAdapter {
   }
 
   async setup(): Promise<void> {
-    // Start mock server
     await this.startMockServer();
 
-    // Create temp user data directory
     this.userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chrome-e2e-profile-'));
 
-    // Launch browser with extension
     this.browser = await puppeteer.launch({
       executablePath: this.browserPath,
       headless: false, // Extensions require headed mode
@@ -87,7 +75,6 @@ export class ChromeAdapter implements TestAdapter {
       ],
     });
 
-    // Get extension ID
     this.extensionId = await this.getExtensionId();
     console.log(`Extension ID: ${this.extensionId}`);
   }
@@ -103,12 +90,10 @@ export class ChromeAdapter implements TestAdapter {
       });
     }
 
-    // Cleanup user data directory
     if (this.userDataDir && fs.existsSync(this.userDataDir)) {
       try {
         fs.rmSync(this.userDataDir, { recursive: true, force: true });
       } catch {
-        // Ignore cleanup errors
       }
     }
   }
@@ -116,7 +101,6 @@ export class ChromeAdapter implements TestAdapter {
   async newPage(): Promise<PageHandle> {
     const page = await this.browser!.newPage();
 
-    // Start coverage collection for this page if enabled
     if (COLLECT_COVERAGE) {
       try {
         await page.coverage.startJSCoverage({
@@ -132,9 +116,6 @@ export class ChromeAdapter implements TestAdapter {
     return new PuppeteerPageHandle(page, this);
   }
 
-  /**
-   * Called when a page is closed to collect its coverage
-   */
   async collectPageCoverage(page: Page): Promise<void> {
     if (!COLLECT_COVERAGE || !this.activePagesForCoverage.has(page)) {
       return;
@@ -142,7 +123,6 @@ export class ChromeAdapter implements TestAdapter {
 
     try {
       const coverage = await page.coverage.stopJSCoverage();
-      // Filter to only include extension source files
       const extensionCoverage = coverage.filter(entry => {
         return entry.url.includes('chrome-extension://') ||
                entry.url.includes('/src/');
@@ -154,9 +134,6 @@ export class ChromeAdapter implements TestAdapter {
     }
   }
 
-  /**
-   * Start coverage collection (called before tests)
-   */
   async startCoverage(): Promise<void> {
     if (COLLECT_COVERAGE) {
       console.log('[Coverage] E2E coverage collection enabled');
@@ -164,13 +141,9 @@ export class ChromeAdapter implements TestAdapter {
     }
   }
 
-  /**
-   * Stop coverage collection (called after tests)
-   */
   async stopCoverage(): Promise<void> {
     if (!COLLECT_COVERAGE) return;
 
-    // Collect from any remaining active pages
     for (const page of this.activePagesForCoverage) {
       try {
         const coverage = await page.coverage.stopJSCoverage();
@@ -180,7 +153,6 @@ export class ChromeAdapter implements TestAdapter {
         });
         this.collectedCoverage.push(...extensionCoverage);
       } catch {
-        // Page may already be closed
       }
     }
     this.activePagesForCoverage.clear();
@@ -188,9 +160,6 @@ export class ChromeAdapter implements TestAdapter {
     console.log(`[Coverage] Collected ${this.collectedCoverage.length} coverage entries`);
   }
 
-  /**
-   * Write collected coverage to disk
-   */
   async writeCoverage(): Promise<void> {
     if (!COLLECT_COVERAGE || this.collectedCoverage.length === 0) {
       return;
@@ -201,12 +170,10 @@ export class ChromeAdapter implements TestAdapter {
       fs.mkdirSync(coverageDir, { recursive: true });
     }
 
-    // Write raw V8 coverage data
     const v8CoveragePath = path.join(coverageDir, 'v8-coverage.json');
     fs.writeFileSync(v8CoveragePath, JSON.stringify(this.collectedCoverage, null, 2));
     console.log(`[Coverage] Raw V8 coverage written to: ${v8CoveragePath}`);
 
-    // Convert to Istanbul format if possible
     try {
       await this.convertToIstanbul(coverageDir);
     } catch (error) {
@@ -214,9 +181,6 @@ export class ChromeAdapter implements TestAdapter {
     }
   }
 
-  /**
-   * Convert V8 coverage to Istanbul format
-   */
   private async convertToIstanbul(coverageDir: string): Promise<void> {
     const { createRequire } = await import('module');
     const require = createRequire(import.meta.url);
@@ -238,11 +202,9 @@ export class ChromeAdapter implements TestAdapter {
       if (!entry.text || !entry.url) continue;
 
       try {
-        // Try to map back to source files
         let filePath: string | null = null;
 
         if (entry.url.includes('chrome-extension://')) {
-          // Extract path from extension URL
           const urlPath = entry.url.replace(/chrome-extension:\/\/[^/]+/, '');
           filePath = path.join(this.extensionPath, urlPath);
         }
@@ -260,7 +222,6 @@ export class ChromeAdapter implements TestAdapter {
           coverageMap.merge(libCoverage.createCoverageMap({ [(coverage as any).path]: coverage }));
         }
       } catch {
-        // Skip entries that can't be converted
       }
     }
 
@@ -294,7 +255,6 @@ export class ChromeAdapter implements TestAdapter {
     const EXTENSION_TIMEOUT = 30000;
 
     try {
-      // Find the service worker target
       const serviceWorkerTarget = await this.browser!.waitForTarget(
         target => {
           const targetType = target.type();
@@ -314,7 +274,6 @@ export class ChromeAdapter implements TestAdapter {
       console.log('Service worker target not found, trying fallback methods...');
     }
 
-    // Fallback: Look for any chrome-extension:// target
     try {
       const extensionTarget = await this.browser!.waitForTarget(
         target => target.url().includes('chrome-extension://'),
@@ -328,10 +287,8 @@ export class ChromeAdapter implements TestAdapter {
         return match[1];
       }
     } catch {
-      // Continue to final fallback
     }
 
-    // Final fallback: Check all existing targets
     const targets = this.browser!.targets();
     const extensionTarget = targets.find(target =>
       target.url().includes('chrome-extension://')
@@ -379,7 +336,7 @@ export class ChromeAdapter implements TestAdapter {
               try {
                 const parsed = JSON.parse(body);
                 inputCount = Array.isArray(parsed.input) ? parsed.input.length : 1;
-              } catch { /* default */ }
+              } catch { }
             }
             res.statusCode = 200;
             res.end(JSON.stringify(getMockEmbeddingsResponse(inputCount)));
@@ -409,9 +366,6 @@ export class ChromeAdapter implements TestAdapter {
   }
 }
 
-/**
- * Puppeteer PageHandle implementation
- */
 class PuppeteerPageHandle implements PageHandle {
   constructor(
     private page: Page,
@@ -456,7 +410,6 @@ class PuppeteerPageHandle implements PageHandle {
   }
 
   async close(): Promise<void> {
-    // Collect coverage before closing the page
     await this.adapter.collectPageCoverage(this.page);
     await this.page.close();
   }

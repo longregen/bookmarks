@@ -32,7 +32,6 @@ export function cosineSimilarity(a: number[], b: number[]): number {
     normB += b[i] * b[i];
   }
 
-  // sqrt(a) * sqrt(b) = sqrt(a*b) - single sqrt is more efficient
   const magnitude = Math.sqrt(normA * normB);
 
   if (magnitude === 0) {

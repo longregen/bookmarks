@@ -239,7 +239,6 @@ async function performSearch(): Promise<void> {
     const sortedResults = Array.from(bookmarkMap.entries())
       .sort((a, b) => Math.max(...b[1].map(r => r.score)) - Math.max(...a[1].map(r => r.score)));
 
-    // Batch load bookmarks and tags to avoid N+1 query pattern
     const bookmarkIds = sortedResults.map(([bookmarkId]) => bookmarkId);
     const bookmarks = await db.bookmarks.bulkGet(bookmarkIds);
     const bookmarksById = new Map(bookmarks.filter((b): b is NonNullable<typeof b> => b !== undefined).map(b => [b.id, b]));

@@ -80,7 +80,7 @@ function formatBookmarkForExport(
     createdAt: bookmark.createdAt.toISOString(),
     updatedAt: bookmark.updatedAt.toISOString(),
     markdown: markdown?.content,
-    /* eslint-disable @typescript-eslint/no-unnecessary-condition -- defensive check for missing embeddings */
+    /* eslint-disable @typescript-eslint/no-unnecessary-condition */
     questionsAnswers: qaPairs.map(qa => ({
       question: qa.question,
       answer: qa.answer,
