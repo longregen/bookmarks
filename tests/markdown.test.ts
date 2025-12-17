@@ -143,10 +143,88 @@ Also [link3](https://example3.com).
       expect(html.trim()).toBe('');
     });
 
-    it('should handle raw HTML in markdown', () => {
+    it('should sanitize script tags', () => {
       const markdown = '<script>alert("xss")</script>';
       const html = parseMarkdown(markdown);
-      expect(html).toBeDefined();
+      expect(html).not.toContain('<script');
+      expect(html).not.toContain('alert');
+    });
+
+    it('should sanitize onerror handlers', () => {
+      const markdown = '<img src=x onerror="alert(\'xss\')">';
+      const html = parseMarkdown(markdown);
+      expect(html).not.toContain('onerror');
+      expect(html).not.toContain('alert');
+    });
+
+    it('should sanitize onclick handlers', () => {
+      const markdown = '<div onclick="alert(\'xss\')">Click me</div>';
+      const html = parseMarkdown(markdown);
+      expect(html).not.toContain('onclick');
+      expect(html).not.toContain('alert');
+    });
+
+    it('should sanitize onmouseover handlers', () => {
+      const markdown = '<span onmouseover="alert(\'xss\')">Hover</span>';
+      const html = parseMarkdown(markdown);
+      expect(html).not.toContain('onmouseover');
+    });
+
+    it('should sanitize javascript: URLs', () => {
+      const markdown = '<a href="javascript:alert(\'xss\')">Click</a>';
+      const html = parseMarkdown(markdown);
+      expect(html).not.toContain('javascript:');
+    });
+
+    it('should sanitize data: URLs in images', () => {
+      const markdown = '<img src="data:text/html,<script>alert(\'xss\')</script>">';
+      const html = parseMarkdown(markdown);
+      expect(html).not.toContain('data:text/html');
+    });
+
+    it('should sanitize iframe tags', () => {
+      const markdown = '<iframe src="https://evil.com"></iframe>';
+      const html = parseMarkdown(markdown);
+      expect(html).not.toContain('<iframe');
+    });
+
+    it('should sanitize object tags', () => {
+      const markdown = '<object data="https://evil.com/malware.swf"></object>';
+      const html = parseMarkdown(markdown);
+      expect(html).not.toContain('<object');
+    });
+
+    it('should sanitize embed tags', () => {
+      const markdown = '<embed src="https://evil.com/malware.swf">';
+      const html = parseMarkdown(markdown);
+      expect(html).not.toContain('<embed');
+    });
+
+    it('should sanitize svg with scripts', () => {
+      const markdown = '<svg onload="alert(\'xss\')"><circle r="10"></circle></svg>';
+      const html = parseMarkdown(markdown);
+      expect(html).not.toContain('onload');
+    });
+
+    it('should sanitize style-based attacks', () => {
+      const markdown = '<div style="background:url(javascript:alert(\'xss\'))">styled</div>';
+      const html = parseMarkdown(markdown);
+      expect(html).not.toContain('javascript:');
+    });
+
+    it('should handle mixed markdown and malicious HTML', () => {
+      const markdown = `# Safe Title
+
+This is **safe** content.
+
+<script>alert('xss')</script>
+
+More *safe* content.`;
+      const html = parseMarkdown(markdown);
+      expect(html).toContain('<h1');
+      expect(html).toContain('<strong>safe</strong>');
+      expect(html).toContain('<em>safe</em>');
+      expect(html).not.toContain('<script');
     });
 
     it('should handle complex documents', () => {
