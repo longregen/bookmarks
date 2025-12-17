@@ -209,6 +209,18 @@ npm run test:unit
 npm run test:all
 ```
 
+## Security
+
+Send us an email with the title of this section at localforge.org. We don't have a GPG key configured, but will monitor and answer fast (as of late 2025).
+
+Here are some attack vectors we considered from web content pages:
+
+- XSS via bookmark title: use textContent always when displaying `title`
+- XSS via bookmark content: use lib DOMPurify to sanitize
+- URL injection: only allow http/https protocols
+- Content script injection: captured HTML goes through Readability + DOMPurify
+- Stored XSS via IndexedDB: unlikely, but avoid innerHTML at all cost and always try to use DOM libs, even for already stored contend, and never display captured HTML
+
 ## License
 
 MIT
