@@ -22,6 +22,7 @@ export interface TestAdapter {
   newPage(): Promise<PageHandle>;
   getPageUrl(page: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs'): string;
   getMockApiUrl(): string;
+  getMockPageUrls(): string[];
   getRealApiKey(): string;
   hasRealApiKey(): boolean;
   startCoverage?(): Promise<void>;
@@ -301,6 +302,107 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     }
 
     await page.close();
+  });
+
+  // Test bulk import with mock pages (no external network required)
+  await runner.runTest('Bulk import processes 3 iconic documents with Q&A generation', async () => {
+    const mockUrls = adapter.getMockPageUrls();
+    if (mockUrls.length !== 3) {
+      throw new Error(`Expected 3 mock URLs, got ${mockUrls.length}`);
+    }
+
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('#bulkUrlsInput');
+    await waitForSettingsLoad(page);
+
+    // Enter the 3 mock URLs
+    const urlsText = mockUrls.join('\\n');
+    await page.evaluate(`(() => {
+      const el = document.getElementById('bulkUrlsInput');
+      el.value = '${urlsText}';
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+
+    await new Promise(resolve => setTimeout(resolve, 600));
+
+    // Verify validation shows 3 valid URLs
+    const feedbackText = await page.$eval<string>('#urlValidationFeedback', 'el => el.textContent');
+    if (!feedbackText?.includes('3 valid')) {
+      throw new Error(`Expected "3 valid URLs" in feedback, got: ${feedbackText}`);
+    }
+
+    // Start the import
+    await page.click('#startBulkImport');
+
+    // Wait for all bookmarks to be processed (complete or error status)
+    await page.waitForFunction(
+      `(() => {
+        const statusDiv = document.querySelector('.status');
+        if (statusDiv && statusDiv.textContent) {
+          const text = statusDiv.textContent.toLowerCase();
+          if (text.includes('bulk import completed')) {
+            return true;
+          }
+        }
+        const status = document.getElementById('bulkImportStatus');
+        if (status && status.textContent) {
+          const text = status.textContent;
+          if (text.includes('Completed 3 of 3')) {
+            return true;
+          }
+        }
+        return false;
+      })()`,
+      90000  // Allow 90s for full processing (fetch + markdown + Q&A + embeddings)
+    );
+
+    await page.close();
+
+    // Verify all 3 bookmarks appear in library
+    const libraryPage = await adapter.newPage();
+    await libraryPage.goto(adapter.getPageUrl('library'));
+    await libraryPage.waitForSelector('#bookmarkList');
+
+    // Wait for bookmarks to appear
+    await libraryPage.waitForFunction(
+      `(() => {
+        const cards = document.querySelectorAll('.bookmark-card');
+        // Check we have at least 3 bookmarks
+        if (cards.length < 3) return false;
+        // Check for expected titles
+        const titles = Array.from(cards).map(c => c.querySelector('.card-title')?.textContent || '');
+        const hasManifestos = titles.some(t => t.includes('Cyberspace') || t.includes('Cypherpunk') || t.includes('Hacker') || t.includes('Conscience'));
+        return hasManifestos;
+      })()`,
+      30000
+    );
+
+    // Click on first bookmark to verify Q&A was generated
+    await libraryPage.evaluate(`(() => {
+      const card = document.querySelector('.bookmark-card');
+      if (card) card.click();
+    })()`);
+
+    // Wait for detail panel with Q&A pairs
+    await libraryPage.waitForFunction(
+      `(() => {
+        const detailPanel = document.getElementById('detailPanel');
+        if (!detailPanel || !detailPanel.classList.contains('active')) return false;
+        const qaPairs = document.querySelectorAll('.qa-pair');
+        return qaPairs.length > 0;
+      })()`,
+      30000
+    );
+
+    const qaCount = await libraryPage.evaluate(`document.querySelectorAll('.qa-pair').length`) as number;
+    if (qaCount < 1) {
+      throw new Error(`Expected at least 1 Q&A pair, got ${qaCount}`);
+    }
+
+    console.log(`  ✓ Found ${qaCount} Q&A pairs for imported document`);
+
+    await libraryPage.close();
   });
 
   if (options.skipCorsFetchTest) {
