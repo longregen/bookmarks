@@ -31,10 +31,8 @@ body {
 
 .sidebar {
   display: none;
-  width: 200px;
-  background: var(--bg-secondary);
-  border-right: 1px solid var(--border-primary);
-  padding: var(--space-6);
+  width: 160px;
+  padding: var(--space-3) var(--space-4);
   overflow-y: auto;
   min-height: 0;
   flex-shrink: 0;
@@ -46,11 +44,12 @@ body {
 }
 
 .sidebar-title {
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   font-weight: var(--font-semibold);
   color: var(--text-tertiary);
   text-transform: uppercase;
-  margin-bottom: var(--space-4);
+  letter-spacing: 0.5px;
+  margin-bottom: var(--space-2);
 }
 
 .sidebar-title:not(:first-child) {
@@ -106,34 +105,32 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-2);
-  border-radius: var(--radius-md);
+  padding: var(--space-1) 0;
   cursor: pointer;
-  transition: all var(--transition-fast);
-  margin-bottom: var(--space-1);
+  transition: color var(--transition-fast);
+  border-bottom: none;
 }
 
 .tag-item:hover {
-  background: var(--bg-hover);
+  color: var(--accent-primary);
 }
 
 .tag-item.active {
-  background: var(--accent-primary);
-  color: var(--accent-text);
+  color: var(--accent-primary);
+  font-weight: var(--font-medium);
 }
 
 .tag-name {
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
 }
 
 .tag-count {
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
 .tag-item.active .tag-count {
-  color: var(--accent-text);
-  opacity: 0.8;
+  color: var(--accent-primary);
 }
 
 .filter-item {
@@ -165,66 +162,127 @@ body {
   color: var(--text-primary);
 }
 
+/* ===== Bookmark List (Library) - Tufte-inspired dense layout ===== */
+.bookmark-list-header {
+  display: grid;
+  grid-template-columns: 1fr 140px 80px 60px;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
 .bookmark-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
+  display: grid;
+  grid-template-columns: 1fr 140px 80px 60px;
+  gap: var(--space-3);
+  align-items: baseline;
+  padding: var(--space-2) 0;
   cursor: pointer;
-  transition: all var(--transition-base);
 }
 
 .bookmark-card:hover {
-  border-color: var(--border-secondary);
-  box-shadow: var(--shadow-md);
+  color: var(--accent-primary);
 }
 
 .card-header {
   display: flex;
-  justify-content: space-between;
-  align-items: start;
-  margin-bottom: var(--space-2);
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .card-title {
-  font-size: var(--text-md);
-  font-weight: var(--font-medium);
+  font-size: var(--text-base);
   color: var(--text-primary);
-  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
 
 .card-meta {
   font-size: var(--text-sm);
   color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card-url {
   color: var(--accent-link);
   text-decoration: none;
-  margin-right: var(--space-2);
+  font-size: var(--text-sm);
 }
 
 .card-url:hover {
   text-decoration: underline;
 }
 
+.card-date {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.card-status {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.card-status--complete { color: var(--success-text); }
+.card-status--pending { color: var(--warning-text); }
+.card-status--processing { color: var(--info-text); }
+.card-status--error { color: var(--error-text); }
+
 .card-tags {
-  margin-top: var(--space-2);
+  margin-top: var(--space-1);
   display: flex;
   gap: var(--space-2);
   flex-wrap: wrap;
+  grid-column: 1 / -1;
 }
 
 .tag-badge {
-  background: var(--badge-bg);
-  color: var(--badge-text);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
+  color: var(--text-muted);
   font-size: var(--text-xs);
 }
 
+.tag-badge::before {
+  content: '#';
+}
+
+/* Mobile: Stack into simpler layout */
+@media (max-width: 767px) {
+  .bookmark-list-header {
+    display: none;
+  }
+
+  .bookmark-card {
+    display: block;
+    padding: var(--space-3) 0;
+  }
+
+  .card-header {
+    margin-bottom: var(--space-1);
+  }
+
+  .card-meta {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+  }
+
+  .card-date,
+  .card-status {
+    text-align: left;
+  }
+}
+
+/* ===== Search Page Layout ===== */
 .search-page {
   display: flex;
   flex-direction: column;
@@ -298,46 +356,54 @@ body {
   display: inline-block;
 }
 
+/* ===== Search Results - Tufte-inspired dense layout ===== */
 .result-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
+  padding: var(--space-3) 0;
   cursor: pointer;
-  transition: all var(--transition-base);
 }
 
 .result-card:hover {
-  border-color: var(--border-secondary);
-  box-shadow: var(--shadow-md);
-}
-
-.relevance {
-  font-size: var(--text-lg);
-  font-weight: var(--font-bold);
   color: var(--accent-primary);
-  margin-bottom: var(--space-2);
 }
 
+.result-header-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-1);
+}
+
+/* Relevance as subtle inline indicator - position tells the story */
+.relevance {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* Search/Stumble Q&A preview - compact inline */
 .qa-preview {
-  background: var(--bg-tertiary);
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  border-left: 3px solid var(--accent-primary);
+  padding: var(--space-2) 0;
+  margin-top: var(--space-1);
+  border-left: none;
+  background: none;
 }
 
 .qa-q {
-  font-weight: var(--font-medium);
-  color: var(--text-secondary);
-  margin-bottom: var(--space-2);
   font-size: var(--text-sm);
+  color: var(--text-secondary);
+  display: inline;
 }
 
 .qa-a {
-  color: var(--text-tertiary);
   font-size: var(--text-sm);
-  line-height: var(--leading-normal);
+  color: var(--text-tertiary);
+  display: inline;
+  margin-left: var(--space-2);
+}
+
+.qa-q::after {
+  content: ' →';
+  color: var(--text-muted);
 }
 
 .autocomplete-container {
@@ -397,35 +463,21 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--space-4);
-  padding: var(--space-4);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
+  padding: var(--space-4) 0;
 }
 
 .shuffle-btn {
   min-width: 120px;
 }
 
+/* Stumble cards - Tufte-inspired dense layout */
 .stumble-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
+  padding: var(--space-3) 0;
   cursor: pointer;
-  transition: all var(--transition-base);
 }
 
 .stumble-card:hover {
-  border-color: var(--border-secondary);
-  box-shadow: var(--shadow-md);
-}
-
-.saved-ago {
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  font-style: italic;
+  color: var(--accent-primary);
 }
 
 .detail-panel {
@@ -481,25 +533,72 @@ body {
   gap: var(--space-2);
 }
 
+/* ===== Q&A Section (Detail Panel) - Tufte two-column table ===== */
 .qa-section {
   margin-top: var(--space-6);
   padding-top: var(--space-6);
   border-top: 1px solid var(--border-primary);
 }
 
-.qa-pair {
+.qa-section h2 {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   margin-bottom: var(--space-4);
 }
 
+.qa-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.qa-pair {
+  display: table-row;
+}
+
+.qa-question,
+.qa-answer {
+  display: table-cell;
+  padding: var(--space-2) var(--space-3);
+  vertical-align: top;
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  border-bottom: 1px solid var(--border-primary);
+}
+
 .qa-question {
-  font-weight: var(--font-medium);
+  width: 40%;
   color: var(--text-secondary);
-  margin-bottom: var(--space-2);
+  font-weight: var(--font-normal);
 }
 
 .qa-answer {
+  width: 60%;
   color: var(--text-tertiary);
-  line-height: var(--leading-relaxed);
+}
+
+.qa-pair:last-child .qa-question,
+.qa-pair:last-child .qa-answer {
+  border-bottom: none;
+}
+
+/* Fallback for non-table layout browsers */
+@supports not (display: table-cell) {
+  .qa-pair {
+    display: flex;
+    gap: var(--space-4);
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--border-primary);
+  }
+
+  .qa-question,
+  .qa-answer {
+    display: block;
+    padding: 0;
+    border-bottom: none;
+  }
 }
 
 .markdown-content {

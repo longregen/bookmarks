@@ -147,9 +147,13 @@ function buildResultCard(
   const card = createElement('div', { className: 'result-card' });
   card.onclick = onClick;
 
-  card.appendChild(createElement('div', { className: 'relevance', textContent: `${(maxScore * 100).toFixed(0)}% match` }));
-  card.appendChild(createElement('div', { className: 'card-title', textContent: bookmark.title }));
+  // Header row: title, source, date, subtle relevance
+  const headerRow = createElement('div', { className: 'result-header-row' });
+  headerRow.appendChild(createElement('span', { className: 'card-title', textContent: bookmark.title }));
+  headerRow.appendChild(createElement('span', { className: 'relevance', textContent: `${(maxScore * 100).toFixed(0)}%` }));
+  card.appendChild(headerRow);
 
+  // Meta: source and date
   const meta = createElement('div', { className: 'card-meta' });
   const url = createElement('a', { className: 'card-url', href: bookmark.url, textContent: new URL(bookmark.url).hostname });
   url.onclick = (e) => e.stopPropagation();
@@ -157,9 +161,10 @@ function buildResultCard(
   meta.appendChild(document.createTextNode(` · ${formatDateByAge(bookmark.createdAt)}`));
   card.appendChild(meta);
 
+  // Q&A preview - compact inline format
   const qaPreview = createElement('div', { className: 'qa-preview' });
-  qaPreview.appendChild(createElement('div', { className: 'qa-q', textContent: `Q: ${bestQA.question}` }));
-  qaPreview.appendChild(createElement('div', { className: 'qa-a', textContent: `A: ${bestQA.answer}` }));
+  qaPreview.appendChild(createElement('span', { className: 'qa-q', textContent: bestQA.question }));
+  qaPreview.appendChild(createElement('span', { className: 'qa-a', textContent: bestQA.answer }));
   card.appendChild(qaPreview);
 
   return card;

@@ -85,13 +85,21 @@ export class BookmarkDetailManager {
 
     if (qaPairs.length > 0) {
       const qaSection = createElement('div', { className: 'qa-section' });
-      qaSection.appendChild(createElement('h2', { textContent: `Q&A PAIRS (${qaPairs.length})` }));
+      qaSection.appendChild(createElement('h2', { textContent: `Q&A (${qaPairs.length})` }));
+
+      // Two-column table layout
+      const qaTable = createElement('div', { className: 'qa-table' });
+      qaTable.setAttribute('role', 'table');
+
       for (const qa of qaPairs) {
         const pair = createElement('div', { className: 'qa-pair' });
-        pair.appendChild(createElement('div', { className: 'qa-question', textContent: `Q: ${qa.question}` }));
-        pair.appendChild(createElement('div', { className: 'qa-answer', textContent: `A: ${qa.answer}` }));
-        qaSection.appendChild(pair);
+        pair.setAttribute('role', 'row');
+        pair.appendChild(createElement('div', { className: 'qa-question', textContent: qa.question }));
+        pair.appendChild(createElement('div', { className: 'qa-answer', textContent: qa.answer }));
+        qaTable.appendChild(pair);
       }
+
+      qaSection.appendChild(qaTable);
       this.config.detailContent.appendChild(qaSection);
     }
 

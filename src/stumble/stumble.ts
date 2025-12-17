@@ -13,14 +13,24 @@ import { addEventListener as addBookmarkEventListener } from '../lib/events';
 
 const selectedTags = new Set<string>();
 
-function getStatusModifier(status: string): string {
+function getStatusClass(status: string): string {
   const statusMap: Record<string, string> = {
-    'complete': 'status-dot--success',
-    'pending': 'status-dot--warning',
-    'processing': 'status-dot--info',
-    'error': 'status-dot--error'
+    'complete': 'card-status--complete',
+    'pending': 'card-status--pending',
+    'processing': 'card-status--processing',
+    'error': 'card-status--error'
   };
-  return statusMap[status] || 'status-dot--warning';
+  return statusMap[status] || 'card-status--pending';
+}
+
+function getStatusLabel(status: string): string {
+  const labelMap: Record<string, string> = {
+    'complete': '✓',
+    'pending': 'pending',
+    'processing': 'processing',
+    'error': 'error'
+  };
+  return labelMap[status] || status;
 }
 
 const tagFilters = getElement('tagFilters');
@@ -99,24 +109,29 @@ async function loadStumble(): Promise<void> {
       const card = createElement('div', { className: 'stumble-card' });
       card.onclick = () => detailManager.showDetail(bookmark.id);
 
+      // Header with title
       const header = createElement('div', { className: 'card-header' });
-      header.appendChild(createElement('div', { className: 'card-title', textContent: bookmark.title }));
-      header.appendChild(createElement('div', { className: `status-dot ${getStatusModifier(bookmark.status)}` }));
+      header.appendChild(createElement('span', { className: 'card-title', textContent: bookmark.title }));
       card.appendChild(header);
 
+      // Meta: source, date, status as text
       const meta = createElement('div', { className: 'card-meta' });
       const url = createElement('a', { className: 'card-url', href: bookmark.url, textContent: new URL(bookmark.url).hostname });
       url.onclick = (e) => e.stopPropagation();
       meta.appendChild(url);
+      meta.appendChild(document.createTextNode(` · ${formatDateByAge(bookmark.createdAt)}`));
+      meta.appendChild(createElement('span', {
+        className: `card-status ${getStatusClass(bookmark.status)}`,
+        textContent: ` · ${getStatusLabel(bookmark.status)}`,
+        style: { marginLeft: '0' }
+      }));
       card.appendChild(meta);
 
-      const savedAgo = createElement('div', { className: 'saved-ago', textContent: `Saved ${formatDateByAge(bookmark.createdAt)}` });
-      card.appendChild(savedAgo);
-
+      // Q&A preview - compact inline format
       if (randomQA) {
-        const qaPreview = createElement('div', { className: 'qa-preview', style: { marginTop: 'var(--space-3)' } });
-        qaPreview.appendChild(createElement('div', { className: 'qa-q', textContent: `Q: ${randomQA.question}` }));
-        qaPreview.appendChild(createElement('div', { className: 'qa-a', textContent: `A: ${randomQA.answer}` }));
+        const qaPreview = createElement('div', { className: 'qa-preview' });
+        qaPreview.appendChild(createElement('span', { className: 'qa-q', textContent: randomQA.question }));
+        qaPreview.appendChild(createElement('span', { className: 'qa-a', textContent: randomQA.answer }));
         card.appendChild(qaPreview);
       }
 

@@ -11,14 +11,24 @@ import { BookmarkDetailManager } from '../lib/bookmark-detail';
 let selectedTag = 'All';
 let sortBy = 'newest';
 
-function getStatusModifier(status: string): string {
+function getStatusClass(status: string): string {
   const statusMap: Record<string, string> = {
-    'complete': 'status-dot--success',
-    'pending': 'status-dot--warning',
-    'processing': 'status-dot--info',
-    'error': 'status-dot--error'
+    'complete': 'card-status--complete',
+    'pending': 'card-status--pending',
+    'processing': 'card-status--processing',
+    'error': 'card-status--error'
   };
-  return statusMap[status] || 'status-dot--warning';
+  return statusMap[status] || 'card-status--pending';
+}
+
+function getStatusLabel(status: string): string {
+  const labelMap: Record<string, string> = {
+    'complete': '✓',
+    'pending': 'pending',
+    'processing': 'processing',
+    'error': 'error'
+  };
+  return labelMap[status] || status;
 }
 
 const tagList = getElement('tagList');
@@ -125,6 +135,15 @@ async function loadBookmarks(): Promise<void> {
     return;
   }
 
+  // Add table header
+  const header = createElement('div', { className: 'bookmark-list-header' });
+  header.appendChild(createElement('span', { textContent: 'Title' }));
+  header.appendChild(createElement('span', { textContent: 'Source' }));
+  header.appendChild(createElement('span', { textContent: 'Saved', style: { textAlign: 'right' } }));
+  header.appendChild(createElement('span', { textContent: 'Status', style: { textAlign: 'right' } }));
+  bookmarkList.appendChild(header);
+
+  // Batch load all tags for the filtered bookmarks to avoid N+1 query pattern
   const bookmarkIds = bookmarks.map(b => b.id);
   const allTags = await db.bookmarkTags.where('bookmarkId').anyOf(bookmarkIds).toArray();
 
@@ -143,22 +162,31 @@ async function loadBookmarks(): Promise<void> {
     const card = createElement('div', { className: 'bookmark-card' });
     card.onclick = () => detailManager.showDetail(bookmark.id);
 
-    const header = createElement('div', { className: 'card-header' });
-    header.appendChild(createElement('div', { className: 'card-title', textContent: bookmark.title }));
-    header.appendChild(createElement('div', { className: `status-dot ${getStatusModifier(bookmark.status)}` }));
-    card.appendChild(header);
+    // Title column
+    const titleCol = createElement('div', { className: 'card-header' });
+    titleCol.appendChild(createElement('span', { className: 'card-title', textContent: bookmark.title }));
+    card.appendChild(titleCol);
 
-    const meta = createElement('div', { className: 'card-meta' });
+    // Source column
     const url = createElement('a', { className: 'card-url', href: bookmark.url, textContent: new URL(bookmark.url).hostname });
     url.onclick = (e) => e.stopPropagation();
-    meta.appendChild(url);
-    meta.appendChild(document.createTextNode(` · ${formatDateByAge(bookmark.createdAt)}`));
-    card.appendChild(meta);
+    card.appendChild(url);
 
+    // Date column
+    card.appendChild(createElement('span', { className: 'card-date', textContent: formatDateByAge(bookmark.createdAt) }));
+
+    // Status column - text label instead of dot
+    const statusLabel = getStatusLabel(bookmark.status);
+    card.appendChild(createElement('span', {
+      className: `card-status ${getStatusClass(bookmark.status)}`,
+      textContent: statusLabel
+    }));
+
+    // Tags row (spans all columns)
     if (tags.length > 0) {
       const tagContainer = createElement('div', { className: 'card-tags' });
       for (const tag of tags) {
-        tagContainer.appendChild(createElement('span', { className: 'tag-badge', textContent: `#${tag.tagName}` }));
+        tagContainer.appendChild(createElement('span', { className: 'tag-badge', textContent: tag.tagName }));
       }
       card.appendChild(tagContainer);
     }
