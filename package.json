@@ -27,7 +27,8 @@
     "test:all": "npm run test:unit && npm run test:e2e:chrome && npm run test:e2e:web",
     "test:all:coverage": "npm run test:unit:coverage && npm run test:e2e:chrome:coverage && npm run coverage:merge",
     "coverage:merge": "npx tsx scripts/merge-coverage.ts",
-    "screenshots": "npx tsx scripts/capture-screenshots.ts"
+    "screenshots": "npx tsx scripts/capture-screenshots.ts",
+    "prepare": "husky"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
@@ -49,6 +50,7 @@
     "eslint": "^9.39.2",
     "fake-indexeddb": "^6.2.5",
     "globals": "^16.5.0",
+    "husky": "^9.1.7",
     "istanbul-lib-coverage": "^3.2.2",
     "istanbul-lib-report": "^3.0.1",
     "istanbul-reports": "^3.2.0",
