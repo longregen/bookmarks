@@ -1,11 +1,9 @@
 import { getSettings, saveSetting } from '../../lib/settings';
-import { showStatusMessage } from '../../ui/dom';
 import { initSettingsForm, withButtonState } from '../../ui/form-helper';
 import { makeApiRequest } from '../../lib/api';
 import { getErrorMessage } from '../../lib/errors';
 
 const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
-const statusDiv = document.getElementById('status') as HTMLDivElement;
 const testConnectionStatus = document.getElementById('testConnectionStatus') as HTMLDivElement;
 
 const apiBaseUrlInput = document.getElementById('apiBaseUrl') as HTMLInputElement;

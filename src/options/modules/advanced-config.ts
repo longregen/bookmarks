@@ -79,9 +79,12 @@ async function checkAdvancedConfigAcknowledgment(): Promise<boolean> {
 }
 
 async function saveAdvancedConfigAcknowledgment(): Promise<void> {
+  const now = new Date();
   await db.settings.put({
     key: 'advancedConfigAcknowledged',
     value: true,
+    createdAt: now,
+    updatedAt: now,
   });
 }
 
