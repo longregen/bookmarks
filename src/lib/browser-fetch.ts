@@ -1,8 +1,3 @@
-/**
- * Browser-agnostic fetch wrapper for bulk URL import
- * Uses tab-based rendering to capture fully rendered HTML with JavaScript execution
- */
-
 import { config } from './config-registry';
 import { renderPage } from './tab-renderer';
 
@@ -35,6 +30,5 @@ export async function fetchWithTimeout(url: string, timeoutMs: number = config.F
 }
 
 export async function browserFetch(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
-  // Use tab-based rendering to capture dynamically-rendered content that simple fetch() would miss
   return renderPage(url, timeoutMs);
 }

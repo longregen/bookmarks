@@ -1,11 +1,3 @@
-/**
- * Jobs Page - Main Entry Point
- *
- * Standalone page for monitoring processing jobs.
- * This page is intentionally hidden from the main navigation to avoid
- * frequent re-renders affecting other pages.
- */
-
 import { getRecentJobs, retryJob, dismissJob, deleteBookmarkWithData, type Job } from '../lib/jobs';
 import { db, JobType, JobStatus } from '../db/schema';
 import { createElement } from '../lib/dom';
@@ -49,7 +41,6 @@ async function loadJobs(): Promise<void> {
     for (const job of filteredJobs) {
       const jobEl = await renderJobItemElement(job);
       jobEl.addEventListener('click', (e) => {
-        // Don't toggle when clicking on action buttons
         if ((e.target as HTMLElement).closest('.job-actions')) return;
         jobEl.classList.toggle('expanded');
       });

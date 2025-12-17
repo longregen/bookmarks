@@ -2,9 +2,6 @@ import { db } from '../../db/schema';
 import type { ApiSettings } from '../platform';
 import { config } from '../config-registry';
 
-/**
- * Shared defaults for API settings across all platform adapters
- */
 export const DEFAULTS: ApiSettings = {
   apiBaseUrl: config.DEFAULT_API_BASE_URL,
   apiKey: '',
@@ -21,10 +18,6 @@ export const DEFAULTS: ApiSettings = {
   webdavLastSyncError: '',
 };
 
-/**
- * Shared function to get settings from IndexedDB
- * Used by both extension and web adapters
- */
 export async function getSettingsFromDb(): Promise<ApiSettings> {
   const rows = await db.settings.toArray();
   const map = Object.fromEntries(rows.map(r => [r.key, r.value])) as Record<string, string | boolean | number | undefined>;
@@ -46,10 +39,6 @@ export async function getSettingsFromDb(): Promise<ApiSettings> {
   };
 }
 
-/**
- * Shared function to save a setting to IndexedDB
- * Used by both extension and web adapters
- */
 export async function saveSettingToDb(key: keyof ApiSettings, value: string | boolean | number): Promise<void> {
   const now = new Date();
   const existing = await db.settings.get(key);

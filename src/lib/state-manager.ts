@@ -1,4 +1,3 @@
-// Generate a unique session ID when the module loads (service worker starts)
 const SESSION_ID = crypto.randomUUID();
 
 interface StateManagerOptions {
@@ -34,7 +33,6 @@ export class StateManager {
       return false;
     }
 
-    // Check if session changed (service worker restarted)
     if (this.state.sessionId !== SESSION_ID) {
       console.warn(
         `[${this.options.name}] Session changed (service worker restarted), resetting state`
@@ -56,7 +54,6 @@ export class StateManager {
   }
 
   start(): boolean {
-    // Check if already active (this will auto-reset if timed out or session changed)
     if (this.isActive()) {
       console.log(`[${this.options.name}] Already active, skipping`);
       return false;

@@ -26,7 +26,7 @@ export const webAdapter: PlatformAdapter = {
   getTheme(): Promise<Theme> {
     try {
       const theme = localStorage.getItem(THEME_KEY);
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive check for missing value
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       return Promise.resolve((theme as Theme) || 'auto');
     } catch {
       return Promise.resolve('auto');

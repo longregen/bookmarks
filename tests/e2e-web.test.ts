@@ -1,11 +1,3 @@
-/**
- * Web E2E Tests
- *
- * Runs the shared E2E test suite against the standalone web application.
- * Uses Puppeteer with mock API server. Real API tests are skipped for web
- * since the web app doesn't have reliable access to the API key in CI.
- */
-
 import { WebAdapter } from './adapters/web-adapter';
 import { TestRunner, runSharedTests } from './e2e-shared';
 

@@ -1,8 +1,3 @@
-/**
- * Platform-agnostic E2E test definitions.
- * Each platform provides an adapter implementing the TestAdapter interface.
- */
-
 import { getErrorMessage } from '../src/lib/errors';
 
 export interface PageHandle {
@@ -27,7 +22,6 @@ export interface TestAdapter {
   getPageUrl(page: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs'): string;
   getMockApiUrl(): string;
   getRealApiKey(): string;
-  // Coverage collection (optional - implement for platforms that support it)
   startCoverage?(): Promise<void>;
   stopCoverage?(): Promise<void>;
   writeCoverage?(): Promise<void>;
@@ -86,9 +80,6 @@ export function getMockModelsResponse(): object {
 
 import { CONFIG_DEFAULTS } from '../src/lib/config-registry';
 
-/**
- * Wait for settings to load from IndexedDB.
- */
 export async function waitForSettingsLoad(page: PageHandle): Promise<void> {
   await page.waitForFunction(
     `document.getElementById('apiBaseUrl')?.value?.length > 0`,
@@ -484,9 +475,6 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     if (!scrollableInfo.canScroll) {
       throw new Error('Settings area does not have overflow-y: auto');
     }
-
-    // Note: We don't fail if content doesn't overflow on large screens
-    // The important thing is that the CSS is set up correctly for scrolling
 
     await page.close();
   });

@@ -1,8 +1,3 @@
-/**
- * Encodes embedding vectors (range [-1, 1]) to reduce storage by ~75%.
- * Uses 16-bit quantization and base64 encoding with sufficient precision for similarity calculations.
- */
-
 const QUANTIZE_SCALE = 32767;
 
 export function encodeEmbedding(embedding: number[]): string {

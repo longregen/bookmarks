@@ -44,7 +44,6 @@ Also [link3](https://example3.com).
       `;
       const html = parseMarkdown(markdown);
 
-      // Count occurrences of target="_blank"
       const matches = html.match(/target="_blank"/g) || [];
       expect(matches.length).toBe(3);
     });
@@ -108,7 +107,6 @@ Also [link3](https://example3.com).
     it('should handle line breaks', () => {
       const markdown = 'Line 1\nLine 2';
       const html = parseMarkdown(markdown);
-      // With breaks: true, single newlines become <br>
       expect(html).toContain('<br>');
     });
 
@@ -146,11 +144,8 @@ Also [link3](https://example3.com).
     });
 
     it('should handle raw HTML in markdown (marked allows HTML by default)', () => {
-      // Note: marked allows HTML by default for flexibility
-      // In a production app, you'd sanitize the output with DOMPurify or similar
       const markdown = '<script>alert("xss")</script>';
       const html = parseMarkdown(markdown);
-      // marked preserves HTML tags - sanitization should be handled at render time
       expect(html).toBeDefined();
     });
 

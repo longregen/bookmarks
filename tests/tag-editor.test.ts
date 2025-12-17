@@ -1,16 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// Tag normalization function (extracted logic from tag-editor.ts)
 function normalizeTagName(input: string): string {
   return input.trim().toLowerCase().replace(/\s+/g, '-');
 }
 
-// Check if tag already exists in list
 function tagExists(tagName: string, existingTags: string[]): boolean {
   return existingTags.includes(tagName);
 }
 
-// Filter tags for autocomplete
 function filterTagsForAutocomplete(
   input: string,
   allTags: string[],
@@ -107,7 +104,6 @@ describe('Tag Editor Logic', () => {
     it('should create tag pills with remove buttons', () => {
       const tags = ['javascript', 'python'];
 
-      // Simulate tag editor render
       const tagsContainer = document.createElement('div');
       tagsContainer.className = 'tag-editor-tags';
 
@@ -157,7 +153,6 @@ describe('Tag Editor Logic', () => {
       dropdown.style.display = 'none';
       container.appendChild(dropdown);
 
-      // Simulate showing suggestions
       const suggestions = ['javascript', 'java'];
       for (const suggestion of suggestions) {
         const item = document.createElement('div');
@@ -175,11 +170,9 @@ describe('Tag Editor Logic', () => {
     it('should call onTagsChange when tag is added', async () => {
       const onTagsChange = vi.fn();
 
-      // Simulate tag addition
       const newTag = normalizeTagName('New Tag');
       expect(newTag).toBe('new-tag');
 
-      // After adding tag, callback should be invoked
       onTagsChange();
 
       expect(onTagsChange).toHaveBeenCalled();
@@ -188,7 +181,6 @@ describe('Tag Editor Logic', () => {
     it('should call onTagsChange when tag is removed', async () => {
       const onTagsChange = vi.fn();
 
-      // Simulate tag removal callback
       onTagsChange();
 
       expect(onTagsChange).toHaveBeenCalled();

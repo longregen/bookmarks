@@ -19,12 +19,6 @@ function getTurndown(): TurndownService {
   return turndownInstance;
 }
 
-/**
- * Extract markdown from HTML using native DOMParser
- * Used in contexts where DOMParser is available:
- * - Web builds (browser context)
- * - Firefox builds (Event Pages have DOM access)
- */
 function extractMarkdownNative(html: string, url: string): ExtractedContent {
   console.log('[Extract] Using native DOMParser', { url, htmlLength: html.length });
 
@@ -91,13 +85,6 @@ async function extractMarkdownViaOffscreen(html: string, url: string): Promise<E
   });
 }
 
-/**
- * Extract markdown from HTML - async version that works on all platforms
- * Build-time constants ensure only the relevant code path is included in each build:
- * - Web: Uses native DOMParser (always available in browser context)
- * - Firefox: Uses native DOMParser (Event Pages have DOM access)
- * - Chrome: Routes to offscreen document where DOMParser is available
- */
 export async function extractMarkdownAsync(html: string, url: string): Promise<ExtractedContent> {
   if (__IS_WEB__ || __IS_FIREFOX__) {
     return extractMarkdownNative(html, url);

@@ -39,9 +39,7 @@ export async function openExtensionPage(pagePath: string): Promise<void> {
     if (existingTab.windowId !== undefined) {
       try {
         await chrome.windows.update(existingTab.windowId, { focused: true });
-      } catch {
-        // Ignore - windows API may be limited on mobile
-      }
+      } catch {}
     }
   } else {
     await chrome.tabs.create({ url: targetUrl });

@@ -67,7 +67,6 @@ function validateWebDAVUrl(): void {
     return;
   }
 
-  // Note: We pass allowInsecure=true here to get a warning instead of an error for HTTP
   const result = validateWebDAVUrlShared(url, true);
 
   if (result.valid && result.warning !== undefined) {

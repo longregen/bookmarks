@@ -1,10 +1,3 @@
-/**
- * Firefox E2E Tests
- *
- * Runs the shared E2E test suite against the Firefox extension.
- * Uses Selenium WebDriver with mock API server for most tests, plus one real API test.
- */
-
 import { FirefoxAdapter } from './adapters/firefox-adapter';
 import { TestRunner, runSharedTests } from './e2e-shared';
 

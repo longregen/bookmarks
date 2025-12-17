@@ -69,7 +69,6 @@ async function generateQAPairsStep(
       apiTimeMs: Date.now() - qaStartTime,
     });
 
-    // Mark bookmark as complete even with no Q&A pairs
     await db.bookmarks.update(bookmark.id, {
       status: 'complete',
       updatedAt: new Date(),
@@ -198,7 +197,6 @@ async function saveResultsStep(
     });
   }
 
-  // Complete QA job (job timing is managed by the caller)
   await completeJob(job.id, {
     pairsGenerated: qaPairs.length,
   });
@@ -213,9 +211,6 @@ async function saveResultsStep(
   await broadcastEvent('BOOKMARK_UPDATED', { bookmarkId: bookmark.id, status: 'complete' });
 }
 
-/**
- * Main orchestrator function that processes a bookmark through the pipeline
- */
 export async function processBookmark(bookmark: Bookmark): Promise<void> {
   let markdownJobId: string | undefined;
   let qaJobId: string | undefined;
@@ -226,7 +221,6 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
       updatedAt: new Date(),
     });
 
-    // Step 1: Extract markdown from HTML
     const markdownJob = await createJob({
       type: JobType.MARKDOWN_GENERATION,
       status: JobStatus.IN_PROGRESS,
@@ -236,7 +230,6 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
 
     const markdownData = await extractMarkdownStep(bookmark, markdownJob);
 
-    // Step 2: Generate Q&A pairs
     const qaJob = await createJob({
       type: JobType.QA_GENERATION,
       status: JobStatus.IN_PROGRESS,
@@ -252,13 +245,10 @@ export async function processBookmark(bookmark: Bookmark): Promise<void> {
       return;
     }
 
-    // Step 3: Generate embeddings for Q&A pairs
     const embeddings = await generateEmbeddingsStep(qaJob, qaPairs);
 
-    // Step 4: Save results to database
     const totalApiTimeMs = Date.now() - qaStartTime;
 
-    // Update job metadata with timing information before saving
     await updateJob(qaJobId, {
       metadata: {
         apiTimeMs: totalApiTimeMs,

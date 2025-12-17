@@ -1,15 +1,3 @@
-/**
- * Chrome E2E Tests
- *
- * Runs the shared E2E test suite against the Chrome extension.
- * Uses Puppeteer with mock API server for most tests, plus one real API test.
- *
- * Coverage collection:
- *   Set E2E_COVERAGE=true to collect coverage during tests.
- *   Coverage will be written to coverage-e2e/ directory.
- *   Run `npm run coverage:merge` to merge with unit test coverage.
- */
-
 import { ChromeAdapter } from './adapters/chrome-adapter';
 import { TestRunner, runSharedTests } from './e2e-shared';
 
@@ -28,19 +16,16 @@ async function main(): Promise<void> {
   try {
     await adapter.setup();
 
-    // Start coverage collection if supported
     if (adapter.startCoverage) {
       await adapter.startCoverage();
     }
 
     await runSharedTests(adapter, runner);
 
-    // Stop coverage collection
     if (adapter.stopCoverage) {
       await adapter.stopCoverage();
     }
 
-    // Write coverage data
     if (adapter.writeCoverage) {
       await adapter.writeCoverage();
     }

@@ -41,7 +41,6 @@ describe('Service Worker Core Functionality', () => {
     });
 
     it('should update existing bookmark when URL matches', async () => {
-      // Create existing bookmark
       const existingBookmark = {
         id: 'existing-1',
         url: 'https://example.com',
@@ -54,11 +53,9 @@ describe('Service Worker Core Functionality', () => {
 
       await db.bookmarks.add(existingBookmark);
 
-      // Check if bookmark exists
       const existing = await db.bookmarks.where('url').equals('https://example.com').first();
       expect(existing).toBeDefined();
 
-      // Update existing bookmark
       await db.bookmarks.update(existing!.id, {
         title: 'New Title',
         html: '<html><body>New</body></html>',
@@ -75,7 +72,6 @@ describe('Service Worker Core Functionality', () => {
     });
 
     it('should reset error state when updating existing bookmark', async () => {
-      // Create bookmark with error
       const errorBookmark = {
         id: 'error-1',
         url: 'https://example.com',
@@ -90,7 +86,6 @@ describe('Service Worker Core Functionality', () => {
 
       await db.bookmarks.add(errorBookmark);
 
-      // Update to reset error state
       await db.bookmarks.update('error-1', {
         html: '<html><body>New</body></html>',
         status: 'pending',
@@ -464,7 +459,6 @@ describe('Service Worker Core Functionality', () => {
 
       await db.bookmarks.add(bookmark);
 
-      // Try to add another bookmark with same ID
       await expect(db.bookmarks.add(bookmark)).rejects.toThrow();
     });
 
@@ -495,13 +489,11 @@ describe('Service Worker Core Functionality', () => {
     });
 
     it('should handle response callback pattern', async () => {
-      // Simulate async response pattern using Promise
       const response = await new Promise<any>((resolve) => {
         const sendResponse = (response: any) => {
           resolve(response);
         };
 
-        // Simulate handler
         Promise.resolve({ success: true, bookmarkId: 'test-1' })
           .then(result => sendResponse(result))
           .catch(error => sendResponse({ success: false, error: error.message }));

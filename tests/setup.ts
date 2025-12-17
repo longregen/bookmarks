@@ -17,11 +17,9 @@ const idbFactory = new IDBFactory();
 (globalThis as any).IDBTransaction = IDBTransaction;
 (globalThis as any).IDBVersionChangeEvent = IDBVersionChangeEvent;
 
-// Configure Dexie to use fake-indexedDB
 Dexie.dependencies.indexedDB = idbFactory;
 Dexie.dependencies.IDBKeyRange = IDBKeyRange;
 
-// Mock Chrome API for unit tests
 global.chrome = {
   runtime: {
     sendMessage: vi.fn(),
@@ -29,7 +27,6 @@ global.chrome = {
   },
 } as any;
 
-// Mock build-time constants
 (globalThis as any).__IS_FIREFOX__ = false;
 (globalThis as any).__IS_CHROME__ = true;
 (globalThis as any).__IS_WEB__ = false;
@@ -37,13 +34,10 @@ global.chrome = {
 
 // crypto.randomUUID is available natively in jsdom, no need to mock
 
-// Set up Dexie for in-memory testing
 beforeAll(() => {
-  // Dexie uses indexedDB which is available in jsdom
   Dexie.delete('BookmarkRAG').catch(() => {});
 });
 
 afterAll(() => {
-  // Clean up test database
   Dexie.delete('BookmarkRAG').catch(() => {});
 });

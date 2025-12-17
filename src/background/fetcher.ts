@@ -41,7 +41,7 @@ async function processSingleFetch(jobId: string, parentJobId: string): Promise<v
     if (!job) return;
 
     const { url } = job.metadata;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive runtime check
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (url === undefined || url === null || url === '') {
       await failJob(jobId, 'Missing URL in job metadata');
       return;

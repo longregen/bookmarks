@@ -25,7 +25,6 @@ describe('Content Extraction', () => {
       const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.title).toBe('Test Article');
-      // Readability may not include the h1 in content since it's extracted as the title
       expect(result.content).toContain('This is a test paragraph');
     });
 
@@ -177,7 +176,6 @@ describe('Content Extraction', () => {
 
       const result = extractMarkdown(html, 'https://example.com');
 
-      // Accept either * or _ for emphasis (both are valid markdown)
       expect(result.content).toMatch(/[*_]emphasized[*_]/);
       expect(result.content).toMatch(/[*_]italic[*_]/);
     });
@@ -233,8 +231,6 @@ describe('Content Extraction', () => {
 
       const result = extractMarkdown(html, 'https://example.com');
 
-      // Readability might extract byline depending on HTML structure
-      // This test just ensures it doesn't crash
       expect(result.byline === null || typeof result.byline === 'string').toBe(true);
     });
 
@@ -358,8 +354,6 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      // Readability might not extract this if it's too short
-      // The test ensures we either extract or throw appropriately
       try {
         const result = extractMarkdown(html, 'https://example.com');
         expect(result).toBeDefined();
@@ -403,7 +397,6 @@ describe('Content Extraction', () => {
 
       const result = extractMarkdown(html, 'https://example.com');
 
-      // Readability should extract the main article
       expect(result.content).toBeDefined();
     });
 
@@ -477,7 +470,6 @@ describe('Content Extraction', () => {
       expect(result.content).toContain('introduction paragraph');
       expect(result.content).toContain('Section 1');
       expect(result.content).toContain('Section 2');
-      // Navigation and footer should be filtered out by Readability
       expect(result.content).not.toContain('Navigation');
     });
 
@@ -500,8 +492,6 @@ describe('Content Extraction', () => {
 
       const result = extractMarkdown(html, 'https://news.example.com');
 
-      // Title may be empty if no <title> tag in <head> (Readability behavior)
-      // The h1 content should be in the markdown content instead
       expect(result.content).toContain('lead paragraph');
       expect(result.content).toContain('Additional details');
     });
@@ -520,7 +510,6 @@ describe('Content Extraction', () => {
       const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('**bold**');
-      // Accept either * or _ for emphasis (both are valid markdown)
       expect(result.content).toMatch(/[*_]italic[*_]/);
       expect(result.content).toContain('code');
     });

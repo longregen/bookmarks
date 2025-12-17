@@ -10,7 +10,6 @@ import { renderPage } from '../src/lib/tab-renderer';
 const mockRenderPage = vi.mocked(renderPage);
 
 describe('Browser Fetch Library', () => {
-  // Mock global fetch
   const mockFetch = vi.fn();
   global.fetch = mockFetch as any;
 
@@ -100,7 +99,7 @@ describe('Browser Fetch Library', () => {
     });
 
     it('should throw error for HTML content too large', async () => {
-      const largeHtml = 'x'.repeat(11 * 1024 * 1024); // 11 MB
+      const largeHtml = 'x'.repeat(11 * 1024 * 1024);
       mockFetch.mockResolvedValueOnce({
         ok: true,
         text: async () => largeHtml,
@@ -112,7 +111,7 @@ describe('Browser Fetch Library', () => {
     });
 
     it('should accept HTML content under 10 MB', async () => {
-      const html = 'x'.repeat(9 * 1024 * 1024); // 9 MB
+      const html = 'x'.repeat(9 * 1024 * 1024);
       mockFetch.mockResolvedValueOnce({
         ok: true,
         text: async () => html,
@@ -159,10 +158,8 @@ describe('Browser Fetch Library', () => {
       try {
         await fetchWithTimeout('https://example.com', 100);
       } catch {
-        // Expected to throw
       }
 
-      // Wait for abort signal
       await new Promise(resolve => setTimeout(resolve, 50));
       expect(abortCalled).toBe(true);
     }, 1000);
@@ -175,7 +172,6 @@ describe('Browser Fetch Library', () => {
 
       await fetchWithTimeout('https://example.com');
 
-      // Verify the call was made (timeout is internal)
       expect(mockFetch).toHaveBeenCalled();
     });
 
@@ -215,7 +211,6 @@ describe('Browser Fetch Library', () => {
     // These tests are skipped because __IS_FIREFOX__ is a build-time constant
     // In unit tests, __IS_FIREFOX__ = false, so browserFetch always uses Chrome path
     it.skip('should use fetchWithTimeout in Firefox', async () => {
-      // Mock Firefox user agent
       const originalNavigator = global.navigator;
       Object.defineProperty(global, 'navigator', {
         value: { userAgent: 'Mozilla/5.0 (Firefox)' },
@@ -231,7 +226,6 @@ describe('Browser Fetch Library', () => {
       expect(html).toBe('test');
       expect(mockFetch).toHaveBeenCalled();
 
-      // Restore original navigator
       Object.defineProperty(global, 'navigator', {
         value: originalNavigator,
         configurable: true,
@@ -260,7 +254,6 @@ describe('Browser Fetch Library', () => {
     });
 
     it('should use renderPage for tab-based rendering', async () => {
-      // browserFetch now uses tab-based rendering for full JS execution
       mockRenderPage.mockResolvedValueOnce('<html>rendered content</html>');
 
       const html = await browserFetch('https://example.com');
@@ -269,7 +262,6 @@ describe('Browser Fetch Library', () => {
     });
 
     it('should handle render errors', async () => {
-      // Errors from renderPage should propagate
       mockRenderPage.mockRejectedValueOnce(new Error('Tab creation failed'));
 
       await expect(
@@ -278,7 +270,6 @@ describe('Browser Fetch Library', () => {
     });
 
     it('should pass timeout to renderPage', async () => {
-      // browserFetch passes the timeout to renderPage
       mockRenderPage.mockResolvedValueOnce('<html>test</html>');
 
       await browserFetch('https://example.com', 5000);
@@ -286,11 +277,9 @@ describe('Browser Fetch Library', () => {
     });
 
     it('should use default timeout when not specified', async () => {
-      // When no timeout is specified, the default from config should be used
       mockRenderPage.mockResolvedValueOnce('<html>test</html>');
 
       await browserFetch('https://example.com');
-      // Default timeout is 30000ms from config
       expect(mockRenderPage).toHaveBeenCalledWith('https://example.com', 30000);
     });
   });
@@ -341,7 +330,6 @@ describe('Browser Fetch Library', () => {
     });
 
     it('should handle content-type variations', async () => {
-      // Fetch doesn't care about content-type for text()
       mockFetch.mockResolvedValueOnce({
         ok: true,
         headers: { 'content-type': 'application/xhtml+xml' },

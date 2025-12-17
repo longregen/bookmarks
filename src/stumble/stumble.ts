@@ -65,7 +65,6 @@ async function loadStumble(): Promise<void> {
     let bookmarks = await db.bookmarks.where('status').equals('complete').toArray();
 
     if (selectedTags.size > 0) {
-      // Query all selected tags in parallel instead of sequentially
       const tagResults = await Promise.all(
         Array.from(selectedTags).map(tag =>
           db.bookmarkTags.where('tagName').equals(tag).toArray()
@@ -78,7 +77,6 @@ async function loadStumble(): Promise<void> {
       bookmarks = bookmarks.filter(b => taggedIds.has(b.id));
     }
 
-    // Fisher-Yates shuffle
     for (let i = bookmarks.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [bookmarks[i], bookmarks[j]] = [bookmarks[j], bookmarks[i]];

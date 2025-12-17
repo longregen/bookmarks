@@ -4,7 +4,6 @@ import { getSettingsFromDb, saveSettingToDb, DEFAULTS } from '../src/lib/adapter
 
 describe('Adapters Common', () => {
   beforeEach(async () => {
-    // Clear all settings before each test
     await db.settings.clear();
   });
 
@@ -46,7 +45,6 @@ describe('Adapters Common', () => {
 
       expect(settings.apiKey).toBe('test-api-key');
       expect(settings.chatModel).toBe('gpt-4');
-      // Other settings should use defaults
       expect(settings.embeddingModel).toBe(DEFAULTS.embeddingModel);
     });
 

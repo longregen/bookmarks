@@ -305,7 +305,6 @@ function formatValue(value: number | string | boolean, type: string): HTMLElemen
     return createElement('span', { className: 'value-boolean', textContent: String(value) });
   }
   if (type === 'number') {
-    // Format large numbers with commas
     const formatted = typeof value === 'number' ? value.toLocaleString() : String(value);
     return createElement('span', { className: 'value-number', textContent: formatted });
   }
@@ -419,7 +418,6 @@ async function saveEdit(key: string): Promise<void> {
     if (entry.type === 'boolean') {
       newValue = (input as HTMLSelectElement).value === 'true';
     } else if (entry.type === 'number') {
-
       newValue = parseFloat((input as HTMLInputElement).value);
       if (isNaN(newValue)) {
         throw new Error('Invalid number');
@@ -427,7 +425,6 @@ async function saveEdit(key: string): Promise<void> {
     } else if (entry.type === 'textarea') {
       newValue = (input as HTMLTextAreaElement).value;
     } else {
-
       newValue = (input as HTMLInputElement).value;
     }
 
@@ -469,7 +466,6 @@ function showStatus(message: string, type: 'success' | 'error'): void {
   status.className = `config-status ${type}`;
   status.classList.remove('hidden');
 
-  // Auto-hide after 3 seconds
   setTimeout(() => {
     status.classList.add('hidden');
   }, 3000);

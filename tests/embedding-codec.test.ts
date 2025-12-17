@@ -27,17 +27,15 @@ describe('Embedding Codec', () => {
       const encoded = encodeEmbedding(original);
       const decoded = decodeEmbedding(encoded);
 
-      // These exact values should be preserved perfectly
       expect(decoded[0]).toBe(-1);
       expect(decoded[1]).toBe(0);
-      expect(decoded[2]).toBeCloseTo(1, 4); // 32767/32767 = 1
+      expect(decoded[2]).toBeCloseTo(1, 4);
     });
 
     it('should handle typical OpenAI embedding dimensions (1536)', () => {
-      // Generate a random embedding similar to what OpenAI returns
       const original: number[] = [];
       for (let i = 0; i < 1536; i++) {
-        original.push(Math.random() * 2 - 1); // Random values in [-1, 1]
+        original.push(Math.random() * 2 - 1);
       }
 
       const encoded = encodeEmbedding(original);
@@ -70,7 +68,6 @@ describe('Embedding Codec', () => {
         expect(error).toBeLessThanOrEqual(maxError);
       }
 
-      // Log for visibility in test output
       console.log(`Max observed error for 3072-dim embedding: ${maxObservedError.toExponential(3)}`);
     });
 
@@ -79,7 +76,6 @@ describe('Embedding Codec', () => {
       const encoded = encodeEmbedding(original);
       const decoded = decodeEmbedding(encoded);
 
-      // All out-of-bounds values should be clamped to -1 or 1
       expect(decoded[0]).toBe(-1);
       expect(decoded[1]).toBe(-1);
       expect(decoded[2]).toBeCloseTo(1, 4);
@@ -90,10 +86,8 @@ describe('Embedding Codec', () => {
       const original = [0.1, 0.2, 0.3, 0.4, 0.5];
       const encoded = encodeEmbedding(original);
 
-      // Base64 string should only contain valid characters
       expect(encoded).toMatch(/^[A-Za-z0-9+/]+=*$/);
 
-      // Should be decodable without throwing
       expect(() => decodeEmbedding(encoded)).not.toThrow();
     });
 
@@ -122,7 +116,6 @@ describe('Embedding Codec', () => {
     });
 
     it('should maintain precision across many roundtrips', () => {
-      // Test that re-encoding a decoded value doesn't accumulate error
       const original = [0.123456789];
       let value = original;
 
@@ -131,12 +124,10 @@ describe('Embedding Codec', () => {
         value = decodeEmbedding(encoded);
       }
 
-      // Error should not accumulate beyond the quantization error
       expect(Math.abs(value[0] - original[0])).toBeLessThanOrEqual(maxQuantizationError());
     });
 
     it('should preserve similarity calculations with sufficient precision', () => {
-      // Cosine similarity should be preserved well enough for practical use
       const a = [0.5, 0.3, -0.2, 0.8, -0.6];
       const b = [0.4, 0.2, -0.3, 0.7, -0.5];
 
@@ -156,14 +147,12 @@ describe('Embedding Codec', () => {
       const bEncoded = decodeEmbedding(encodeEmbedding(b));
       const encodedSimilarity = cosineSim(aEncoded, bEncoded);
 
-      // Similarity should be preserved to at least 4 decimal places
       expect(encodedSimilarity).toBeCloseTo(originalSimilarity, 4);
     });
   });
 
   describe('compressionRatio', () => {
     it('should achieve significant compression for realistic embeddings', () => {
-      // Generate a realistic 1536-dimensional embedding
       const embedding: number[] = [];
       for (let i = 0; i < 1536; i++) {
         embedding.push(Math.random() * 2 - 1);
@@ -176,20 +165,17 @@ describe('Embedding Codec', () => {
       console.log(`  Encoded size: ${encodedSize} bytes`);
       console.log(`  Compression ratio: ${ratio.toFixed(2)}x`);
 
-      // We expect at least 3x compression (typically around 5-7x)
       expect(ratio).toBeGreaterThan(3);
 
       // Encoded size should be approximately 1536 * 2 * 4/3 = 4096 bytes (base64 overhead)
       expect(encodedSize).toBeLessThan(5000);
 
-      // JSON size for 1536 floats is typically around 20-30KB
       expect(jsonSize).toBeGreaterThan(15000);
     });
 
     it('should show size savings for multiple embeddings', () => {
-      // Simulate 3 embeddings per Q&A pair, 10 Q&A pairs
       const numQAPairs = 10;
-      const embeddingsPerQA = 3; // question, answer, both
+      const embeddingsPerQA = 3;
       const embeddingDim = 1536;
 
       let totalJsonSize = 0;
@@ -210,7 +196,6 @@ describe('Embedding Codec', () => {
       console.log(`  Encoded size: ${(totalEncodedSize / 1024).toFixed(1)} KB`);
       console.log(`  Savings: ${((totalJsonSize - totalEncodedSize) / 1024).toFixed(1)} KB`);
 
-      // Total savings should be substantial
       expect(totalJsonSize / totalEncodedSize).toBeGreaterThan(3);
     });
   });
@@ -258,7 +243,6 @@ describe('Embedding Codec', () => {
       const encoded = encodeEmbedding(original);
       const decoded = decodeEmbedding(encoded);
 
-      // Very small values may round to 0
       for (let i = 0; i < original.length; i++) {
         expect(Math.abs(decoded[i] - original[i])).toBeLessThanOrEqual(maxQuantizationError());
       }
@@ -320,15 +304,11 @@ describe('Embedding Codec', () => {
     });
 
     it('should produce deterministic output for known input', () => {
-      // This test ensures the format doesn't accidentally change
       const original = [0, 0.5, -0.5, 1, -1];
       const encoded = encodeEmbedding(original);
 
-      // The encoding should be stable - if this test fails, the format changed
-      // This is a canary to detect accidental format changes
       expect(encoded.length).toBeGreaterThan(0);
 
-      // Verify roundtrip works
       const decoded = decodeEmbedding(encoded);
       expect(decoded[0]).toBe(0);
       expect(Math.abs(decoded[1] - 0.5)).toBeLessThanOrEqual(maxQuantizationError());

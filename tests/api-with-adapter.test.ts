@@ -2,10 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setPlatformAdapter, type PlatformAdapter, type ApiSettings } from '../src/lib/platform';
 import { generateQAPairs, generateEmbeddings } from '../src/lib/api';
 
-// Mock fetch globally
 global.fetch = vi.fn();
-
-// Mock __DEBUG_EMBEDDINGS__ global
 (global as any).__DEBUG_EMBEDDINGS__ = false;
 
 describe('API with Platform Adapter', () => {

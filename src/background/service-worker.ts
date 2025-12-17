@@ -17,7 +17,6 @@ import type {
   GetJobStatusResponse,
 } from '../lib/messages';
 
-// Initialize platform adapter immediately (required for API calls)
 setPlatformAdapter(extensionAdapter);
 
 console.log('Bookmark RAG service worker loaded');
@@ -56,7 +55,6 @@ async function initializeExtension(): Promise<void> {
 
     void startProcessingQueue();
 
-    // Set up WebDAV sync alarm (don't await to prevent blocking)
     void setupSyncAlarm().catch((err: unknown) => {
       console.error('Error setting up sync alarm:', err);
     });
@@ -70,7 +68,6 @@ async function initializeExtension(): Promise<void> {
     });
   } catch (error) {
     console.error('Error during initialization:', error);
-    // Still try to start the processing queue even if job recovery fails
     void startProcessingQueue();
   }
 }
@@ -85,7 +82,6 @@ chrome.runtime.onStartup.addListener(() => {
   void initializeExtension();
 });
 
-// This handles cases where the service worker was killed and restarted
 void initializeExtension();
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
@@ -261,7 +257,6 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
 
 async function handleBulkImport(urls: string[]): Promise<StartBulkImportResponse> {
   try {
-    // Ensure offscreen document exists (Chrome only, tree-shaken from Firefox builds)
     if (__IS_CHROME__) {
       await ensureOffscreenDocument();
     }

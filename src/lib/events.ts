@@ -29,7 +29,6 @@ export async function broadcastEvent(type: EventType, payload?: unknown): Promis
         event,
       });
     } catch (error: unknown) {
-      // Expected error when no listeners (e.g., no pages open)
       const errorMessage = getErrorMessage(error);
       if (!errorMessage.includes('Receiving end does not exist')) {
         console.error('Error broadcasting event:', error);

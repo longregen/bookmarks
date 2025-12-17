@@ -1,6 +1,5 @@
 import { marked as markedParser } from 'marked';
 
-// Set options once at module load time instead of on every function call
 markedParser.setOptions({
   gfm: true,
   breaks: true,

@@ -222,7 +222,6 @@ describe('Bulk Import Library', () => {
 
       const parentJobId = await createBulkImportJob(urls);
 
-      // Verify parent job
       const parentJob = await db.jobs.get(parentJobId);
       expect(parentJob).toBeDefined();
       expect(parentJob?.type).toBe(JobType.BULK_URL_IMPORT);
@@ -232,11 +231,9 @@ describe('Bulk Import Library', () => {
       expect(parentJob?.metadata.successCount).toBe(0);
       expect(parentJob?.metadata.failureCount).toBe(0);
 
-      // Verify child jobs
       const childJobs = await db.jobs.where('parentJobId').equals(parentJobId).toArray();
       expect(childJobs).toHaveLength(3);
 
-      // Sort child jobs by URL to ensure consistent ordering
       childJobs.sort((a, b) => (a.metadata.url || '').localeCompare(b.metadata.url || ''));
       const sortedUrls = [...urls].sort();
 
@@ -325,10 +322,9 @@ describe('Bulk Import Library', () => {
     });
 
     it('should handle malformed HTML', () => {
-      // Malformed HTML without closing tag won't match the regex
       const html = '<title>Test Page';
       const title = extractTitleFromHtml(html);
-      expect(title).toBe(''); // Returns empty string for malformed HTML
+      expect(title).toBe('');
     });
 
     it('should handle case-insensitive title tag', () => {

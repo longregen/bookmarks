@@ -1,9 +1,3 @@
-/**
- * Content script for extracting fully rendered HTML from a page
- * This script is injected into background tabs to wait for the page to settle
- * and extract the final rendered HTML after JavaScript execution.
- */
-
 function waitForSettle(settleTimeMs = 2000): Promise<void> {
   return new Promise((resolve) => {
     let timeout: ReturnType<typeof setTimeout>;
@@ -23,7 +17,6 @@ function waitForSettle(settleTimeMs = 2000): Promise<void> {
       characterData: true
     });
 
-    // Initial timeout in case page is already settled
     timeout = setTimeout(() => {
       observer.disconnect();
       resolve();
@@ -36,6 +29,4 @@ async function extractHtml(settleTimeMs = 2000): Promise<string> {
   return document.documentElement.outerHTML;
 }
 
-// Export for use when this script is injected
-// When injected via chrome.scripting.executeScript, we need to return the result
 (window as { extractHtml?: typeof extractHtml }).extractHtml = extractHtml;

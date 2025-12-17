@@ -1,8 +1,3 @@
-/**
- * Offscreen document for Chrome extension
- * Handles URL fetching and DOM parsing since service workers can't use DOMParser in Chrome MV3
- */
-
 import { fetchWithTimeout } from '../lib/browser-fetch';
 import { Readability } from '@mozilla/readability';
 import TurndownService from 'turndown';
@@ -65,8 +60,6 @@ function extractMarkdownInOffscreen(html: string, url: string): ExtractedContent
 }
 
 chrome.runtime.onMessage.addListener((message: { type: string; url?: string; timeoutMs?: number; html?: string }, sender, sendResponse) => {
-  // DEPRECATED: FETCH_URL is no longer used - service workers can fetch directly
-  // Kept for backwards compatibility; may be removed in future versions
   if (message.type === 'FETCH_URL') {
     const { url, timeoutMs } = message;
 
@@ -86,7 +79,7 @@ chrome.runtime.onMessage.addListener((message: { type: string; url?: string; tim
         });
       });
 
-    return true; // Keep message channel open for async response
+    return true;
   }
 
   if (message.type === 'EXTRACT_CONTENT') {
@@ -107,7 +100,7 @@ chrome.runtime.onMessage.addListener((message: { type: string; url?: string; tim
       });
     }
 
-    return true; // Keep message channel open for async response
+    return true;
   }
 
   return false;

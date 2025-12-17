@@ -1,20 +1,7 @@
-/**
- * Tab-based page renderer for browser extensions
- * Renders pages fully in background tabs with JavaScript execution before extracting HTML.
- * This captures dynamically-rendered content that simple fetch() would miss.
- *
- * Uses chrome.alarms to keep the service worker alive during long render operations.
- */
-
 import { config } from './config-registry';
 
 const KEEPALIVE_ALARM_NAME = 'tab-renderer-keepalive';
 
-/**
- * Start a keepalive alarm to prevent service worker termination
- * In MV3, service workers can be killed after ~30s of inactivity
- * Chrome 120+ enforces minimum 30-second alarm intervals
- */
 async function startKeepalive(): Promise<void> {
   await chrome.alarms.create(KEEPALIVE_ALARM_NAME, { periodInMinutes: 0.5 });
 }

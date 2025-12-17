@@ -1,16 +1,5 @@
-/**
- * Shared DOM utilities for CSP-safe element creation
- * Use these helpers instead of innerHTML to avoid Firefox extension warnings
- */
+// CSP-safe DOM utilities. Use instead of innerHTML to avoid Firefox extension warnings.
 
-/**
- * Get a required DOM element by ID. Throws if not found.
- * Returns a properly typed non-null element, eliminating the need for ! assertions.
- *
- * @example
- * const btn = getElement<HTMLButtonElement>('submitBtn');
- * btn.disabled = true; // No ! needed, type is HTMLButtonElement
- */
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- Generic allows callers to specify expected element type
 export function getElement<T extends HTMLElement = HTMLElement>(id: string): T {
   const el = document.getElementById(id);
@@ -20,13 +9,6 @@ export function getElement<T extends HTMLElement = HTMLElement>(id: string): T {
   return el as T;
 }
 
-/**
- * Get multiple required DOM elements by ID. Throws if any are not found.
- * Useful for validating multiple elements at once.
- *
- * @example
- * const [list, count] = getElements('bookmarkList', 'bookmarkCount');
- */
 export function getElements<T extends HTMLElement = HTMLElement>(...ids: string[]): T[] {
   return ids.map(id => getElement<T>(id));
 }

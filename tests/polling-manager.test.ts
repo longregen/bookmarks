@@ -53,7 +53,6 @@ describe('Polling Manager', () => {
 
       poller.start();
 
-      // Callback not called immediately by default
       expect(callback).not.toHaveBeenCalled();
 
       vi.advanceTimersByTime(1000);
@@ -106,7 +105,7 @@ describe('Polling Manager', () => {
       poller.stop();
 
       vi.advanceTimersByTime(3000);
-      expect(callback).toHaveBeenCalledTimes(2); // No more calls
+      expect(callback).toHaveBeenCalledTimes(2);
     });
 
     it('should handle async callbacks', async () => {
@@ -136,11 +135,8 @@ describe('Polling Manager', () => {
       });
       const poller = createPoller(callback, 1000, { immediate: true });
 
-      // Should not throw
       expect(() => poller.start()).not.toThrow();
 
-      // Error should be logged
-      // Note: Due to async nature, we need to flush promises
       vi.advanceTimersByTime(0);
 
       poller.stop();
@@ -154,11 +150,9 @@ describe('Polling Manager', () => {
       poller.start();
       vi.advanceTimersByTime(500);
 
-      // Restart while running
       poller.start();
       expect(poller.isRunning()).toBe(true);
 
-      // Timer should be reset, so need full 1000ms again
       vi.advanceTimersByTime(500);
       expect(callback).not.toHaveBeenCalled();
 
@@ -174,8 +168,8 @@ describe('Polling Manager', () => {
 
       poller.start();
       poller.stop();
-      poller.stop(); // Second stop
-      poller.stop(); // Third stop
+      poller.stop();
+      poller.stop();
 
       expect(poller.isRunning()).toBe(false);
     });
@@ -194,7 +188,7 @@ describe('Polling Manager', () => {
 
     it('should work with long intervals', () => {
       const callback = vi.fn();
-      const poller = createPoller(callback, 60000); // 1 minute
+      const poller = createPoller(callback, 60000);
 
       poller.start();
 
@@ -213,7 +207,6 @@ describe('Polling Manager', () => {
       });
       const poller = createPoller(callback, 1000, { immediate: true });
 
-      // Should throw because sync errors are not caught
       expect(() => poller.start()).toThrow('Sync error');
     });
 
@@ -237,7 +230,6 @@ describe('Polling Manager', () => {
       vi.advanceTimersByTime(1000);
       expect(callback).toHaveBeenCalledTimes(2);
 
-      // Should continue running even after error
       vi.advanceTimersByTime(1000);
       expect(callback).toHaveBeenCalledTimes(3);
 
@@ -246,9 +238,7 @@ describe('Polling Manager', () => {
     });
 
     it('should return void from sync callbacks', () => {
-      const callback = vi.fn(() => {
-        // Sync callback that returns nothing
-      });
+      const callback = vi.fn(() => {});
       const poller = createPoller(callback, 1000);
 
       poller.start();

@@ -28,7 +28,6 @@ describe('Similarity functions', () => {
     });
 
     it('should handle normalized embedding vectors', () => {
-      // Typical embedding vectors are normalized
       const a = [0.5, 0.5, 0.5, 0.5];
       const b = [0.5, 0.5, 0.5, 0.5];
       expect(cosineSimilarity(a, b)).toBeCloseTo(1, 10);
@@ -38,13 +37,12 @@ describe('Similarity functions', () => {
       const a = [1, 2, 3];
       const b = [1, 2, 4];
       const result = cosineSimilarity(a, b);
-      // These vectors are similar but not identical
       expect(result).toBeGreaterThan(0.95);
       expect(result).toBeLessThan(1);
     });
 
     it('should handle larger dimension vectors', () => {
-      const size = 1536; // Typical embedding size
+      const size = 1536;
       const a = Array(size).fill(0).map((_, i) => Math.sin(i));
       const b = Array(size).fill(0).map((_, i) => Math.sin(i));
       expect(cosineSimilarity(a, b)).toBeCloseTo(1, 10);
@@ -104,7 +102,7 @@ describe('Similarity functions', () => {
       const result = findTopK(queryEmbedding, items, 3);
 
       expect(result).toHaveLength(3);
-      expect(result[0].item.id).toBe('1'); // Exact match
+      expect(result[0].item.id).toBe('1');
       expect(result[0].score).toBeCloseTo(1, 10);
     });
 
@@ -121,8 +119,6 @@ describe('Similarity functions', () => {
       const queryEmbedding = [1, 0, 0];
       const result = findTopK(queryEmbedding, items, 10);
 
-      // Note: items with score < 0 are filtered out, and 'opposite' has score = -1
-      // so only 4 items with score >= 0 are returned
       expect(result.length).toBeLessThanOrEqual(5);
       expect(result.length).toBeGreaterThanOrEqual(4);
     });
@@ -143,14 +139,12 @@ describe('Similarity functions', () => {
     });
 
     it('should throw error for invalid query embedding', () => {
-      // The error is thrown when trying to access .length on null/undefined
       expect(() => findTopK(null as any, items, 3)).toThrow();
       expect(() => findTopK(undefined as any, items, 3)).toThrow();
     });
 
     it('should throw error for invalid items array', () => {
       const queryEmbedding = [1, 0, 0];
-      // The error is thrown when trying to map over null/undefined
       expect(() => findTopK(queryEmbedding, null as any, 3)).toThrow();
       expect(() => findTopK(queryEmbedding, undefined as any, 3)).toThrow();
     });
@@ -158,14 +152,13 @@ describe('Similarity functions', () => {
     it('should handle items with mismatched embedding dimensions gracefully', () => {
       const badItems = [
         { item: { id: '1', name: 'Good' }, embedding: [1, 0, 0] },
-        { item: { id: '2', name: 'Bad' }, embedding: [1, 0] }, // Wrong dimension
+        { item: { id: '2', name: 'Bad' }, embedding: [1, 0] },
         { item: { id: '3', name: 'Good too' }, embedding: [0.5, 0.5, 0] },
       ];
 
       const queryEmbedding = [1, 0, 0];
       const result = findTopK(queryEmbedding, badItems, 5);
 
-      // Should filter out the bad item and return valid ones
       expect(result.length).toBe(2);
       expect(result.every(r => r.score >= 0)).toBe(true);
     });

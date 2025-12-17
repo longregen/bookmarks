@@ -306,8 +306,6 @@ const CONFIG_STORAGE_KEY = 'advancedConfig';
 let configOverrides: Record<string, number | string | boolean> = {};
 let overridesLoaded = false;
 
-// Performance optimizations: O(1) lookups
-// Registry map for fast entry lookup (avoids find() on every read)
 const registryMap = new Map<string, ConfigEntry>(
   CONFIG_REGISTRY.map(entry => [entry.key, entry])
 );
@@ -477,7 +475,6 @@ export const CONFIG_DEFAULTS: ConfigValues = CONFIG_REGISTRY.reduce((acc, entry)
   return acc;
 }, {} as ConfigValues);
 
-// Use config to respect user overrides. For tests with predictable values, use CONFIG_DEFAULTS.
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const config: ConfigValues = Object.create(null);
 

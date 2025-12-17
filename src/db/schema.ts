@@ -28,9 +28,9 @@ export interface QuestionAnswer {
   bookmarkId: string;
   question: string;
   answer: string;
-  embeddingQuestion: number[]; // Float array, 1536 dims for text-embedding-3-small
+  embeddingQuestion: number[];
   embeddingAnswer: number[];
-  embeddingBoth: number[];     // embedding of "Q: {question}\nA: {answer}"
+  embeddingBoth: number[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,7 +44,7 @@ export interface Settings {
 
 export interface BookmarkTag {
   bookmarkId: string;
-  tagName: string;             // Lowercase, hyphens for spaces
+  tagName: string;
   addedAt: Date;
 }
 
@@ -76,7 +76,7 @@ export interface Job {
   id: string;
   type: JobType;
   status: JobStatus;
-  parentJobId?: string;          // For hierarchical jobs (e.g., bulk import -> individual fetches)
+  parentJobId?: string;
   bookmarkId?: string;
 
   progress: number;

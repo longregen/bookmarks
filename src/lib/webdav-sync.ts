@@ -76,7 +76,6 @@ async function ensureFolderExists(settings: ApiSettings): Promise<void> {
       return;
     }
   } catch {
-    // Folder doesn't exist, will create below
   }
 
   const mkcolResponse = await fetch(folderUrl, {
