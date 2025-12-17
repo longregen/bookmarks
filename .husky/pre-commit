@@ -1,8 +1,8 @@
 #!/bin/sh
 
-# npm run lint
-# npm run typecheck
-# npx vitest run --reporter github-actions
+npm run lint
+npm run typecheck
+npm run test:unit
 
 # E2E tests - use Playwright's Chromium if available
 if [ -z "$BROWSER_PATH" ]; then

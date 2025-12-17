@@ -2396,3 +2396,14 @@ input[type="number"]:focus {
   color: var(--info-text);
   border: 1px solid var(--info-border);
 }
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--text-base);
+  font-weight: var(--font-medium);
+  text-decoration: none;
+}
