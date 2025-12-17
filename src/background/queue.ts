@@ -88,7 +88,7 @@ export async function startProcessingQueue(): Promise<void> {
 
       if (allPending.length === 0) {
         console.log('No pending bookmarks to process');
-        import('../lib/webdav-sync').then(({ triggerSyncIfEnabled }) => {
+        import(/* @vite-ignore */ '../lib/webdav-sync').then(({ triggerSyncIfEnabled }) => {
           triggerSyncIfEnabled().catch((err: unknown) => {
             console.error('WebDAV sync after queue empty failed:', err);
           });

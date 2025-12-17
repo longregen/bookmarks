@@ -18,6 +18,25 @@ export const sharedDefine = {
   __DEBUG_EMBEDDINGS__: JSON.stringify(false),
 };
 
+// Files that use DOM APIs (document/window) must NOT be in the shared chunk
+// because they would crash the service worker which has no DOM
+const DOM_DEPENDENT_FILES = [
+  'dom.ts',
+  'export.ts',
+  'bookmark-detail.ts',
+  'form-helper.ts',
+  'health-indicator.ts',
+  'tag-editor.ts',
+  'tag-filter.ts',
+  'theme.ts',
+  'init-extension.ts', // imports theme.ts
+  'webdav-sync.ts', // imports export.ts
+];
+
+function isDomDependent(id: string): boolean {
+  return DOM_DEPENDENT_FILES.some(file => id.endsWith(`/${file}`));
+}
+
 /**
  * Shared rollup output options for bundling JavaScript.
  *
@@ -28,6 +47,10 @@ export const sharedOutput: OutputOptions = {
   manualChunks(id) {
     if (id.includes('node_modules')) {
       return 'vendor';
+    }
+    // DOM-dependent files get their own chunk, loaded only by UI pages
+    if (isDomDependent(id)) {
+      return 'ui';
     }
     if (id.includes('/src/lib/')) {
       return 'shared';
