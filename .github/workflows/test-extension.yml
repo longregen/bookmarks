@@ -43,7 +43,7 @@ jobs:
           path: dist-${{ matrix.browser }}/
           retention-days: 1
 
-  # Run unit tests (vitest) - no build artifacts needed
+  # Run unit tests (vitest) with coverage - no build artifacts needed
   test-unit:
     runs-on: ubuntu-latest
     steps:
@@ -58,8 +58,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run unit tests
-        run: npm run test:unit
+      - name: Run unit tests with coverage
+        run: npm run test:unit:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@ad3126e916f78f00edff4ed0317cf185271ccc2d # v5.4.2
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+          verbose: true
 
   # Run ESLint - no build artifacts needed
   lint:
