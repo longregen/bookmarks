@@ -1,20 +1,11 @@
 import { config } from './config-registry';
+import { createDebugLog, debugOnly } from './debug';
 
-const debugLog = __DEBUG_EMBEDDINGS__
-  ? (msg: string, data?: unknown) => console.log(`[Similarity] ${msg}`, data)
-  : (_msg: string, _data?: unknown) => {};
-
-const debugError = __DEBUG_EMBEDDINGS__
-  ? (msg: string, data?: unknown) => console.error(`[Similarity] ${msg}`, data)
-  : (_msg: string, _data?: unknown) => {};
-
-const debugWarn = __DEBUG_EMBEDDINGS__
-  ? (msg: string, data?: unknown) => console.warn(`[Similarity] ${msg}`, data)
-  : (_msg: string, _data?: unknown) => {};
+const debugLog = createDebugLog('Similarity');
 
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (!Array.isArray(a) || !Array.isArray(b)) {
-    debugError('cosineSimilarity called with non-array values', {
+    debugLog('cosineSimilarity called with non-array values', {
       aType: typeof a,
       bType: typeof b,
     });
@@ -22,7 +13,7 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   }
 
   if (a.length !== b.length) {
-    debugError('Vector dimension mismatch', {
+    debugLog('Vector dimension mismatch', {
       aLength: a.length,
       bLength: b.length,
       aSample: a.slice(0, 3),
@@ -45,7 +36,7 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   const magnitude = Math.sqrt(normA * normB);
 
   if (magnitude === 0) {
-    debugWarn('Zero magnitude detected - returning 0');
+    debugLog('Zero magnitude detected - returning 0');
     return 0;
   }
 
@@ -64,7 +55,7 @@ export function findTopK<T>(
   });
 
   if (!Array.isArray(queryEmbedding)) {
-    debugError('Invalid query embedding', {
+    debugLog('Invalid query embedding', {
       queryEmbedding,
       type: typeof queryEmbedding,
     });
@@ -72,7 +63,7 @@ export function findTopK<T>(
   }
 
   if (!Array.isArray(items)) {
-    debugError('Invalid items array', {
+    debugLog('Invalid items array', {
       items,
       type: typeof items,
     });
@@ -95,7 +86,7 @@ export function findTopK<T>(
   });
 
   if (errors.length > 0) {
-    debugError('Errors during similarity calculation', {
+    debugLog('Errors during similarity calculation', {
       errorCount: errors.length,
       totalItems: items.length,
       errors: errors.slice(0, 5),
@@ -104,7 +95,7 @@ export function findTopK<T>(
 
   const validScored = scored.filter(s => s.score >= 0);
 
-  if (__DEBUG_EMBEDDINGS__) {
+  debugOnly(() => {
     const scoreDistribution = validScored.reduce(
       (acc, s) => {
         if (s.score >= config.SIMILARITY_THRESHOLD_EXCELLENT) acc.excellent++;
@@ -123,7 +114,7 @@ export function findTopK<T>(
       errored: errors.length,
       scoreDistribution,
     });
-  }
+  });
 
   validScored.sort((a, b) => b.score - a.score);
 
