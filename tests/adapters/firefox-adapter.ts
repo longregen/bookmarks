@@ -1,18 +1,12 @@
-import { Builder, Browser, WebDriver, By, until, WebElement } from 'selenium-webdriver';
+import { Builder, Browser, WebDriver, By, until } from 'selenium-webdriver';
 import firefox from 'selenium-webdriver/firefox.js';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import http from 'http';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import {
-  TestAdapter,
-  PageHandle,
-  getMockQAPairsResponse,
-  getMockEmbeddingsResponse,
-  getMockModelsResponse,
-} from '../e2e-shared';
+import { TestAdapter, PageHandle } from '../e2e-shared';
+import { startMockServer, MockServer } from '../mock-server';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -22,8 +16,7 @@ export class FirefoxAdapter implements TestAdapter {
 
   private driver: WebDriver | null = null;
   private extensionUUID: string = '';
-  private mockServer: http.Server | null = null;
-  private mockServerPort: number = 0;
+  private mockServer: MockServer | null = null;
   private tempDir: string = '';
   private xpiPath: string = '';
 
@@ -42,7 +35,7 @@ export class FirefoxAdapter implements TestAdapter {
       throw new Error('BROWSER_PATH environment variable is required');
     }
     if (!this.apiKey) {
-      throw new Error('OPENAI_API_KEY environment variable is required');
+      console.warn('OPENAI_API_KEY not set - real API tests will be skipped');
     }
     if (!fs.existsSync(this.extensionPath)) {
       throw new Error(`Extension path does not exist: ${this.extensionPath}`);
@@ -50,7 +43,7 @@ export class FirefoxAdapter implements TestAdapter {
   }
 
   async setup(): Promise<void> {
-    await this.startMockServer();
+    this.mockServer = await startMockServer();
 
     this.tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'firefox-e2e-'));
     this.xpiPath = path.join(this.tempDir, 'extension.xpi');
@@ -80,9 +73,7 @@ export class FirefoxAdapter implements TestAdapter {
     }
 
     if (this.mockServer) {
-      await new Promise<void>(resolve => {
-        this.mockServer!.close(() => resolve());
-      });
+      await this.mockServer.close();
     }
 
     if (this.tempDir && fs.existsSync(this.tempDir)) {
@@ -112,11 +103,15 @@ export class FirefoxAdapter implements TestAdapter {
   }
 
   getMockApiUrl(): string {
-    return `http://127.0.0.1:${this.mockServerPort}`;
+    return this.mockServer!.url;
   }
 
   getRealApiKey(): string {
     return this.apiKey;
+  }
+
+  hasRealApiKey(): boolean {
+    return this.apiKey.length > 0;
   }
 
   private createXpi(): void {
@@ -148,63 +143,6 @@ export class FirefoxAdapter implements TestAdapter {
     }
 
     throw new Error('Could not detect extension UUID');
-  }
-
-  private async startMockServer(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.mockServer = http.createServer((req, res) => {
-        let body = '';
-        req.on('data', chunk => { body += chunk; });
-        req.on('end', () => {
-          res.setHeader('Access-Control-Allow-Origin', '*');
-          res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-          res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-          res.setHeader('Content-Type', 'application/json');
-
-          if (req.method === 'OPTIONS') {
-            res.statusCode = 200;
-            res.end();
-            return;
-          }
-
-          const url = req.url || '';
-
-          if (url.includes('/chat/completions')) {
-            res.statusCode = 200;
-            res.end(JSON.stringify(getMockQAPairsResponse()));
-          } else if (url.includes('/embeddings')) {
-            let inputCount = 1;
-            if (body) {
-              try {
-                const parsed = JSON.parse(body);
-                inputCount = Array.isArray(parsed.input) ? parsed.input.length : 1;
-              } catch { }
-            }
-            res.statusCode = 200;
-            res.end(JSON.stringify(getMockEmbeddingsResponse(inputCount)));
-          } else if (url.includes('/models')) {
-            res.statusCode = 200;
-            res.end(JSON.stringify(getMockModelsResponse()));
-          } else {
-            res.statusCode = 404;
-            res.end(JSON.stringify({ error: 'Not found' }));
-          }
-        });
-      });
-
-      this.mockServer.listen(0, '127.0.0.1', () => {
-        const addr = this.mockServer!.address();
-        if (addr && typeof addr === 'object') {
-          this.mockServerPort = addr.port;
-          console.log(`Mock API server running at http://127.0.0.1:${this.mockServerPort}`);
-          resolve();
-        } else {
-          reject(new Error('Failed to get server address'));
-        }
-      });
-
-      this.mockServer.on('error', reject);
-    });
   }
 }
 
