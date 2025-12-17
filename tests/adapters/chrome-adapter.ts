@@ -2,15 +2,9 @@ import puppeteer, { Browser, Page, CoverageEntry } from 'puppeteer-core';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import http from 'http';
 import { fileURLToPath } from 'url';
-import {
-  TestAdapter,
-  PageHandle,
-  getMockQAPairsResponse,
-  getMockEmbeddingsResponse,
-  getMockModelsResponse,
-} from '../e2e-shared';
+import { TestAdapter, PageHandle } from '../e2e-shared';
+import { startMockServer, MockServer } from '../mock-server';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -22,8 +16,7 @@ export class ChromeAdapter implements TestAdapter {
 
   private browser: Browser | null = null;
   private extensionId: string = '';
-  private mockServer: http.Server | null = null;
-  private mockServerPort: number = 0;
+  private mockServer: MockServer | null = null;
   private userDataDir: string = '';
 
   private extensionPath: string;
@@ -44,7 +37,7 @@ export class ChromeAdapter implements TestAdapter {
       throw new Error('BROWSER_PATH environment variable is required');
     }
     if (!this.apiKey) {
-      throw new Error('OPENAI_API_KEY environment variable is required');
+      console.warn('OPENAI_API_KEY not set - real API tests will be skipped');
     }
     if (!fs.existsSync(this.extensionPath)) {
       throw new Error(`Extension path does not exist: ${this.extensionPath}`);
@@ -52,7 +45,7 @@ export class ChromeAdapter implements TestAdapter {
   }
 
   async setup(): Promise<void> {
-    await this.startMockServer();
+    this.mockServer = await startMockServer();
 
     this.userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chrome-e2e-profile-'));
 
@@ -85,9 +78,7 @@ export class ChromeAdapter implements TestAdapter {
     }
 
     if (this.mockServer) {
-      await new Promise<void>(resolve => {
-        this.mockServer!.close(() => resolve());
-      });
+      await this.mockServer.close();
     }
 
     if (this.userDataDir && fs.existsSync(this.userDataDir)) {
@@ -100,6 +91,9 @@ export class ChromeAdapter implements TestAdapter {
 
   async newPage(): Promise<PageHandle> {
     const page = await this.browser!.newPage();
+
+    // Set viewport to match xvfb screen size for consistent screenshots
+    await page.setViewport({ width: 1280, height: 800 });
 
     if (COLLECT_COVERAGE) {
       try {
@@ -244,11 +238,15 @@ export class ChromeAdapter implements TestAdapter {
   }
 
   getMockApiUrl(): string {
-    return `http://127.0.0.1:${this.mockServerPort}`;
+    return this.mockServer!.url;
   }
 
   getRealApiKey(): string {
     return this.apiKey;
+  }
+
+  hasRealApiKey(): boolean {
+    return this.apiKey.length > 0;
   }
 
   private async getExtensionId(): Promise<string> {
@@ -307,63 +305,6 @@ export class ChromeAdapter implements TestAdapter {
 
     return match[1];
   }
-
-  private async startMockServer(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.mockServer = http.createServer((req, res) => {
-        let body = '';
-        req.on('data', chunk => { body += chunk; });
-        req.on('end', () => {
-          res.setHeader('Access-Control-Allow-Origin', '*');
-          res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-          res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-          res.setHeader('Content-Type', 'application/json');
-
-          if (req.method === 'OPTIONS') {
-            res.statusCode = 200;
-            res.end();
-            return;
-          }
-
-          const url = req.url || '';
-
-          if (url.includes('/chat/completions')) {
-            res.statusCode = 200;
-            res.end(JSON.stringify(getMockQAPairsResponse()));
-          } else if (url.includes('/embeddings')) {
-            let inputCount = 1;
-            if (body) {
-              try {
-                const parsed = JSON.parse(body);
-                inputCount = Array.isArray(parsed.input) ? parsed.input.length : 1;
-              } catch { }
-            }
-            res.statusCode = 200;
-            res.end(JSON.stringify(getMockEmbeddingsResponse(inputCount)));
-          } else if (url.includes('/models')) {
-            res.statusCode = 200;
-            res.end(JSON.stringify(getMockModelsResponse()));
-          } else {
-            res.statusCode = 404;
-            res.end(JSON.stringify({ error: 'Not found' }));
-          }
-        });
-      });
-
-      this.mockServer.listen(0, '127.0.0.1', () => {
-        const addr = this.mockServer!.address();
-        if (addr && typeof addr === 'object') {
-          this.mockServerPort = addr.port;
-          console.log(`Mock API server running at http://127.0.0.1:${this.mockServerPort}`);
-          resolve();
-        } else {
-          reject(new Error('Failed to get server address'));
-        }
-      });
-
-      this.mockServer.on('error', reject);
-    });
-  }
 }
 
 class PuppeteerPageHandle implements PageHandle {
@@ -407,6 +348,10 @@ class PuppeteerPageHandle implements PageHandle {
 
   async waitForFunction(fn: string, timeout = 30000): Promise<void> {
     await this.page.waitForFunction(fn, { timeout });
+  }
+
+  async screenshot(path: string, options?: { fullPage?: boolean }): Promise<void> {
+    await this.page.screenshot({ path, fullPage: options?.fullPage });
   }
 
   async close(): Promise<void> {

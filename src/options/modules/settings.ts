@@ -1,16 +1,30 @@
 import { getSettings, saveSetting } from '../../lib/settings';
-import { showStatusMessage } from '../../ui/dom';
 import { initSettingsForm, withButtonState } from '../../ui/form-helper';
 import { makeApiRequest } from '../../lib/api';
 import { getErrorMessage } from '../../lib/errors';
 
 const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
-const statusDiv = document.getElementById('status') as HTMLDivElement;
+const testConnectionStatus = document.getElementById('testConnectionStatus') as HTMLDivElement;
 
 const apiBaseUrlInput = document.getElementById('apiBaseUrl') as HTMLInputElement;
 const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
 const chatModelInput = document.getElementById('chatModel') as HTMLInputElement;
 const embeddingModelInput = document.getElementById('embeddingModel') as HTMLInputElement;
+
+const TEST_BTN_DEFAULT = 'Test Connection';
+const TEST_BTN_VERIFIED = 'Access verified';
+
+function resetTestButton(): void {
+  if (testBtn.textContent !== TEST_BTN_DEFAULT) {
+    testBtn.textContent = TEST_BTN_DEFAULT;
+    testConnectionStatus.className = 'test-connection-status hidden';
+    testConnectionStatus.textContent = '';
+  }
+}
+
+[apiBaseUrlInput, apiKeyInput, chatModelInput, embeddingModelInput].forEach(input => {
+  input.addEventListener('input', resetTestButton);
+});
 
 async function loadSettings(): Promise<void> {
   const settings = await getSettings();
@@ -30,6 +44,7 @@ async function saveSettings(): Promise<void> {
 
 testBtn.addEventListener('click', async () => {
   try {
+    testConnectionStatus.className = 'test-connection-status hidden';
     await withButtonState(testBtn, 'Testing...', async () => {
       const settings = {
         apiBaseUrl: apiBaseUrlInput.value.trim(),
@@ -43,10 +58,14 @@ testBtn.addEventListener('click', async () => {
       }, settings);
     });
 
-    showStatusMessage(statusDiv, 'Connection successful! API is working correctly.', 'success', 5000);
+    testBtn.textContent = TEST_BTN_VERIFIED;
+    testConnectionStatus.className = 'test-connection-status success';
+    testConnectionStatus.textContent = '✓ Connection successful! API is working correctly.';
   } catch (error) {
     console.error('Error testing connection:', error);
-    showStatusMessage(statusDiv, `Connection failed: ${getErrorMessage(error)}`, 'error', 5000);
+    testBtn.textContent = TEST_BTN_DEFAULT;
+    testConnectionStatus.className = 'test-connection-status error';
+    testConnectionStatus.textContent = `✗ Connection failed: ${getErrorMessage(error)}`;
   }
 });
 

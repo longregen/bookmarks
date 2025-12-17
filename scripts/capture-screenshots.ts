@@ -141,6 +141,78 @@ async function setTheme(page: Page, theme: string): Promise<void> {
   }, theme);
 }
 
+async function injectMockSettings(page: Page): Promise<void> {
+  await page.evaluate(`(async () => {
+    const DB_NAME = 'BookmarkRAG';
+    const DB_VERSION = 5;
+
+    function openDb() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+        request.onupgradeneeded = (event) => {
+          const db = event.target.result;
+          if (!db.objectStoreNames.contains('settings')) {
+            db.createObjectStore('settings', { keyPath: 'key' });
+          }
+          if (!db.objectStoreNames.contains('bookmarks')) {
+            db.createObjectStore('bookmarks', { keyPath: 'id' });
+          }
+          if (!db.objectStoreNames.contains('markdown')) {
+            db.createObjectStore('markdown', { keyPath: 'id' });
+          }
+          if (!db.objectStoreNames.contains('questionsAnswers')) {
+            db.createObjectStore('questionsAnswers', { keyPath: 'id' });
+          }
+          if (!db.objectStoreNames.contains('jobs')) {
+            db.createObjectStore('jobs', { keyPath: 'id' });
+          }
+          if (!db.objectStoreNames.contains('jobItems')) {
+            db.createObjectStore('jobItems', { keyPath: 'id' });
+          }
+          if (!db.objectStoreNames.contains('bookmarkTags')) {
+            db.createObjectStore('bookmarkTags', { keyPath: ['bookmarkId', 'tagName'] });
+          }
+          if (!db.objectStoreNames.contains('searchHistory')) {
+            db.createObjectStore('searchHistory', { keyPath: 'id' });
+          }
+        };
+      });
+    }
+
+    function putRecord(db, storeName, record) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        const request = store.put(record);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve();
+      });
+    }
+
+    const db = await openDb();
+    const now = new Date();
+
+    await putRecord(db, 'settings', {
+      key: 'apiKey',
+      value: 'demo-api-key',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await putRecord(db, 'settings', {
+      key: 'apiBaseUrl',
+      value: 'https://api.openai.com/v1',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    db.close();
+    console.log('Mock settings injected successfully');
+  })()`);
+}
+
 async function injectDemoData(page: Page): Promise<void> {
   await page.evaluate(`(async () => {
     const DB_NAME = 'BookmarkRAG';
@@ -298,6 +370,11 @@ async function capturePopup(browser: Browser, extensionId: string): Promise<void
   await page.setViewport({ width: 320, height: 240 });
   await page.goto(getExtensionUrl(extensionId, '/src/popup/popup.html'));
 
+  await page.waitForSelector('#saveBtn', { timeout: 5000 });
+
+  // Inject mock API settings to hide the "API endpoint not configured" warning
+  await injectMockSettings(page);
+  await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#saveBtn', { timeout: 5000 });
 
   await setTheme(page, 'terminal');

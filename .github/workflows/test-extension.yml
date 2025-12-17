@@ -136,8 +136,6 @@ jobs:
   test-e2e-chrome:
     needs: build
     runs-on: ubuntu-latest
-    env:
-      HAS_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
@@ -169,7 +167,6 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y xvfb
 
       - name: Run E2E tests
-        if: env.HAS_API_KEY == 'true'
         env:
           BROWSER_TYPE: chrome
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -178,15 +175,9 @@ jobs:
           CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
           BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npm run test:e2e:chrome
 
-      - name: Skip E2E tests (no API key)
-        if: env.HAS_API_KEY != 'true'
-        run: echo "Skipping E2E tests - OPENAI_API_KEY secret not configured"
-
   test-e2e-firefox:
     needs: build
     runs-on: ubuntu-latest
-    env:
-      HAS_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
@@ -228,7 +219,6 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y xvfb zip
 
       - name: Run Firefox E2E tests with Selenium
-        if: env.HAS_API_KEY == 'true'
         env:
           BROWSER_PATH: ${{ steps.setup-firefox.outputs.firefox-path }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -237,15 +227,9 @@ jobs:
           echo "Running Firefox E2E tests with Selenium/GeckoDriver..."
           xvfb-run --auto-servernum npx tsx tests/e2e-firefox.test.ts
 
-      - name: Skip Firefox E2E tests (no API key)
-        if: env.HAS_API_KEY != 'true'
-        run: echo "Skipping Firefox E2E tests - OPENAI_API_KEY secret not configured"
-
   test-e2e-web:
     needs: build
     runs-on: ubuntu-latest
-    env:
-      HAS_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
@@ -273,14 +257,9 @@ jobs:
       - name: Install Chromium via Puppeteer
         run: npx @puppeteer/browsers install chromium@latest
 
-      - name: Run Web E2E tests with API
-        if: env.HAS_API_KEY == 'true'
+      - name: Run Web E2E tests
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
           BROWSER_PATH="$CHROME_PATH" npx tsx tests/e2e-web.test.ts
-
-      - name: Skip Web E2E tests (no API key)
-        if: env.HAS_API_KEY != 'true'
-        run: echo "Skipping Web E2E tests - OPENAI_API_KEY secret not configured"
