@@ -4,6 +4,7 @@ import { createStateManager } from '../lib/state-manager';
 import { shouldRetryBookmark, getNextRetryTime } from '../lib/retry';
 import { config } from '../lib/config-registry';
 import { getErrorMessage } from '../lib/errors';
+import { triggerSyncIfEnabled } from '../lib/webdav-sync';
 
 const processingState = createStateManager({
   name: 'QueueProcessor',
@@ -88,12 +89,8 @@ export async function startProcessingQueue(): Promise<void> {
 
       if (allPending.length === 0) {
         console.log('No pending bookmarks to process');
-        import(/* @vite-ignore */ '../lib/webdav-sync').then(({ triggerSyncIfEnabled }) => {
-          triggerSyncIfEnabled().catch((err: unknown) => {
-            console.error('WebDAV sync after queue empty failed:', err);
-          });
-        }).catch((err: unknown) => {
-          console.error('Failed to load webdav-sync module:', err);
+        triggerSyncIfEnabled().catch((err: unknown) => {
+          console.error('WebDAV sync after queue empty failed:', err);
         });
         break;
       }

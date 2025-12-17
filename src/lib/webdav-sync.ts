@@ -1,5 +1,5 @@
 import { getSettings, saveSetting, type ApiSettings } from './settings';
-import { exportAllBookmarks, importBookmarks, type BookmarkExport } from './export';
+import { exportAllBookmarks, importBookmarks, type BookmarkExport } from './export-data';
 import { db } from '../db/schema';
 import { createStateManager } from './state-manager';
 import { broadcastEvent } from './events';

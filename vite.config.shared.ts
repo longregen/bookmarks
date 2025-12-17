@@ -22,7 +22,7 @@ export const sharedDefine = {
 // because they would crash the service worker which has no DOM
 const DOM_DEPENDENT_FILES = [
   'dom.ts',
-  'export.ts',
+  'export.ts', // has downloadExport which uses document
   'bookmark-detail.ts',
   'form-helper.ts',
   'health-indicator.ts',
@@ -30,7 +30,7 @@ const DOM_DEPENDENT_FILES = [
   'tag-filter.ts',
   'theme.ts',
   'init-extension.ts', // imports theme.ts
-  'webdav-sync.ts', // imports export.ts
+  // Note: webdav-sync.ts now imports from export-data.ts (no DOM) so it can be in shared
 ];
 
 function isDomDependent(id: string): boolean {

@@ -9,6 +9,7 @@ import { setPlatformAdapter } from '../lib/platform';
 import { extensionAdapter } from '../lib/adapters/extension';
 import { getSettings } from '../lib/settings';
 import { getErrorMessage } from '../lib/errors';
+import { triggerSyncIfEnabled, performSync, getSyncStatus } from '../lib/webdav-sync';
 import type {
   Message,
   MessageHandler,
@@ -59,12 +60,8 @@ async function initializeExtension(): Promise<void> {
       console.error('Error setting up sync alarm:', err);
     });
 
-    void import(/* @vite-ignore */ '../lib/webdav-sync').then(({ triggerSyncIfEnabled }) => {
-      triggerSyncIfEnabled().catch((err: unknown) => {
-        console.error('Initial WebDAV sync failed:', err);
-      });
-    }).catch((err: unknown) => {
-      console.error('Failed to load webdav-sync module:', err);
+    triggerSyncIfEnabled().catch((err: unknown) => {
+      console.error('Initial WebDAV sync failed:', err);
     });
   } catch (error) {
     console.error('Error during initialization:', error);
@@ -88,7 +85,6 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === WEBDAV_SYNC_ALARM) {
     console.log('WebDAV sync alarm triggered');
     try {
-      const { triggerSyncIfEnabled } = await import(/* @vite-ignore */ '../lib/webdav-sync');
       await triggerSyncIfEnabled();
     } catch (err) {
       console.error('WebDAV sync alarm failed:', err);
@@ -100,8 +96,8 @@ const asyncMessageHandlers = {
   'SAVE_BOOKMARK': (async (msg) => handleSaveBookmark(msg.data)) as MessageHandler<'SAVE_BOOKMARK'>,
   'START_BULK_IMPORT': (async (msg) => handleBulkImport(msg.urls)) as MessageHandler<'START_BULK_IMPORT'>,
   'GET_JOB_STATUS': (async (msg) => handleGetJobStatus(msg.jobId)) as MessageHandler<'GET_JOB_STATUS'>,
-  'TRIGGER_SYNC': (async () => import(/* @vite-ignore */ '../lib/webdav-sync').then(m => m.performSync(true))) as MessageHandler<'TRIGGER_SYNC'>,
-  'GET_SYNC_STATUS': (async () => import(/* @vite-ignore */ '../lib/webdav-sync').then(m => m.getSyncStatus())) as MessageHandler<'GET_SYNC_STATUS'>,
+  'TRIGGER_SYNC': (async () => performSync(true)) as MessageHandler<'TRIGGER_SYNC'>,
+  'GET_SYNC_STATUS': (async () => getSyncStatus()) as MessageHandler<'GET_SYNC_STATUS'>,
   'UPDATE_SYNC_SETTINGS': (async () => {
     await setupSyncAlarm();
     return { success: true };
