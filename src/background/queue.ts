@@ -15,7 +15,7 @@ export async function startProcessingQueue(): Promise<void> {
   console.log('Starting processing queue');
 
   try {
-    while (true) {
+    for (;;) {
       const bookmark = await db.bookmarks
         .where('status')
         .anyOf(['pending', 'fetching'])
