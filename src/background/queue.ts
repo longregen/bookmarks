@@ -40,13 +40,14 @@ async function updateBookmarkWithRetry(
   }
 }
 
-export async function startProcessingQueue() {
+export async function startProcessingQueue(): Promise<void> {
   if (!processingState.start()) {
     console.log('Queue already processing');
     return;
   }
 
   try {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     while (true) {
       const processingBookmarks = await db.bookmarks
         .where('status')
@@ -56,7 +57,7 @@ export async function startProcessingQueue() {
       const timeoutThreshold = new Date(Date.now() - config.QUEUE_PROCESSING_TIMEOUT_MS);
       for (const bookmark of processingBookmarks) {
         if (bookmark.updatedAt < timeoutThreshold) {
-          const retryCount = (bookmark.retryCount || 0) + 1;
+          const retryCount = (bookmark.retryCount ?? 0) + 1;
 
           if (shouldRetryBookmark(retryCount - 1, config.QUEUE_MAX_RETRIES)) {
             const nextRetryAt = getNextRetryTime(retryCount - 1, config.QUEUE_RETRY_BASE_DELAY_MS, config.QUEUE_RETRY_MAX_DELAY_MS);
@@ -68,7 +69,7 @@ export async function startProcessingQueue() {
           await updateBookmarkWithRetry(
             bookmark.id,
             'Processing timeout exceeded',
-            bookmark.retryCount || 0
+            bookmark.retryCount ?? 0
           );
         }
       }
@@ -87,7 +88,7 @@ export async function startProcessingQueue() {
       });
 
       for (const bookmark of bookmarksReadyForRetry) {
-        console.log(`Retrying bookmark ${bookmark.id} (${bookmark.title}) - attempt ${(bookmark.retryCount || 0) + 1}/${config.QUEUE_MAX_RETRIES + 1}`);
+        console.log(`Retrying bookmark ${bookmark.id} (${bookmark.title}) - attempt ${(bookmark.retryCount ?? 0) + 1}/${config.QUEUE_MAX_RETRIES + 1}`);
         await db.bookmarks.update(bookmark.id, {
           status: 'pending',
           updatedAt: new Date(),
@@ -102,10 +103,10 @@ export async function startProcessingQueue() {
       if (allPending.length === 0) {
         console.log('No pending bookmarks to process');
         import('../lib/webdav-sync').then(({ triggerSyncIfEnabled }) => {
-          triggerSyncIfEnabled().catch(err => {
+          triggerSyncIfEnabled().catch((err: unknown) => {
             console.error('WebDAV sync after queue empty failed:', err);
           });
-        }).catch(err => {
+        }).catch((err: unknown) => {
           console.error('Failed to load webdav-sync module:', err);
         });
         break;
@@ -123,7 +124,7 @@ export async function startProcessingQueue() {
           nextRetryAt: undefined,
         });
       } catch (error) {
-        const retryCount = (bookmark.retryCount || 0) + 1;
+        const retryCount = (bookmark.retryCount ?? 0) + 1;
         const errorMessage = getErrorMessage(error);
 
         console.error(`Error processing bookmark ${bookmark.id} (attempt ${retryCount}/${config.QUEUE_MAX_RETRIES + 1}):`, error);
@@ -140,7 +141,7 @@ export async function startProcessingQueue() {
         await updateBookmarkWithRetry(
           bookmark.id,
           errorMessage,
-          bookmark.retryCount || 0
+          bookmark.retryCount ?? 0
         );
       }
     }

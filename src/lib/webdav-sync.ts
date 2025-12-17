@@ -68,7 +68,7 @@ function buildFolderUrl(settings: ApiSettings): string {
 }
 
 function getAuthHeader(settings: ApiSettings): string {
-  return 'Basic ' + btoa(`${settings.webdavUsername}:${settings.webdavPassword}`);
+  return `Basic ${  btoa(`${settings.webdavUsername}:${settings.webdavPassword}`)}`;
 }
 
 async function ensureFolderExists(settings: ApiSettings): Promise<void> {
@@ -87,6 +87,7 @@ async function ensureFolderExists(settings: ApiSettings): Promise<void> {
       return;
     }
   } catch {
+    // Folder doesn't exist, will create below
   }
 
   const mkcolResponse = await fetch(folderUrl, {
@@ -101,7 +102,7 @@ async function ensureFolderExists(settings: ApiSettings): Promise<void> {
     let currentPath = settings.webdavUrl.replace(/\/$/, '');
 
     for (const part of pathParts) {
-      currentPath += '/' + part + '/';
+      currentPath += `/${  part  }/`;
       await fetch(currentPath, {
         method: 'MKCOL',
         headers: {
@@ -136,14 +137,14 @@ async function getRemoteMetadata(settings: ApiSettings): Promise<{
     }
 
     const lastModifiedStr = response.headers.get('Last-Modified');
-    const etag = response.headers.get('ETag') || undefined;
+    const etag = response.headers.get('ETag') ?? undefined;
 
     return {
       exists: true,
-      lastModified: lastModifiedStr ? new Date(lastModifiedStr) : undefined,
+      lastModified: (lastModifiedStr !== null && lastModifiedStr !== '') ? new Date(lastModifiedStr) : undefined,
       etag,
     };
-  } catch (error) {
+  } catch (_error) {
     return { exists: false };
   }
 }
@@ -167,8 +168,8 @@ async function downloadFromServer(settings: ApiSettings): Promise<BookmarkExport
     throw new Error(`Download failed: ${response.status} ${response.statusText}`);
   }
 
-  const data = await response.json();
-  return data as BookmarkExport;
+  const data = await response.json() as BookmarkExport;
+  return data;
 }
 
 async function uploadToServer(settings: ApiSettings, data: BookmarkExport): Promise<void> {
@@ -193,7 +194,7 @@ async function uploadToServer(settings: ApiSettings, data: BookmarkExport): Prom
 
 async function getLocalLastUpdate(): Promise<Date | null> {
   const bookmarks = await db.bookmarks.orderBy('updatedAt').reverse().first();
-  return bookmarks?.updatedAt || null;
+  return bookmarks?.updatedAt ?? null;
 }
 
 async function completeSyncSuccess(action: SyncResult['action'], message: string, count?: number): Promise<SyncResult> {
@@ -239,11 +240,11 @@ export async function performSync(force = false): Promise<SyncResult> {
 
     const validation = validateSecureConnection(settings);
     if (!validation.valid) {
-      await saveSetting('webdavLastSyncError', validation.error || 'Connection validation failed');
+      await saveSetting('webdavLastSyncError', validation.error ?? 'Connection validation failed');
       return {
         success: false,
         action: 'error',
-        message: validation.error || 'Connection validation failed',
+        message: validation.error ?? 'Connection validation failed',
       };
     }
 
@@ -254,9 +255,9 @@ export async function performSync(force = false): Promise<SyncResult> {
     if (!remote.exists) {
       if (localData.bookmarkCount > 0) {
         await uploadToServer(settings, localData);
-        return completeSyncSuccess('uploaded', `Uploaded ${localData.bookmarkCount} bookmarks`, localData.bookmarkCount);
+        return await completeSyncSuccess('uploaded', `Uploaded ${localData.bookmarkCount} bookmarks`, localData.bookmarkCount);
       } else {
-        return completeSyncSuccess('no-change', 'No bookmarks to sync');
+        return await completeSyncSuccess('no-change', 'No bookmarks to sync');
       }
     }
 
@@ -264,20 +265,20 @@ export async function performSync(force = false): Promise<SyncResult> {
 
     if (!remoteData) {
       await uploadToServer(settings, localData);
-      return completeSyncSuccess('uploaded', `Uploaded ${localData.bookmarkCount} bookmarks`, localData.bookmarkCount);
+      return await completeSyncSuccess('uploaded', `Uploaded ${localData.bookmarkCount} bookmarks`, localData.bookmarkCount);
     }
 
     const remoteExportTime = new Date(remoteData.exportedAt);
-    const localExportTime = localLastUpdate || new Date(0);
+    const localExportTime = localLastUpdate ?? new Date(0);
 
     if (remoteExportTime > localExportTime) {
       const result = await importBookmarks(remoteData, 'webdav-sync');
       const mergedData = await exportAllBookmarks();
       await uploadToServer(settings, mergedData);
-      return completeSyncSuccess('downloaded', `Imported ${result.imported} bookmarks (${result.skipped} duplicates)`, result.imported);
+      return await completeSyncSuccess('downloaded', `Imported ${result.imported} bookmarks (${result.skipped} duplicates)`, result.imported);
     } else {
       await uploadToServer(settings, localData);
-      return completeSyncSuccess('uploaded', `Uploaded ${localData.bookmarkCount} bookmarks`, localData.bookmarkCount);
+      return await completeSyncSuccess('uploaded', `Uploaded ${localData.bookmarkCount} bookmarks`, localData.bookmarkCount);
     }
   } catch (error) {
     const errorMessage = getErrorMessage(error);

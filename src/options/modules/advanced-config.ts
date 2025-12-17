@@ -32,6 +32,7 @@ export async function initAdvancedConfigModule(): Promise<void> {
   resetAllBtn = document.getElementById('resetAllConfig') as HTMLButtonElement;
   modifiedCountSpan = document.getElementById('modifiedConfigCount');
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions
   if (!configTableBody) {
     console.warn('Advanced config table body not found');
     return;
@@ -75,6 +76,7 @@ function setupEventListeners(): void {
   resetAllBtn?.addEventListener('click', async () => {
     if (getModifiedCount() === 0) return;
 
+    // eslint-disable-next-line no-alert
     const confirmed = confirm(
       'Are you sure you want to reset all modified settings to their default values?\n\n' +
       'This action cannot be undone.'
@@ -92,10 +94,10 @@ function setupEventListeners(): void {
   configTableBody?.addEventListener('keydown', handleTableKeydown);
 }
 
-function getFilteredEntries(): Array<ConfigEntry & { currentValue: number | string | boolean; isModified: boolean }> {
-  const query = searchInput?.value.trim() || '';
-  const category = categoryFilter?.value || '';
-  const modifiedOnly = showModifiedOnly?.checked || false;
+function getFilteredEntries(): (ConfigEntry & { currentValue: number | string | boolean; isModified: boolean })[] {
+  const query = searchInput?.value.trim() ?? '';
+  const category = categoryFilter?.value ?? '';
+  const modifiedOnly = showModifiedOnly?.checked ?? false;
 
   let entries = query ? searchConfigEntries(query) : getAllConfigEntries();
 
@@ -183,7 +185,7 @@ function renderConfigRow(entry: ConfigEntry & { currentValue: number | string | 
   const mainRow = createElement('tr', {
     className: `config-row ${modifiedClass}`.trim(),
     attributes: { 'data-key': entry.key }
-  }, [keyCell, typeCell, valueCell, defaultCell, actionsCell]) as HTMLTableRowElement;
+  }, [keyCell, typeCell, valueCell, defaultCell, actionsCell]);
 
   const descRow = createElement('tr', { className: `config-description-row ${modifiedClass}`.trim() }, [
     createElement('td', {
@@ -191,7 +193,7 @@ function renderConfigRow(entry: ConfigEntry & { currentValue: number | string | 
       textContent: entry.description,
       attributes: { colspan: '5' }
     })
-  ]) as HTMLTableRowElement;
+  ]);
 
   return [mainRow, descRow];
 }
@@ -278,7 +280,7 @@ async function handleTableClick(event: MouseEvent): Promise<void> {
 
   if (target.classList.contains('value-display')) {
     const key = target.dataset.key;
-    if (key) {
+    if (key !== undefined && key !== '') {
       startEditing(key);
     }
     return;
@@ -286,7 +288,7 @@ async function handleTableClick(event: MouseEvent): Promise<void> {
 
   if (target.classList.contains('btn-save')) {
     const key = target.dataset.key;
-    if (key) {
+    if (key !== undefined && key !== '') {
       await saveEdit(key);
     }
     return;
@@ -299,7 +301,7 @@ async function handleTableClick(event: MouseEvent): Promise<void> {
 
   if (target.classList.contains('btn-reset')) {
     const key = target.dataset.key;
-    if (key) {
+    if (key !== undefined && key !== '') {
       await resetValue(key);
     }
     return;
@@ -311,7 +313,7 @@ async function handleTableKeydown(event: KeyboardEvent): Promise<void> {
 
   if (target.classList.contains('value-display') && event.key === 'Enter') {
     const key = target.dataset.key;
-    if (key) {
+    if (key !== undefined && key !== '') {
       startEditing(key);
     }
     return;
@@ -319,7 +321,7 @@ async function handleTableKeydown(event: KeyboardEvent): Promise<void> {
 
   if ((target.classList.contains('config-edit-input') || target.classList.contains('config-edit-select')) && event.key === 'Enter') {
     const key = target.dataset.key;
-    if (key) {
+    if (key !== undefined && key !== '') {
       await saveEdit(key);
     }
     return;
@@ -335,8 +337,11 @@ function startEditing(key: string): void {
   editingKey = key;
   renderConfigTable();
 
-  const input = document.querySelector(`.config-edit-input[data-key="${key}"], .config-edit-select[data-key="${key}"]`) as HTMLInputElement | HTMLSelectElement;
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const input = document.querySelector(`.config-edit-input[data-key="${key}"], .config-edit-select[data-key="${key}"]`)!;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions
   if (input) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     input.focus();
     if (input instanceof HTMLInputElement) {
       input.select();
@@ -353,7 +358,9 @@ async function saveEdit(key: string): Promise<void> {
   const entry = CONFIG_REGISTRY.find(e => e.key === key);
   if (!entry) return;
 
-  const input = document.querySelector(`.config-edit-input[data-key="${key}"], .config-edit-select[data-key="${key}"]`) as HTMLInputElement | HTMLSelectElement;
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const input = document.querySelector(`.config-edit-input[data-key="${key}"], .config-edit-select[data-key="${key}"]`)!;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions
   if (!input) return;
 
   try {
@@ -362,11 +369,13 @@ async function saveEdit(key: string): Promise<void> {
     if (entry.type === 'boolean') {
       newValue = input.value === 'true';
     } else if (entry.type === 'number') {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       newValue = parseFloat(input.value);
       if (isNaN(newValue)) {
         throw new Error('Invalid number');
       }
     } else {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       newValue = input.value;
     }
 

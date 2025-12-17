@@ -27,22 +27,22 @@ export const DEFAULTS: ApiSettings = {
  */
 export async function getSettingsFromDb(): Promise<ApiSettings> {
   const rows = await db.settings.toArray();
-  const map = Object.fromEntries(rows.map(r => [r.key, r.value]));
+  const map = Object.fromEntries(rows.map(r => [r.key, r.value])) as Record<string, string | boolean | number | undefined>;
 
   return {
-    apiBaseUrl: map.apiBaseUrl ?? DEFAULTS.apiBaseUrl,
-    apiKey: map.apiKey ?? DEFAULTS.apiKey,
-    chatModel: map.chatModel ?? DEFAULTS.chatModel,
-    embeddingModel: map.embeddingModel ?? DEFAULTS.embeddingModel,
-    webdavUrl: map.webdavUrl ?? DEFAULTS.webdavUrl,
-    webdavUsername: map.webdavUsername ?? DEFAULTS.webdavUsername,
-    webdavPassword: map.webdavPassword ?? DEFAULTS.webdavPassword,
-    webdavPath: map.webdavPath ?? DEFAULTS.webdavPath,
-    webdavEnabled: map.webdavEnabled ?? DEFAULTS.webdavEnabled,
-    webdavAllowInsecure: map.webdavAllowInsecure ?? DEFAULTS.webdavAllowInsecure,
-    webdavSyncInterval: map.webdavSyncInterval ?? DEFAULTS.webdavSyncInterval,
-    webdavLastSyncTime: map.webdavLastSyncTime ?? DEFAULTS.webdavLastSyncTime,
-    webdavLastSyncError: map.webdavLastSyncError ?? DEFAULTS.webdavLastSyncError,
+    apiBaseUrl: (map.apiBaseUrl as string | undefined) ?? DEFAULTS.apiBaseUrl,
+    apiKey: (map.apiKey as string | undefined) ?? DEFAULTS.apiKey,
+    chatModel: (map.chatModel as string | undefined) ?? DEFAULTS.chatModel,
+    embeddingModel: (map.embeddingModel as string | undefined) ?? DEFAULTS.embeddingModel,
+    webdavUrl: (map.webdavUrl as string | undefined) ?? DEFAULTS.webdavUrl,
+    webdavUsername: (map.webdavUsername as string | undefined) ?? DEFAULTS.webdavUsername,
+    webdavPassword: (map.webdavPassword as string | undefined) ?? DEFAULTS.webdavPassword,
+    webdavPath: (map.webdavPath as string | undefined) ?? DEFAULTS.webdavPath,
+    webdavEnabled: (map.webdavEnabled as boolean | undefined) ?? DEFAULTS.webdavEnabled,
+    webdavAllowInsecure: (map.webdavAllowInsecure as boolean | undefined) ?? DEFAULTS.webdavAllowInsecure,
+    webdavSyncInterval: (map.webdavSyncInterval as number | undefined) ?? DEFAULTS.webdavSyncInterval,
+    webdavLastSyncTime: (map.webdavLastSyncTime as string | undefined) ?? DEFAULTS.webdavLastSyncTime,
+    webdavLastSyncError: (map.webdavLastSyncError as string | undefined) ?? DEFAULTS.webdavLastSyncError,
   };
 }
 

@@ -103,13 +103,13 @@ export function createHealthIndicator(container: HTMLElement): () => void {
 
   indicator.addEventListener('click', () => {
     if (currentHealthState === 'error') {
-      openExtensionPage('src/jobs/jobs.html?status=failed');
+      void openExtensionPage('src/jobs/jobs.html?status=failed');
     } else {
-      openExtensionPage('src/jobs/jobs.html');
+      void openExtensionPage('src/jobs/jobs.html');
     }
   });
 
-  async function updateIndicator() {
+  async function updateIndicator(): Promise<void> {
     const health = await getHealthStatus();
     const style = getHealthIndicatorStyle(health.state);
 
@@ -125,7 +125,7 @@ export function createHealthIndicator(container: HTMLElement): () => void {
     tooltip.textContent = health.message;
   }
 
-  updateIndicator();
+  void updateIndicator();
 
   const intervalId = setInterval(updateIndicator, config.HEALTH_REFRESH_INTERVAL_MS);
 

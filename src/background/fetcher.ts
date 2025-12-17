@@ -6,7 +6,7 @@ import { startProcessingQueue } from './queue';
 import { config } from '../lib/config-registry';
 import { getErrorMessage } from '../lib/errors';
 
-export async function processBulkFetch(parentJobId: string, isResumption: boolean = false): Promise<void> {
+export async function processBulkFetch(parentJobId: string, isResumption = false): Promise<void> {
   try {
     const parentJob = await db.jobs.get(parentJobId);
     if (!parentJob) return;
@@ -30,7 +30,7 @@ export async function processBulkFetch(parentJobId: string, isResumption: boolea
       });
     }
 
-    startProcessingQueue();
+    void startProcessingQueue();
   } catch (error) {
     await failJob(parentJobId, getErrorMessage(error));
   }
@@ -42,7 +42,7 @@ async function processSingleFetch(jobId: string, parentJobId: string): Promise<v
     if (!job) return;
 
     const { url } = job.metadata;
-    if (!url) {
+    if (url === undefined || url === '') {
       await failJob(jobId, 'Missing URL in job metadata');
       return;
     }

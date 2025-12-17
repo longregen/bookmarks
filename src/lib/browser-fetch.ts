@@ -44,7 +44,7 @@ export async function browserFetch(url: string, timeoutMs: number = config.FETCH
 /**
  * @deprecated No longer used - service workers can fetch directly with host_permissions
  */
-async function fetchViaOffscreen(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
+async function _fetchViaOffscreen(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error('Fetch timeout via offscreen document'));
@@ -64,10 +64,10 @@ async function fetchViaOffscreen(url: string, timeoutMs: number = config.FETCH_T
           return;
         }
 
-        if (response.success) {
-          resolve(response.html!);
+        if (response.success && response.html !== undefined) {
+          resolve(response.html);
         } else {
-          reject(new Error(response.error || 'Unknown fetch error'));
+          reject(new Error(response.error ?? 'Unknown fetch error'));
         }
       }
     );

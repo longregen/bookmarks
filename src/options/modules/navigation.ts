@@ -1,7 +1,7 @@
 const navItems = document.querySelectorAll<HTMLAnchorElement>('.nav-item');
 const sections = document.querySelectorAll<HTMLElement>('.settings-section');
 
-function setActiveNavItem(sectionId: string) {
+function setActiveNavItem(sectionId: string): void {
   navItems.forEach(item => {
     if (item.dataset.section === sectionId) {
       item.classList.add('active');
@@ -15,7 +15,7 @@ navItems.forEach(item => {
   item.addEventListener('click', (e) => {
     e.preventDefault();
     const sectionId = item.dataset.section;
-    if (sectionId) {
+    if (sectionId !== undefined && sectionId !== '') {
       setActiveNavItem(sectionId);
       const section = document.getElementById(sectionId);
       if (section) {
@@ -25,7 +25,7 @@ navItems.forEach(item => {
   });
 });
 
-function setupScrollObserver() {
+function setupScrollObserver(): void {
   const scrollContainer = document.querySelector('.app-layout__content');
   const observerOptions: IntersectionObserverInit = {
     root: scrollContainer,
@@ -57,7 +57,7 @@ window.addEventListener('resize', () => {
   }
 });
 
-export function initNavigationModule() {
+export function initNavigationModule(): void {
   // Hide bulk import nav item for web platform (CORS prevents fetching external URLs)
   if (__IS_WEB__) {
     const bulkImportNavItem = document.querySelector<HTMLAnchorElement>('.nav-item[data-section="bulk-import"]');

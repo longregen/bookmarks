@@ -1,4 +1,4 @@
-import Dexie, { Table } from 'dexie';
+import Dexie, { type Table } from 'dexie';
 
 export interface Bookmark {
   id: string;
@@ -37,7 +37,7 @@ export interface QuestionAnswer {
 
 export interface Settings {
   key: string;
-  value: any;
+  value: unknown;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -102,7 +102,7 @@ export interface Job {
     importedCount?: number;
     skippedCount?: number;
     errorCount?: number;
-    errors?: Array<{ url: string; error: string }>;
+    errors?: { url: string; error: string }[];
 
     // For BULK_URL_IMPORT
     totalUrls?: number;
@@ -162,7 +162,7 @@ export class BookmarkDatabase extends Dexie {
       questionsAnswers: 'id, bookmarkId, createdAt, updatedAt',
       settings: 'key, createdAt, updatedAt',
       jobs: 'id, bookmarkId, parentJobId, status, type, createdAt, updatedAt, [parentJobId+status], [bookmarkId+type]',
-    }).upgrade(async () => {
+    }).upgrade(() => {
       console.log('Upgraded database to version 2 with jobs table');
     });
 

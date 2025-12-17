@@ -14,13 +14,13 @@ export async function ensureOffscreenDocument(): Promise<void> {
   }
 
   const offscreenApi = chrome.offscreen;
-  if (!offscreenApi || typeof offscreenApi.createDocument !== 'function') {
+  if (typeof offscreenApi.createDocument !== 'function') {
     return;
   }
 
   // Check for runtime.getContexts API (Chrome 116+)
   const runtimeApi = chrome.runtime;
-  if (!runtimeApi.getContexts || typeof runtimeApi.getContexts !== 'function') {
+  if (typeof runtimeApi.getContexts !== 'function') {
     // Fallback: try to create document without checking existing contexts
     // This may fail if document already exists, but that's acceptable
     try {

@@ -13,6 +13,7 @@ export interface CreateElementOptions {
   attributes?: Record<string, string>;
 }
 
+// eslint-disable-next-line complexity
 export function createElement<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   options?: CreateElementOptions,
@@ -20,15 +21,15 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(
 ): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag);
 
-  if (options?.className) el.className = options.className;
-  if (options?.textContent) el.textContent = options.textContent;
-  if (options?.title) el.title = options.title;
+  if (options?.className !== undefined && options.className !== '') el.className = options.className;
+  if (options?.textContent !== undefined && options.textContent !== '') el.textContent = options.textContent;
+  if (options?.title !== undefined && options.title !== '') el.title = options.title;
   if (options?.style) Object.assign(el.style, options.style);
 
-  if (options?.href && 'href' in el) {
+  if (options?.href !== undefined && options.href !== '' && 'href' in el) {
     (el as HTMLAnchorElement).href = options.href;
   }
-  if (options?.target && 'target' in el) {
+  if (options?.target !== undefined && options.target !== '' && 'target' in el) {
     (el as HTMLAnchorElement).target = options.target;
   }
 
@@ -55,7 +56,7 @@ export function showStatusMessage(
   statusDiv: HTMLElement,
   message: string,
   type: 'success' | 'error' | 'warning',
-  timeoutMs: number = 3000
+  timeoutMs = 3000
 ): void {
   statusDiv.textContent = message;
   statusDiv.className = `status ${type}`;

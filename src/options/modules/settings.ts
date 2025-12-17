@@ -12,7 +12,7 @@ const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
 const chatModelInput = document.getElementById('chatModel') as HTMLInputElement;
 const embeddingModelInput = document.getElementById('embeddingModel') as HTMLInputElement;
 
-async function loadSettings() {
+async function loadSettings(): Promise<void> {
   const settings = await getSettings();
 
   apiBaseUrlInput.value = settings.apiBaseUrl;
@@ -21,7 +21,7 @@ async function loadSettings() {
   embeddingModelInput.value = settings.embeddingModel;
 }
 
-async function saveSettings() {
+async function saveSettings(): Promise<void> {
   await saveSetting('apiBaseUrl', apiBaseUrlInput.value.trim());
   await saveSetting('apiKey', apiKeyInput.value.trim());
   await saveSetting('chatModel', chatModelInput.value.trim());
@@ -50,7 +50,7 @@ testBtn.addEventListener('click', async () => {
   }
 });
 
-export function initSettingsModule() {
+export function initSettingsModule(): void {
   initSettingsForm({
     formId: 'settingsForm',
     statusId: 'status',

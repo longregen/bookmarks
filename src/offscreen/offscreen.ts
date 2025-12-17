@@ -13,12 +13,10 @@ console.log('Offscreen document loaded');
 
 let turndownInstance: TurndownService | null = null;
 function getTurndown(): TurndownService {
-  if (!turndownInstance) {
-    turndownInstance = new TurndownService({
-      headingStyle: 'atx',
-      codeBlockStyle: 'fenced',
-    });
-  }
+  turndownInstance ??= new TurndownService({
+    headingStyle: 'atx',
+    codeBlockStyle: 'fenced',
+  });
   return turndownInstance;
 }
 
@@ -66,17 +64,17 @@ function extractMarkdownInOffscreen(html: string, url: string): ExtractedContent
   };
 }
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: { type: string; url?: string; timeoutMs?: number; html?: string }, sender, sendResponse) => {
   // DEPRECATED: FETCH_URL is no longer used - service workers can fetch directly
   // Kept for backwards compatibility; may be removed in future versions
   if (message.type === 'FETCH_URL') {
     const { url, timeoutMs } = message;
 
-    fetchWithTimeout(url, timeoutMs || 30000)
+    fetchWithTimeout(url, timeoutMs ?? 30000)
       .then(html => {
         sendResponse({ success: true, html });
       })
-      .catch(error => {
+      .catch((error: unknown) => {
         sendResponse({
           success: false,
           error: getErrorMessage(error),

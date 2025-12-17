@@ -1,4 +1,4 @@
-import { db, BookmarkTag } from '../db/schema';
+import { db, type BookmarkTag } from '../db/schema';
 import { createElement } from './dom';
 import { broadcastEvent } from './events';
 
@@ -37,7 +37,7 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
   const input = createElement('input', {
     attributes: { type: 'text', placeholder: 'Type to add tag...' },
     className: 'input'
-  }) as HTMLInputElement;
+  });
 
   const dropdown = createElement('div', {
     className: 'tag-dropdown'
@@ -62,8 +62,8 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
         textContent: `#${match}`,
         className: 'tag-dropdown-item'
       });
-      item.addEventListener('mouseenter', () => item.style.background = 'var(--bg-secondary)');
-      item.addEventListener('mouseleave', () => item.style.background = 'transparent');
+      item.addEventListener('mouseenter', () => { item.style.background = 'var(--bg-secondary)'; });
+      item.addEventListener('mouseleave', () => { item.style.background = 'transparent'; });
       item.addEventListener('click', () => addTag(match, bookmarkId, container, onTagsChange));
       dropdown.appendChild(item);
     }
@@ -77,8 +77,8 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
         createItem.style.borderTop = '1px solid var(--border-primary)';
       }
       createItem.style.color = 'var(--accent-link)';
-      createItem.addEventListener('mouseenter', () => createItem.style.background = 'var(--bg-secondary)');
-      createItem.addEventListener('mouseleave', () => createItem.style.background = 'transparent');
+      createItem.addEventListener('mouseenter', () => { createItem.style.background = 'var(--bg-secondary)'; });
+      createItem.addEventListener('mouseleave', () => { createItem.style.background = 'transparent'; });
       createItem.addEventListener('click', () => addTag(value, bookmarkId, container, onTagsChange));
       dropdown.appendChild(createItem);
     }

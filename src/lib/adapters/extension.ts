@@ -15,6 +15,7 @@ export const extensionAdapter: PlatformAdapter = {
   async getTheme(): Promise<Theme> {
     try {
       const result = await chrome.storage.local.get(THEME_STORAGE_KEY);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive check for missing value
       return (result[THEME_STORAGE_KEY] as Theme) || 'auto';
     } catch {
       return 'auto';

@@ -318,7 +318,7 @@ rebuildConfigCache();
 export async function loadConfigOverrides(): Promise<void> {
   try {
     const stored = await db.settings.get(CONFIG_STORAGE_KEY);
-    if (stored && stored.value) {
+    if (stored?.value !== undefined) {
       configOverrides = stored.value;
     }
     overridesLoaded = true;
@@ -353,6 +353,7 @@ export async function saveConfigOverrides(): Promise<void> {
  * Get a config value (with override if set)
  * Uses pre-computed cache for O(1) lookups
  */
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
 export function getConfigValue<T extends number | string | boolean>(key: string): T {
   if (!registryMap.has(key)) {
     throw new Error(`Unknown config key: ${key}`);
@@ -396,6 +397,7 @@ export async function resetConfigValue(key: string): Promise<void> {
     throw new Error(`Unknown config key: ${key}`);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
   delete configOverrides[key];
   rebuildConfigCache();
   await saveConfigOverrides();
@@ -420,7 +422,7 @@ export function isConfigModified(key: string): boolean {
 /**
  * Get all config entries with their current values
  */
-export function getAllConfigEntries(): Array<ConfigEntry & { currentValue: number | string | boolean; isModified: boolean }> {
+export function getAllConfigEntries(): (ConfigEntry & { currentValue: number | string | boolean; isModified: boolean })[] {
   return CONFIG_REGISTRY.map(entry => ({
     ...entry,
     currentValue: getConfigValue(entry.key),
@@ -431,14 +433,14 @@ export function getAllConfigEntries(): Array<ConfigEntry & { currentValue: numbe
 /**
  * Get config entries filtered by category
  */
-export function getConfigEntriesByCategory(category: string): Array<ConfigEntry & { currentValue: number | string | boolean; isModified: boolean }> {
+export function getConfigEntriesByCategory(category: string): (ConfigEntry & { currentValue: number | string | boolean; isModified: boolean })[] {
   return getAllConfigEntries().filter(entry => entry.category === category);
 }
 
 /**
  * Search config entries by key or description
  */
-export function searchConfigEntries(query: string): Array<ConfigEntry & { currentValue: number | string | boolean; isModified: boolean }> {
+export function searchConfigEntries(query: string): (ConfigEntry & { currentValue: number | string | boolean; isModified: boolean })[] {
   const lowerQuery = query.toLowerCase();
   return getAllConfigEntries().filter(entry =>
     entry.key.toLowerCase().includes(lowerQuery) ||
@@ -515,6 +517,7 @@ export const CONFIG_DEFAULTS: ConfigValues = CONFIG_REGISTRY.reduce((acc, entry)
  *
  * For tests that need predictable values, use CONFIG_DEFAULTS instead.
  */
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const config: ConfigValues = Object.create(null);
 
 CONFIG_REGISTRY.forEach(entry => {

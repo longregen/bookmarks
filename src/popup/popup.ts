@@ -23,18 +23,18 @@ saveBtn.addEventListener('click', async () => {
 
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    if (!tab || !tab.id) {
+    if (tab.id === undefined) {
       showStatusMessage(statusDiv, 'No active tab found', 'error');
       return;
     }
 
-    if (!tab.url) {
+    if (tab.url === undefined || tab.url === '') {
       showStatusMessage(statusDiv, 'Cannot save in incognito mode or restricted URLs', 'error');
       return;
     }
 
     const restrictedSchemes = ['chrome:', 'about:', 'chrome-extension:', 'edge:', 'moz-extension:'];
-    if (restrictedSchemes.some(scheme => tab.url?.startsWith(scheme))) {
+    if (restrictedSchemes.some(scheme => tab.url.startsWith(scheme))) {
       showStatusMessage(statusDiv, 'Cannot save browser internal pages', 'error');
       return;
     }
@@ -49,12 +49,12 @@ saveBtn.addEventListener('click', async () => {
         return await chrome.runtime.sendMessage({
           type: 'SAVE_BOOKMARK',
           data: { url, title, html }
-        }) as SaveBookmarkResponse;
+        }) as unknown;
       }
     });
 
     const response: SaveBookmarkResponse | undefined = result[0]?.result;
-    if (response?.success && response?.bookmarkId) {
+    if (response?.success === true && response.bookmarkId !== undefined) {
       showSuccessWithCTA(response.bookmarkId);
     } else {
       showStatusMessage(statusDiv, 'Bookmark saved!', 'success');
@@ -79,7 +79,7 @@ saveBtn.addEventListener('click', async () => {
   }
 });
 
-function showSuccessWithCTA(bookmarkId: string) {
+function showSuccessWithCTA(bookmarkId: string): void {
   statusDiv.className = 'status success success-with-cta';
   statusDiv.innerHTML = '';
 
@@ -91,7 +91,7 @@ function showSuccessWithCTA(bookmarkId: string) {
   ctaBtn.className = 'btn-cta';
   ctaBtn.textContent = 'View in Library';
   ctaBtn.onclick = () => {
-    openExtensionPage(`src/library/library.html?bookmarkId=${bookmarkId}`);
+    void openExtensionPage(`src/library/library.html?bookmarkId=${bookmarkId}`);
   };
 
   statusDiv.appendChild(message);
@@ -99,27 +99,27 @@ function showSuccessWithCTA(bookmarkId: string) {
 }
 
 navLibrary.addEventListener('click', () => {
-  openExtensionPage('src/library/library.html');
+  void openExtensionPage('src/library/library.html');
 });
 
 navSearch.addEventListener('click', () => {
-  openExtensionPage('src/search/search.html');
+  void openExtensionPage('src/search/search.html');
 });
 
 navStumble.addEventListener('click', () => {
-  openExtensionPage('src/stumble/stumble.html');
+  void openExtensionPage('src/stumble/stumble.html');
 });
 
 navSettings.addEventListener('click', () => {
-  openExtensionPage('src/options/options.html');
+  void openExtensionPage('src/options/options.html');
 });
 
-function performSearch() {
+function performSearch(): void {
   const query = searchInput.value.trim();
   if (query) {
-    openExtensionPage(`src/search/search.html?q=${encodeURIComponent(query)}`);
+    void openExtensionPage(`src/search/search.html?q=${encodeURIComponent(query)}`);
   } else {
-    openExtensionPage('src/search/search.html');
+    void openExtensionPage('src/search/search.html');
   }
 }
 
@@ -140,10 +140,10 @@ document.addEventListener('keydown', (e) => {
 
 searchInput.focus();
 
-initExtension();
+void initExtension();
 onThemeChange((theme) => applyTheme(theme));
 
-async function checkEndpointConfiguration() {
+async function checkEndpointConfiguration(): Promise<void> {
   try {
     const settings = await getSettings();
     if (!settings.apiKey) {
@@ -154,7 +154,7 @@ async function checkEndpointConfiguration() {
   }
 }
 
-function showConfigurationWarning() {
+function showConfigurationWarning(): void {
   statusDiv.className = 'status warning';
   statusDiv.innerHTML = '';
 
@@ -165,11 +165,11 @@ function showConfigurationWarning() {
   settingsLink.className = 'btn-cta';
   settingsLink.textContent = 'Configure in Settings';
   settingsLink.onclick = () => {
-    openExtensionPage('src/options/options.html');
+    void openExtensionPage('src/options/options.html');
   };
 
   statusDiv.appendChild(message);
   statusDiv.appendChild(settingsLink);
 }
 
-checkEndpointConfiguration();
+void checkEndpointConfiguration();

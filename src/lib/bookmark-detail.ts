@@ -34,7 +34,7 @@ export class BookmarkDetailManager {
     this.setupEventListeners();
   }
 
-  private setupEventListeners() {
+  private setupEventListeners(): void {
     this.config.closeBtn.addEventListener('click', () => this.closeDetail());
     this.config.detailBackdrop.addEventListener('click', () => this.closeDetail());
     this.config.deleteBtn.addEventListener('click', () => this.deleteCurrentBookmark());
@@ -42,7 +42,7 @@ export class BookmarkDetailManager {
     this.config.debugBtn.addEventListener('click', () => this.debugCurrentBookmark());
   }
 
-  async showDetail(bookmarkId: string) {
+  async showDetail(bookmarkId: string): Promise<void> {
     this.currentBookmarkId = bookmarkId;
     const bookmark = await db.bookmarks.get(bookmarkId);
     if (!bookmark) return;
@@ -87,7 +87,7 @@ export class BookmarkDetailManager {
 
     if (markdown) {
       const content = createElement('div', { className: 'markdown-content' });
-      content.innerHTML = renderMarkdown(markdown.content);
+      content.innerHTML = parseMarkdown(markdown.content);
       this.config.detailContent.appendChild(content);
     }
 
@@ -107,14 +107,15 @@ export class BookmarkDetailManager {
     this.config.detailBackdrop.classList.add('active');
   }
 
-  closeDetail() {
+  closeDetail(): void {
     this.config.detailPanel.classList.remove('active');
     this.config.detailBackdrop.classList.remove('active');
     this.currentBookmarkId = null;
   }
 
-  async deleteCurrentBookmark() {
-    if (!this.currentBookmarkId || !confirm('Delete this bookmark?')) return;
+  async deleteCurrentBookmark(): Promise<void> {
+    // eslint-disable-next-line no-alert
+    if (this.currentBookmarkId === null || !confirm('Delete this bookmark?')) return;
 
     await db.markdown.where('bookmarkId').equals(this.currentBookmarkId).delete();
     await db.questionsAnswers.where('bookmarkId').equals(this.currentBookmarkId).delete();
@@ -125,8 +126,8 @@ export class BookmarkDetailManager {
     this.config.onDelete?.();
   }
 
-  async exportCurrentBookmark() {
-    if (!this.currentBookmarkId) return;
+  async exportCurrentBookmark(): Promise<void> {
+    if (this.currentBookmarkId === null) return;
 
     this.config.exportBtn.disabled = true;
     this.config.exportBtn.textContent = 'Exporting...';
@@ -139,12 +140,13 @@ export class BookmarkDetailManager {
     }
   }
 
-  async debugCurrentBookmark() {
-    if (!this.currentBookmarkId) return;
+  async debugCurrentBookmark(): Promise<void> {
+    if (this.currentBookmarkId === null) return;
 
     const bookmark = await db.bookmarks.get(this.currentBookmarkId);
     if (!bookmark) return;
 
+    // eslint-disable-next-line no-alert
     alert(`HTML Length: ${bookmark.html.length} chars\nStatus: ${bookmark.status}\n\n${bookmark.html.slice(0, 500)}...`);
   }
 

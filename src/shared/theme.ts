@@ -36,7 +36,7 @@ export function getEffectiveTheme(theme: Theme): 'light' | 'dark' | 'terminal' |
   if (theme === 'light') return 'light';
   if (theme === 'dark') return 'dark';
 
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+  if (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
     return 'dark';
   }
   return 'light';
@@ -45,13 +45,13 @@ export function getEffectiveTheme(theme: Theme): 'light' | 'dark' | 'terminal' |
 export function onThemeChange(callback: (theme: Theme) => void): void {
   if (__IS_WEB__) {
     window.addEventListener('storage', (event) => {
-      if (event.key === THEME_STORAGE_KEY && event.newValue) {
+      if (event.key === THEME_STORAGE_KEY && event.newValue !== null && event.newValue !== '') {
         callback(event.newValue as Theme);
       }
     });
   } else {
     chrome.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName === 'local' && changes[THEME_STORAGE_KEY]) {
+      if (areaName === 'local' && THEME_STORAGE_KEY in changes) {
         const newTheme = changes[THEME_STORAGE_KEY].newValue as Theme;
         callback(newTheme);
       }

@@ -1,6 +1,6 @@
 import { Readability } from '@mozilla/readability';
 import TurndownService from 'turndown';
-import { isFirefox, ensureOffscreenDocument } from './offscreen';
+import { isFirefox as _isFirefox, ensureOffscreenDocument } from './offscreen';
 import type { ExtractContentResponse } from './messages';
 
 export interface ExtractedContent {
@@ -16,12 +16,10 @@ export interface ExtractedContent {
  */
 let turndownInstance: TurndownService | null = null;
 function getTurndown(): TurndownService {
-  if (!turndownInstance) {
-    turndownInstance = new TurndownService({
-      headingStyle: 'atx',
-      codeBlockStyle: 'fenced',
-    });
-  }
+  turndownInstance ??= new TurndownService({
+    headingStyle: 'atx',
+    codeBlockStyle: 'fenced',
+  });
   return turndownInstance;
 }
 
@@ -91,10 +89,10 @@ async function extractMarkdownViaOffscreen(html: string, url: string): Promise<E
           return;
         }
 
-        if (response.success) {
-          resolve(response.result!);
+        if (response.success && response.result !== undefined) {
+          resolve(response.result);
         } else {
-          reject(new Error(response.error || 'Unknown extraction error'));
+          reject(new Error(response.error ?? 'Unknown extraction error'));
         }
       }
     );

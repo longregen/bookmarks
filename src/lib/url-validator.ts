@@ -30,6 +30,7 @@ const DEFAULT_BLOCKED_SCHEMES: Record<string, string> = {
 /**
  * Validate a URL with configurable options
  */
+// eslint-disable-next-line complexity
 export function validateUrl(url: string, options: UrlValidationOptions = {}): UrlValidationResult {
   const {
     requireHttps = false,
@@ -47,7 +48,7 @@ export function validateUrl(url: string, options: UrlValidationOptions = {}): Ur
   }
 
   const trimmedLower = processedUrl.toLowerCase();
-  const schemesToBlock = blockedSchemes || DEFAULT_BLOCKED_SCHEMES;
+  const schemesToBlock = blockedSchemes ?? DEFAULT_BLOCKED_SCHEMES;
 
   for (const [scheme, error] of Object.entries(schemesToBlock)) {
     if (trimmedLower.startsWith(scheme)) {
@@ -56,18 +57,17 @@ export function validateUrl(url: string, options: UrlValidationOptions = {}): Ur
   }
 
   if (autoAddProtocol && !processedUrl.includes('://')) {
-    processedUrl = 'https://' + processedUrl;
+    processedUrl = `https://${  processedUrl}`;
   }
 
   let urlObj: URL;
   try {
     urlObj = new URL(processedUrl);
-  } catch (error) {
+  } catch (_error) {
     return { valid: false, error: 'Invalid URL format' };
   }
 
   if (!allowedProtocols.includes(urlObj.protocol)) {
-    const protocolName = urlObj.protocol.replace(':', '');
     return {
       valid: false,
       error: `Only ${allowedProtocols.map(p => p.replace(':', '').toUpperCase()).join(' and ')} URLs are allowed`,

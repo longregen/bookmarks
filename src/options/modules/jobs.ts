@@ -14,13 +14,13 @@ const jobsPoller: Poller = createPoller(
     // Only auto-refresh if there are active jobs
     const hasActiveJobs = document.querySelectorAll('.job-status-badge.in_progress').length > 0;
     if (hasActiveJobs) {
-      loadJobs();
+      void loadJobs();
     }
   },
   2000
 );
 
-async function loadJobs() {
+async function loadJobs(): Promise<void> {
   try {
     jobsList.textContent = '';
     jobsList.appendChild(createElement('div', { className: 'loading', textContent: 'Loading jobs...' }));
@@ -33,10 +33,12 @@ async function loadJobs() {
     let filteredJobs = jobs;
 
     if (typeFilter) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
       filteredJobs = filteredJobs.filter(job => job.type === typeFilter);
     }
 
     if (statusFilter) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
       filteredJobs = filteredJobs.filter(job => job.status === statusFilter);
     }
 
@@ -92,7 +94,7 @@ function renderJobItemElement(job: Job): HTMLElement {
     jobItem.appendChild(progressDiv);
   }
 
-  if (job.currentStep) {
+  if (job.currentStep !== undefined && job.currentStep !== '') {
     jobItem.appendChild(createElement('div', { className: 'job-step', textContent: job.currentStep }));
   }
 
@@ -100,7 +102,7 @@ function renderJobItemElement(job: Job): HTMLElement {
   appendMetadataElements(metadataDiv, job);
   jobItem.appendChild(metadataDiv);
 
-  if (job.status === JobStatus.FAILED && job.metadata.errorMessage) {
+  if (job.status === JobStatus.FAILED && (job.metadata.errorMessage !== undefined && job.metadata.errorMessage !== '')) {
     const errorDiv = createElement('div', { className: 'job-error' });
     errorDiv.appendChild(createElement('strong', { textContent: 'Error: ' }));
     errorDiv.appendChild(document.createTextNode(job.metadata.errorMessage));
@@ -117,39 +119,40 @@ function createMetadataItem(label: string, value: string | number): HTMLElement 
   return item;
 }
 
+// eslint-disable-next-line complexity
 function appendMetadataElements(container: HTMLElement, job: Job): void {
   let hasMetadata = false;
 
-  if (job.metadata.url) {
+  if (job.metadata.url !== undefined && job.metadata.url !== '') {
     container.appendChild(createMetadataItem('URL', job.metadata.url));
     hasMetadata = true;
   }
 
-  if (job.metadata.title) {
+  if (job.metadata.title !== undefined && job.metadata.title !== '') {
     container.appendChild(createMetadataItem('Title', job.metadata.title));
     hasMetadata = true;
   }
 
   if (job.type === JobType.MARKDOWN_GENERATION) {
-    if (job.metadata.characterCount) {
+    if (job.metadata.characterCount !== undefined && job.metadata.characterCount !== 0) {
       container.appendChild(createMetadataItem('Characters', job.metadata.characterCount.toLocaleString()));
       hasMetadata = true;
     }
-    if (job.metadata.wordCount) {
+    if (job.metadata.wordCount !== undefined && job.metadata.wordCount !== 0) {
       container.appendChild(createMetadataItem('Words', job.metadata.wordCount.toLocaleString()));
       hasMetadata = true;
     }
   }
 
   if (job.type === JobType.QA_GENERATION) {
-    if (job.metadata.pairsGenerated) {
+    if (job.metadata.pairsGenerated !== undefined && job.metadata.pairsGenerated !== 0) {
       container.appendChild(createMetadataItem('Q&A Pairs', job.metadata.pairsGenerated));
       hasMetadata = true;
     }
   }
 
   if (job.type === JobType.FILE_IMPORT) {
-    if (job.metadata.fileName) {
+    if (job.metadata.fileName !== undefined && job.metadata.fileName !== '') {
       container.appendChild(createMetadataItem('File', job.metadata.fileName));
       hasMetadata = true;
     }
@@ -164,7 +167,7 @@ function appendMetadataElements(container: HTMLElement, job: Job): void {
   }
 
   if (job.type === JobType.BULK_URL_IMPORT) {
-    if (job.metadata.totalUrls) {
+    if (job.metadata.totalUrls !== undefined && job.metadata.totalUrls !== 0) {
       container.appendChild(createMetadataItem('Total URLs', job.metadata.totalUrls));
       hasMetadata = true;
     }
@@ -195,27 +198,27 @@ function formatJobType(type: JobType): string {
   return labels[type] || type;
 }
 
-jobTypeFilter.addEventListener('change', loadJobs);
-jobStatusFilter.addEventListener('change', loadJobs);
-refreshJobsBtn.addEventListener('click', loadJobs);
+jobTypeFilter.addEventListener('change', () => void loadJobs());
+jobStatusFilter.addEventListener('change', () => void loadJobs());
+refreshJobsBtn.addEventListener('click', () => void loadJobs());
 
-function startJobsPolling() {
+function startJobsPolling(): void {
   jobsPoller.start();
 }
 
-function stopJobsPolling() {
+function stopJobsPolling(): void {
   jobsPoller.stop();
 }
 
 window.addEventListener('refresh-jobs', () => {
-  loadJobs();
+  void loadJobs();
 });
 
-export function initJobsModule() {
-  loadJobs();
+export function initJobsModule(): () => void {
+  void loadJobs();
   startJobsPolling();
 
-  return () => {
+  return (): void => {
     stopJobsPolling();
   };
 }

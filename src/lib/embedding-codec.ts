@@ -33,7 +33,7 @@ export function encodeEmbedding(embedding: number[]): string {
 export function decodeEmbedding(encoded: string): number[] {
   const buffer = base64ToArrayBuffer(encoded);
   const view = new Int16Array(buffer);
-  const embedding: number[] = new Array(view.length);
+  const embedding: number[] = Array.from({ length: view.length }, () => 0);
 
   for (let i = 0; i < view.length; i++) {
     embedding[i] = view[i] / QUANTIZE_SCALE;
@@ -68,8 +68,8 @@ export function isEncodedEmbedding(value: unknown): value is string {
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
   }
   return btoa(binary);
 }
