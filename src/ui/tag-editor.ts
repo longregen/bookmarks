@@ -1,6 +1,6 @@
 import { db, type BookmarkTag } from '../db/schema';
 import { createElement } from './dom';
-import { broadcastEvent } from './events';
+import { broadcastEvent } from '../lib/events';
 
 export interface TagEditorOptions {
   bookmarkId: string;

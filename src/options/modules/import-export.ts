@@ -1,6 +1,7 @@
-import { exportAllBookmarks, downloadExport, readImportFile, importBookmarks } from '../../lib/export';
-import { showStatusMessage, createElement } from '../../lib/dom';
-import { withButtonState } from '../../lib/form-helper';
+import { exportAllBookmarks, readImportFile, importBookmarks } from '../../lib/export';
+import { downloadExport } from '../../ui/export-download';
+import { showStatusMessage, createElement } from '../../ui/dom';
+import { withButtonState } from '../../ui/form-helper';
 import { getErrorMessage } from '../../lib/errors';
 
 const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;

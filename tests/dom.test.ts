@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { getElement, getElements, createElement, showStatusMessage } from '../src/lib/dom';
+import { getElement, getElements, createElement, showStatusMessage } from '../src/ui/dom';
 
 describe('DOM utilities', () => {
   describe('getElement', () => {

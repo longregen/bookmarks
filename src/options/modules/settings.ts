@@ -1,6 +1,6 @@
 import { getSettings, saveSetting } from '../../lib/settings';
-import { showStatusMessage } from '../../lib/dom';
-import { initSettingsForm, withButtonState } from '../../lib/form-helper';
+import { showStatusMessage } from '../../ui/dom';
+import { initSettingsForm, withButtonState } from '../../ui/form-helper';
 import { makeApiRequest } from '../../lib/api';
 import { getErrorMessage } from '../../lib/errors';
 

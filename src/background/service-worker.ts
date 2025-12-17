@@ -144,6 +144,10 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
     return true;
   }
 
+  if (message.type === 'FETCH_URL' || message.type === 'EXTRACT_CONTENT') {
+    return;
+  }
+
   return false;
 });
 

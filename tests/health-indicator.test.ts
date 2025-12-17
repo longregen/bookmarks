@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { db, JobType, JobStatus } from '../src/db/schema';
-import { getHealthStatus, createHealthIndicator } from '../src/lib/health-indicator';
+import { getHealthStatus } from '../src/lib/health-status';
+import { createHealthIndicator } from '../src/ui/health-indicator';
 import * as tabs from '../src/lib/tabs';
 
 vi.mock('../src/lib/tabs', () => ({

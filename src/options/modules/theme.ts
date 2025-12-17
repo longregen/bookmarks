@@ -1,5 +1,5 @@
 import { onThemeChange, applyTheme, getTheme, setTheme, type Theme } from '../../shared/theme';
-import { initExtension } from '../../lib/init-extension';
+import { initExtension } from '../../ui/init-extension';
 import { initWeb } from '../../web/init-web';
 
 const themeRadios = document.querySelectorAll<HTMLInputElement>('input[name="theme"]');

@@ -1,6 +1,6 @@
 import { getRecentJobs, retryJob, dismissJob, deleteBookmarkWithData, type Job } from '../lib/jobs';
 import { db, JobType, JobStatus } from '../db/schema';
-import { createElement } from '../lib/dom';
+import { createElement } from '../ui/dom';
 import { formatTimeAgo } from '../lib/time';
 import { startProcessingQueue } from '../background/queue';
 

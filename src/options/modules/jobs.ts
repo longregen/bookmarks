@@ -1,6 +1,6 @@
 import { getRecentJobs, type Job } from '../../lib/jobs';
 import { JobType, JobStatus } from '../../db/schema';
-import { createElement } from '../../lib/dom';
+import { createElement } from '../../ui/dom';
 import { formatTimeAgo } from '../../lib/time';
 import { createPoller, type Poller } from '../../lib/polling-manager';
 
