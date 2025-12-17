@@ -67,6 +67,14 @@ async function testNewUserOnboarding(adapter: ChromeAdapter): Promise<void> {
   `);
   await captureScreenshot(page, '03-api-config-filled.png');
 
+  // 3b. Save settings so they persist for subsequent tests
+  await page.click('[type="submit"]');
+  await page.waitForFunction(
+    `document.querySelector('.status')?.textContent?.includes('success')`,
+    10000
+  );
+  await new Promise(resolve => setTimeout(resolve, 500));
+
   // 4. Test connection - capture button state
   await captureScreenshot(page, '04-before-test-connection.png');
 
