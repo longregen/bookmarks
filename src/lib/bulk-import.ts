@@ -1,5 +1,5 @@
 import { db, JobType, JobStatus } from '../db/schema';
-import { createJob, updateJob as _updateJob, completeJob as _completeJob } from './jobs';
+import { createJob } from './jobs';
 import { validateWebUrl } from './url-validator';
 
 export interface UrlValidation {

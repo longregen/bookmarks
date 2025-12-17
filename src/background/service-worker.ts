@@ -15,9 +15,6 @@ import type {
   SaveBookmarkResponse,
   StartBulkImportResponse,
   GetJobStatusResponse,
-  TriggerSyncResponse as _TriggerSyncResponse,
-  SyncStatus as _SyncStatus,
-  UpdateSyncSettingsResponse as _UpdateSyncSettingsResponse,
 } from '../lib/messages';
 
 // Initialize platform adapter immediately (required for API calls)

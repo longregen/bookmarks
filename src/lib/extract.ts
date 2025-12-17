@@ -1,6 +1,6 @@
 import { Readability } from '@mozilla/readability';
 import TurndownService from 'turndown';
-import { isFirefox as _isFirefox, ensureOffscreenDocument } from './offscreen';
+import { ensureOffscreenDocument } from './offscreen';
 import type { ExtractContentResponse } from './messages';
 
 export interface ExtractedContent {
