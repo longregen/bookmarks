@@ -58,7 +58,7 @@ saveBtn.addEventListener('click', async () => {
     if (response?.success === true && response.bookmarkId !== undefined) {
       showSuccessWithCTA(response.bookmarkId);
     } else {
-      showStatusMessage(statusDiv, 'Bookmark saved!', 'success');
+      showStatusMessage(statusDiv, 'Bookmark saved!', 'success', 3000);
     }
   } catch (error) {
     console.error('Error saving bookmark:', error);

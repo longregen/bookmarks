@@ -12,6 +12,7 @@ import {
 } from '../../lib/config-registry';
 import { createElement, getElement } from '../../ui/dom';
 import { getErrorMessage } from '../../lib/errors';
+import { db } from '../../db/schema';
 
 let searchInput: HTMLInputElement;
 let categoryFilter: HTMLSelectElement;
@@ -55,13 +56,13 @@ function createShowAllSettingsButton(): void {
 
   actionsHeader.insertBefore(showAllSettingsBtn, actionsHeader.firstChild);
 
-  showAllSettingsBtn.addEventListener('click', () => {
+  showAllSettingsBtn.addEventListener('click', async () => {
     if (!showAllSettings) {
-      // eslint-disable-next-line no-alert
-      const confirmed = confirm(
-        'This will reveal all settings including system prompts.\n\nProceed?'
-      );
-      if (!confirmed) return;
+      const acknowledged = await checkAdvancedConfigAcknowledgment();
+      if (!acknowledged) {
+        await showAcknowledgmentDialog();
+        return;
+      }
     }
 
     showAllSettings = !showAllSettings;
@@ -69,6 +70,80 @@ function createShowAllSettingsButton(): void {
       showAllSettingsBtn.textContent = showAllSettings ? 'Hide Extra Settings' : 'Show All Settings';
     }
     renderConfigTable();
+  });
+}
+
+async function checkAdvancedConfigAcknowledgment(): Promise<boolean> {
+  const setting = await db.settings.get('advancedConfigAcknowledged');
+  return (setting?.value ?? false) as boolean;
+}
+
+async function saveAdvancedConfigAcknowledgment(): Promise<void> {
+  await db.settings.put({
+    key: 'advancedConfigAcknowledged',
+    value: true,
+  });
+}
+
+function showAcknowledgmentDialog(): Promise<void> {
+  return new Promise((resolve) => {
+    const backdrop = createElement('div', {
+      className: 'acknowledgment-backdrop',
+    });
+
+    const dialog = createElement('div', {
+      className: 'acknowledgment-dialog',
+    });
+
+    const title = createElement('h3', {
+      textContent: 'Advanced Settings Warning',
+    });
+
+    const message = createElement('p', {
+      textContent: 'This will reveal all settings including system prompts. These settings are for advanced users only and modifying them may affect application behavior.',
+    });
+
+    const buttonGroup = createElement('div', {
+      className: 'acknowledgment-buttons',
+    });
+
+    const cancelBtn = createElement('button', {
+      className: 'btn btn-secondary',
+      textContent: 'Cancel',
+    });
+
+    const acknowledgeBtn = createElement('button', {
+      className: 'btn btn-primary',
+      textContent: 'I Understand',
+    });
+
+    cancelBtn.onclick = () => {
+      document.body.removeChild(backdrop);
+      document.body.removeChild(dialog);
+      resolve();
+    };
+
+    acknowledgeBtn.onclick = async () => {
+      await saveAdvancedConfigAcknowledgment();
+      document.body.removeChild(backdrop);
+      document.body.removeChild(dialog);
+      showAllSettings = true;
+      if (showAllSettingsBtn) {
+        showAllSettingsBtn.textContent = 'Hide Extra Settings';
+      }
+      renderConfigTable();
+      resolve();
+    };
+
+    buttonGroup.appendChild(cancelBtn);
+    buttonGroup.appendChild(acknowledgeBtn);
+
+    dialog.appendChild(title);
+    dialog.appendChild(message);
+    dialog.appendChild(buttonGroup);
+
+    document.body.appendChild(backdrop);
+    document.body.appendChild(dialog);
   });
 }
 

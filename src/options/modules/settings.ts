@@ -6,6 +6,7 @@ import { getErrorMessage } from '../../lib/errors';
 
 const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
+const testConnectionStatus = document.getElementById('testConnectionStatus') as HTMLDivElement;
 
 const apiBaseUrlInput = document.getElementById('apiBaseUrl') as HTMLInputElement;
 const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
@@ -30,6 +31,7 @@ async function saveSettings(): Promise<void> {
 
 testBtn.addEventListener('click', async () => {
   try {
+    testConnectionStatus.className = 'test-connection-status hidden';
     await withButtonState(testBtn, 'Testing...', async () => {
       const settings = {
         apiBaseUrl: apiBaseUrlInput.value.trim(),
@@ -43,10 +45,12 @@ testBtn.addEventListener('click', async () => {
       }, settings);
     });
 
-    showStatusMessage(statusDiv, 'Connection successful! API is working correctly.', 'success', 5000);
+    testConnectionStatus.className = 'test-connection-status success';
+    testConnectionStatus.textContent = '✓ Connection successful! API is working correctly.';
   } catch (error) {
     console.error('Error testing connection:', error);
-    showStatusMessage(statusDiv, `Connection failed: ${getErrorMessage(error)}`, 'error', 5000);
+    testConnectionStatus.className = 'test-connection-status error';
+    testConnectionStatus.textContent = `✗ Connection failed: ${getErrorMessage(error)}`;
   }
 });
 
