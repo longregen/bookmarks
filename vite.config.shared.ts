@@ -41,7 +41,9 @@ export const sharedOutput: OutputOptions = {
     }
     // Background modules (queue, processor, etc.) must be in shared
     // to prevent service worker from importing options-modules
-    if (id.includes('/src/background/')) {
+    // EXCEPT service-worker.ts which has initialization code that should
+    // only run in the service worker context
+    if (id.includes('/src/background/') && !id.includes('service-worker.ts')) {
       return 'shared';
     }
     if (id.includes('/src/web/init-web')) {
