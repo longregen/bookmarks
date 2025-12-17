@@ -1,4 +1,4 @@
-import { JobType, JobStatus } from '../db/schema';
+import { db, JobType, JobStatus } from '../db/schema';
 import { createJob } from './jobs';
 import { validateWebUrl } from './url-validator';
 
@@ -62,29 +62,42 @@ export function validateSingleUrl(url: string): UrlValidation {
 }
 
 export async function createBulkImportJob(urls: string[]): Promise<string> {
-  const parentJob = await createJob({
+  const now = new Date();
+
+  // Create bookmarks with status='fetching' for each URL
+  for (const url of urls) {
+    const existing = await db.bookmarks.where('url').equals(url).first();
+    if (!existing) {
+      await db.bookmarks.add({
+        id: crypto.randomUUID(),
+        url,
+        title: url,
+        html: '',
+        status: 'fetching',
+        createdAt: now,
+        updatedAt: now,
+      });
+    } else {
+      // Reset existing bookmark to be re-fetched
+      await db.bookmarks.update(existing.id, {
+        status: 'fetching',
+        html: '',
+        errorMessage: undefined,
+        updatedAt: now,
+      });
+    }
+  }
+
+  // Create job as completed log entry
+  const job = await createJob({
     type: JobType.BULK_URL_IMPORT,
-    status: JobStatus.IN_PROGRESS,
-    progress: 0,
+    status: JobStatus.COMPLETED,
     metadata: {
       totalUrls: urls.length,
-      successCount: 0,
-      failureCount: 0,
     },
   });
 
-  await Promise.all(
-    urls.map(url =>
-      createJob({
-        type: JobType.URL_FETCH,
-        status: JobStatus.PENDING,
-        parentJobId: parentJob.id,
-        metadata: { url },
-      })
-    )
-  );
-
-  return parentJob.id;
+  return job.id;
 }
 
 function decodeHtmlEntities(text: string): string {
