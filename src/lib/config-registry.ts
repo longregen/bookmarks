@@ -72,6 +72,15 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     max: 30000,
   },
   {
+    key: 'PAGE_SETTLE_MAX_MULTIPLIER',
+    defaultValue: 3,
+    type: 'number',
+    description: 'Maximum wait time multiplier for DOM extraction (prevents hanging on busy pages)',
+    category: CONFIG_CATEGORIES.FETCHER,
+    min: 1,
+    max: 10,
+  },
+  {
     key: 'TAB_CREATION_DELAY_MS',
     defaultValue: 500,
     type: 'number',
@@ -452,6 +461,7 @@ export interface ConfigValues {
   FETCH_MAX_HTML_SIZE: number;
   FETCH_OFFSCREEN_BUFFER_MS: number;
   PAGE_SETTLE_TIME_MS: number;
+  PAGE_SETTLE_MAX_MULTIPLIER: number;
   TAB_CREATION_DELAY_MS: number;
   DEFAULT_API_BASE_URL: string;
   API_CONTENT_MAX_CHARS: number;
