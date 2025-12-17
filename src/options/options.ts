@@ -4,11 +4,10 @@ import { initImportExportModule } from './modules/import-export';
 import { initBulkImportModule } from './modules/bulk-import';
 import { initThemeModule } from './modules/theme';
 import { initNavigationModule } from './modules/navigation';
-import { initAdvancedConfigModule } from './modules/advanced-config';
 
 const cleanupFunctions: (() => void)[] = [];
 
-async function initializeModules(): Promise<void> {
+function initializeModules(): void {
   initThemeModule();
   initNavigationModule();
   initSettingsModule();
@@ -20,12 +19,10 @@ async function initializeModules(): Promise<void> {
 
   const bulkImportCleanup = initBulkImportModule();
   cleanupFunctions.push(bulkImportCleanup);
-
-  await initAdvancedConfigModule();
 }
 
 window.addEventListener('beforeunload', () => {
   cleanupFunctions.forEach(cleanup => cleanup());
 });
 
-void initializeModules();
+initializeModules();

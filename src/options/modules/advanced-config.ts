@@ -12,7 +12,6 @@ import {
 } from '../../lib/config-registry';
 import { createElement, getElement } from '../../ui/dom';
 import { getErrorMessage } from '../../lib/errors';
-import { db } from '../../db/schema';
 
 let searchInput: HTMLInputElement;
 let categoryFilter: HTMLSelectElement;
@@ -20,10 +19,8 @@ let showModifiedOnly: HTMLInputElement;
 let configTableBody: HTMLTableSectionElement;
 let resetAllBtn: HTMLButtonElement;
 let modifiedCountSpan: HTMLElement | null = null;
-let showAllSettingsBtn: HTMLButtonElement | null = null;
 
 let editingKey: string | null = null;
-let showAllSettings = false;
 
 export async function initAdvancedConfigModule(): Promise<void> {
   await ensureConfigLoaded();
@@ -36,121 +33,10 @@ export async function initAdvancedConfigModule(): Promise<void> {
   modifiedCountSpan = document.getElementById('modifiedConfigCount');
 
   populateCategoryFilter();
-  createShowAllSettingsButton();
-
   setupEventListeners();
 
   renderConfigTable();
   updateModifiedCount();
-}
-
-function createShowAllSettingsButton(): void {
-  const actionsHeader = document.querySelector('.config-actions-header');
-  if (!actionsHeader) return;
-
-  showAllSettingsBtn = createElement('button', {
-    className: 'btn btn-secondary btn-sm',
-    textContent: 'Show All Settings',
-    attributes: { type: 'button' }
-  });
-
-  actionsHeader.insertBefore(showAllSettingsBtn, actionsHeader.firstChild);
-
-  showAllSettingsBtn.addEventListener('click', async () => {
-    if (!showAllSettings) {
-      const acknowledged = await checkAdvancedConfigAcknowledgment();
-      if (!acknowledged) {
-        await showAcknowledgmentDialog();
-        return;
-      }
-    }
-
-    showAllSettings = !showAllSettings;
-    if (showAllSettingsBtn) {
-      showAllSettingsBtn.textContent = showAllSettings ? 'Hide Extra Settings' : 'Show All Settings';
-    }
-    renderConfigTable();
-  });
-}
-
-async function checkAdvancedConfigAcknowledgment(): Promise<boolean> {
-  const setting = await db.settings.get('advancedConfigAcknowledged');
-  return (setting?.value ?? false) as boolean;
-}
-
-async function saveAdvancedConfigAcknowledgment(): Promise<void> {
-  const now = new Date();
-  await db.settings.put({
-    key: 'advancedConfigAcknowledged',
-    value: true,
-    createdAt: now,
-    updatedAt: now,
-  });
-}
-
-function showAcknowledgmentDialog(): Promise<void> {
-  return new Promise((resolve) => {
-    const backdrop = createElement('div', {
-      className: 'acknowledgment-backdrop',
-    });
-
-    const dialog = createElement('div', {
-      className: 'acknowledgment-dialog',
-    });
-
-    const title = createElement('h3', {
-      textContent: 'Advanced Settings Warning',
-    });
-
-    const message = createElement('p', {
-      textContent: 'This will reveal all settings including system prompts. These settings are for advanced users only and modifying them may affect application behavior.',
-    });
-
-    const buttonGroup = createElement('div', {
-      className: 'acknowledgment-buttons',
-    });
-
-    const cancelBtn = createElement('button', {
-      className: 'btn btn-secondary',
-      textContent: 'Cancel',
-    });
-
-    const acknowledgeBtn = createElement('button', {
-      className: 'btn btn-primary',
-      textContent: 'I Understand',
-    });
-
-    cancelBtn.onclick = () => {
-      document.body.removeChild(backdrop);
-      document.body.removeChild(dialog);
-      resolve();
-    };
-
-    acknowledgeBtn.onclick = async () => {
-      await saveAdvancedConfigAcknowledgment();
-      document.body.removeChild(backdrop);
-      document.body.removeChild(dialog);
-      showAllSettings = true;
-      if (showAllSettingsBtn) {
-        showAllSettingsBtn.textContent = 'Hide Extra Settings';
-      }
-      renderConfigTable();
-      resolve();
-    };
-
-    buttonGroup.appendChild(cancelBtn);
-    buttonGroup.appendChild(acknowledgeBtn);
-
-    dialog.appendChild(title);
-    dialog.appendChild(message);
-    dialog.appendChild(buttonGroup);
-
-    document.body.appendChild(backdrop);
-    document.body.appendChild(dialog);
-
-    // Focus the cancel button for accessibility
-    cancelBtn.focus();
-  });
 }
 
 function populateCategoryFilter(): void {
@@ -212,11 +98,6 @@ function getFilteredEntries(): (ConfigEntry & { currentValue: number | string | 
 
   if (modifiedOnly) {
     entries = entries.filter(e => e.isModified);
-  }
-
-  // Hide textarea entries unless showAllSettings is enabled
-  if (!showAllSettings) {
-    entries = entries.filter(e => e.type !== 'textarea');
   }
 
   return entries;
