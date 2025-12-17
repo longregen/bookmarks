@@ -53,8 +53,10 @@ export class BookmarkDetailManager {
       this.config.retryBtn.style.display = bookmark.status === 'error' ? '' : 'none';
     }
 
-    this.config.detailContent.innerHTML = '';
-    this.config.detailContent.appendChild(
+    // Build all content in a document fragment to minimize DOM reflows
+    const fragment = document.createDocumentFragment();
+
+    fragment.appendChild(
       createElement('h1', { textContent: bookmark.title, style: { marginTop: '0' } })
     );
 
@@ -86,17 +88,12 @@ export class BookmarkDetailManager {
       meta.appendChild(errorDiv);
     }
 
-    this.config.detailContent.appendChild(meta);
+    fragment.appendChild(meta);
 
     const tagEditorContainer = createElement('div', { style: { marginBottom: 'var(--space-6)' } });
-    this.config.detailContent.appendChild(tagEditorContainer);
-    await createTagEditor({
-      bookmarkId,
-      container: tagEditorContainer,
-      onTagsChange: () => this.config.onTagsChange?.()
-    });
+    fragment.appendChild(tagEditorContainer);
 
-    this.config.detailContent.appendChild(
+    fragment.appendChild(
       createElement('hr', {
         style: {
           border: 'none',
@@ -109,20 +106,35 @@ export class BookmarkDetailManager {
     if (markdown) {
       const content = createElement('div', { className: 'markdown-content' });
       content.innerHTML = parseMarkdown(markdown.content);
-      this.config.detailContent.appendChild(content);
+      fragment.appendChild(content);
     }
 
     if (qaPairs.length > 0) {
       const qaSection = createElement('div', { className: 'qa-section' });
       qaSection.appendChild(createElement('h2', { textContent: `Q&A PAIRS (${qaPairs.length})` }));
+
+      // Use inner fragment for QA pairs to batch nested appends
+      const qaFragment = document.createDocumentFragment();
       for (const qa of qaPairs) {
         const pair = createElement('div', { className: 'qa-pair' });
         pair.appendChild(createElement('div', { className: 'qa-question', textContent: `Q: ${qa.question}` }));
         pair.appendChild(createElement('div', { className: 'qa-answer', textContent: `A: ${qa.answer}` }));
-        qaSection.appendChild(pair);
+        qaFragment.appendChild(pair);
       }
-      this.config.detailContent.appendChild(qaSection);
+      qaSection.appendChild(qaFragment);
+      fragment.appendChild(qaSection);
     }
+
+    // Single DOM operation to update content
+    this.config.detailContent.innerHTML = '';
+    this.config.detailContent.appendChild(fragment);
+
+    // Create tag editor after content is in DOM
+    await createTagEditor({
+      bookmarkId,
+      container: tagEditorContainer,
+      onTagsChange: () => this.config.onTagsChange?.()
+    });
 
     this.config.detailPanel.classList.add('active');
     this.config.detailBackdrop.classList.add('active');

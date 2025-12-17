@@ -51,12 +51,27 @@ export async function exportSingleBookmark(bookmarkId: string): Promise<Bookmark
 export async function exportAllBookmarks(): Promise<BookmarkExport> {
   const bookmarks = await db.bookmarks.orderBy('createdAt').reverse().toArray();
 
-  const exportedBookmarks: ExportedBookmark[] = [];
+  // Batch load all related data to avoid N+1 queries
+  const bookmarkIds = bookmarks.map(b => b.id);
+  const [allMarkdown, allQAPairs] = await Promise.all([
+    db.markdown.where('bookmarkId').anyOf(bookmarkIds).toArray(),
+    db.questionsAnswers.where('bookmarkId').anyOf(bookmarkIds).toArray(),
+  ]);
 
-  for (const bookmark of bookmarks) {
-    const { markdown, qaPairs } = await getBookmarkContent(bookmark.id);
-    exportedBookmarks.push(formatBookmarkForExport(bookmark, markdown, qaPairs));
+  // Build lookup maps for O(1) access
+  const markdownByBookmarkId = new Map(allMarkdown.map(m => [m.bookmarkId, m]));
+  const qaPairsByBookmarkId = new Map<string, QuestionAnswer[]>();
+  for (const qa of allQAPairs) {
+    const existing = qaPairsByBookmarkId.get(qa.bookmarkId) ?? [];
+    existing.push(qa);
+    qaPairsByBookmarkId.set(qa.bookmarkId, existing);
   }
+
+  const exportedBookmarks: ExportedBookmark[] = bookmarks.map(bookmark => {
+    const markdown = markdownByBookmarkId.get(bookmark.id);
+    const qaPairs = qaPairsByBookmarkId.get(bookmark.id) ?? [];
+    return formatBookmarkForExport(bookmark, markdown, qaPairs);
+  });
 
   return {
     version: EXPORT_VERSION,
@@ -152,6 +167,8 @@ async function importQAPairs(
   }
 
   const now = new Date();
+  const qaPairsToAdd: QuestionAnswer[] = [];
+
   for (const qa of questionsAnswers) {
     const hasQuestion = qa.embeddingQuestion !== undefined && qa.embeddingQuestion !== '';
     const hasAnswer = qa.embeddingAnswer !== undefined && qa.embeddingAnswer !== '';
@@ -162,7 +179,7 @@ async function importQAPairs(
       const embeddingBoth = decodeEmbeddingField(qa.embeddingBoth);
 
       if (embeddingQuestion !== null && embeddingAnswer !== null && embeddingBoth !== null) {
-        const questionAnswer: QuestionAnswer = {
+        qaPairsToAdd.push({
           id: crypto.randomUUID(),
           bookmarkId,
           question: qa.question,
@@ -172,10 +189,13 @@ async function importQAPairs(
           embeddingBoth,
           createdAt: now,
           updatedAt: now,
-        };
-        await db.questionsAnswers.add(questionAnswer);
+        });
       }
     }
+  }
+
+  if (qaPairsToAdd.length > 0) {
+    await db.questionsAnswers.bulkAdd(qaPairsToAdd);
   }
 }
 
@@ -224,11 +244,13 @@ export async function importBookmarks(data: BookmarkExport, fileName?: string): 
 
         const bookmarkId = await importSingleBookmark(exportedBookmark);
 
+        // Parallelize markdown and QA pairs import since they don't depend on each other
+        const importTasks = [];
         if (exportedBookmark.markdown !== undefined && exportedBookmark.markdown !== '') {
-          await importMarkdown(bookmarkId, exportedBookmark.markdown);
+          importTasks.push(importMarkdown(bookmarkId, exportedBookmark.markdown));
         }
-
-        await importQAPairs(bookmarkId, exportedBookmark.questionsAnswers);
+        importTasks.push(importQAPairs(bookmarkId, exportedBookmark.questionsAnswers));
+        await Promise.all(importTasks);
 
         result.imported++;
         existingUrls.add(exportedBookmark.url);

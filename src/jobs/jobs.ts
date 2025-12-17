@@ -8,7 +8,7 @@ import {
   type JobItem,
   JobItemStatus,
 } from '../lib/jobs';
-import { db, JobType, JobStatus } from '../db/schema';
+import { db, JobType, JobStatus, type Bookmark } from '../db/schema';
 import { createElement } from '../ui/dom';
 import { formatTimeAgo } from '../lib/time';
 
@@ -19,6 +19,9 @@ const jobsList = document.getElementById('jobsList') as HTMLDivElement;
 
 // Cache for expanded jobs
 const expandedJobs = new Set<string>();
+
+// Store interval ID for cleanup
+let refreshIntervalId: number | undefined;
 
 async function loadJobs(): Promise<void> {
   try {
@@ -195,8 +198,16 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
     };
     items.sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
 
+    // Batch load all bookmarks to avoid N+1 query
+    const bookmarkIds = items.map(item => item.bookmarkId);
+    const bookmarks = await db.bookmarks.bulkGet(bookmarkIds);
+    const bookmarkMap = new Map(
+      bookmarks.map((bookmark, idx) => [bookmarkIds[idx], bookmark])
+    );
+
     for (const item of items) {
-      const itemEl = await renderJobItemRow(item);
+      const bookmark = bookmarkMap.get(item.bookmarkId);
+      const itemEl = renderJobItemRow(item, bookmark);
       itemsContainer.appendChild(itemEl);
     }
 
@@ -206,9 +217,7 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
   return jobItem;
 }
 
-async function renderJobItemRow(item: JobItem): Promise<HTMLElement> {
-  const bookmark = await db.bookmarks.get(item.bookmarkId);
-
+function renderJobItemRow(item: JobItem, bookmark: Bookmark | undefined): HTMLElement {
   const row = createElement('div', { className: `job-item-row status-${item.status}` });
 
   // Status indicator
@@ -366,9 +375,16 @@ function init(): void {
   void loadJobs();
 
   // Auto-refresh every 5 seconds for active jobs
-  setInterval(() => {
+  refreshIntervalId = window.setInterval(() => {
     void loadJobs();
   }, 5000);
+
+  // Clear interval on page unload to prevent memory leak
+  window.addEventListener('beforeunload', () => {
+    if (refreshIntervalId !== undefined) {
+      clearInterval(refreshIntervalId);
+    }
+  });
 }
 
 init();

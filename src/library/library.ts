@@ -72,31 +72,34 @@ async function loadTags(): Promise<void> {
 
   const untaggedCount = bookmarks.length - taggedBookmarkIds.size;
 
-  tagList.innerHTML = '';
+  const fragment = document.createDocumentFragment();
 
   const allTag = createElement('div', { className: `tag-item ${selectedTag === 'All' ? 'active' : ''}` });
   allTag.onclick = () => selectTag('All');
   allTag.appendChild(createElement('span', { className: 'tag-name', textContent: 'All' }));
   allTag.appendChild(createElement('span', { className: 'tag-count', textContent: bookmarks.length.toString() }));
-  tagList.appendChild(allTag);
+  fragment.appendChild(allTag);
 
   if (untaggedCount > 0) {
     const untaggedTag = createElement('div', { className: `tag-item ${selectedTag === 'Untagged' ? 'active' : ''}` });
     untaggedTag.onclick = () => selectTag('Untagged');
     untaggedTag.appendChild(createElement('span', { className: 'tag-name', textContent: 'Untagged' }));
     untaggedTag.appendChild(createElement('span', { className: 'tag-count', textContent: untaggedCount.toString() }));
-    tagList.appendChild(untaggedTag);
+    fragment.appendChild(untaggedTag);
   }
 
-  tagList.appendChild(createElement('hr', { style: { border: 'none', borderTop: '1px solid var(--border-primary)', margin: 'var(--space-3) 0' } }));
+  fragment.appendChild(createElement('hr', { style: { border: 'none', borderTop: '1px solid var(--border-primary)', margin: 'var(--space-3) 0' } }));
 
   for (const [tagName, count] of Object.entries(allTags).sort()) {
     const tagItem = createElement('div', { className: `tag-item ${selectedTag === tagName ? 'active' : ''}` });
     tagItem.onclick = () => selectTag(tagName);
     tagItem.appendChild(createElement('span', { className: 'tag-name', textContent: `#${tagName}` }));
     tagItem.appendChild(createElement('span', { className: 'tag-count', textContent: count.toString() }));
-    tagList.appendChild(tagItem);
+    fragment.appendChild(tagItem);
   }
+
+  tagList.innerHTML = '';
+  tagList.appendChild(fragment);
 }
 
 function selectTag(tag: string): void {
@@ -106,26 +109,28 @@ function selectTag(tag: string): void {
 }
 
 async function loadBookmarks(): Promise<void> {
-  let bookmarks = await db.bookmarks.toArray();
+  let bookmarks;
 
-  if (selectedTag !== 'All') {
-    if (selectedTag === 'Untagged') {
-      const taggedIds = new Set((await db.bookmarkTags.toArray()).map(t => t.bookmarkId));
-      bookmarks = bookmarks.filter(b => !taggedIds.has(b.id));
-    } else {
-      const taggedIds = new Set((await db.bookmarkTags.where('tagName').equals(selectedTag).toArray()).map(t => t.bookmarkId));
-      bookmarks = bookmarks.filter(b => taggedIds.has(b.id));
-    }
+  if (selectedTag === 'All') {
+    bookmarks = await db.bookmarks.toArray();
+  } else if (selectedTag === 'Untagged') {
+    const allBookmarks = await db.bookmarks.toArray();
+    const taggedIds = new Set((await db.bookmarkTags.toArray()).map(t => t.bookmarkId));
+    bookmarks = allBookmarks.filter(b => !taggedIds.has(b.id));
+  } else {
+    const tagRecords = await db.bookmarkTags.where('tagName').equals(selectedTag).toArray();
+    const taggedIds = tagRecords.map(t => t.bookmarkId);
+    bookmarks = await db.bookmarks.where('id').anyOf(taggedIds).toArray();
   }
 
   if (sortBy === 'newest') bookmarks.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   else if (sortBy === 'oldest') bookmarks.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   else if (sortBy === 'title') bookmarks.sort((a, b) => a.title.localeCompare(b.title));
 
-  bookmarkList.innerHTML = '';
   bookmarkCount.textContent = bookmarks.length.toString();
 
   if (bookmarks.length === 0) {
+    bookmarkList.innerHTML = '';
     bookmarkList.appendChild(createElement('div', { className: 'empty-state', textContent: 'No bookmarks found' }));
     return;
   }
@@ -142,6 +147,8 @@ async function loadBookmarks(): Promise<void> {
       tagsByBookmarkId.set(tag.bookmarkId, [tag]);
     }
   }
+
+  const fragment = document.createDocumentFragment();
 
   for (const bookmark of bookmarks) {
     const tags = tagsByBookmarkId.get(bookmark.id) ?? [];
@@ -168,8 +175,11 @@ async function loadBookmarks(): Promise<void> {
       card.appendChild(tagContainer);
     }
 
-    bookmarkList.appendChild(card);
+    fragment.appendChild(card);
   }
+
+  bookmarkList.innerHTML = '';
+  bookmarkList.appendChild(fragment);
 }
 
 if (__IS_WEB__) {
@@ -204,14 +214,17 @@ const fallbackInterval = setInterval(() => {
   void loadBookmarks();
 }, 30000);
 
+let healthCleanup: (() => void) | null = null;
+
 window.addEventListener('beforeunload', () => {
   removeEventListener();
   clearInterval(fallbackInterval);
+  healthCleanup?.();
 });
 
 const healthIndicatorContainer = document.getElementById('healthIndicator');
 if (healthIndicatorContainer) {
-  createHealthIndicator(healthIndicatorContainer);
+  healthCleanup = createHealthIndicator(healthIndicatorContainer);
 }
 
 declare global {

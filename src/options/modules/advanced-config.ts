@@ -108,9 +108,8 @@ function clearChildren(element: HTMLElement): void {
 }
 
 function renderConfigTable(): void {
-  clearChildren(configTableBody);
-
   const entries = getFilteredEntries();
+  const fragment = document.createDocumentFragment();
 
   if (entries.length === 0) {
     const emptyRow = createElement('tr', {}, [
@@ -120,15 +119,17 @@ function renderConfigTable(): void {
         attributes: { colspan: '5' }
       })
     ]);
-    configTableBody.appendChild(emptyRow);
-    return;
+    fragment.appendChild(emptyRow);
+  } else {
+    entries.forEach(entry => {
+      const [mainRow, descRow] = renderConfigRow(entry);
+      fragment.appendChild(mainRow);
+      fragment.appendChild(descRow);
+    });
   }
 
-  entries.forEach(entry => {
-    const [mainRow, descRow] = renderConfigRow(entry);
-    configTableBody.appendChild(mainRow);
-    configTableBody.appendChild(descRow);
-  });
+  clearChildren(configTableBody);
+  configTableBody.appendChild(fragment);
 }
 
 function renderConfigRow(entry: ConfigEntry & { currentValue: number | string | boolean; isModified: boolean }): [HTMLTableRowElement, HTMLTableRowElement] {

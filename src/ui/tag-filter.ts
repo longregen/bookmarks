@@ -11,7 +11,7 @@ export async function loadTagFilters(config: TagFilterConfig): Promise<void> {
   const allBookmarkTags = await db.bookmarkTags.toArray();
   const allTags = new Set<string>(allBookmarkTags.map((t: BookmarkTag) => t.tagName));
 
-  config.container.innerHTML = '';
+  const fragment = document.createDocumentFragment();
 
   if (config.selectedTags.size > 0) {
     const clearBtn = createElement('button', {
@@ -22,7 +22,7 @@ export async function loadTagFilters(config: TagFilterConfig): Promise<void> {
       config.selectedTags.clear();
       config.onChange();
     };
-    config.container.appendChild(clearBtn);
+    fragment.appendChild(clearBtn);
   }
 
   for (const tag of Array.from(allTags).sort()) {
@@ -41,6 +41,9 @@ export async function loadTagFilters(config: TagFilterConfig): Promise<void> {
     };
     label.appendChild(cb);
     label.appendChild(createElement('span', { textContent: `#${tag}` }));
-    config.container.appendChild(label);
+    fragment.appendChild(label);
   }
+
+  config.container.innerHTML = '';
+  config.container.appendChild(fragment);
 }

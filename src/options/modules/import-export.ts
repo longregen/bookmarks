@@ -72,9 +72,11 @@ importBtn.addEventListener('click', async () => {
 
       if (result.errors.length > 0) {
         const errorList = createElement('ul', { className: 'import-errors' });
+        const fragment = document.createDocumentFragment();
         for (const err of result.errors) {
-          errorList.appendChild(createElement('li', { textContent: err }));
+          fragment.appendChild(createElement('li', { textContent: err }));
         }
+        errorList.appendChild(fragment);
         resultDiv.appendChild(errorList);
       }
 

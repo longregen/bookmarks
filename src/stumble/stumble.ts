@@ -1,4 +1,4 @@
-import { db, type BookmarkTag, getBookmarkQAPairs } from '../db/schema';
+import { db, type BookmarkTag } from '../db/schema';
 import { createElement, getElement } from '../ui/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { getErrorMessage } from '../lib/errors';
@@ -94,8 +94,18 @@ async function loadStumble(): Promise<void> {
       return;
     }
 
+    const bookmarkIds = selected.map(b => b.id);
+    const allQAPairs = await db.questionsAnswers.where('bookmarkId').anyOf(bookmarkIds).toArray();
+    const qaPairsByBookmark = new Map<string, typeof allQAPairs>();
+    for (const qa of allQAPairs) {
+      if (!qaPairsByBookmark.has(qa.bookmarkId)) {
+        qaPairsByBookmark.set(qa.bookmarkId, []);
+      }
+      qaPairsByBookmark.get(qa.bookmarkId)!.push(qa);
+    }
+
     for (const bookmark of selected) {
-      const qaPairs = await getBookmarkQAPairs(bookmark.id);
+      const qaPairs = qaPairsByBookmark.get(bookmark.id) || [];
       const randomQA = qaPairs.length > 0 ? qaPairs[Math.floor(Math.random() * qaPairs.length)] : null;
 
       const card = createElement('div', { className: 'stumble-card' });
