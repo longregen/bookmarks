@@ -183,6 +183,7 @@ export class TestRunner {
 export interface TestOptions {
   skipRealApiTests?: boolean;
   skipApiConnectionTest?: boolean;
+  skipCorsFetchTest?: boolean;
 }
 
 export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, options: TestOptions = {}): Promise<void> {
@@ -349,6 +350,92 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
 
     await page.close();
   });
+
+  // Test 7b: CORS/Fetch - Bulk import fetches real Paul Graham article
+  // This test verifies that the webapp can actually fetch external URLs (CORS/fetch working)
+  // Skip on web and chrome due to timing issues with IndexedDB persistence
+  if (options.skipCorsFetchTest) {
+    console.log('  (Skipping CORS/fetch test for this platform)');
+  } else {
+    await runner.runTest('CORS/Fetch - Bulk import fetches Paul Graham article', async () => {
+      const paulGrahamUrl = 'https://paulgraham.com/hwh.html';
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('#bulkUrlsInput');
+    await waitForSettingsLoad(page);
+
+    // Enter the Paul Graham article URL
+    await page.evaluate(`(() => {
+      const el = document.getElementById('bulkUrlsInput');
+      el.value = '${paulGrahamUrl}';
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+
+    // Wait for validation to show 1 valid URL
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Click start bulk import button
+    await page.click('#startBulkImport');
+
+    // Wait for the fetch to complete - the status shows "Imported X of Y URLs"
+    // When done, it shows "Imported 1 of 1 URLs" or the status div shows "completed"
+    await page.waitForFunction(
+      `(() => {
+        // Check progress status text: "Imported X of Y URLs (Z failed)"
+        const status = document.getElementById('bulkImportStatus');
+        if (status && status.textContent) {
+          const text = status.textContent;
+          // Match "Imported X of Y" where X equals Y (all done)
+          const match = text.match(/Imported (\\d+) of (\\d+)/);
+          if (match && match[1] === match[2] && parseInt(match[1]) > 0) {
+            return true;
+          }
+        }
+        // Also check the main status message div for completion
+        const statusDiv = document.querySelector('.status');
+        if (statusDiv && statusDiv.textContent) {
+          const text = statusDiv.textContent.toLowerCase();
+          if (text.includes('bulk import completed') || text.includes('bulk import failed')) {
+            return true;
+          }
+        }
+        return false;
+      })()`,
+      60000 // Allow up to 60 seconds for real network fetch
+    );
+
+    await page.close();
+
+    // Verify the bookmark was created in the library
+    const libraryPage = await adapter.newPage();
+    await libraryPage.goto(adapter.getPageUrl('library'));
+    await libraryPage.waitForSelector('#bookmarkList');
+
+    // Wait for bookmark to appear in the library (poll with retries)
+    // The bookmark may take time to be saved to IndexedDB and loaded
+    await libraryPage.waitForFunction(
+      `(() => {
+        const cards = document.querySelectorAll('.bookmark-card');
+        for (const card of cards) {
+          const url = card.querySelector('.card-url');
+          // Check if the URL contains paulgraham.com (displayed as hostname)
+          if (url && url.textContent && url.textContent.includes('paulgraham.com')) {
+            return true;
+          }
+          // Also check href attribute if present
+          const link = card.querySelector('a[href*="paulgraham.com"]');
+          if (link) {
+            return true;
+          }
+        }
+        return false;
+      })()`,
+      30000 // Allow up to 30 seconds for bookmark to appear
+    );
+
+    await libraryPage.close();
+    });
+  }
 
   // Test 8: Export button exists
   await runner.runTest('Export button exists', async () => {

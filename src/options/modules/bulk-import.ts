@@ -187,6 +187,15 @@ function stopBulkImportPolling() {
 }
 
 export function initBulkImportModule() {
+  // Hide bulk import section for web platform (CORS limitation)
+  if (__IS_WEB__) {
+    const bulkImportSection = document.getElementById('bulk-import');
+    if (bulkImportSection) {
+      bulkImportSection.style.display = 'none';
+    }
+    return () => {}; // No cleanup needed for web
+  }
+
   // Module is initialized via event listeners
 
   // Return cleanup function

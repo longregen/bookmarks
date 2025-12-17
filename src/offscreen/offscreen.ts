@@ -80,6 +80,8 @@ function extractMarkdownInOffscreen(html: string, url: string): ExtractedContent
 
 // Handle messages from service worker
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // DEPRECATED: FETCH_URL is no longer used - service workers can fetch directly
+  // Kept for backwards compatibility; may be removed in future versions
   if (message.type === 'FETCH_URL') {
     const { url, timeoutMs } = message;
 

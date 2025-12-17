@@ -64,4 +64,12 @@ window.addEventListener('resize', () => {
 
 export function initNavigationModule() {
   // Module is initialized via event listeners
+
+  // Hide bulk import nav item for web platform (CORS limitation)
+  if (__IS_WEB__) {
+    const bulkImportNavItem = document.querySelector<HTMLAnchorElement>('.nav-item[data-section="bulk-import"]');
+    if (bulkImportNavItem) {
+      bulkImportNavItem.style.display = 'none';
+    }
+  }
 }

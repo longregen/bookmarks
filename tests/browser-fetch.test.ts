@@ -1,6 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fetchWithTimeout, browserFetch } from '../src/lib/browser-fetch';
 
+// Mock the tab-renderer module since it uses Chrome APIs not available in unit tests
+vi.mock('../src/lib/tab-renderer', () => ({
+  renderPage: vi.fn(),
+}));
+
+import { renderPage } from '../src/lib/tab-renderer';
+const mockRenderPage = vi.mocked(renderPage);
+
 describe('Browser Fetch Library', () => {
   // Mock global fetch
   const mockFetch = vi.fn();
@@ -8,6 +16,7 @@ describe('Browser Fetch Library', () => {
 
   beforeEach(() => {
     mockFetch.mockReset();
+    mockRenderPage.mockReset();
   });
 
   describe('fetchWithTimeout', () => {
@@ -250,134 +259,39 @@ describe('Browser Fetch Library', () => {
       });
     });
 
-    it('should handle Chrome by attempting offscreen fetch', async () => {
-      // Mock Chrome user agent
-      const originalNavigator = global.navigator;
-      Object.defineProperty(global, 'navigator', {
-        value: { userAgent: 'Mozilla/5.0 (Chrome)' },
-        configurable: true,
-      });
-
-      // Mock chrome.runtime.sendMessage for offscreen
-      const mockSendMessage = vi.fn((message, callback) => {
-        callback({ success: true, html: 'chrome test' });
-      });
-
-      global.chrome = {
-        runtime: {
-          sendMessage: mockSendMessage,
-          lastError: undefined,
-        },
-      } as any;
+    it('should use renderPage for tab-based rendering', async () => {
+      // browserFetch now uses tab-based rendering for full JS execution
+      mockRenderPage.mockResolvedValueOnce('<html>rendered content</html>');
 
       const html = await browserFetch('https://example.com');
-      expect(html).toBe('chrome test');
-      expect(mockSendMessage).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'FETCH_URL',
-          url: 'https://example.com',
-        }),
-        expect.any(Function)
-      );
-
-      Object.defineProperty(global, 'navigator', {
-        value: originalNavigator,
-        configurable: true,
-      });
-      delete (global as any).chrome;
+      expect(html).toBe('<html>rendered content</html>');
+      expect(mockRenderPage).toHaveBeenCalledWith('https://example.com', expect.any(Number));
     });
 
-    it('should handle offscreen fetch errors', async () => {
-      const originalNavigator = global.navigator;
-      Object.defineProperty(global, 'navigator', {
-        value: { userAgent: 'Mozilla/5.0 (Chrome)' },
-        configurable: true,
-      });
-
-      const mockSendMessage = vi.fn((message, callback) => {
-        callback({ success: false, error: 'Fetch failed' });
-      });
-
-      global.chrome = {
-        runtime: {
-          sendMessage: mockSendMessage,
-          lastError: undefined,
-        },
-      } as any;
+    it('should handle render errors', async () => {
+      // Errors from renderPage should propagate
+      mockRenderPage.mockRejectedValueOnce(new Error('Tab creation failed'));
 
       await expect(
         browserFetch('https://example.com')
-      ).rejects.toThrow('Fetch failed');
-
-      Object.defineProperty(global, 'navigator', {
-        value: originalNavigator,
-        configurable: true,
-      });
-      delete (global as any).chrome;
+      ).rejects.toThrow('Tab creation failed');
     });
 
-    it('should handle chrome.runtime.lastError', async () => {
-      const originalNavigator = global.navigator;
-      Object.defineProperty(global, 'navigator', {
-        value: { userAgent: 'Mozilla/5.0 (Chrome)' },
-        configurable: true,
-      });
+    it('should pass timeout to renderPage', async () => {
+      // browserFetch passes the timeout to renderPage
+      mockRenderPage.mockResolvedValueOnce('<html>test</html>');
 
-      const mockSendMessage = vi.fn((message, callback) => {
-        global.chrome.runtime.lastError = { message: 'Runtime error' };
-        callback(null);
-      });
-
-      global.chrome = {
-        runtime: {
-          sendMessage: mockSendMessage,
-          lastError: undefined,
-        },
-      } as any;
-
-      await expect(
-        browserFetch('https://example.com')
-      ).rejects.toThrow('Runtime error');
-
-      Object.defineProperty(global, 'navigator', {
-        value: originalNavigator,
-        configurable: true,
-      });
-      delete (global as any).chrome;
+      await browserFetch('https://example.com', 5000);
+      expect(mockRenderPage).toHaveBeenCalledWith('https://example.com', 5000);
     });
 
-    it('should pass timeout to offscreen fetch', async () => {
-      const originalNavigator = global.navigator;
-      Object.defineProperty(global, 'navigator', {
-        value: { userAgent: 'Mozilla/5.0 (Chrome)' },
-        configurable: true,
-      });
+    it('should use default timeout when not specified', async () => {
+      // When no timeout is specified, the default from config should be used
+      mockRenderPage.mockResolvedValueOnce('<html>test</html>');
 
-      const mockSendMessage = vi.fn((message, callback) => {
-        callback({ success: true, html: 'test' });
-      });
-
-      global.chrome = {
-        runtime: {
-          sendMessage: mockSendMessage,
-          lastError: undefined,
-        },
-      } as any;
-
-      await browserFetch('https://example.com', 15000);
-
-      expect(mockSendMessage).toHaveBeenCalledWith(
-        expect.objectContaining({
-          timeoutMs: 15000,
-        }),
-        expect.any(Function)
-      );
-
-      Object.defineProperty(global, 'navigator', {
-        value: originalNavigator,
-        configurable: true,
-      });
-      delete (global as any).chrome;
+      await browserFetch('https://example.com');
+      // Default timeout is 30000ms from config
+      expect(mockRenderPage).toHaveBeenCalledWith('https://example.com', 30000);
     });
   });
 

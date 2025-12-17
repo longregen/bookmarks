@@ -171,7 +171,8 @@ async function loadBookmarks() {
 // Initialize platform and theme
 if (__IS_WEB__) {
   initWeb();
-  initAddUrlSection();
+  // Note: initAddUrlSection() is disabled for web builds due to CORS limitations
+  // The web app cannot fetch external URLs, so URL import functionality is not available
 } else {
   initExtension();
 }

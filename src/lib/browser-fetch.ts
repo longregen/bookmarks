@@ -1,10 +1,11 @@
 /**
  * Browser-agnostic fetch wrapper for bulk URL import
- * Chrome uses offscreen document, Firefox can fetch directly in service worker
+ * For extensions: Uses tab-based rendering to capture fully rendered HTML with JavaScript execution
  * Build-time constants ensure only the relevant code path is included in each build.
  */
 
 import { config } from './config-registry';
+import { renderPage } from './tab-renderer';
 import type { FetchUrlResponse } from './messages';
 
 /**
@@ -44,24 +45,23 @@ export async function fetchWithTimeout(url: string, timeoutMs: number = config.F
 
 /**
  * Browser-agnostic fetch that works in Chrome, Firefox, and web contexts
+ * For extensions: Uses tab-based rendering to capture fully rendered HTML with JavaScript execution
  * Build-time branching ensures only the relevant implementation is included.
  * @param url URL to fetch
  * @param timeoutMs Timeout in milliseconds
  * @returns HTML content
  */
 export async function browserFetch(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
-  if (__IS_WEB__ || __IS_FIREFOX__) {
-    // Web and Firefox can fetch directly (no CORS restrictions for direct fetch)
-    return fetchWithTimeout(url, timeoutMs);
-  } else {
-    // Chrome needs to use offscreen document
-    return fetchViaOffscreen(url, timeoutMs);
-  }
+  // Extension platforms: Use tab-based rendering for full JavaScript execution
+  // This captures dynamically-rendered content that simple fetch() would miss
+  // Chrome and Firefox service workers have host_permissions: <all_urls>
+  return renderPage(url, timeoutMs);
 }
 
 /**
  * Fetch URL via Chrome offscreen document (Chrome only)
- * This function is only called in Chrome builds; it's tree-shaken from Firefox builds.
+ * @deprecated No longer used - service workers can fetch directly with host_permissions
+ * Kept for backwards compatibility; may be removed in future versions.
  * @param url URL to fetch
  * @param timeoutMs Timeout in milliseconds
  * @returns HTML content
