@@ -3,6 +3,9 @@
  * Replaces polling with event-driven updates
  */
 
+import { getErrorMessage } from './errors';
+import type { Message } from './messages';
+
 export type EventType =
   | 'BOOKMARK_UPDATED'
   | 'JOB_UPDATED'
@@ -38,7 +41,7 @@ export async function broadcastEvent(type: EventType, payload?: any): Promise<vo
     } catch (error: unknown) {
       // Ignore errors when no listeners (e.g., no pages open)
       // This is expected behavior
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       if (!errorMessage.includes('Receiving end does not exist')) {
         console.error('Error broadcasting event:', error);
       }
@@ -59,7 +62,7 @@ export type EventListener = (event: EventData) => void;
  */
 export function addEventListener(listener: EventListener): () => void {
   // Extension context: listen for chrome.runtime messages
-  const chromeListener = (message: any) => {
+  const chromeListener = (message: Message) => {
     if (message.type === 'EVENT_BROADCAST' && message.event) {
       listener(message.event);
     }

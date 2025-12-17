@@ -182,3 +182,69 @@ export class BookmarkDatabase extends Dexie {
 }
 
 export const db = new BookmarkDatabase();
+
+// ============================================================================
+// Database Query Helpers
+// ============================================================================
+
+/**
+ * Get all content related to a bookmark (markdown, Q&A pairs, tags)
+ * Uses Promise.all for efficient parallel queries
+ */
+export async function getBookmarkContent(bookmarkId: string): Promise<{
+  markdown: Markdown | undefined;
+  qaPairs: QuestionAnswer[];
+  tags: BookmarkTag[];
+}> {
+  const [markdown, qaPairs, tags] = await Promise.all([
+    db.markdown.where('bookmarkId').equals(bookmarkId).first(),
+    db.questionsAnswers.where('bookmarkId').equals(bookmarkId).toArray(),
+    db.bookmarkTags.where('bookmarkId').equals(bookmarkId).toArray(),
+  ]);
+  return { markdown, qaPairs, tags };
+}
+
+/**
+ * Get just markdown for a bookmark
+ */
+export async function getBookmarkMarkdown(bookmarkId: string): Promise<Markdown | undefined> {
+  return db.markdown.where('bookmarkId').equals(bookmarkId).first();
+}
+
+/**
+ * Get Q&A pairs for a bookmark
+ */
+export async function getBookmarkQAPairs(bookmarkId: string): Promise<QuestionAnswer[]> {
+  return db.questionsAnswers.where('bookmarkId').equals(bookmarkId).toArray();
+}
+
+/**
+ * Get tags for a bookmark
+ */
+export async function getBookmarkTags(bookmarkId: string): Promise<BookmarkTag[]> {
+  return db.bookmarkTags.where('bookmarkId').equals(bookmarkId).toArray();
+}
+
+/**
+ * Get full bookmark with all related data
+ * Uses Promise.all for efficient parallel queries
+ */
+export async function getFullBookmark(bookmarkId: string): Promise<{
+  bookmark: Bookmark | undefined;
+  markdown: Markdown | undefined;
+  qaPairs: QuestionAnswer[];
+  tags: BookmarkTag[];
+} | null> {
+  const [bookmark, markdown, qaPairs, tags] = await Promise.all([
+    db.bookmarks.get(bookmarkId),
+    db.markdown.where('bookmarkId').equals(bookmarkId).first(),
+    db.questionsAnswers.where('bookmarkId').equals(bookmarkId).toArray(),
+    db.bookmarkTags.where('bookmarkId').equals(bookmarkId).toArray(),
+  ]);
+
+  if (!bookmark) {
+    return null;
+  }
+
+  return { bookmark, markdown, qaPairs, tags };
+}

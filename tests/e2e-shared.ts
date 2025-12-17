@@ -9,6 +9,8 @@
  * Each platform provides an adapter implementing the TestAdapter interface.
  */
 
+import { getErrorMessage } from '../src/lib/errors';
+
 // ============================================================================
 // TEST ADAPTER INTERFACE
 // ============================================================================
@@ -141,7 +143,7 @@ export class TestRunner {
       this.results.push({ name, passed: true, duration: Date.now() - start });
       console.log(`✓ ${name} (${Date.now() - start}ms)`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       this.results.push({ name, passed: false, error: errorMessage, duration: Date.now() - start });
       console.error(`✗ ${name}: ${errorMessage}`);
     }

@@ -1,4 +1,4 @@
-import { db, BookmarkTag } from '../db/schema';
+import { db, BookmarkTag, getBookmarkQAPairs } from '../db/schema';
 import { createElement } from '../lib/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { onThemeChange, applyTheme } from '../shared/theme';
@@ -88,7 +88,7 @@ async function loadStumble() {
     }
 
     for (const bookmark of selected) {
-      const qaPairs = await db.questionsAnswers.where('bookmarkId').equals(bookmark.id).toArray();
+      const qaPairs = await getBookmarkQAPairs(bookmark.id);
       const randomQA = qaPairs.length > 0 ? qaPairs[Math.floor(Math.random() * qaPairs.length)] : null;
 
       const card = createElement('div', { className: 'stumble-card' });

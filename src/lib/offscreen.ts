@@ -3,6 +3,8 @@
  * Firefox doesn't need this - it has DOMParser in service workers
  */
 
+import { getErrorMessage } from './errors';
+
 /**
  * Check if running in Firefox
  */
@@ -40,7 +42,7 @@ export async function ensureOffscreenDocument(): Promise<void> {
       console.log('[Offscreen] Document created (without context check)');
     } catch (error: unknown) {
       // Ignore "already exists" errors
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       if (!errorMessage.includes('single offscreen')) {
         console.error('[Offscreen] Error creating document:', error);
       }

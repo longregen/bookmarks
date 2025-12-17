@@ -1,6 +1,8 @@
 import { getSettings, saveSetting } from '../../lib/settings';
 import { showStatusMessage } from '../../lib/dom';
-import { initSettingsForm } from '../../lib/form-helper';
+import { initSettingsForm, withButtonState } from '../../lib/form-helper';
+import { makeApiRequest } from '../../lib/api';
+import { getErrorMessage } from '../../lib/errors';
 
 const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
@@ -28,45 +30,24 @@ async function saveSettings() {
 
 testBtn.addEventListener('click', async () => {
   try {
-    testBtn.disabled = true;
-    testBtn.textContent = 'Testing...';
+    await withButtonState(testBtn, 'Testing...', async () => {
+      const settings = {
+        apiBaseUrl: apiBaseUrlInput.value.trim(),
+        apiKey: apiKeyInput.value.trim(),
+        embeddingModel: embeddingModelInput.value.trim(),
+      };
 
-    const settings = {
-      apiBaseUrl: apiBaseUrlInput.value.trim(),
-      apiKey: apiKeyInput.value.trim(),
-      embeddingModel: embeddingModelInput.value.trim(),
-    };
-
-    if (!settings.apiKey) {
-      showStatusMessage(statusDiv, 'Please enter an API key first', 'error', 5000);
-      return;
-    }
-
-    // Test the API with a simple embedding request
-    const response = await fetch(`${settings.apiBaseUrl}/embeddings`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${settings.apiKey}`,
-      },
-      body: JSON.stringify({
+      // Test the API with a simple embedding request
+      await makeApiRequest('/embeddings', {
         model: settings.embeddingModel,
         input: ['test'],
-      }),
+      }, settings);
     });
 
-    if (response.ok) {
-      showStatusMessage(statusDiv, 'Connection successful! API is working correctly.', 'success', 5000);
-    } else {
-      const error = await response.text();
-      showStatusMessage(statusDiv, `Connection failed: ${response.status} - ${error}`, 'error', 5000);
-    }
+    showStatusMessage(statusDiv, 'Connection successful! API is working correctly.', 'success', 5000);
   } catch (error) {
     console.error('Error testing connection:', error);
-    showStatusMessage(statusDiv, `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error', 5000);
-  } finally {
-    testBtn.disabled = false;
-    testBtn.textContent = 'Test Connection';
+    showStatusMessage(statusDiv, `Connection failed: ${getErrorMessage(error)}`, 'error', 5000);
   }
 });
 

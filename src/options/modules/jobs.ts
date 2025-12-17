@@ -2,6 +2,7 @@ import { getRecentJobs, type Job } from '../../lib/jobs';
 import { JobType, JobStatus } from '../../db/schema';
 import { createElement } from '../../lib/dom';
 import { formatTimeAgo } from '../../lib/time';
+import { createPoller, type Poller } from '../../lib/polling-manager';
 
 // Jobs Dashboard elements
 const jobTypeFilter = document.getElementById('jobTypeFilter') as HTMLSelectElement;
@@ -9,7 +10,16 @@ const jobStatusFilter = document.getElementById('jobStatusFilter') as HTMLSelect
 const refreshJobsBtn = document.getElementById('refreshJobsBtn') as HTMLButtonElement;
 const jobsList = document.getElementById('jobsList') as HTMLDivElement;
 
-let jobsPollingInterval: number | null = null;
+const jobsPoller: Poller = createPoller(
+  () => {
+    // Only auto-refresh if there are active jobs
+    const hasActiveJobs = document.querySelectorAll('.job-status-badge.in_progress').length > 0;
+    if (hasActiveJobs) {
+      loadJobs();
+    }
+  },
+  2000 // Poll every 2 seconds
+);
 
 async function loadJobs() {
   try {
@@ -213,23 +223,11 @@ refreshJobsBtn.addEventListener('click', loadJobs);
 
 // Start polling for jobs updates
 function startJobsPolling() {
-  if (jobsPollingInterval) {
-    clearInterval(jobsPollingInterval);
-  }
-
-  jobsPollingInterval = window.setInterval(() => {
-    // Only auto-refresh if there are active jobs
-    const hasActiveJobs = document.querySelectorAll('.job-status-badge.in_progress').length > 0;
-    if (hasActiveJobs) {
-      loadJobs();
-    }
-  }, 2000);
+  jobsPoller.start();
 }
 
 function stopJobsPolling() {
-  if (jobsPollingInterval) {
-    clearInterval(jobsPollingInterval);
-  }
+  jobsPoller.stop();
 }
 
 // Listen for refresh events from other modules

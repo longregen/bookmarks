@@ -3,6 +3,7 @@ import { processBookmark } from './processor';
 import { createStateManager } from '../lib/state-manager';
 import { shouldRetryBookmark, getNextRetryTime } from '../lib/retry';
 import { config } from '../lib/config-registry';
+import { getErrorMessage } from '../lib/errors';
 
 // State manager with timeout for queue processing
 const processingState = createStateManager({
@@ -135,7 +136,7 @@ export async function startProcessingQueue() {
         });
       } catch (error) {
         const retryCount = (bookmark.retryCount || 0) + 1;
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage = getErrorMessage(error);
 
         console.error(`Error processing bookmark ${bookmark.id} (attempt ${retryCount}/${config.QUEUE_MAX_RETRIES + 1}):`, error);
 

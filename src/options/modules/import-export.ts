@@ -1,5 +1,7 @@
 import { exportAllBookmarks, downloadExport, readImportFile, importBookmarks } from '../../lib/export';
 import { showStatusMessage, createElement } from '../../lib/dom';
+import { withButtonState } from '../../lib/form-helper';
+import { getErrorMessage } from '../../lib/errors';
 
 // Import/Export elements
 const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
@@ -13,24 +15,20 @@ let selectedFile: File | null = null;
 
 exportBtn.addEventListener('click', async () => {
   try {
-    exportBtn.disabled = true;
-    exportBtn.textContent = 'Exporting...';
+    await withButtonState(exportBtn, 'Exporting...', async () => {
+      const exportData = await exportAllBookmarks();
 
-    const exportData = await exportAllBookmarks();
+      if (exportData.bookmarkCount === 0) {
+        showStatusMessage(statusDiv, 'No bookmarks to export', 'error', 5000);
+        return;
+      }
 
-    if (exportData.bookmarkCount === 0) {
-      showStatusMessage(statusDiv, 'No bookmarks to export', 'error', 5000);
-      return;
-    }
-
-    downloadExport(exportData);
-    showStatusMessage(statusDiv, `Exported ${exportData.bookmarkCount} bookmark(s) successfully!`, 'success', 5000);
+      downloadExport(exportData);
+      showStatusMessage(statusDiv, `Exported ${exportData.bookmarkCount} bookmark(s) successfully!`, 'success', 5000);
+    });
   } catch (error) {
     console.error('Error exporting bookmarks:', error);
     showStatusMessage(statusDiv, 'Failed to export bookmarks', 'error', 5000);
-  } finally {
-    exportBtn.disabled = false;
-    exportBtn.textContent = 'Export All Bookmarks';
   }
 });
 
@@ -56,52 +54,48 @@ importBtn.addEventListener('click', async () => {
   if (!selectedFile) return;
 
   try {
-    importBtn.disabled = true;
-    importBtn.textContent = 'Importing...';
+    await withButtonState(importBtn, 'Importing...', async () => {
+      const exportData = await readImportFile(selectedFile);
+      const result = await importBookmarks(exportData, selectedFile.name);
 
-    const exportData = await readImportFile(selectedFile);
-    const result = await importBookmarks(exportData, selectedFile.name);
-
-    // Show result
-    let message = `Imported ${result.imported} bookmark(s)`;
-    if (result.skipped > 0) {
-      message += `, skipped ${result.skipped} duplicate(s)`;
-    }
-
-    // Build import result using DOM APIs (CSP-safe)
-    importStatus.textContent = ''; // Clear existing content
-    const resultDiv = createElement('div', {
-      className: `import-result ${result.success ? 'success' : 'warning'}`
-    });
-    resultDiv.appendChild(createElement('strong', { textContent: message }));
-
-    if (result.errors.length > 0) {
-      const errorList = createElement('ul', { className: 'import-errors' });
-      for (const err of result.errors) {
-        errorList.appendChild(createElement('li', { textContent: err }));
+      // Show result
+      let message = `Imported ${result.imported} bookmark(s)`;
+      if (result.skipped > 0) {
+        message += `, skipped ${result.skipped} duplicate(s)`;
       }
-      resultDiv.appendChild(errorList);
-    }
 
-    importStatus.appendChild(resultDiv);
-    importStatus.classList.remove('hidden');
+      // Build import result using DOM APIs (CSP-safe)
+      importStatus.textContent = ''; // Clear existing content
+      const resultDiv = createElement('div', {
+        className: `import-result ${result.success ? 'success' : 'warning'}`
+      });
+      resultDiv.appendChild(createElement('strong', { textContent: message }));
 
-    // Reset file input
-    importFile.value = '';
-    selectedFile = null;
-    importFileName.textContent = '';
+      if (result.errors.length > 0) {
+        const errorList = createElement('ul', { className: 'import-errors' });
+        for (const err of result.errors) {
+          errorList.appendChild(createElement('li', { textContent: err }));
+        }
+        resultDiv.appendChild(errorList);
+      }
+
+      importStatus.appendChild(resultDiv);
+      importStatus.classList.remove('hidden');
+
+      // Reset file input
+      importFile.value = '';
+      selectedFile = null;
+      importFileName.textContent = '';
+    });
   } catch (error) {
     console.error('Error importing bookmarks:', error);
     // Build error result using DOM APIs (CSP-safe)
     importStatus.textContent = '';
     const errorDiv = createElement('div', { className: 'import-result error' });
     errorDiv.appendChild(createElement('strong', { textContent: 'Import failed: ' }));
-    errorDiv.appendChild(document.createTextNode(error instanceof Error ? error.message : 'Unknown error'));
+    errorDiv.appendChild(document.createTextNode(getErrorMessage(error)));
     importStatus.appendChild(errorDiv);
     importStatus.classList.remove('hidden');
-  } finally {
-    importBtn.disabled = true;
-    importBtn.textContent = 'Import';
   }
 });
 

@@ -1,6 +1,9 @@
 import { validateUrls, createBulkImportJob } from '../../lib/bulk-import';
 import { showStatusMessage } from '../../lib/dom';
 import { db } from '../../db/schema';
+import { createPoller, type Poller } from '../../lib/polling-manager';
+import type { StartBulkImportResponse } from '../../lib/messages';
+import { getErrorMessage } from '../../lib/errors';
 
 // Web-only imports for direct bulk import processing
 import { processBulkFetch } from '../../background/fetcher';
@@ -16,8 +19,54 @@ const bulkImportStatus = document.getElementById('bulkImportStatus') as HTMLSpan
 const statusDiv = document.getElementById('status') as HTMLDivElement;
 
 let currentBulkImportJobId: string | null = null;
-let bulkImportPollingInterval: number | null = null;
 let validationTimeout: number | null = null;
+
+// Polling callback for bulk import progress
+async function checkBulkImportProgress() {
+  if (!currentBulkImportJobId) return;
+
+  // Get job status directly from database (works for both web and extension)
+  const job = await db.jobs.get(currentBulkImportJobId);
+
+  if (job) {
+    // Update progress bar
+    bulkImportProgressBar.style.width = `${job.progress}%`;
+
+    // Update status text
+    const successCount = job.metadata.successCount || 0;
+    const failureCount = job.metadata.failureCount || 0;
+    const totalUrls = job.metadata.totalUrls || 0;
+    bulkImportStatus.textContent = `Imported ${successCount} of ${totalUrls} URLs (${failureCount} failed)`;
+
+    // Check if completed
+    if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
+      bulkImportPoller.stop();
+
+      currentBulkImportJobId = null;
+      startBulkImportBtn.disabled = false;
+      cancelBulkImportBtn.style.display = 'none';
+
+      if (job.status === 'completed') {
+        showStatusMessage(statusDiv, `Bulk import completed! Imported ${successCount} URLs (${failureCount} failed)`, 'success', 5000);
+        bulkUrlsInput.value = '';
+        urlValidationFeedback.classList.remove('show');
+      } else if (job.status === 'failed') {
+        showStatusMessage(statusDiv, 'Bulk import failed: ' + (job.metadata.errorMessage || 'Unknown error'), 'error', 5000);
+      } else {
+        showStatusMessage(statusDiv, 'Bulk import cancelled', 'error', 5000);
+      }
+
+      // Trigger jobs list refresh (if available)
+      const event = new CustomEvent('refresh-jobs');
+      window.dispatchEvent(event);
+    }
+  }
+}
+
+const bulkImportPoller: Poller = createPoller(
+  () => checkBulkImportProgress(),
+  1000 // Poll every second
+);
 
 // Bulk import URL validation (debounced)
 bulkUrlsInput.addEventListener('input', () => {
@@ -97,82 +146,35 @@ startBulkImportBtn.addEventListener('click', async () => {
       const response = await chrome.runtime.sendMessage({
         type: 'START_BULK_IMPORT',
         urls: validation.validUrls,
-      });
+      }) as StartBulkImportResponse;
 
       if (!response.success) {
         throw new Error(response.error || 'Failed to start bulk import');
       }
 
-      jobId = response.jobId;
+      jobId = response.jobId!;
       currentBulkImportJobId = jobId;
     }
 
     // Start polling for progress (works for both web and extension)
-    bulkImportPollingInterval = window.setInterval(async () => {
-      if (!currentBulkImportJobId) return;
-
-      // Get job status directly from database (works for both web and extension)
-      const job = await db.jobs.get(currentBulkImportJobId);
-
-      if (job) {
-
-        // Update progress bar
-        bulkImportProgressBar.style.width = `${job.progress}%`;
-
-        // Update status text
-        const successCount = job.metadata.successCount || 0;
-        const failureCount = job.metadata.failureCount || 0;
-        const totalUrls = job.metadata.totalUrls || 0;
-        bulkImportStatus.textContent = `Imported ${successCount} of ${totalUrls} URLs (${failureCount} failed)`;
-
-        // Check if completed
-        if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
-          if (bulkImportPollingInterval) {
-            clearInterval(bulkImportPollingInterval);
-            bulkImportPollingInterval = null;
-          }
-
-          currentBulkImportJobId = null;
-          startBulkImportBtn.disabled = false;
-          cancelBulkImportBtn.style.display = 'none';
-
-          if (job.status === 'completed') {
-            showStatusMessage(statusDiv, `Bulk import completed! Imported ${successCount} URLs (${failureCount} failed)`, 'success', 5000);
-            bulkUrlsInput.value = '';
-            urlValidationFeedback.classList.remove('show');
-          } else if (job.status === 'failed') {
-            showStatusMessage(statusDiv, 'Bulk import failed: ' + (job.metadata.errorMessage || 'Unknown error'), 'error', 5000);
-          } else {
-            showStatusMessage(statusDiv, 'Bulk import cancelled', 'error', 5000);
-          }
-
-          // Trigger jobs list refresh (if available)
-          const event = new CustomEvent('refresh-jobs');
-          window.dispatchEvent(event);
-        }
-      }
-    }, 1000);
+    bulkImportPoller.start();
 
     showStatusMessage(statusDiv, `Started importing ${validation.validUrls.length} URLs`, 'success', 5000);
   } catch (error) {
     console.error('Error starting bulk import:', error);
-    showStatusMessage(statusDiv, 'Failed to start bulk import: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error', 5000);
+    showStatusMessage(statusDiv, 'Failed to start bulk import: ' + getErrorMessage(error), 'error', 5000);
     startBulkImportBtn.disabled = false;
     cancelBulkImportBtn.style.display = 'none';
     bulkImportProgress.classList.add('hidden');
 
-    if (bulkImportPollingInterval) {
-      clearInterval(bulkImportPollingInterval);
-      bulkImportPollingInterval = null;
-    }
+    bulkImportPoller.stop();
   }
 });
 
 // Cancel bulk import
 cancelBulkImportBtn.addEventListener('click', async () => {
-  if (currentBulkImportJobId && bulkImportPollingInterval) {
-    clearInterval(bulkImportPollingInterval);
-    bulkImportPollingInterval = null;
+  if (currentBulkImportJobId) {
+    bulkImportPoller.stop();
     currentBulkImportJobId = null;
     startBulkImportBtn.disabled = false;
     cancelBulkImportBtn.style.display = 'none';
@@ -181,9 +183,7 @@ cancelBulkImportBtn.addEventListener('click', async () => {
 });
 
 function stopBulkImportPolling() {
-  if (bulkImportPollingInterval) {
-    clearInterval(bulkImportPollingInterval);
-  }
+  bulkImportPoller.stop();
 }
 
 export function initBulkImportModule() {

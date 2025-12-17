@@ -7,6 +7,7 @@ import { fetchWithTimeout } from '../lib/browser-fetch';
 import { Readability } from '@mozilla/readability';
 import TurndownService from 'turndown';
 import type { ExtractedContent } from '../lib/extract';
+import { getErrorMessage } from '../lib/errors';
 
 console.log('Offscreen document loaded');
 
@@ -89,7 +90,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch(error => {
         sendResponse({
           success: false,
-          error: error instanceof Error ? error.message : String(error),
+          error: getErrorMessage(error),
         });
       });
 
@@ -105,7 +106,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } catch (error) {
       sendResponse({
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: getErrorMessage(error),
       });
     }
 

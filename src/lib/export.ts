@@ -1,6 +1,7 @@
-import { db, Bookmark, Markdown, QuestionAnswer, JobType, JobStatus } from '../db/schema';
+import { db, Bookmark, Markdown, QuestionAnswer, JobType, JobStatus, getBookmarkContent } from '../db/schema';
 import { createJob, updateJob, completeJob, failJob } from './jobs';
 import { encodeEmbedding, decodeEmbedding, isEncodedEmbedding } from './embedding-codec';
+import { getErrorMessage } from './errors';
 
 const EXPORT_VERSION = 2;
 
@@ -43,8 +44,7 @@ export async function exportSingleBookmark(bookmarkId: string): Promise<Bookmark
     throw new Error(`Bookmark not found: ${bookmarkId}`);
   }
 
-  const markdown = await db.markdown.where('bookmarkId').equals(bookmarkId).first();
-  const qaPairs = await db.questionsAnswers.where('bookmarkId').equals(bookmarkId).toArray();
+  const { markdown, qaPairs } = await getBookmarkContent(bookmarkId);
 
   const exportedBookmark = formatBookmarkForExport(bookmark, markdown, qaPairs);
 
@@ -62,8 +62,7 @@ export async function exportAllBookmarks(): Promise<BookmarkExport> {
   const exportedBookmarks: ExportedBookmark[] = [];
 
   for (const bookmark of bookmarks) {
-    const markdown = await db.markdown.where('bookmarkId').equals(bookmark.id).first();
-    const qaPairs = await db.questionsAnswers.where('bookmarkId').equals(bookmark.id).toArray();
+    const { markdown, qaPairs } = await getBookmarkContent(bookmark.id);
     exportedBookmarks.push(formatBookmarkForExport(bookmark, markdown, qaPairs));
   }
 
@@ -292,7 +291,7 @@ export async function importBookmarks(data: BookmarkExport, fileName?: string): 
           },
         });
       } catch (error) {
-        const errorMsg = `Failed to import "${exportedBookmark.title}": ${error instanceof Error ? error.message : 'Unknown error'}`;
+        const errorMsg = `Failed to import "${exportedBookmark.title}": ${getErrorMessage(error)}`;
         result.errors.push(errorMsg);
       }
     }
@@ -312,7 +311,7 @@ export async function importBookmarks(data: BookmarkExport, fileName?: string): 
 
     return result;
   } catch (error) {
-    await failJob(job.id, error instanceof Error ? error : String(error));
+    await failJob(job.id, getErrorMessage(error));
     throw error;
   }
 }

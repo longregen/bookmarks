@@ -4,6 +4,7 @@ import { browserFetch } from '../lib/browser-fetch';
 import { extractTitleFromHtml } from '../lib/bulk-import';
 import { startProcessingQueue } from './queue';
 import { config } from '../lib/config-registry';
+import { getErrorMessage } from '../lib/errors';
 
 export async function processBulkFetch(parentJobId: string, isResumption: boolean = false): Promise<void> {
   try {
@@ -31,7 +32,7 @@ export async function processBulkFetch(parentJobId: string, isResumption: boolea
 
     startProcessingQueue();
   } catch (error) {
-    await failJob(parentJobId, error instanceof Error ? error : String(error));
+    await failJob(parentJobId, getErrorMessage(error));
   }
 }
 
@@ -80,7 +81,7 @@ async function processSingleFetch(jobId: string, parentJobId: string): Promise<v
     await db.jobs.update(jobId, { bookmarkId });
     await incrementParentJobProgress(parentJobId, true);
   } catch (error) {
-    await failJob(jobId, error instanceof Error ? error : String(error));
+    await failJob(jobId, getErrorMessage(error));
     await incrementParentJobProgress(parentJobId, false);
   }
 }

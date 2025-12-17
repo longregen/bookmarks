@@ -1,5 +1,6 @@
 import { db, JobType, JobStatus } from '../db/schema';
 import { createJob, updateJob, completeJob } from './jobs';
+import { validateWebUrl } from './url-validator';
 
 export interface UrlValidation {
   original: string;
@@ -49,62 +50,16 @@ export function validateUrls(urlsText: string): ValidationResult {
   };
 }
 
-const BLOCKED_SCHEMES: Record<string, string> = {
-  'javascript:': 'JavaScript URLs are not allowed',
-  'data:': 'Data URLs are not allowed',
-  'vbscript:': 'VBScript URLs are not allowed',
-  'file:': 'File URLs are not allowed',
-};
-
 export function validateSingleUrl(url: string): UrlValidation {
   const original = url;
-  const trimmedLower = url.trim().toLowerCase();
+  const result = validateWebUrl(url);
 
-  for (const [scheme, error] of Object.entries(BLOCKED_SCHEMES)) {
-    if (trimmedLower.startsWith(scheme)) {
-      return { original, normalized: '', isValid: false, error };
-    }
-  }
-
-  let normalized = url;
-  if (!url.includes('://')) {
-    normalized = 'https://' + url;
-  }
-
-  try {
-    const urlObj = new URL(normalized);
-
-    if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
-      return {
-        original,
-        normalized: '',
-        isValid: false,
-        error: 'Only HTTP and HTTPS URLs are allowed',
-      };
-    }
-
-    if (!urlObj.host) {
-      return {
-        original,
-        normalized: '',
-        isValid: false,
-        error: 'Invalid URL: missing host',
-      };
-    }
-
-    return {
-      original,
-      normalized: urlObj.href,
-      isValid: true,
-    };
-  } catch (error) {
-    return {
-      original,
-      normalized: '',
-      isValid: false,
-      error: 'Invalid URL format',
-    };
-  }
+  return {
+    original,
+    normalized: result.normalizedUrl || '',
+    isValid: result.valid,
+    error: result.error,
+  };
 }
 
 export async function createBulkImportJob(urls: string[]): Promise<string> {

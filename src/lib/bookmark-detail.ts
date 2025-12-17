@@ -1,4 +1,4 @@
-import { db } from '../db/schema';
+import { db, getBookmarkContent } from '../db/schema';
 import { createElement } from './dom';
 import { formatDateByAge } from './date-format';
 import { exportSingleBookmark, downloadExport } from './export';
@@ -56,8 +56,7 @@ export class BookmarkDetailManager {
     const bookmark = await db.bookmarks.get(bookmarkId);
     if (!bookmark) return;
 
-    const markdown = await db.markdown.where('bookmarkId').equals(bookmarkId).first();
-    const qaPairs = await db.questionsAnswers.where('bookmarkId').equals(bookmarkId).toArray();
+    const { markdown, qaPairs } = await getBookmarkContent(bookmarkId);
 
     this.config.detailContent.innerHTML = '';
     this.config.detailContent.appendChild(

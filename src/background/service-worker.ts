@@ -8,6 +8,17 @@ import { resumeInterruptedJobs } from './job-resumption';
 import { setPlatformAdapter } from '../lib/platform';
 import { extensionAdapter } from '../lib/adapters/extension';
 import { getSettings } from '../lib/settings';
+import { getErrorMessage } from '../lib/errors';
+import type {
+  Message,
+  MessageHandler,
+  SaveBookmarkResponse,
+  StartBulkImportResponse,
+  GetJobStatusResponse,
+  TriggerSyncResponse,
+  SyncStatus,
+  UpdateSyncSettingsResponse,
+} from '../lib/messages';
 
 // Initialize platform adapter immediately (required for API calls)
 setPlatformAdapter(extensionAdapter);
@@ -108,22 +119,28 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 });
 
 // Dispatch table for simple async message handlers
-const asyncMessageHandlers: Record<string, (msg: any) => Promise<any>> = {
-  'SAVE_BOOKMARK': (msg) => handleSaveBookmark(msg.data),
-  'START_BULK_IMPORT': (msg) => handleBulkImport(msg.urls),
-  'GET_JOB_STATUS': (msg) => handleGetJobStatus(msg.jobId),
-  'TRIGGER_SYNC': () => import('../lib/webdav-sync').then(m => m.performSync(true)),
-  'GET_SYNC_STATUS': () => import('../lib/webdav-sync').then(m => m.getSyncStatus()),
-  'UPDATE_SYNC_SETTINGS': () => setupSyncAlarm().then(() => ({ success: true })),
-};
+const asyncMessageHandlers = {
+  'SAVE_BOOKMARK': (async (msg) => handleSaveBookmark(msg.data)) as MessageHandler<'SAVE_BOOKMARK'>,
+  'START_BULK_IMPORT': (async (msg) => handleBulkImport(msg.urls)) as MessageHandler<'START_BULK_IMPORT'>,
+  'GET_JOB_STATUS': (async (msg) => handleGetJobStatus(msg.jobId)) as MessageHandler<'GET_JOB_STATUS'>,
+  'TRIGGER_SYNC': (async () => import('../lib/webdav-sync').then(m => m.performSync(true))) as MessageHandler<'TRIGGER_SYNC'>,
+  'GET_SYNC_STATUS': (async () => import('../lib/webdav-sync').then(m => m.getSyncStatus())) as MessageHandler<'GET_SYNC_STATUS'>,
+  'UPDATE_SYNC_SETTINGS': (async () => {
+    await setupSyncAlarm();
+    return { success: true };
+  }) as MessageHandler<'UPDATE_SYNC_SETTINGS'>,
+} as const;
 
 // Handle messages from content scripts and popup
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
   // Check dispatch table for simple async handlers
   if (message.type in asyncMessageHandlers) {
-    asyncMessageHandlers[message.type](message)
-      .then(result => sendResponse(result))
-      .catch(error => sendResponse({ success: false, error: error.message }));
+    const handler = asyncMessageHandlers[message.type as keyof typeof asyncMessageHandlers];
+    // TypeScript can't narrow the union type automatically, so we use type assertion
+    // This is safe because we've matched the type key
+    (handler as any)(message)
+      .then((result: any) => sendResponse(result))
+      .catch((error: Error) => sendResponse({ success: false, error: error.message }));
     return true; // Keep message channel open for async response
   }
 
@@ -196,7 +213,7 @@ chrome.commands.onCommand.addListener((command) => {
   }
 });
 
-async function handleSaveBookmark(data: { url: string; title: string; html: string }) {
+async function handleSaveBookmark(data: { url: string; title: string; html: string }): Promise<SaveBookmarkResponse> {
   const startTime = Date.now();
   let jobId: string | undefined;
 
@@ -283,14 +300,14 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
 
     // Mark job as failed if it was created
     if (jobId) {
-      await failJob(jobId, error instanceof Error ? error : String(error));
+      await failJob(jobId, getErrorMessage(error));
     }
 
     throw error;
   }
 }
 
-async function handleBulkImport(urls: string[]) {
+async function handleBulkImport(urls: string[]): Promise<StartBulkImportResponse> {
   try {
     // Ensure offscreen document exists (Chrome only, tree-shaken from Firefox builds)
     if (__IS_CHROME__) {
@@ -316,7 +333,7 @@ async function handleBulkImport(urls: string[]) {
   }
 }
 
-async function handleGetJobStatus(jobId: string) {
+async function handleGetJobStatus(jobId: string): Promise<GetJobStatusResponse> {
   try {
     const job = await db.jobs.get(jobId);
 
