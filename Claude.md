@@ -34,3 +34,4 @@ Do not read or modify: `node_modules/`, `dist/`, `dist-*/`, `coverage/`
 4. **Leverage tree shaking** - Structure code for dead code elimination
 5. **Optimize queries** - Avoid N+1 patterns in database operations
 6. **Verify assumptions** - Research external APIs and browser behaviors
+7. **Ensure test coverage** - Add tests that cover the new code
