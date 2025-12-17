@@ -2,9 +2,10 @@
  * Chrome Extension E2E Test Adapter
  *
  * Uses Puppeteer to test the Chrome extension.
+ * Supports coverage collection for E2E tests.
  */
 
-import puppeteer, { Browser, Page } from 'puppeteer-core';
+import puppeteer, { Browser, Page, CoverageEntry } from 'puppeteer-core';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -20,6 +21,9 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Coverage collection flag - set via environment variable
+const COLLECT_COVERAGE = process.env.E2E_COVERAGE === 'true';
+
 export class ChromeAdapter implements TestAdapter {
   platformName = 'Chrome Extension';
   isExtension = true;
@@ -33,6 +37,10 @@ export class ChromeAdapter implements TestAdapter {
   private extensionPath: string;
   private browserPath: string;
   private apiKey: string;
+
+  // Coverage collection
+  private collectedCoverage: CoverageEntry[] = [];
+  private activePagesForCoverage: Set<Page> = new Set();
 
   constructor() {
     this.extensionPath = process.env.EXTENSION_PATH
@@ -107,7 +115,158 @@ export class ChromeAdapter implements TestAdapter {
 
   async newPage(): Promise<PageHandle> {
     const page = await this.browser!.newPage();
-    return new PuppeteerPageHandle(page);
+
+    // Start coverage collection for this page if enabled
+    if (COLLECT_COVERAGE) {
+      try {
+        await page.coverage.startJSCoverage({
+          resetOnNavigation: false,
+          includeRawScriptCoverage: true,
+        });
+        this.activePagesForCoverage.add(page);
+      } catch (error) {
+        console.warn('[Coverage] Failed to start coverage for page:', error);
+      }
+    }
+
+    return new PuppeteerPageHandle(page, this);
+  }
+
+  /**
+   * Called when a page is closed to collect its coverage
+   */
+  async collectPageCoverage(page: Page): Promise<void> {
+    if (!COLLECT_COVERAGE || !this.activePagesForCoverage.has(page)) {
+      return;
+    }
+
+    try {
+      const coverage = await page.coverage.stopJSCoverage();
+      // Filter to only include extension source files
+      const extensionCoverage = coverage.filter(entry => {
+        return entry.url.includes('chrome-extension://') ||
+               entry.url.includes('/src/');
+      });
+      this.collectedCoverage.push(...extensionCoverage);
+      this.activePagesForCoverage.delete(page);
+    } catch (error) {
+      console.warn('[Coverage] Failed to collect coverage from page:', error);
+    }
+  }
+
+  /**
+   * Start coverage collection (called before tests)
+   */
+  async startCoverage(): Promise<void> {
+    if (COLLECT_COVERAGE) {
+      console.log('[Coverage] E2E coverage collection enabled');
+      this.collectedCoverage = [];
+    }
+  }
+
+  /**
+   * Stop coverage collection (called after tests)
+   */
+  async stopCoverage(): Promise<void> {
+    if (!COLLECT_COVERAGE) return;
+
+    // Collect from any remaining active pages
+    for (const page of this.activePagesForCoverage) {
+      try {
+        const coverage = await page.coverage.stopJSCoverage();
+        const extensionCoverage = coverage.filter(entry => {
+          return entry.url.includes('chrome-extension://') ||
+                 entry.url.includes('/src/');
+        });
+        this.collectedCoverage.push(...extensionCoverage);
+      } catch {
+        // Page may already be closed
+      }
+    }
+    this.activePagesForCoverage.clear();
+
+    console.log(`[Coverage] Collected ${this.collectedCoverage.length} coverage entries`);
+  }
+
+  /**
+   * Write collected coverage to disk
+   */
+  async writeCoverage(): Promise<void> {
+    if (!COLLECT_COVERAGE || this.collectedCoverage.length === 0) {
+      return;
+    }
+
+    const coverageDir = path.resolve(__dirname, '../../coverage-e2e');
+    if (!fs.existsSync(coverageDir)) {
+      fs.mkdirSync(coverageDir, { recursive: true });
+    }
+
+    // Write raw V8 coverage data
+    const v8CoveragePath = path.join(coverageDir, 'v8-coverage.json');
+    fs.writeFileSync(v8CoveragePath, JSON.stringify(this.collectedCoverage, null, 2));
+    console.log(`[Coverage] Raw V8 coverage written to: ${v8CoveragePath}`);
+
+    // Convert to Istanbul format if possible
+    try {
+      await this.convertToIstanbul(coverageDir);
+    } catch (error) {
+      console.warn('[Coverage] Could not convert to Istanbul format:', error);
+    }
+  }
+
+  /**
+   * Convert V8 coverage to Istanbul format
+   */
+  private async convertToIstanbul(coverageDir: string): Promise<void> {
+    const { createRequire } = await import('module');
+    const require = createRequire(import.meta.url);
+
+    let libCoverage;
+    let v8ToIstanbul;
+
+    try {
+      libCoverage = require('istanbul-lib-coverage');
+      v8ToIstanbul = require('v8-to-istanbul');
+    } catch {
+      console.log('[Coverage] Istanbul packages not available for conversion');
+      return;
+    }
+
+    const coverageMap = libCoverage.createCoverageMap({});
+
+    for (const entry of this.collectedCoverage) {
+      if (!entry.text || !entry.url) continue;
+
+      try {
+        // Try to map back to source files
+        let filePath: string | null = null;
+
+        if (entry.url.includes('chrome-extension://')) {
+          // Extract path from extension URL
+          const urlPath = entry.url.replace(/chrome-extension:\/\/[^/]+/, '');
+          filePath = path.join(this.extensionPath, urlPath);
+        }
+
+        if (!filePath || !fs.existsSync(filePath)) {
+          continue;
+        }
+
+        const converter = v8ToIstanbul(filePath, 0, { source: entry.text });
+        await converter.load();
+        converter.applyCoverage(entry.functions || []);
+
+        const istanbulCoverage = converter.toIstanbul();
+        for (const coverage of Object.values(istanbulCoverage)) {
+          coverageMap.merge(libCoverage.createCoverageMap({ [(coverage as any).path]: coverage }));
+        }
+      } catch {
+        // Skip entries that can't be converted
+      }
+    }
+
+    const coveragePath = path.join(coverageDir, 'coverage-final.json');
+    fs.writeFileSync(coveragePath, JSON.stringify(coverageMap.toJSON(), null, 2));
+    console.log(`[Coverage] Istanbul coverage written to: ${coveragePath}`);
   }
 
   getPageUrl(pageName: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs'): string {
@@ -254,7 +413,10 @@ export class ChromeAdapter implements TestAdapter {
  * Puppeteer PageHandle implementation
  */
 class PuppeteerPageHandle implements PageHandle {
-  constructor(private page: Page) {}
+  constructor(
+    private page: Page,
+    private adapter: ChromeAdapter
+  ) {}
 
   async goto(url: string): Promise<void> {
     await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
@@ -294,6 +456,8 @@ class PuppeteerPageHandle implements PageHandle {
   }
 
   async close(): Promise<void> {
+    // Collect coverage before closing the page
+    await this.adapter.collectPageCoverage(this.page);
     await this.page.close();
   }
 }

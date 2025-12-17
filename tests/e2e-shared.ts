@@ -27,6 +27,10 @@ export interface TestAdapter {
   getPageUrl(page: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs'): string;
   getMockApiUrl(): string;
   getRealApiKey(): string;
+  // Coverage collection (optional - implement for platforms that support it)
+  startCoverage?(): Promise<void>;
+  stopCoverage?(): Promise<void>;
+  writeCoverage?(): Promise<void>;
 }
 
 export function generateMockEmbedding(): number[] {
