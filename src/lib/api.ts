@@ -79,7 +79,7 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
       { role: 'user', content: truncatedContent },
     ],
     response_format: { type: 'json_object' },
-    temperature: config.API_CHAT_TEMPERATURE,
+    ...(config.API_CHAT_USE_TEMPERATURE && { temperature: config.API_CHAT_TEMPERATURE }),
   }, settings);
 
   const content = data.choices.at(0)?.message.content;

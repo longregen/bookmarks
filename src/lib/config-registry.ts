@@ -33,7 +33,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Number of URLs to fetch concurrently in bulk import operations',
     category: CONFIG_CATEGORIES.FETCHER,
     min: 1,
-    max: 20,
+    max: 50,
   },
   {
     key: 'FETCH_TIMEOUT_MS',
@@ -42,7 +42,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Timeout for fetching a single URL (in milliseconds)',
     category: CONFIG_CATEGORIES.FETCHER,
     min: 5000,
-    max: 120000,
+    max: 300000,
   },
   {
     key: 'FETCH_MAX_HTML_SIZE',
@@ -51,7 +51,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Maximum HTML content size allowed (in bytes)',
     category: CONFIG_CATEGORIES.FETCHER,
     min: 1024 * 1024,
-    max: 50 * 1024 * 1024,
+    max: 100 * 1024 * 1024,
   },
   {
     key: 'FETCH_OFFSCREEN_BUFFER_MS',
@@ -60,7 +60,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Additional timeout buffer for Chrome offscreen document message passing (in milliseconds)',
     category: CONFIG_CATEGORIES.FETCHER,
     min: 1000,
-    max: 30000,
+    max: 60000,
   },
   {
     key: 'PAGE_SETTLE_TIME_MS',
@@ -69,7 +69,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Time to wait for DOM to stop changing before extracting HTML (in milliseconds)',
     category: CONFIG_CATEGORIES.FETCHER,
     min: 500,
-    max: 10000,
+    max: 30000,
   },
   {
     key: 'DEFAULT_API_BASE_URL',
@@ -85,7 +85,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Maximum characters to send to the chat API for Q&A generation',
     category: CONFIG_CATEGORIES.API,
     min: 1000,
-    max: 100000,
+    max: 500000,
   },
   {
     key: 'API_CHAT_TEMPERATURE',
@@ -97,13 +97,20 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     max: 2,
   },
   {
+    key: 'API_CHAT_USE_TEMPERATURE',
+    defaultValue: true,
+    type: 'boolean',
+    description: 'Include temperature parameter in chat API requests (disable for APIs that reject it)',
+    category: CONFIG_CATEGORIES.API,
+  },
+  {
     key: 'SEARCH_HISTORY_LIMIT',
     defaultValue: 50,
     type: 'number',
     description: 'Maximum number of search history entries to keep',
     category: CONFIG_CATEGORIES.SEARCH,
     min: 10,
-    max: 500,
+    max: 2000,
   },
   {
     key: 'SEARCH_AUTOCOMPLETE_LIMIT',
@@ -112,7 +119,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Maximum number of autocomplete suggestions to display',
     category: CONFIG_CATEGORIES.SEARCH,
     min: 3,
-    max: 20,
+    max: 50,
   },
   {
     key: 'SEARCH_TOP_K_RESULTS',
@@ -121,7 +128,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Number of top results to retrieve from similarity search',
     category: CONFIG_CATEGORIES.SEARCH,
     min: 10,
-    max: 1000,
+    max: 5000,
   },
   {
     key: 'QUEUE_PROCESSING_TIMEOUT_MS',
@@ -130,7 +137,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Maximum time a bookmark can remain in processing state before being reset (in milliseconds)',
     category: CONFIG_CATEGORIES.QUEUE,
     min: 30000,
-    max: 300000,
+    max: 600000,
   },
   {
     key: 'QUEUE_STATE_TIMEOUT_MS',
@@ -139,7 +146,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Timeout for the queue processor state manager (in milliseconds)',
     category: CONFIG_CATEGORIES.QUEUE,
     min: 60000,
-    max: 600000,
+    max: 1800000,
   },
   {
     key: 'QUEUE_MAX_RETRIES',
@@ -148,7 +155,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Maximum number of retry attempts for failed bookmarks',
     category: CONFIG_CATEGORIES.QUEUE,
     min: 1,
-    max: 10,
+    max: 20,
   },
   {
     key: 'QUEUE_RETRY_BASE_DELAY_MS',
@@ -157,7 +164,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Base delay for exponential backoff retry logic (in milliseconds)',
     category: CONFIG_CATEGORIES.QUEUE,
     min: 500,
-    max: 10000,
+    max: 30000,
   },
   {
     key: 'QUEUE_RETRY_MAX_DELAY_MS',
@@ -166,7 +173,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Maximum delay for exponential backoff retry logic (in milliseconds)',
     category: CONFIG_CATEGORIES.QUEUE,
     min: 1000,
-    max: 60000,
+    max: 300000,
   },
   {
     key: 'PROCESSOR_QA_GENERATION_PROGRESS',
@@ -193,7 +200,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Timeout for the WebDAV sync state manager (in milliseconds)',
     category: CONFIG_CATEGORIES.WEBDAV,
     min: 30000,
-    max: 600000,
+    max: 1800000,
   },
   {
     key: 'WEBDAV_SYNC_DEBOUNCE_MS',
@@ -202,7 +209,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Minimum time between sync attempts (in milliseconds)',
     category: CONFIG_CATEGORIES.WEBDAV,
     min: 1000,
-    max: 60000,
+    max: 300000,
   },
   {
     key: 'STUMBLE_COUNT',
@@ -211,7 +218,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Number of random bookmarks to display in stumble mode',
     category: CONFIG_CATEGORIES.STUMBLE,
     min: 1,
-    max: 50,
+    max: 100,
   },
   {
     key: 'DATE_RELATIVE_TIME_THRESHOLD_DAYS',
@@ -220,7 +227,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Number of days to show relative time (e.g., "2 days ago")',
     category: CONFIG_CATEGORIES.DATE,
     min: 1,
-    max: 60,
+    max: 365,
   },
   {
     key: 'DATE_FULL_DATE_THRESHOLD_DAYS',
@@ -229,7 +236,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Number of days to show month/day format vs full date',
     category: CONFIG_CATEGORIES.DATE,
     min: 30,
-    max: 730,
+    max: 3650,
   },
   {
     key: 'HEALTH_REFRESH_INTERVAL_MS',
@@ -238,7 +245,7 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     description: 'Auto-refresh interval for health status updates (in milliseconds)',
     category: CONFIG_CATEGORIES.HEALTH,
     min: 1000,
-    max: 60000,
+    max: 300000,
   },
   {
     key: 'SIMILARITY_THRESHOLD_EXCELLENT',
@@ -425,6 +432,7 @@ export interface ConfigValues {
   DEFAULT_API_BASE_URL: string;
   API_CONTENT_MAX_CHARS: number;
   API_CHAT_TEMPERATURE: number;
+  API_CHAT_USE_TEMPERATURE: boolean;
   SEARCH_HISTORY_LIMIT: number;
   SEARCH_AUTOCOMPLETE_LIMIT: number;
   SEARCH_TOP_K_RESULTS: number;
