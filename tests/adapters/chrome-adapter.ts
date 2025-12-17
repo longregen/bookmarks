@@ -409,6 +409,10 @@ class PuppeteerPageHandle implements PageHandle {
     await this.page.waitForFunction(fn, { timeout });
   }
 
+  async screenshot(path: string, options?: { fullPage?: boolean }): Promise<void> {
+    await this.page.screenshot({ path, fullPage: options?.fullPage });
+  }
+
   async close(): Promise<void> {
     await this.adapter.collectPageCoverage(this.page);
     await this.page.close();

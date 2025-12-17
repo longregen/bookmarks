@@ -10,6 +10,7 @@ export interface PageHandle {
   $eval<T>(selector: string, fn: string): Promise<T>;
   evaluate<T>(fn: string): Promise<T>;
   waitForFunction(fn: string, timeout?: number): Promise<void>;
+  screenshot(path: string, options?: { fullPage?: boolean }): Promise<void>;
   close(): Promise<void>;
 }
 
