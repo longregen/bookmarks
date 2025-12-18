@@ -630,7 +630,7 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
         new Promise((resolve) => {
           chrome.runtime.sendMessage(
             {
-              type: 'SAVE_BOOKMARK',
+              type: 'bookmark:save_from_page',
               data: {
                 url: '${testUrl}',
                 title: '${testTitle}',
@@ -700,7 +700,7 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
 
       await fetchPage.close();
 
-      // Now send the SAVE_BOOKMARK message from extension context (popup page)
+      // Now send the bookmark:save_from_page message from extension context (popup page)
       // This mirrors the popup's actual flow: extract from tab -> send to service worker
       const savePage = await adapter.newPage();
       await savePage.goto(adapter.getPageUrl('popup'));
@@ -710,7 +710,7 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
         new Promise((resolve) => {
           chrome.runtime.sendMessage(
             {
-              type: 'SAVE_BOOKMARK',
+              type: 'bookmark:save_from_page',
               data: {
                 url: ${JSON.stringify(pageData.url)},
                 title: ${JSON.stringify(pageData.title)},

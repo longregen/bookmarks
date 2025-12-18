@@ -131,7 +131,7 @@ async function testAddingBookmark(adapter: ChromeAdapter): Promise<void> {
   await page.evaluate(`
     chrome.runtime.sendMessage(
       {
-        type: 'SAVE_BOOKMARK',
+        type: 'bookmark:save_from_page',
         data: {
           url: '${testUrl}',
           title: '${testTitle}',
@@ -292,7 +292,7 @@ async function testMarkdownStyling(adapter: ChromeAdapter): Promise<void> {
   await savePage.evaluate(`
     chrome.runtime.sendMessage(
       {
-        type: 'SAVE_BOOKMARK',
+        type: 'bookmark:save_from_page',
         data: {
           url: 'https://example.com/markdown-test',
           title: 'Markdown Test Article',

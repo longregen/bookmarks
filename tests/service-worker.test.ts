@@ -427,10 +427,10 @@ describe('Service Worker Core Functionality', () => {
   describe('Message routing patterns', () => {
     it('should identify message types correctly', () => {
       const messages = [
-        { type: 'SAVE_BOOKMARK', data: {} },
-        { type: 'START_BULK_IMPORT', urls: [] },
-        { type: 'GET_CURRENT_TAB_INFO' },
-        { type: 'START_PROCESSING' },
+        { type: 'bookmark:save_from_page', data: {} },
+        { type: 'import:create_from_url_list', urls: [] },
+        { type: 'query:current_tab_info' },
+        { type: 'bookmark:retry' },
       ];
 
       messages.forEach(msg => {
