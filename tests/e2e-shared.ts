@@ -307,7 +307,7 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
 
   // Test bulk import with mock pages (requires tab renderer - extension only)
   if (options.skipBulkImportTest) {
-    console.log('  (Skipping bulk import test for this platform)');
+    console.log('  (Skipping bulk import test - localhost not accessible in this environment)');
   } else {
     await runner.runTest('Bulk import processes 3 iconic documents with Q&A generation', async () => {
     const mockUrls = adapter.getMockPageUrls();
@@ -415,7 +415,7 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
   }
 
   if (options.skipCorsFetchTest) {
-    console.log('  (Skipping CORS/fetch test for this platform)');
+    console.log('  (Skipping CORS/fetch test - localhost not accessible in this environment)');
   } else {
     await runner.runTest('CORS/Fetch - Bulk import fetches local mock page', async () => {
       // Use local mock server URL instead of external URL to avoid network flakiness
