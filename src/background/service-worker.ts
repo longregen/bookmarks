@@ -81,42 +81,42 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 });
 
 chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
-  if (message.type === 'SAVE_BOOKMARK') {
+  if (message.type === 'bookmark:save_from_page') {
     handleSaveBookmark(message.data)
       .then(sendResponse)
       .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
     return true;
   }
 
-  if (message.type === 'START_BULK_IMPORT') {
+  if (message.type === 'import:create_from_url_list') {
     handleBulkImport(message.urls)
       .then(sendResponse)
       .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
     return true;
   }
 
-  if (message.type === 'TRIGGER_SYNC') {
+  if (message.type === 'sync:trigger') {
     performSync(true)
       .then(sendResponse)
       .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
     return true;
   }
 
-  if (message.type === 'GET_SYNC_STATUS') {
+  if (message.type === 'query:sync_status') {
     getSyncStatus()
       .then(sendResponse)
       .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
     return true;
   }
 
-  if (message.type === 'UPDATE_SYNC_SETTINGS') {
+  if (message.type === 'sync:update_settings') {
     setupSyncAlarm()
       .then(() => sendResponse({ success: true }))
       .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
     return true;
   }
 
-  if (message.type === 'GET_CURRENT_TAB_INFO') {
+  if (message.type === 'query:current_tab_info') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tab = tabs.at(0);
       if (tab === undefined) {
@@ -137,7 +137,7 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
     return true;
   }
 
-  if (message.type === 'START_PROCESSING') {
+  if (message.type === 'bookmark:retry') {
     void startProcessingQueue();
     sendResponse({ success: true });
     return true;
@@ -146,13 +146,12 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
   // IMPORTANT: Don't return false for offscreen document messages.
   // These are handled by the offscreen document. Returning false closes the
   // message port before the offscreen document can respond.
-  // OFFSCREEN_READY is sent by the offscreen document when it loads - we just ignore it.
-  if (message.type === 'EXTRACT_CONTENT' || message.type === 'FETCH_URL' || message.type === 'OFFSCREEN_PING') {
+  if (message.type === 'extract:markdown_from_html' || message.type === 'offscreen:ping') {
     return;  // Return undefined to keep port open for offscreen document
   }
 
-  if (message.type === 'OFFSCREEN_READY') {
-    // Offscreen document is signaling it's ready - just acknowledge
+  // offscreen:ready is sent by the offscreen document when it loads - just acknowledge
+  if (message.type === 'offscreen:ready') {
     return;
   }
 
@@ -174,7 +173,7 @@ chrome.commands.onCommand.addListener((command) => {
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
           func: () => {
-            void chrome.runtime.sendMessage({ type: 'CAPTURE_PAGE' });
+            void chrome.runtime.sendMessage({ type: 'user_request:capture_current_tab' });
           }
         });
       } catch (error) {

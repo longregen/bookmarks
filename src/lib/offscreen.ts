@@ -24,7 +24,7 @@ async function pingOffscreen(timeoutMs: number = PING_TIMEOUT_MS): Promise<boole
     }, timeoutMs);
 
     chrome.runtime.sendMessage(
-      { type: 'OFFSCREEN_PING' },
+      { type: 'offscreen:ping' },
       (response: OffscreenReadyResponse | undefined) => {
         clearTimeout(timeoutId);
         if (chrome.runtime.lastError) {

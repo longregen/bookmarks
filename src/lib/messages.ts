@@ -1,21 +1,49 @@
 import type { EventData } from './events';
 
-export type Message =
-  | { type: 'SAVE_BOOKMARK'; data: { url: string; title: string; html: string } }
-  | { type: 'CAPTURE_PAGE' }
-  | { type: 'GET_PAGE_HTML' }
-  | { type: 'START_BULK_IMPORT'; urls: string[] }
-  | { type: 'GET_CURRENT_TAB_INFO' }
-  | { type: 'START_PROCESSING' }
-  | { type: 'TRIGGER_SYNC' }
-  | { type: 'GET_SYNC_STATUS' }
-  | { type: 'UPDATE_SYNC_SETTINGS' }
-  // Offscreen document operations (Chrome only)
-  | { type: 'FETCH_URL'; url: string; timeoutMs?: number }
-  | { type: 'EXTRACT_CONTENT'; html: string; url: string }
-  | { type: 'OFFSCREEN_READY' }
-  | { type: 'OFFSCREEN_PING' }
-  | { type: 'EVENT_BROADCAST'; event: EventData };
+// Retry payload with trigger information
+export interface BookmarkRetryPayload {
+  bookmarkId?: string;           // specific bookmark, or undefined for all failed
+  trigger:
+    | 'user_manual'              // clicked retry button in UI
+    | 'auto_backoff'             // automatic retry after delay
+    | 'settings_changed'         // API settings updated
+    | 'queue_restart';           // general queue restart
+  previousError?: string;
+  attemptNumber?: number;
+}
+
+// Commands - requests for action
+export type Command =
+  // User-initiated
+  | { type: 'user_request:capture_current_tab' }
+
+  // Bookmark operations
+  | { type: 'bookmark:save_from_page'; data: { url: string; title: string; html: string } }
+  | { type: 'bookmark:retry'; data: BookmarkRetryPayload }
+
+  // Import operations
+  | { type: 'import:create_from_url_list'; urls: string[] }
+
+  // Browser operations (internal)
+  | { type: 'extract:markdown_from_html'; html: string; url: string }
+
+  // Sync operations
+  | { type: 'sync:trigger' }
+  | { type: 'sync:update_settings' }
+
+  // Queries
+  | { type: 'query:current_tab_info' }
+  | { type: 'query:sync_status' }
+  | { type: 'query:current_page_dom' }
+
+  // Offscreen document lifecycle (internal)
+  | { type: 'offscreen:ready' }
+  | { type: 'offscreen:ping' }
+
+  // Event broadcasting transport
+  | { type: 'event:broadcast'; event: EventData };
+
+export type Message = Command;
 
 export interface SaveBookmarkResponse {
   success: boolean;
@@ -98,20 +126,19 @@ export type MessageType = Message['type'];
 export type MessageOfType<T extends MessageType> = Extract<Message, { type: T }>;
 
 export type MessageResponse<T extends MessageType> =
-  T extends 'SAVE_BOOKMARK' ? SaveBookmarkResponse
-  : T extends 'START_BULK_IMPORT' ? StartBulkImportResponse
-  : T extends 'GET_CURRENT_TAB_INFO' ? TabInfo
-  : T extends 'START_PROCESSING' ? StartProcessingResponse
-  : T extends 'TRIGGER_SYNC' ? TriggerSyncResponse
-  : T extends 'GET_SYNC_STATUS' ? SyncStatus
-  : T extends 'UPDATE_SYNC_SETTINGS' ? UpdateSyncSettingsResponse
-  : T extends 'FETCH_URL' ? FetchUrlResponse
-  : T extends 'EXTRACT_CONTENT' ? ExtractContentResponse
-  : T extends 'CAPTURE_PAGE' ? CapturePageResponse
-  : T extends 'GET_PAGE_HTML' ? GetPageHtmlResponse
-  : T extends 'OFFSCREEN_READY' ? undefined
-  : T extends 'OFFSCREEN_PING' ? OffscreenReadyResponse
-  : T extends 'EVENT_BROADCAST' ? undefined
+  T extends 'bookmark:save_from_page' ? SaveBookmarkResponse
+  : T extends 'import:create_from_url_list' ? StartBulkImportResponse
+  : T extends 'query:current_tab_info' ? TabInfo
+  : T extends 'bookmark:retry' ? StartProcessingResponse
+  : T extends 'sync:trigger' ? TriggerSyncResponse
+  : T extends 'query:sync_status' ? SyncStatus
+  : T extends 'sync:update_settings' ? UpdateSyncSettingsResponse
+  : T extends 'extract:markdown_from_html' ? ExtractContentResponse
+  : T extends 'user_request:capture_current_tab' ? CapturePageResponse
+  : T extends 'query:current_page_dom' ? GetPageHtmlResponse
+  : T extends 'offscreen:ready' ? undefined
+  : T extends 'offscreen:ping' ? OffscreenReadyResponse
+  : T extends 'event:broadcast' ? undefined
   : never;
 
 export type MessageHandler<T extends MessageType> = (
