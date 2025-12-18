@@ -29,6 +29,24 @@ export async function fetchWithTimeout(url: string, timeoutMs: number = config.F
   }
 }
 
+function isLocalhostUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === 'localhost' ||
+           parsed.hostname === '127.0.0.1' ||
+           parsed.hostname === '::1' ||
+           parsed.hostname.endsWith('.localhost');
+  } catch {
+    return false;
+  }
+}
+
 export async function browserFetch(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
+  // Chrome extensions cannot reliably create tabs for localhost URLs
+  // Use fetch() API instead for localhost, which works from service worker context
+  if (isLocalhostUrl(url)) {
+    return fetchWithTimeout(url, timeoutMs);
+  }
+
   return renderPage(url, timeoutMs);
 }
