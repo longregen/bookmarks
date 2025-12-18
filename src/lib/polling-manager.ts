@@ -1,7 +1,6 @@
 export interface Poller {
   start(): void;
   stop(): void;
-  isRunning(): boolean;
 }
 
 export interface PollerOptions {
@@ -47,11 +46,8 @@ export function createPoller(
     }
   };
 
-  const isRunning = (): boolean => intervalId !== null;
-
   return {
     start,
     stop,
-    isRunning,
   };
 }

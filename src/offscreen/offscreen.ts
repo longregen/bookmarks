@@ -59,7 +59,7 @@ function extractMarkdownInOffscreen(html: string, url: string): ExtractedContent
   };
 }
 
-chrome.runtime.onMessage.addListener((message: { type: string; url?: string; timeoutMs?: number; html?: string }, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: { type: string; url?: string; timeoutMs?: number; html?: string }, _sender, sendResponse) => {
   if (message.type === 'FETCH_URL') {
     const { url, timeoutMs } = message;
 
