@@ -167,7 +167,7 @@ async function executeExtractionViaMessage(tabId: number, settleTimeMs: number):
   // Wait for page to settle before extracting
   await sleep(settleTimeMs);
 
-  const response: GetPageHtmlResponse | undefined = await chrome.tabs.sendMessage(tabId, { type: 'GET_PAGE_HTML' });
+  const response: GetPageHtmlResponse | undefined = await chrome.tabs.sendMessage(tabId, { type: 'query:current_page_dom' });
 
   if (response === undefined || !response.success || response.html === undefined || response.html === '') {
     throw new Error(response?.error ?? 'Failed to extract HTML from page via message');

@@ -442,7 +442,7 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
           const status = document.getElementById('bulkImportStatus');
           if (status && status.textContent) {
             const text = status.textContent;
-            const match = text.match(/Imported (\\d+) of (\\d+)/);
+            const match = text.match(/Completed (\\d+) of (\\d+)/);
             if (match && match[1] === match[2] && parseInt(match[1]) > 0) {
               return true;
             }
