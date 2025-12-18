@@ -209,16 +209,10 @@ const removeEventListener = addBookmarkEventListener((event) => {
   }
 });
 
-const fallbackInterval = setInterval(() => {
-  void loadTags();
-  void loadBookmarks();
-}, 30000);
-
 let healthCleanup: (() => void) | null = null;
 
 window.addEventListener('beforeunload', () => {
   removeEventListener();
-  clearInterval(fallbackInterval);
   healthCleanup?.();
 });
 

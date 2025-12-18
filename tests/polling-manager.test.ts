@@ -11,41 +11,16 @@ describe('Polling Manager', () => {
   });
 
   describe('createPoller', () => {
-    it('should create a poller with start/stop/isRunning methods', () => {
+    it('should create a poller with start/stop methods', () => {
       const callback = vi.fn();
       const poller = createPoller(callback, 1000);
 
       expect(poller).toHaveProperty('start');
       expect(poller).toHaveProperty('stop');
-      expect(poller).toHaveProperty('isRunning');
       expect(typeof poller.start).toBe('function');
       expect(typeof poller.stop).toBe('function');
-      expect(typeof poller.isRunning).toBe('function');
     });
 
-    it('should not be running initially', () => {
-      const callback = vi.fn();
-      const poller = createPoller(callback, 1000);
-
-      expect(poller.isRunning()).toBe(false);
-    });
-
-    it('should be running after start', () => {
-      const callback = vi.fn();
-      const poller = createPoller(callback, 1000);
-
-      poller.start();
-      expect(poller.isRunning()).toBe(true);
-    });
-
-    it('should not be running after stop', () => {
-      const callback = vi.fn();
-      const poller = createPoller(callback, 1000);
-
-      poller.start();
-      poller.stop();
-      expect(poller.isRunning()).toBe(false);
-    });
 
     it('should call callback at specified interval', () => {
       const callback = vi.fn();
@@ -151,7 +126,6 @@ describe('Polling Manager', () => {
       vi.advanceTimersByTime(500);
 
       poller.start();
-      expect(poller.isRunning()).toBe(true);
 
       vi.advanceTimersByTime(500);
       expect(callback).not.toHaveBeenCalled();
@@ -170,8 +144,6 @@ describe('Polling Manager', () => {
       poller.stop();
       poller.stop();
       poller.stop();
-
-      expect(poller.isRunning()).toBe(false);
     });
 
     it('should work with very short intervals', () => {
