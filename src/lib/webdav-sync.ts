@@ -1,7 +1,7 @@
 import { getSettings, saveSetting, type ApiSettings } from './settings';
 import { exportAllBookmarks, importBookmarks, type BookmarkExport } from './export';
 import { db } from '../db/schema';
-import { broadcastEvent } from './events';
+import { events } from './events';
 import { config } from './config-registry';
 import { validateWebDAVUrl } from './url-validator';
 import { getErrorMessage } from './errors';
@@ -180,11 +180,11 @@ async function getLocalLastUpdate(): Promise<Date | null> {
   return bookmarks?.updatedAt ?? null;
 }
 
-async function completeSyncSuccess(action: SyncResult['action'], message: string, count?: number): Promise<SyncResult> {
+async function completeSyncSuccess(action: 'uploaded' | 'downloaded' | 'no-change', message: string, count?: number): Promise<SyncResult> {
   const timestamp = new Date().toISOString();
   await saveSetting('webdavLastSyncTime', timestamp);
   await saveSetting('webdavLastSyncError', '');
-  await broadcastEvent('SYNC_STATUS_UPDATED', { isSyncing: false, lastSyncTime: timestamp, lastSyncError: null });
+  await events.sync.completed(action, count);
   return { success: true, action, message, timestamp, bookmarkCount: count };
 }
 
@@ -218,7 +218,7 @@ export async function performSync(force = false): Promise<SyncResult> {
 
   isSyncing = true;
 
-  await broadcastEvent('SYNC_STATUS_UPDATED', { isSyncing: true });
+  await events.sync.started(force);
 
   try {
     const settings = await getSettings();
@@ -269,10 +269,7 @@ export async function performSync(force = false): Promise<SyncResult> {
     const errorMessage = getErrorMessage(error);
     await saveSetting('webdavLastSyncError', errorMessage);
 
-    await broadcastEvent('SYNC_STATUS_UPDATED', {
-      isSyncing: false,
-      lastSyncError: errorMessage
-    });
+    await events.sync.failed(errorMessage);
 
     return {
       success: false,

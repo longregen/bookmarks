@@ -1,4 +1,3 @@
-import { fetchWithTimeout } from '../lib/browser-fetch';
 import { Readability } from '@mozilla/readability';
 import TurndownService from 'turndown';
 import type { ExtractedContent } from '../lib/extract';
@@ -8,7 +7,7 @@ import type { OffscreenReadyResponse } from '../lib/messages';
 console.log('[Offscreen] Document loaded');
 
 // Signal that the offscreen document is ready
-chrome.runtime.sendMessage({ type: 'OFFSCREEN_READY' }).catch(() => {
+chrome.runtime.sendMessage({ type: 'offscreen:ready' }).catch(() => {
   // Ignore errors - service worker may not be listening yet
 });
 
@@ -65,36 +64,14 @@ function extractMarkdownInOffscreen(html: string, url: string): ExtractedContent
   };
 }
 
-chrome.runtime.onMessage.addListener((message: { type: string; url?: string; timeoutMs?: number; html?: string }, _sender, sendResponse) => {
-  if (message.type === 'OFFSCREEN_PING') {
+chrome.runtime.onMessage.addListener((message: { type: string; html?: string; url?: string }, _sender, sendResponse) => {
+  if (message.type === 'offscreen:ping') {
     const response: OffscreenReadyResponse = { ready: true };
     sendResponse(response);
     return true;
   }
 
-  if (message.type === 'FETCH_URL') {
-    const { url, timeoutMs } = message;
-
-    if (url === undefined || url === '') {
-      sendResponse({ success: false, error: 'URL is required' });
-      return true;
-    }
-
-    fetchWithTimeout(url, timeoutMs ?? 30000)
-      .then(html => {
-        sendResponse({ success: true, html });
-      })
-      .catch((error: unknown) => {
-        sendResponse({
-          success: false,
-          error: getErrorMessage(error),
-        });
-      });
-
-    return true;
-  }
-
-  if (message.type === 'EXTRACT_CONTENT') {
+  if (message.type === 'extract:markdown_from_html') {
     const { html, url } = message;
 
     if (html === undefined || html === '' || url === undefined || url === '') {

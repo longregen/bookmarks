@@ -1,6 +1,11 @@
 import { config } from './config-registry';
 import type { GetPageHtmlResponse } from './messages';
 
+export interface CapturedPage {
+  html: string;
+  title: string;
+}
+
 const KEEPALIVE_ALARM_NAME = 'tab-renderer-keepalive';
 
 async function startKeepalive(): Promise<void> {
@@ -16,7 +21,7 @@ async function sleep(ms: number): Promise<void> {
   return new Promise(resolve => { setTimeout(resolve, ms); });
 }
 
-export async function renderPage(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
+export async function renderPage(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<CapturedPage> {
   let tabId: number | undefined;
 
   await startKeepalive();
@@ -37,13 +42,13 @@ export async function renderPage(url: string, timeoutMs: number = config.FETCH_T
 
     const settleTimeMs = config.PAGE_SETTLE_TIME_MS || 2000;
     const maxMultiplier = config.PAGE_SETTLE_MAX_MULTIPLIER || 3;
-    const html = await executeExtraction(tabId, settleTimeMs, maxMultiplier);
+    const { html, title } = await executeExtraction(tabId, settleTimeMs, maxMultiplier);
 
     if (html.length > config.FETCH_MAX_HTML_SIZE) {
       throw new Error(`HTML content too large: ${(html.length / 1024 / 1024).toFixed(2)} MB`);
     }
 
-    return html;
+    return { html, title };
   } finally {
     await stopKeepalive();
 
@@ -96,7 +101,7 @@ async function waitForTabLoad(tabId: number, timeoutMs: number): Promise<void> {
   });
 }
 
-async function executeExtraction(tabId: number, settleTimeMs: number, maxMultiplier: number): Promise<string> {
+async function executeExtraction(tabId: number, settleTimeMs: number, maxMultiplier: number): Promise<CapturedPage> {
   // Firefox doesn't allow chrome.scripting.executeScript() on programmatically created tabs
   // Use message passing to content script instead
   if (__IS_FIREFOX__) {
@@ -105,14 +110,17 @@ async function executeExtraction(tabId: number, settleTimeMs: number, maxMultipl
 
   const results = await chrome.scripting.executeScript({
     target: { tabId },
-    func: (settleMs: number, multiplier: number) => new Promise<string>((resolve) => {
+    func: (settleMs: number, multiplier: number) => new Promise<{ html: string; title: string }>((resolve) => {
         let settleTimeout: ReturnType<typeof setTimeout>;
         const maxWaitMs = settleMs * multiplier;
 
         // Hard timeout to prevent hanging on pages with continuous DOM mutations
         const maxTimeout = setTimeout(() => {
           observer.disconnect();
-          resolve(document.documentElement.outerHTML);
+          resolve({
+            html: document.documentElement.outerHTML,
+            title: document.title
+          });
         }, maxWaitMs);
 
         const observer = new MutationObserver(() => {
@@ -120,7 +128,10 @@ async function executeExtraction(tabId: number, settleTimeMs: number, maxMultipl
           settleTimeout = setTimeout(() => {
             clearTimeout(maxTimeout);
             observer.disconnect();
-            resolve(document.documentElement.outerHTML);
+            resolve({
+              html: document.documentElement.outerHTML,
+              title: document.title
+            });
           }, settleMs);
         });
 
@@ -135,29 +146,36 @@ async function executeExtraction(tabId: number, settleTimeMs: number, maxMultipl
         settleTimeout = setTimeout(() => {
           clearTimeout(maxTimeout);
           observer.disconnect();
-          resolve(document.documentElement.outerHTML);
+          resolve({
+            html: document.documentElement.outerHTML,
+            title: document.title
+          });
         }, settleMs);
       }),
     args: [settleTimeMs, maxMultiplier],
   });
 
   const result = results[0]?.result;
-  if (results.length === 0 || result === undefined || result === '') {
+  if (results.length === 0 || result === undefined || result.html === undefined || result.html === '') {
     throw new Error('Failed to extract HTML from page');
   }
 
   return result;
 }
 
-async function executeExtractionViaMessage(tabId: number, settleTimeMs: number): Promise<string> {
+async function executeExtractionViaMessage(tabId: number, settleTimeMs: number): Promise<CapturedPage> {
   // Wait for page to settle before extracting
   await sleep(settleTimeMs);
 
-  const response: GetPageHtmlResponse | undefined = await chrome.tabs.sendMessage(tabId, { type: 'GET_PAGE_HTML' });
+  const response: GetPageHtmlResponse | undefined = await chrome.tabs.sendMessage(tabId, { type: 'query:current_page_dom' });
 
   if (response === undefined || !response.success || response.html === undefined || response.html === '') {
     throw new Error(response?.error ?? 'Failed to extract HTML from page via message');
   }
 
-  return response.html;
+  // Get title from the tab
+  const tab = await chrome.tabs.get(tabId);
+  const title = tab.title ?? '';
+
+  return { html: response.html, title };
 }

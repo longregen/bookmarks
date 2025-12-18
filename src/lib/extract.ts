@@ -71,7 +71,7 @@ async function sendExtractMessage(html: string, url: string): Promise<ExtractedC
     }, EXTRACT_TIMEOUT_MS);
 
     chrome.runtime.sendMessage(
-      { type: 'EXTRACT_CONTENT', html, url },
+      { type: 'extract:markdown_from_html', html, url },
       (response: ExtractContentResponse | undefined) => {
         clearTimeout(timeout);
 

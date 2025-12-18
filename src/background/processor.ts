@@ -11,17 +11,17 @@ export async function fetchBookmarkHtml(bookmark: Bookmark): Promise<Bookmark> {
   }
 
   console.log(`[Processor] Fetching HTML for: ${bookmark.url}`);
-  const html = await browserFetch(bookmark.url, config.FETCH_TIMEOUT_MS);
-  const title = extractTitleFromHtml(html) || bookmark.title || bookmark.url;
+  const captured = await browserFetch(bookmark.url, config.FETCH_TIMEOUT_MS);
+  const title = captured.title || extractTitleFromHtml(captured.html) || bookmark.title || bookmark.url;
 
   await db.bookmarks.update(bookmark.id, {
-    html,
+    html: captured.html,
     title,
     status: 'downloaded',
     updatedAt: new Date(),
   });
 
-  return { ...bookmark, html, title, status: 'downloaded' };
+  return { ...bookmark, html: captured.html, title, status: 'downloaded' };
 }
 
 async function generateMarkdownIfNeeded(bookmark: Bookmark): Promise<string> {

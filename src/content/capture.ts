@@ -7,7 +7,7 @@ async function capturePage(): Promise<void> {
 
   try {
     const response: SaveBookmarkResponse | undefined = await chrome.runtime.sendMessage({
-      type: 'SAVE_BOOKMARK',
+      type: 'bookmark:save_from_page',
       data: { url, title, html }
     });
 
@@ -20,11 +20,11 @@ async function capturePage(): Promise<void> {
 }
 
 chrome.runtime.onMessage.addListener((message: { type?: string }, _sender, sendResponse) => {
-  if (message.type === 'CAPTURE_PAGE') {
+  if (message.type === 'user_request:capture_current_tab') {
     void capturePage();
     const response: CapturePageResponse = { success: true };
     sendResponse(response);
-  } else if (message.type === 'GET_PAGE_HTML') {
+  } else if (message.type === 'query:current_page_dom') {
     const response: GetPageHtmlResponse = {
       success: true,
       html: document.documentElement.outerHTML
