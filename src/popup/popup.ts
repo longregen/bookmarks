@@ -49,7 +49,7 @@ saveBtn.addEventListener('click', async () => {
         const html = document.documentElement.outerHTML;
 
         return await chrome.runtime.sendMessage({
-          type: 'SAVE_BOOKMARK',
+          type: 'bookmark:save_from_page',
           data: { url, title, html }
         }) as unknown;
       }

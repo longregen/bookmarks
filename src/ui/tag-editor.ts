@@ -1,6 +1,6 @@
 import { db, type BookmarkTag } from '../db/schema';
 import { createElement } from './dom';
-import { broadcastEvent } from '../lib/events';
+import { events } from '../lib/events';
 
 export interface TagEditorOptions {
   bookmarkId: string;
@@ -140,7 +140,7 @@ function createTagPill(tagName: string, bookmarkId: string, onTagsChange?: () =>
     await db.bookmarkTags.where({ bookmarkId, tagName }).delete();
     pill.remove();
     if (onTagsChange) onTagsChange();
-    await broadcastEvent('TAG_UPDATED', { bookmarkId, tagName, action: 'removed' });
+    await events.tag.removed(bookmarkId, tagName);
   });
 
   pill.appendChild(removeBtn);
@@ -155,7 +155,7 @@ async function addTag(tagName: string, bookmarkId: string, container: HTMLElemen
       tagName,
       addedAt: new Date()
     });
-    await broadcastEvent('TAG_UPDATED', { bookmarkId, tagName, action: 'added' });
+    await events.tag.added(bookmarkId, tagName);
   }
   await createTagEditor({ bookmarkId, container, onTagsChange });
 }

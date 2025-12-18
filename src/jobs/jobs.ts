@@ -179,7 +179,10 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
       try {
         await retryFailedJobItems(job.id);
         // Trigger processing queue
-        await chrome.runtime.sendMessage({ type: 'START_PROCESSING' });
+        await chrome.runtime.sendMessage({
+          type: 'bookmark:retry',
+          data: { trigger: 'user_manual' }
+        });
         void loadJobs();
       } catch (error) {
         console.error('Failed to retry:', error);
