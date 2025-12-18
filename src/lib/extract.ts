@@ -54,26 +54,34 @@ function extractMarkdownNative(html: string, url: string): ExtractedContent {
   };
 }
 
-async function extractMarkdownViaOffscreen(html: string, url: string): Promise<ExtractedContent> {
-  // Chrome-only: dynamically import offscreen module to allow tree-shaking
-  const { ensureOffscreenDocument } = await import('./offscreen');
+// Retry configuration for offscreen extraction
+const EXTRACT_MAX_RETRIES = 3;
+const EXTRACT_INITIAL_DELAY_MS = 100;
+const EXTRACT_MAX_DELAY_MS = 1000;
+const EXTRACT_TIMEOUT_MS = 30000;
 
-  console.log('[Extract] Using offscreen document (Chrome)', { url, htmlLength: html.length });
+async function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => { setTimeout(resolve, ms); });
+}
 
-  await ensureOffscreenDocument();
-
+async function sendExtractMessage(html: string, url: string): Promise<ExtractedContent> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error('Extract timeout via offscreen document'));
-    }, 60000);
+    }, EXTRACT_TIMEOUT_MS);
 
     chrome.runtime.sendMessage(
       { type: 'EXTRACT_CONTENT', html, url },
-      (response: ExtractContentResponse) => {
+      (response: ExtractContentResponse | undefined) => {
         clearTimeout(timeout);
 
         if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+
+        if (response === undefined) {
+          reject(new Error('No response from offscreen document'));
           return;
         }
 
@@ -85,6 +93,37 @@ async function extractMarkdownViaOffscreen(html: string, url: string): Promise<E
       }
     );
   });
+}
+
+async function extractMarkdownViaOffscreen(html: string, url: string): Promise<ExtractedContent> {
+  // Chrome-only: dynamically import offscreen module to allow tree-shaking
+  const { ensureOffscreenDocument, resetOffscreenState } = await import('./offscreen');
+
+  console.log('[Extract] Using offscreen document (Chrome)', { url, htmlLength: html.length });
+
+  await ensureOffscreenDocument();
+
+  let lastError: Error | null = null;
+  let delay = EXTRACT_INITIAL_DELAY_MS;
+
+  for (let attempt = 1; attempt <= EXTRACT_MAX_RETRIES; attempt++) {
+    try {
+      return await sendExtractMessage(html, url);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.warn(`[Extract] Attempt ${attempt}/${EXTRACT_MAX_RETRIES} failed:`, lastError.message);
+
+      if (attempt < EXTRACT_MAX_RETRIES) {
+        // Reset offscreen state and try to re-establish connection
+        resetOffscreenState();
+        await sleep(delay);
+        delay = Math.min(delay * 2, EXTRACT_MAX_DELAY_MS);
+        await ensureOffscreenDocument();
+      }
+    }
+  }
+
+  throw lastError ?? new Error('Extract failed after retries');
 }
 
 export async function extractMarkdownAsync(html: string, url: string): Promise<ExtractedContent> {

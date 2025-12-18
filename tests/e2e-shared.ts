@@ -417,70 +417,73 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
   if (options.skipCorsFetchTest) {
     console.log('  (Skipping CORS/fetch test for this platform)');
   } else {
-    await runner.runTest('CORS/Fetch - Bulk import fetches Paul Graham article', async () => {
-      const paulGrahamUrl = 'https://paulgraham.com/hwh.html';
-    const page = await adapter.newPage();
-    await page.goto(adapter.getPageUrl('options'));
-    await page.waitForSelector('#bulkUrlsInput');
-    await waitForSettingsLoad(page);
+    await runner.runTest('CORS/Fetch - Bulk import fetches local mock page', async () => {
+      // Use local mock server URL instead of external URL to avoid network flakiness
+      const mockServerUrl = adapter.getMockApiUrl();
+      const testPageUrl = `${mockServerUrl}/page/cyberspace-independence`;
 
-    await page.evaluate(`(() => {
-      const el = document.getElementById('bulkUrlsInput');
-      el.value = '${paulGrahamUrl}';
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-    })()`);
+      const page = await adapter.newPage();
+      await page.goto(adapter.getPageUrl('options'));
+      await page.waitForSelector('#bulkUrlsInput');
+      await waitForSettingsLoad(page);
 
-    await new Promise(resolve => setTimeout(resolve, 500));
+      await page.evaluate(`(() => {
+        const el = document.getElementById('bulkUrlsInput');
+        el.value = '${testPageUrl}';
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      })()`);
 
-    await page.click('#startBulkImport');
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-    await page.waitForFunction(
-      `(() => {
-        const status = document.getElementById('bulkImportStatus');
-        if (status && status.textContent) {
-          const text = status.textContent;
-          const match = text.match(/Imported (\\d+) of (\\d+)/);
-          if (match && match[1] === match[2] && parseInt(match[1]) > 0) {
-            return true;
+      await page.click('#startBulkImport');
+
+      await page.waitForFunction(
+        `(() => {
+          const status = document.getElementById('bulkImportStatus');
+          if (status && status.textContent) {
+            const text = status.textContent;
+            const match = text.match(/Imported (\\d+) of (\\d+)/);
+            if (match && match[1] === match[2] && parseInt(match[1]) > 0) {
+              return true;
+            }
           }
-        }
-        const statusDiv = document.querySelector('.status');
-        if (statusDiv && statusDiv.textContent) {
-          const text = statusDiv.textContent.toLowerCase();
-          if (text.includes('bulk import completed') || text.includes('bulk import failed')) {
-            return true;
+          const statusDiv = document.querySelector('.status');
+          if (statusDiv && statusDiv.textContent) {
+            const text = statusDiv.textContent.toLowerCase();
+            if (text.includes('bulk import completed') || text.includes('bulk import failed')) {
+              return true;
+            }
           }
-        }
-        return false;
-      })()`,
-      60000
-    );
+          return false;
+        })()`,
+        60000
+      );
 
-    await page.close();
+      await page.close();
 
-    const libraryPage = await adapter.newPage();
-    await libraryPage.goto(adapter.getPageUrl('library'));
-    await libraryPage.waitForSelector('#bookmarkList');
+      const libraryPage = await adapter.newPage();
+      await libraryPage.goto(adapter.getPageUrl('library'));
+      await libraryPage.waitForSelector('#bookmarkList');
 
-    await libraryPage.waitForFunction(
-      `(() => {
-        const cards = document.querySelectorAll('.bookmark-card');
-        for (const card of cards) {
-          const url = card.querySelector('.card-url');
-          if (url && url.textContent && url.textContent.includes('paulgraham.com')) {
-            return true;
+      await libraryPage.waitForFunction(
+        `(() => {
+          const cards = document.querySelectorAll('.bookmark-card');
+          for (const card of cards) {
+            const title = card.querySelector('.card-title');
+            if (title && title.textContent && title.textContent.includes('Cyberspace')) {
+              return true;
+            }
+            const url = card.querySelector('.card-url');
+            if (url && url.textContent && url.textContent.includes('127.0.0.1')) {
+              return true;
+            }
           }
-          const link = card.querySelector('a[href*="paulgraham.com"]');
-          if (link) {
-            return true;
-          }
-        }
-        return false;
-      })()`,
-      30000
-    );
+          return false;
+        })()`,
+        30000
+      );
 
-    await libraryPage.close();
+      await libraryPage.close();
     });
   }
 
@@ -670,13 +673,15 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
       await verifyPage.close();
     });
 
-    await runner.runTest('Save real external page (EFF article) via popup flow', async () => {
-      const effUrl = 'https://www.eff.org/deeplinks/2025/10/its-time-take-back-ctrl';
+    await runner.runTest('Save page via popup flow with Q&A generation', async () => {
+      // Use local mock server URL instead of external URL to avoid network flakiness
+      const mockServerUrl = adapter.getMockApiUrl();
+      const testPageUrl = `${mockServerUrl}/page/cypherpunk-manifesto`;
 
-      // First, fetch the page content from the external URL
+      // First, fetch the page content from the mock server
       // This simulates what the popup does when it extracts content from the active tab
       const fetchPage = await adapter.newPage();
-      await fetchPage.goto(effUrl);
+      await fetchPage.goto(testPageUrl);
 
       // Wait for page to load
       await fetchPage.waitForFunction(
@@ -720,7 +725,7 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
       await savePage.close();
 
       if (!(result as any)?.success) {
-        throw new Error(`Failed to save EFF bookmark: ${(result as any)?.error || 'Unknown error'}`);
+        throw new Error(`Failed to save bookmark: ${(result as any)?.error || 'Unknown error'}`);
       }
 
       // Verify the bookmark appears in library
@@ -733,10 +738,8 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
         `(() => {
           const cards = document.querySelectorAll('.bookmark-card');
           for (const card of cards) {
-            const url = card.querySelector('.card-url');
             const title = card.querySelector('.card-title');
-            if ((url && url.textContent && url.textContent.includes('eff.org')) ||
-                (title && title.textContent && title.textContent.toLowerCase().includes('ctrl'))) {
+            if (title && title.textContent && title.textContent.includes('Cypherpunk')) {
               return true;
             }
           }
@@ -750,19 +753,19 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
         `(async () => {
           if (!window.__testHelpers) return false;
           const status = await window.__testHelpers.getBookmarkStatus();
-          const effBookmark = status.bookmarks.find(b => b.url.includes('eff.org'));
-          return effBookmark && effBookmark.status === 'complete';
+          const bookmark = status.bookmarks.find(b => b.url.includes('127.0.0.1'));
+          return bookmark && bookmark.status === 'complete';
         })()`,
         90000  // Allow time for markdown extraction and Q&A generation
       );
 
-      // Click on the EFF bookmark to view details
+      // Click on the bookmark to view details
       await verifyPage.evaluate(`
         (() => {
           const cards = document.querySelectorAll('.bookmark-card');
           for (const card of cards) {
-            const url = card.querySelector('.card-url');
-            if (url && url.textContent && url.textContent.includes('eff.org')) {
+            const title = card.querySelector('.card-title');
+            if (title && title.textContent && title.textContent.includes('Cypherpunk')) {
               card.click();
               return true;
             }
@@ -792,7 +795,7 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
         throw new Error(`Expected at least 1 Q&A pair, got ${qaCount}`);
       }
 
-      console.log(`  ✓ Found ${qaCount} Q&A pairs for EFF article`);
+      console.log(`  ✓ Found ${qaCount} Q&A pairs for test article`);
 
       await verifyPage.close();
     });

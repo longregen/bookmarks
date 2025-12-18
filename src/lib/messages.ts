@@ -13,6 +13,8 @@ export type Message =
   // Offscreen document operations (Chrome only)
   | { type: 'FETCH_URL'; url: string; timeoutMs?: number }
   | { type: 'EXTRACT_CONTENT'; html: string; url: string }
+  | { type: 'OFFSCREEN_READY' }
+  | { type: 'OFFSCREEN_PING' }
   | { type: 'EVENT_BROADCAST'; event: EventData };
 
 export interface SaveBookmarkResponse {
@@ -87,6 +89,10 @@ export interface GetPageHtmlResponse {
   error?: string;
 }
 
+export interface OffscreenReadyResponse {
+  ready: true;
+}
+
 export type MessageType = Message['type'];
 
 export type MessageOfType<T extends MessageType> = Extract<Message, { type: T }>;
@@ -103,6 +109,8 @@ export type MessageResponse<T extends MessageType> =
   : T extends 'EXTRACT_CONTENT' ? ExtractContentResponse
   : T extends 'CAPTURE_PAGE' ? CapturePageResponse
   : T extends 'GET_PAGE_HTML' ? GetPageHtmlResponse
+  : T extends 'OFFSCREEN_READY' ? undefined
+  : T extends 'OFFSCREEN_PING' ? OffscreenReadyResponse
   : T extends 'EVENT_BROADCAST' ? undefined
   : never;
 
