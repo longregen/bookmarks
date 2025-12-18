@@ -1,5 +1,5 @@
 import { config } from './config-registry';
-import { renderPage } from './tab-renderer';
+import { renderPage, type CapturedPage } from './tab-renderer';
 
 export async function fetchWithTimeout(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
   const controller = new AbortController();
@@ -41,11 +41,17 @@ function isLocalhostUrl(url: string): boolean {
   }
 }
 
-export async function browserFetch(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
+function extractTitleFromHtml(html: string): string {
+  const match = /<title[^>]*>([^<]*)<\/title>/i.exec(html);
+  return match?.[1]?.trim() ?? '';
+}
+
+export async function browserFetch(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<CapturedPage> {
   // Chrome extensions cannot reliably create tabs for localhost URLs
   // Use fetch() API instead for localhost, which works from service worker context
   if (isLocalhostUrl(url)) {
-    return fetchWithTimeout(url, timeoutMs);
+    const html = await fetchWithTimeout(url, timeoutMs);
+    return { html, title: extractTitleFromHtml(html) };
   }
 
   return renderPage(url, timeoutMs);

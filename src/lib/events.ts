@@ -1,30 +1,13 @@
 import { getErrorMessage } from './errors';
 import type { Message } from './messages';
 
-export type EventType =
-  // Bookmark lifecycle
-  | 'bookmark:created'
-  | 'bookmark:content_fetched'
-  | 'bookmark:processing_started'
-  | 'bookmark:status_changed'
-  | 'bookmark:ready'
-  | 'bookmark:processing_failed'
-  | 'bookmark:deleted'
+// Template literal types for domain:action enforcement
+type BookmarkEvent = `bookmark:${'created' | 'content_fetched' | 'processing_started' | 'status_changed' | 'ready' | 'processing_failed' | 'deleted'}`;
+type TagEvent = `tag:${'added' | 'removed'}`;
+type JobEvent = `job:${'created' | 'progress_changed' | 'completed' | 'failed'}`;
+type SyncEvent = `sync:${'started' | 'completed' | 'failed'}`;
 
-  // Tags
-  | 'tag:added'
-  | 'tag:removed'
-
-  // Jobs
-  | 'job:created'
-  | 'job:progress_changed'
-  | 'job:completed'
-  | 'job:failed'
-
-  // Sync
-  | 'sync:started'
-  | 'sync:completed'
-  | 'sync:failed';
+export type EventType = BookmarkEvent | TagEvent | JobEvent | SyncEvent;
 
 // Typed payloads for each event
 export interface EventPayloads {
@@ -115,3 +98,47 @@ export function addEventListener(listener: EventListener): () => void {
     }
   };
 }
+
+// Type-safe event builder functions
+export const events = {
+  bookmark: {
+    created: (bookmarkId: string, url: string) =>
+      broadcastEvent('bookmark:created', { bookmarkId, url }),
+    contentFetched: (bookmarkId: string) =>
+      broadcastEvent('bookmark:content_fetched', { bookmarkId }),
+    processingStarted: (bookmarkId: string) =>
+      broadcastEvent('bookmark:processing_started', { bookmarkId }),
+    statusChanged: (bookmarkId: string, newStatus: string, oldStatus?: string) =>
+      broadcastEvent('bookmark:status_changed', { bookmarkId, newStatus, oldStatus }),
+    ready: (bookmarkId: string) =>
+      broadcastEvent('bookmark:ready', { bookmarkId }),
+    processingFailed: (bookmarkId: string, error: string) =>
+      broadcastEvent('bookmark:processing_failed', { bookmarkId, error }),
+    deleted: (bookmarkId: string) =>
+      broadcastEvent('bookmark:deleted', { bookmarkId }),
+  },
+  tag: {
+    added: (bookmarkId: string, tagName: string) =>
+      broadcastEvent('tag:added', { bookmarkId, tagName }),
+    removed: (bookmarkId: string, tagName: string) =>
+      broadcastEvent('tag:removed', { bookmarkId, tagName }),
+  },
+  job: {
+    created: (jobId: string, totalItems: number) =>
+      broadcastEvent('job:created', { jobId, totalItems }),
+    progressChanged: (jobId: string, completedCount: number, totalCount: number) =>
+      broadcastEvent('job:progress_changed', { jobId, completedCount, totalCount }),
+    completed: (jobId: string) =>
+      broadcastEvent('job:completed', { jobId }),
+    failed: (jobId: string, errorCount: number) =>
+      broadcastEvent('job:failed', { jobId, errorCount }),
+  },
+  sync: {
+    started: (manual: boolean) =>
+      broadcastEvent('sync:started', { manual }),
+    completed: (action: 'uploaded' | 'downloaded' | 'no-change', bookmarkCount?: number) =>
+      broadcastEvent('sync:completed', { action, bookmarkCount }),
+    failed: (error: string) =>
+      broadcastEvent('sync:failed', { error }),
+  },
+} as const;
