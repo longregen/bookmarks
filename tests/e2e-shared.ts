@@ -581,6 +581,156 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
 
     await page.close();
   });
+  await runner.runTest('Delete button exists in detail panel', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('library'));
+    await page.waitForSelector('#bookmarkList');
+
+    // Wait for at least one bookmark to appear
+    await page.waitForFunction(
+      `(() => {
+        const cards = document.querySelectorAll('.bookmark-card');
+        return cards.length > 0;
+      })()`,
+      30000
+    );
+
+    // Click on first available bookmark
+    await page.evaluate(`(() => {
+      const card = document.querySelector('.bookmark-card');
+      if (card) card.click();
+    })()`);
+
+    // Wait for detail panel to open
+    await page.waitForFunction(
+      `(() => {
+        const detailPanel = document.getElementById('detailPanel');
+        return detailPanel && detailPanel.classList.contains('active');
+      })()`,
+      10000
+    );
+
+    // Verify delete button exists and is visible
+    await page.waitForSelector('#deleteBtn');
+    const deleteBtn = await page.$('#deleteBtn');
+    if (!deleteBtn) {
+      throw new Error('Delete button not found in detail panel');
+    }
+
+    // Verify button has correct text and danger class
+    const btnInfo = await page.evaluate(`(() => {
+      const btn = document.getElementById('deleteBtn');
+      return {
+        text: btn?.textContent?.trim(),
+        hasClass: btn?.classList.contains('btn-danger')
+      };
+    })()`) as { text: string | undefined; hasClass: boolean };
+
+    if (btnInfo.text !== 'Delete') {
+      throw new Error(`Expected delete button text to be 'Delete', got '${btnInfo.text}'`);
+    }
+
+    if (!btnInfo.hasClass) {
+      throw new Error('Delete button missing btn-danger class');
+    }
+
+    await page.close();
+  });
+
+  await runner.runTest('Delete bookmark shows confirmation and removes bookmark from library', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('library'));
+    await page.waitForSelector('#bookmarkList');
+
+    // Wait for bookmarks to appear
+    await page.waitForFunction(
+      `(() => {
+        const cards = document.querySelectorAll('.bookmark-card');
+        return cards.length > 0;
+      })()`,
+      30000
+    );
+
+    // Get count of bookmarks before deletion
+    const initialCount = await page.evaluate(`document.querySelectorAll('.bookmark-card').length`) as number;
+
+    // Get the title of the first bookmark to delete
+    const bookmarkToDelete = await page.evaluate(`(() => {
+      const card = document.querySelector('.bookmark-card');
+      const title = card?.querySelector('.card-title')?.textContent;
+      return { title };
+    })()`) as { title: string | null };
+
+    if (!bookmarkToDelete.title) {
+      throw new Error('No bookmark found to delete');
+    }
+
+    // Click on the first bookmark to open detail panel
+    await page.evaluate(`(() => {
+      const card = document.querySelector('.bookmark-card');
+      if (card) card.click();
+    })()`);
+
+    // Wait for detail panel to open
+    await page.waitForFunction(
+      `(() => {
+        const detailPanel = document.getElementById('detailPanel');
+        return detailPanel && detailPanel.classList.contains('active');
+      })()`,
+      10000
+    );
+
+    // Verify delete button exists
+    const hasDeleteBtn = await page.$('#deleteBtn');
+    if (!hasDeleteBtn) {
+      throw new Error('Delete button not found in detail panel');
+    }
+
+    // Override confirm() to automatically accept the deletion
+    await page.evaluate(`window.confirm = () => true`);
+
+    // Click the delete button
+    await page.click('#deleteBtn');
+
+    // Wait for detail panel to close
+    await page.waitForFunction(
+      `(() => {
+        const detailPanel = document.getElementById('detailPanel');
+        return detailPanel && !detailPanel.classList.contains('active');
+      })()`,
+      10000
+    );
+
+    // Wait a moment for the DOM to update
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Verify the bookmark count decreased
+    const finalCount = await page.evaluate(`document.querySelectorAll('.bookmark-card').length`) as number;
+    if (finalCount !== initialCount - 1) {
+      throw new Error(`Expected ${initialCount - 1} bookmarks after deletion, got ${finalCount}`);
+    }
+
+    // Verify the specific bookmark no longer appears in library
+    const bookmarkStillExists = await page.evaluate(`(() => {
+      const cards = document.querySelectorAll('.bookmark-card');
+      for (const card of cards) {
+        const title = card.querySelector('.card-title')?.textContent;
+        if (title === '${bookmarkToDelete.title}') {
+          return true;
+        }
+      }
+      return false;
+    })()`) as boolean;
+
+    if (bookmarkStillExists) {
+      throw new Error(`Bookmark "${bookmarkToDelete.title}" still exists after deletion`);
+    }
+
+    console.log(`  ✓ Successfully deleted bookmark: "${bookmarkToDelete.title}"`);
+
+    await page.close();
+  });
+
 
   await runner.runTest('Jobs dashboard exists', async () => {
     const page = await adapter.newPage();
