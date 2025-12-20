@@ -1,55 +1,33 @@
 import * as Effect from 'effect/Effect';
 import * as Context from 'effect/Context';
-import * as Data from 'effect/Data';
 import * as Layer from 'effect/Layer';
 import type { ApiSettings, Theme } from '../../../src/lib/platform';
+import {
+  PlatformSettingsError,
+  PlatformThemeError,
+  PlatformFetchError,
+} from '../platform';
 import { getSettingsFromDb, saveSettingToDb } from '../../../src/lib/adapters/common';
-
-const THEME_KEY = 'bookmark-rag-theme';
-
-const CORS_PROXIES = [
-  {
-    name: 'corsproxy.io',
-    format: (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-  },
-  {
-    name: 'allorigins',
-    format: (url: string) =>
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  },
-];
-
-// Error types
-export class SettingsError extends Data.TaggedError('SettingsError')<{
-  readonly operation: 'get' | 'save';
-  readonly message: string;
-}> {}
-
-export class ThemeError extends Data.TaggedError('ThemeError')<{
-  readonly operation: 'get' | 'set';
-  readonly message: string;
-}> {}
-
-export class FetchError extends Data.TaggedError('FetchError')<{
-  readonly url: string;
-  readonly message: string;
-  readonly attempts: ReadonlyArray<string>;
-}> {}
+import {
+  THEME_STORAGE_KEY,
+  CORS_PROXIES,
+  getErrorMessage,
+} from './common';
 
 // Service interface
 export class WebPlatformAdapter extends Context.Tag('WebPlatformAdapter')<
   WebPlatformAdapter,
   {
-    readonly getSettings: () => Effect.Effect<ApiSettings, SettingsError>;
+    readonly getSettings: () => Effect.Effect<ApiSettings, PlatformSettingsError>;
     readonly saveSetting: (
       key: keyof ApiSettings,
       value: string | boolean | number
-    ) => Effect.Effect<void, SettingsError>;
-    readonly getTheme: () => Effect.Effect<Theme, ThemeError>;
-    readonly setTheme: (theme: Theme) => Effect.Effect<void, ThemeError>;
+    ) => Effect.Effect<void, PlatformSettingsError>;
+    readonly getTheme: () => Effect.Effect<Theme, PlatformThemeError>;
+    readonly setTheme: (theme: Theme) => Effect.Effect<void, PlatformThemeError>;
     readonly fetchContent: (
       url: string
-    ) => Effect.Effect<{ html: string; finalUrl: string }, FetchError>;
+    ) => Effect.Effect<{ html: string; finalUrl: string }, PlatformFetchError>;
   }
 >() {}
 
@@ -59,9 +37,10 @@ export const WebPlatformAdapterLive = Layer.succeed(WebPlatformAdapter, {
     Effect.tryPromise({
       try: () => getSettingsFromDb(),
       catch: (error) =>
-        new SettingsError({
+        new PlatformSettingsError({
           operation: 'get',
-          message: error instanceof Error ? error.message : String(error),
+          message: 'Failed to get settings from database',
+          cause: error,
         }),
     }),
 
@@ -69,34 +48,39 @@ export const WebPlatformAdapterLive = Layer.succeed(WebPlatformAdapter, {
     Effect.tryPromise({
       try: () => saveSettingToDb(key, value),
       catch: (error) =>
-        new SettingsError({
+        new PlatformSettingsError({
           operation: 'save',
-          message: error instanceof Error ? error.message : String(error),
+          key,
+          message: `Failed to save setting: ${key}`,
+          cause: error,
         }),
     }),
 
   getTheme: () =>
     Effect.try({
       try: () => {
-        const theme = localStorage.getItem(THEME_KEY);
+        const theme = localStorage.getItem(THEME_STORAGE_KEY);
         return (theme as Theme) || 'auto';
       },
       catch: (error) =>
-        new ThemeError({
+        new PlatformThemeError({
           operation: 'get',
-          message: error instanceof Error ? error.message : String(error),
+          message: 'Failed to get theme from localStorage',
+          cause: error,
         }),
     }),
 
   setTheme: (theme) =>
     Effect.try({
       try: () => {
-        localStorage.setItem(THEME_KEY, theme);
+        localStorage.setItem(THEME_STORAGE_KEY, theme);
       },
       catch: (error) =>
-        new ThemeError({
+        new PlatformThemeError({
           operation: 'set',
-          message: error instanceof Error ? error.message : String(error),
+          theme,
+          message: 'Failed to set theme in localStorage',
+          cause: error,
         }),
     }),
 
@@ -145,10 +129,10 @@ export const WebPlatformAdapterLive = Layer.succeed(WebPlatformAdapter, {
 
       // All methods failed
       return yield* Effect.fail(
-        new FetchError({
+        new PlatformFetchError({
           url,
-          message: 'All methods failed (direct fetch and CORS proxies)',
-          attempts,
+          message: `Failed to fetch content: all methods failed (${attempts.join(', ')})`,
+          cause: new Error('All methods failed (direct fetch and CORS proxies)'),
         })
       );
     }),

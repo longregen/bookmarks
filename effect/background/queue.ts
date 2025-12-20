@@ -25,6 +25,7 @@ import {
   SyncError,
   getErrorMessage,
 } from '../lib/errors';
+import { calculateBackoffDelay } from '../lib/retry';
 import { ConfigService } from '../services/config-service';
 import { LoggingService } from '../services/logging-service';
 
@@ -139,21 +140,6 @@ export class SyncService extends Context.Tag('SyncService')<
     readonly triggerIfEnabled: () => Effect.Effect<void, SyncError, never>;
   }
 >() {}
-
-/**
- * Calculate exponential backoff delay with jitter
- */
-function calculateBackoffDelay(retryCount: number, config: {
-  baseDelay: number;
-  maxDelay: number;
-}): number {
-  const delay = Math.min(
-    config.baseDelay * Math.pow(2, retryCount),
-    config.maxDelay
-  );
-  // Add 25% jitter
-  return delay + Math.random() * delay * 0.25;
-}
 
 /**
  * Fetch a single bookmark with retry logic

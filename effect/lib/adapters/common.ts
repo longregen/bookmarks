@@ -7,6 +7,33 @@ import { config } from '../config-registry';
 import { StorageService, type StorageError } from '../../services/storage-service';
 
 /**
+ * Shared theme storage key for both extension and web adapters
+ */
+export const THEME_STORAGE_KEY = 'bookmark-rag-theme';
+
+/**
+ * Extract error message from unknown error type
+ */
+export function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * CORS proxy configuration for web environments
+ */
+export const CORS_PROXIES = [
+  {
+    name: 'corsproxy.io',
+    format: (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  },
+  {
+    name: 'allorigins',
+    format: (url: string) =>
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  },
+];
+
+/**
  * ConfigError - Typed error for configuration operations
  */
 export class ConfigError extends Data.TaggedError('ConfigError')<{
@@ -74,6 +101,29 @@ interface SettingRecord {
 }
 
 /**
+ * Helper function to build settings from a key-value map
+ */
+function buildSettingsFromMap(
+  map: Record<string, string | boolean | number | undefined>
+): ApiSettings {
+  return {
+    apiBaseUrl: (map.apiBaseUrl as string | undefined) ?? DEFAULTS.apiBaseUrl,
+    apiKey: (map.apiKey as string | undefined) ?? DEFAULTS.apiKey,
+    chatModel: (map.chatModel as string | undefined) ?? DEFAULTS.chatModel,
+    embeddingModel: (map.embeddingModel as string | undefined) ?? DEFAULTS.embeddingModel,
+    webdavUrl: (map.webdavUrl as string | undefined) ?? DEFAULTS.webdavUrl,
+    webdavUsername: (map.webdavUsername as string | undefined) ?? DEFAULTS.webdavUsername,
+    webdavPassword: (map.webdavPassword as string | undefined) ?? DEFAULTS.webdavPassword,
+    webdavPath: (map.webdavPath as string | undefined) ?? DEFAULTS.webdavPath,
+    webdavEnabled: (map.webdavEnabled as boolean | undefined) ?? DEFAULTS.webdavEnabled,
+    webdavAllowInsecure: (map.webdavAllowInsecure as boolean | undefined) ?? DEFAULTS.webdavAllowInsecure,
+    webdavSyncInterval: (map.webdavSyncInterval as number | undefined) ?? DEFAULTS.webdavSyncInterval,
+    webdavLastSyncTime: (map.webdavLastSyncTime as string | undefined) ?? DEFAULTS.webdavLastSyncTime,
+    webdavLastSyncError: (map.webdavLastSyncError as string | undefined) ?? DEFAULTS.webdavLastSyncError,
+  };
+}
+
+/**
  * Create ConfigService implementation
  */
 export const makeConfigService = Effect.gen(function* () {
@@ -88,21 +138,7 @@ export const makeConfigService = Effect.gen(function* () {
           rows.map(r => [r.key, r.value])
         ) as Record<string, string | boolean | number | undefined>;
 
-        return {
-          apiBaseUrl: (map.apiBaseUrl as string | undefined) ?? DEFAULTS.apiBaseUrl,
-          apiKey: (map.apiKey as string | undefined) ?? DEFAULTS.apiKey,
-          chatModel: (map.chatModel as string | undefined) ?? DEFAULTS.chatModel,
-          embeddingModel: (map.embeddingModel as string | undefined) ?? DEFAULTS.embeddingModel,
-          webdavUrl: (map.webdavUrl as string | undefined) ?? DEFAULTS.webdavUrl,
-          webdavUsername: (map.webdavUsername as string | undefined) ?? DEFAULTS.webdavUsername,
-          webdavPassword: (map.webdavPassword as string | undefined) ?? DEFAULTS.webdavPassword,
-          webdavPath: (map.webdavPath as string | undefined) ?? DEFAULTS.webdavPath,
-          webdavEnabled: (map.webdavEnabled as boolean | undefined) ?? DEFAULTS.webdavEnabled,
-          webdavAllowInsecure: (map.webdavAllowInsecure as boolean | undefined) ?? DEFAULTS.webdavAllowInsecure,
-          webdavSyncInterval: (map.webdavSyncInterval as number | undefined) ?? DEFAULTS.webdavSyncInterval,
-          webdavLastSyncTime: (map.webdavLastSyncTime as string | undefined) ?? DEFAULTS.webdavLastSyncTime,
-          webdavLastSyncError: (map.webdavLastSyncError as string | undefined) ?? DEFAULTS.webdavLastSyncError,
-        };
+        return buildSettingsFromMap(map);
       }).pipe(
         Effect.catchTags({
           StorageError: (error) =>
@@ -156,22 +192,7 @@ export const makeConfigService = Effect.gen(function* () {
           rows.map(r => [r.key, r.value])
         ) as Record<string, string | boolean | number | undefined>;
 
-        const settings = {
-          apiBaseUrl: (map.apiBaseUrl as string | undefined) ?? DEFAULTS.apiBaseUrl,
-          apiKey: (map.apiKey as string | undefined) ?? DEFAULTS.apiKey,
-          chatModel: (map.chatModel as string | undefined) ?? DEFAULTS.chatModel,
-          embeddingModel: (map.embeddingModel as string | undefined) ?? DEFAULTS.embeddingModel,
-          webdavUrl: (map.webdavUrl as string | undefined) ?? DEFAULTS.webdavUrl,
-          webdavUsername: (map.webdavUsername as string | undefined) ?? DEFAULTS.webdavUsername,
-          webdavPassword: (map.webdavPassword as string | undefined) ?? DEFAULTS.webdavPassword,
-          webdavPath: (map.webdavPath as string | undefined) ?? DEFAULTS.webdavPath,
-          webdavEnabled: (map.webdavEnabled as boolean | undefined) ?? DEFAULTS.webdavEnabled,
-          webdavAllowInsecure: (map.webdavAllowInsecure as boolean | undefined) ?? DEFAULTS.webdavAllowInsecure,
-          webdavSyncInterval: (map.webdavSyncInterval as number | undefined) ?? DEFAULTS.webdavSyncInterval,
-          webdavLastSyncTime: (map.webdavLastSyncTime as string | undefined) ?? DEFAULTS.webdavLastSyncTime,
-          webdavLastSyncError: (map.webdavLastSyncError as string | undefined) ?? DEFAULTS.webdavLastSyncError,
-        } as ApiSettings;
-
+        const settings = buildSettingsFromMap(map);
         return settings[key];
       }).pipe(
         Effect.catchTags({

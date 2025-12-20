@@ -6,8 +6,8 @@ import * as Ref from 'effect/Ref';
 import { SettingsService, type ApiSettings } from './settings';
 import {
   type BookmarkExport,
-  StorageService as ExportStorageService,
-  JobService as ExportJobService,
+  ExportStorageService,
+  ExportJobService,
   exportAllBookmarks,
   importBookmarks,
 } from './export';
@@ -81,8 +81,8 @@ export class WebDAVSyncService extends Context.Tag('WebDAVSyncService')<
     readonly isWebDAVConfigured: () => Effect.Effect<boolean, never, SettingsService>;
     readonly performSync: (
       force?: boolean
-    ) => Effect.Effect<SyncResult, never, SettingsService | ExportStorageService | JobService | EventService | ConfigService | UrlValidator>;
-    readonly triggerSyncIfEnabled: () => Effect.Effect<void, never, SettingsService | ExportStorageService | JobService | EventService | ConfigService | UrlValidator>;
+    ) => Effect.Effect<SyncResult, never, SettingsService | ExportStorageService | ExportJobService | EventService | ConfigService | UrlValidator>;
+    readonly triggerSyncIfEnabled: () => Effect.Effect<void, never, SettingsService | ExportStorageService | ExportJobService | EventService | ConfigService | UrlValidator>;
   }
 >() {}
 
@@ -423,7 +423,7 @@ function performSyncEffect(
 ): Effect.Effect<
   SyncResult,
   never,
-  SettingsService | ExportStorageService | JobService | EventService | ConfigService | UrlValidator
+  SettingsService | ExportStorageService | ExportJobService | EventService | ConfigService | UrlValidator
 > {
   return Effect.gen(function* () {
     const configService = yield* ConfigService;
@@ -654,7 +654,7 @@ export function performSync(
 ): Effect.Effect<
   SyncResult,
   never,
-  SettingsService | ExportStorageService | JobService | EventService | ConfigService | UrlValidator
+  SettingsService | ExportStorageService | ExportJobService | EventService | ConfigService | UrlValidator
 > {
   return performSyncEffect(force);
 }
@@ -665,7 +665,7 @@ export function performSync(
 export function triggerSyncIfEnabled(): Effect.Effect<
   void,
   never,
-  SettingsService | ExportStorageService | JobService | EventService | ConfigService | UrlValidator
+  SettingsService | ExportStorageService | ExportJobService | EventService | ConfigService | UrlValidator
 > {
   return Effect.gen(function* () {
     const configured = yield* isWebDAVConfiguredEffect();

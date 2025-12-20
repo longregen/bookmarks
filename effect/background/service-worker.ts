@@ -896,6 +896,9 @@ const program = Effect.gen(function* () {
 });
 
 // Run the program
-Effect.runPromise(program.pipe(Effect.provide(MainLayer))).catch((error) => {
-  console.error('Service worker initialization failed:', error);
-});
+// Skip during tests to avoid initialization errors
+if (!import.meta.vitest) {
+  Effect.runPromise(program.pipe(Effect.provide(MainLayer))).catch((error) => {
+    console.error('Service worker initialization failed:', error);
+  });
+}

@@ -3,14 +3,13 @@ import * as Data from 'effect/Data';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
 import { showStatusMessage, getElement, createElement } from '../../src/ui/dom';
-import { onThemeChange, applyTheme } from '../../src/shared/theme';
-import { initExtension } from '../../src/ui/init-extension';
 import { openExtensionPage as openExtensionPageOrig } from '../../src/lib/tabs';
 import type { SaveBookmarkResponse } from '../lib/messages';
 import { getErrorMessage } from '../lib/errors';
 import { TabsService, TabError, openExtensionPage } from '../lib/tabs';
 import { SettingsService, SettingsError } from '../lib/settings';
 import { MessagingService, MessagingError, sendMessage } from '../lib/messages';
+import { setupThemeOnly, initializePlatform } from '../shared/ui-init';
 
 // ============================================================================
 // Typed Errors
@@ -673,8 +672,8 @@ document.addEventListener('keydown', (e) => {
 
 searchInput.focus();
 
-void initExtension();
-onThemeChange((theme) => applyTheme(theme));
+void initializePlatform();
+setupThemeOnly();
 
 async function checkEndpointConfiguration(): Promise<void> {
   try {

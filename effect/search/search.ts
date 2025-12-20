@@ -5,19 +5,16 @@ import { db, type BookmarkTag, type QuestionAnswer } from '../../src/db/schema';
 import { createElement, getElement, setSpinnerContent } from '../../src/ui/dom';
 import { formatDateByAge } from '../../src/lib/date-format';
 import { findTopK } from '../lib/similarity';
-import { onThemeChange, applyTheme } from '../../src/shared/theme';
-import { initExtension } from '../../src/ui/init-extension';
-import { initWeb } from '../../src/web/init-web';
-import { createHealthIndicator } from '../../src/ui/health-indicator';
 import { BookmarkDetailManager } from '../../src/ui/bookmark-detail';
 import { loadTagFilters } from '../../src/ui/tag-filter';
 import { config as appConfig } from '../../src/lib/config-registry';
-import { addEventListener as addBookmarkEventListener } from '../../src/lib/events';
 import { getErrorMessage } from '../lib/errors';
 import { SearchError } from '../lib/errors';
 import { ApiService } from '../lib/api';
 import { LoggingService } from '../services/logging-service';
 import { ConfigService } from '../services/config-service';
+import { initializeUI } from '../shared/ui-init';
+import { setupBookmarkEventHandlers } from '../shared/event-handling';
 
 // ============================================================================
 // Types
@@ -858,15 +855,22 @@ export function initializeSearchUI(): void {
   // Initialize search UI
   const searchUI = new SearchUI(elements, detailManager, searchService, storageService);
 
-  // Initialize platform-specific code
-  if (__IS_WEB__) {
-    void initWeb();
-  } else {
-    void initExtension();
-  }
+  // Initialize UI
+  const healthIndicatorContainer = document.getElementById('healthIndicator');
+  void initializeUI({ healthIndicatorContainer: healthIndicatorContainer || undefined });
 
-  // Theme handling
-  onThemeChange((theme) => applyTheme(theme));
+  // Setup event handlers
+  const keydownHandler = (e: KeyboardEvent): void => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      elements.searchInput.focus();
+    }
+  };
+  document.addEventListener('keydown', keydownHandler);
+
+  setupBookmarkEventHandlers({
+    onTagChange: () => void searchUI.loadFilters(),
+  });
 
   // Load filters
   void searchUI.loadFilters();
@@ -881,32 +885,4 @@ export function initializeSearchUI(): void {
 
   // Focus search input
   elements.searchInput.focus();
-
-  // Keyboard shortcut
-  const keydownHandler = (e: KeyboardEvent): void => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-      e.preventDefault();
-      elements.searchInput.focus();
-    }
-  };
-  document.addEventListener('keydown', keydownHandler);
-
-  // Health indicator
-  const healthIndicatorContainer = document.getElementById('healthIndicator');
-  if (healthIndicatorContainer) {
-    createHealthIndicator(healthIndicatorContainer);
-  }
-
-  // Event listeners
-  const removeEventListener = addBookmarkEventListener((event) => {
-    if (event.type.startsWith('tag:')) {
-      void searchUI.loadFilters();
-    }
-  });
-
-  // Cleanup on unload
-  window.addEventListener('beforeunload', () => {
-    document.removeEventListener('keydown', keydownHandler);
-    removeEventListener();
-  });
 }

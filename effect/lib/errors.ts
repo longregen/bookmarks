@@ -133,6 +133,18 @@ export class ContentExtractionError extends Data.TaggedError(
   readonly originalError?: unknown;
 }> {}
 
+export class MarkdownError extends Data.TaggedError('MarkdownError')<{
+  readonly bookmarkId: string;
+  readonly message: string;
+  readonly originalError?: unknown;
+}> {}
+
+export class QAGenerationError extends Data.TaggedError('QAGenerationError')<{
+  readonly bookmarkId: string;
+  readonly message: string;
+  readonly originalError?: unknown;
+}> {}
+
 export class CriticalError extends Data.TaggedError('CriticalError')<{
   readonly message: string;
   readonly originalError?: unknown;
@@ -301,6 +313,28 @@ export function getErrorDetails(error: unknown): {
       code: error.code,
       context: {
         url: error.url,
+        originalError: error.originalError,
+      },
+    };
+  }
+
+  if (error instanceof MarkdownError) {
+    return {
+      message: error.message,
+      code: 'MARKDOWN_ERROR',
+      context: {
+        bookmarkId: error.bookmarkId,
+        originalError: error.originalError,
+      },
+    };
+  }
+
+  if (error instanceof QAGenerationError) {
+    return {
+      message: error.message,
+      code: 'QA_GENERATION_ERROR',
+      context: {
+        bookmarkId: error.bookmarkId,
         originalError: error.originalError,
       },
     };

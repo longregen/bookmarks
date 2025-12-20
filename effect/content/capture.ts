@@ -221,6 +221,9 @@ const setupMessageListener = Effect.sync(() => {
  */
 const program = setupMessageListener;
 
-Effect.runPromise(program).catch((error) => {
-  console.error('Failed to initialize capture content script:', error);
-});
+// Skip during tests to avoid initialization errors
+if (!import.meta.vitest) {
+  Effect.runPromise(program).catch((error) => {
+    console.error('Failed to initialize capture content script:', error);
+  });
+}

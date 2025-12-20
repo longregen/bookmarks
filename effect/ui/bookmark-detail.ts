@@ -3,7 +3,7 @@ import * as Context from 'effect/Context';
 import * as Data from 'effect/Data';
 import * as Layer from 'effect/Layer';
 import type { Bookmark, Markdown, QuestionAnswer } from '../db/schema';
-import { createElement, setSanitizedHTML } from './dom';
+import { DOMService as SharedDOMService, createElement, setSanitizedHTML } from './dom';
 import { formatDateByAge } from '../lib/date-format';
 import { parseMarkdown } from '../lib/markdown';
 
@@ -72,8 +72,8 @@ export class JobService extends Context.Tag('JobService')<
   }
 >() {}
 
-export class DOMService extends Context.Tag('DOMService')<
-  DOMService,
+export class DOMUtilsService extends Context.Tag('DOMUtilsService')<
+  DOMUtilsService,
   {
     readonly createElement: typeof createElement;
     readonly setSanitizedHTML: typeof setSanitizedHTML;
@@ -179,11 +179,11 @@ export class BookmarkDetailManager {
   ): Effect.Effect<
     void,
     BookmarkNotFoundError | DOMOperationError,
-    BookmarkRepository | DOMService | TagEditorService
+    BookmarkRepository | DOMUtilsService | TagEditorService
   > {
     return Effect.gen(this, function* () {
       const bookmarkRepo = yield* BookmarkRepository;
-      const domService = yield* DOMService;
+      const domService = yield* DOMUtilsService;
       const tagEditorService = yield* TagEditorService;
 
       const { bookmark, markdown, qaPairs } = yield* bookmarkRepo.getBookmarkWithContent(
@@ -313,14 +313,14 @@ export class BookmarkDetailManager {
   private deleteCurrentBookmarkEffect(): Effect.Effect<
     void,
     BookmarkOperationError,
-    BookmarkRepository | DOMService
+    BookmarkRepository | DOMUtilsService
   > {
     return Effect.gen(this, function* () {
       if (this.currentBookmarkId === null) {
         return;
       }
 
-      const domService = yield* DOMService;
+      const domService = yield* DOMUtilsService;
       const confirmed = yield* domService.confirm('Delete this bookmark?');
 
       if (!confirmed) {
@@ -362,7 +362,7 @@ export class BookmarkDetailManager {
   private debugCurrentBookmarkEffect(): Effect.Effect<
     void,
     BookmarkNotFoundError,
-    BookmarkRepository | DOMService
+    BookmarkRepository | DOMUtilsService
   > {
     return Effect.gen(this, function* () {
       if (this.currentBookmarkId === null) {
@@ -370,7 +370,7 @@ export class BookmarkDetailManager {
       }
 
       const bookmarkRepo = yield* BookmarkRepository;
-      const domService = yield* DOMService;
+      const domService = yield* DOMUtilsService;
 
       const bookmark = yield* bookmarkRepo.getBookmark(this.currentBookmarkId);
 
@@ -419,7 +419,7 @@ export class BookmarkDetailManager {
 
   // Helper to run effects with default runtime
   private async runEffect<A, E>(
-    effect: Effect.Effect<A, E, BookmarkRepository | ExportService | JobService | DOMService | TagEditorService>
+    effect: Effect.Effect<A, E, BookmarkRepository | ExportService | JobService | DOMUtilsService | TagEditorService>
   ): Promise<A> {
     return Effect.runPromise(effect);
   }
@@ -429,8 +429,8 @@ export class BookmarkDetailManager {
 // Default Layer Implementations
 // ============================================================================
 
-export const DOMServiceLive: Layer.Layer<DOMService, never, never> = Layer.succeed(
-  DOMService,
+export const DOMUtilsServiceLive: Layer.Layer<DOMUtilsService, never, never> = Layer.succeed(
+  DOMUtilsService,
   {
     createElement,
     setSanitizedHTML,

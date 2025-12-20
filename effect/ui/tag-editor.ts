@@ -2,6 +2,7 @@ import * as Context from 'effect/Context';
 import * as Effect from 'effect/Effect';
 import * as Data from 'effect/Data';
 import { type BookmarkTag } from '../../src/db/schema';
+import { DOMService as SharedDOMService } from './dom';
 
 export interface TagEditorOptions {
   bookmarkId: string;
@@ -17,8 +18,8 @@ export class TagEditorError extends Data.TaggedError('TagEditorError')<{
   cause?: unknown;
 }> {}
 
-export class DOMService extends Context.Tag('DOMService')<
-  DOMService,
+export class DOMHelperService extends Context.Tag('DOMHelperService')<
+  DOMHelperService,
   {
     readonly createElement: <K extends keyof HTMLElementTagNameMap>(
       tag: K,
@@ -60,9 +61,9 @@ function createTagPill(
   tagName: string,
   bookmarkId: string,
   onTagsChange?: () => void
-): Effect.Effect<HTMLElement, TagEditorError, DOMService | TagStorageService | TagEventsService> {
+): Effect.Effect<HTMLElement, TagEditorError, DOMHelperService | TagStorageService | TagEventsService> {
   return Effect.gen(function* () {
-    const dom = yield* DOMService;
+    const dom = yield* DOMHelperService;
     const storage = yield* TagStorageService;
     const events = yield* TagEventsService;
 
@@ -100,7 +101,7 @@ function addTag(
   bookmarkId: string,
   container: HTMLElement,
   onTagsChange?: () => void
-): Effect.Effect<void, TagEditorError, TagStorageService | TagEventsService | DOMService> {
+): Effect.Effect<void, TagEditorError, TagStorageService | TagEventsService | DOMHelperService> {
   return Effect.gen(function* () {
     const storage = yield* TagStorageService;
     const events = yield* TagEventsService;
@@ -123,9 +124,9 @@ function createDropdownContent(
   bookmarkId: string,
   container: HTMLElement,
   onTagsChange?: () => void
-): Effect.Effect<DocumentFragment, TagEditorError, DOMService | TagStorageService | TagEventsService> {
+): Effect.Effect<DocumentFragment, TagEditorError, DOMHelperService | TagStorageService | TagEventsService> {
   return Effect.gen(function* () {
-    const dom = yield* DOMService;
+    const dom = yield* DOMHelperService;
 
     const matches = allTags
       .filter(t => t.includes(value) && !existingTagNames.includes(t))
@@ -183,10 +184,10 @@ function createDropdownContent(
 
 export function createTagEditor(
   options: TagEditorOptions
-): Effect.Effect<void, TagEditorError, DOMService | TagStorageService | TagEventsService> {
+): Effect.Effect<void, TagEditorError, DOMHelperService | TagStorageService | TagEventsService> {
   return Effect.gen(function* () {
     const { bookmarkId, container, onTagsChange } = options;
-    const dom = yield* DOMService;
+    const dom = yield* DOMHelperService;
     const storage = yield* TagStorageService;
 
     const containerWithCleanup = container as HTMLElement & { _cleanup?: () => void };
@@ -307,7 +308,7 @@ export function createTagEditor(
 export function createTagEditorWithRuntime(
   options: TagEditorOptions,
   runtime: {
-    dom: DOMService;
+    dom: DOMHelperService;
     storage: TagStorageService;
     events: TagEventsService;
   }
@@ -317,7 +318,7 @@ export function createTagEditorWithRuntime(
   return Effect.runPromise(
     Effect.provideService(
       Effect.provideService(
-        Effect.provideService(effect, DOMService, runtime.dom),
+        Effect.provideService(effect, DOMHelperService, runtime.dom),
         TagStorageService,
         runtime.storage
       ),

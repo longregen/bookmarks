@@ -9,6 +9,8 @@ import { getErrorMessage } from '../../lib/errors';
 import type { Bookmark } from '../../db/schema';
 import { db } from '../../../src/db/schema';
 import { startProcessingQueue } from '../../../src/background/queue';
+import { UIElementNotFoundError } from '../shared/errors';
+import { getElement } from '../shared/dom-helpers';
 
 // ============================================================================
 // Type Definitions
@@ -36,11 +38,6 @@ export interface UIElements {
 // ============================================================================
 // Typed Errors
 // ============================================================================
-
-export class UIElementNotFoundError extends Data.TaggedError('UIElementNotFoundError')<{
-  readonly elementId: string;
-  readonly message: string;
-}> {}
 
 export class ValidationUIError extends Data.TaggedError('ValidationUIError')<{
   readonly reason: 'no_valid_urls' | 'update_failed';
@@ -421,27 +418,6 @@ export const makeProgressTrackingServiceLayer = (
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-/**
- * Gets a required DOM element by ID
- */
-const getElement = <T extends HTMLElement>(
-  id: string
-): Effect.Effect<T, UIElementNotFoundError, never> =>
-  Effect.gen(function* () {
-    const element = yield* Effect.sync(() => document.getElementById(id));
-
-    if (!element) {
-      return yield* Effect.fail(
-        new UIElementNotFoundError({
-          elementId: id,
-          message: `Required element #${id} not found`,
-        })
-      );
-    }
-
-    return element as T;
-  });
 
 /**
  * Retrieves all required UI elements

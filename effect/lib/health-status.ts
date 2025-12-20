@@ -53,9 +53,10 @@ export interface StorageServiceForHealth {
 
 /**
  * Storage service tag for dependency injection
+ * Renamed to HealthStorageService to avoid naming collision with other storage services
  */
-export class StorageService extends Context.Tag('StorageService')<
-  StorageService,
+export class HealthStorageService extends Context.Tag('HealthStorageService')<
+  HealthStorageService,
   StorageServiceForHealth
 >() {}
 
@@ -81,7 +82,7 @@ export class HealthStatusService extends Context.Tag('HealthStatusService')<
  * Creates a health status service implementation
  */
 const makeHealthStatusService = Effect.gen(function* () {
-  const storage = yield* StorageService;
+  const storage = yield* HealthStorageService;
 
   return {
     getHealthStatus: () =>
@@ -162,7 +163,7 @@ const makeHealthStatusService = Effect.gen(function* () {
 export const HealthStatusServiceLive: Layer.Layer<
   HealthStatusService,
   never,
-  StorageService
+  HealthStorageService
 > = Layer.effect(HealthStatusService, makeHealthStatusService);
 
 // ============================================================================
@@ -190,7 +191,7 @@ export const getHealthStatus = (): Effect.Effect<
 export const getHealthStatusWithStorage = (
   storage: StorageServiceForHealth
 ): Effect.Effect<HealthStatus, HealthCheckError> => {
-  const storageLayer = Layer.succeed(StorageService, storage);
+  const storageLayer = Layer.succeed(HealthStorageService, storage);
   const healthLayer = HealthStatusServiceLive.pipe(Layer.provide(storageLayer));
 
   return getHealthStatus().pipe(Effect.provide(healthLayer));

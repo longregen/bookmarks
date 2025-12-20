@@ -3,6 +3,7 @@ import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
 import { FetchError } from './errors';
 import { renderPage } from '../../src/lib/tab-renderer';
+import { extractTitleFromHtml as extractTitleFromHtmlUtil } from './html-utils';
 
 export interface CapturedPage {
   html: string;
@@ -48,8 +49,7 @@ function isLocalhostUrlSync(url: string): boolean {
 }
 
 function extractTitleFromHtmlSync(html: string): string {
-  const match = /<title[^>]*>([^<]*)<\/title>/i.exec(html);
-  return match?.[1]?.trim() ?? '';
+  return extractTitleFromHtmlUtil(html);
 }
 
 export const makeBrowserFetchService = (

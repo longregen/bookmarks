@@ -2,6 +2,8 @@ import * as Context from 'effect/Context';
 import * as Effect from 'effect/Effect';
 import * as Data from 'effect/Data';
 import * as Layer from 'effect/Layer';
+import { DOMService, DOMServiceLive } from '../shared/dom-service';
+import { ServiceError } from '../shared/errors';
 
 // ============================================================================
 // Types
@@ -38,12 +40,6 @@ export class ApiError extends Data.TaggedError('ApiError')<{
   cause?: unknown;
 }> {}
 
-export class DomError extends Data.TaggedError('DomError')<{
-  elementId: string;
-  operation: string;
-  message: string;
-}> {}
-
 export class FormError extends Data.TaggedError('FormError')<{
   formId: string;
   message: string;
@@ -70,23 +66,6 @@ export class ApiService extends Context.Tag('ApiService')<
       payload: unknown,
       settings: TestConnectionSettings
     ): Effect.Effect<unknown, ApiError>;
-  }
->() {}
-
-export class DomService extends Context.Tag('DomService')<
-  DomService,
-  {
-    getElementById<T extends HTMLElement>(id: string): Effect.Effect<T, DomError>;
-    getTextContent(element: HTMLElement): Effect.Effect<string, never>;
-    setTextContent(element: HTMLElement, text: string): Effect.Effect<void, never>;
-    getValue(element: HTMLInputElement): Effect.Effect<string, never>;
-    setValue(element: HTMLInputElement, value: string): Effect.Effect<void, never>;
-    setClassName(element: HTMLElement, className: string): Effect.Effect<void, never>;
-    addEventListener<K extends keyof HTMLElementEventMap>(
-      element: HTMLElement,
-      type: K,
-      listener: (ev: HTMLElementEventMap[K]) => void
-    ): Effect.Effect<void, never>;
   }
 >() {}
 
@@ -142,11 +121,11 @@ const ELEMENT_IDS = {
  */
 function resetTestButton(): Effect.Effect<
   void,
-  DomError,
-  DomService
+  never,
+  DOMService
 > {
   return Effect.gen(function* () {
-    const dom = yield* DomService;
+    const dom = yield* DOMService;
 
     const testBtn = yield* dom.getElementById<HTMLButtonElement>(ELEMENT_IDS.testBtn);
     const testConnectionStatus = yield* dom.getElementById<HTMLDivElement>(
@@ -168,12 +147,12 @@ function resetTestButton(): Effect.Effect<
  */
 function loadSettings(): Effect.Effect<
   void,
-  SettingsError | DomError,
-  SettingsService | DomService
+  SettingsError,
+  SettingsService | DOMService
 > {
   return Effect.gen(function* () {
     const settingsService = yield* SettingsService;
-    const dom = yield* DomService;
+    const dom = yield* DOMService;
 
     const settings = yield* settingsService.getSettings();
 
@@ -196,12 +175,12 @@ function loadSettings(): Effect.Effect<
  */
 function saveSettings(): Effect.Effect<
   void,
-  SettingsError | DomError,
-  SettingsService | DomService
+  SettingsError,
+  SettingsService | DOMService
 > {
   return Effect.gen(function* () {
     const settingsService = yield* SettingsService;
-    const dom = yield* DomService;
+    const dom = yield* DOMService;
 
     const apiBaseUrlInput = yield* dom.getElementById<HTMLInputElement>(ELEMENT_IDS.apiBaseUrl);
     const apiKeyInput = yield* dom.getElementById<HTMLInputElement>(ELEMENT_IDS.apiKey);
@@ -227,12 +206,12 @@ function saveSettings(): Effect.Effect<
  */
 function testConnection(): Effect.Effect<
   void,
-  ApiError | DomError,
-  ApiService | DomService | FormHelperService
+  ApiError,
+  ApiService | DOMService | FormHelperService
 > {
   return Effect.gen(function* () {
     const apiService = yield* ApiService;
-    const dom = yield* DomService;
+    const dom = yield* DOMService;
     const formHelper = yield* FormHelperService;
 
     const testBtn = yield* dom.getElementById<HTMLButtonElement>(ELEMENT_IDS.testBtn);
@@ -276,7 +255,7 @@ function testConnection(): Effect.Effect<
   }).pipe(
     Effect.catchAll((error) =>
       Effect.gen(function* () {
-        const dom = yield* DomService;
+        const dom = yield* DOMService;
 
         const testBtn = yield* dom.getElementById<HTMLButtonElement>(ELEMENT_IDS.testBtn);
         const testConnectionStatus = yield* dom.getElementById<HTMLDivElement>(
@@ -291,7 +270,7 @@ function testConnection(): Effect.Effect<
         const errorMessage =
           error._tag === 'ApiError'
             ? error.message
-            : error._tag === 'DomError'
+            : error._tag === 'DOMError'
             ? error.message
             : 'Unknown error';
 
@@ -309,11 +288,11 @@ function testConnection(): Effect.Effect<
  */
 function setupInputListeners(): Effect.Effect<
   void,
-  DomError,
-  DomService
+  never,
+  DOMService
 > {
   return Effect.gen(function* () {
-    const dom = yield* DomService;
+    const dom = yield* DOMService;
 
     const apiBaseUrlInput = yield* dom.getElementById<HTMLInputElement>(ELEMENT_IDS.apiBaseUrl);
     const apiKeyInput = yield* dom.getElementById<HTMLInputElement>(ELEMENT_IDS.apiKey);
@@ -323,7 +302,7 @@ function setupInputListeners(): Effect.Effect<
     );
 
     const resetHandler = () => {
-      Effect.runPromise(resetTestButton().pipe(Effect.provide(DomServiceLive)));
+      Effect.runPromise(resetTestButton().pipe(Effect.provide(DOMServiceLive)));
     };
 
     yield* dom.addEventListener(apiBaseUrlInput, 'input', resetHandler);
@@ -338,11 +317,11 @@ function setupInputListeners(): Effect.Effect<
  */
 function setupTestButtonListener(): Effect.Effect<
   void,
-  DomError,
-  DomService
+  never,
+  DOMService
 > {
   return Effect.gen(function* () {
-    const dom = yield* DomService;
+    const dom = yield* DOMService;
 
     const testBtn = yield* dom.getElementById<HTMLButtonElement>(ELEMENT_IDS.testBtn);
 
@@ -350,7 +329,7 @@ function setupTestButtonListener(): Effect.Effect<
       Effect.runPromise(
         testConnection().pipe(
           Effect.provide(
-            Layer.mergeAll(ApiServiceLive, DomServiceLive, FormHelperServiceLive)
+            Layer.mergeAll(ApiServiceLive, DOMServiceLive, FormHelperServiceLive)
           )
         )
       );
@@ -363,7 +342,7 @@ function setupTestButtonListener(): Effect.Effect<
  */
 export function initSettingsModule(): Effect.Effect<
   void,
-  SettingsError | DomError | FormError,
+  SettingsError | FormError,
   SettingsService | DomService | FormHelperService
 > {
   return Effect.gen(function* () {
@@ -378,14 +357,14 @@ export function initSettingsModule(): Effect.Effect<
       onLoad: async () => {
         await Effect.runPromise(
           loadSettings().pipe(
-            Effect.provide(Layer.mergeAll(SettingsServiceLive, DomServiceLive))
+            Effect.provide(Layer.mergeAll(SettingsServiceLive, DOMServiceLive))
           )
         );
       },
       onSave: async () => {
         await Effect.runPromise(
           saveSettings().pipe(
-            Effect.provide(Layer.mergeAll(SettingsServiceLive, DomServiceLive))
+            Effect.provide(Layer.mergeAll(SettingsServiceLive, DOMServiceLive))
           )
         );
       },
@@ -466,52 +445,6 @@ export const ApiServiceLive: Layer.Layer<ApiService, never> = Layer.effect(
   }))
 );
 
-export const DomServiceLive: Layer.Layer<DomService, never> = Layer.effect(
-  DomService,
-  Effect.sync(() => ({
-    getElementById: <T extends HTMLElement>(id: string) =>
-      Effect.sync(() => {
-        const element = document.getElementById(id) as T | null;
-        if (!element) {
-          throw new DomError({
-            elementId: id,
-            operation: 'getElementById',
-            message: `Element with id '${id}' not found`,
-          });
-        }
-        return element;
-      }),
-
-    getTextContent: (element: HTMLElement) =>
-      Effect.sync(() => element.textContent ?? ''),
-
-    setTextContent: (element: HTMLElement, text: string) =>
-      Effect.sync(() => {
-        element.textContent = text;
-      }),
-
-    getValue: (element: HTMLInputElement) => Effect.sync(() => element.value),
-
-    setValue: (element: HTMLInputElement, value: string) =>
-      Effect.sync(() => {
-        element.value = value;
-      }),
-
-    setClassName: (element: HTMLElement, className: string) =>
-      Effect.sync(() => {
-        element.className = className;
-      }),
-
-    addEventListener: <K extends keyof HTMLElementEventMap>(
-      element: HTMLElement,
-      type: K,
-      listener: (ev: HTMLElementEventMap[K]) => void
-    ) =>
-      Effect.sync(() => {
-        element.addEventListener(type, listener);
-      }),
-  }))
-);
 
 export const FormHelperServiceLive: Layer.Layer<FormHelperService, never> = Layer.effect(
   FormHelperService,
@@ -552,7 +485,7 @@ export const FormHelperServiceLive: Layer.Layer<FormHelperService, never> = Laye
 export const SettingsModuleLive = Layer.mergeAll(
   SettingsServiceLive,
   ApiServiceLive,
-  DomServiceLive,
+  DOMServiceLive,
   FormHelperServiceLive
 );
 

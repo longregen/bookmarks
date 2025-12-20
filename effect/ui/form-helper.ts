@@ -2,6 +2,7 @@ import * as Effect from 'effect/Effect';
 import * as Context from 'effect/Context';
 import * as Data from 'effect/Data';
 import type * as Runtime from 'effect/Runtime';
+import { DOMService, DOMError } from './dom';
 
 // ===== Errors =====
 
@@ -14,43 +15,6 @@ export class FormSaveError extends Data.TaggedError('FormSaveError')<{
   readonly formId: string;
   readonly cause: unknown;
 }> {}
-
-export class DOMElementNotFoundError extends Data.TaggedError('DOMElementNotFoundError')<{
-  readonly elementId: string;
-  readonly selector?: string;
-}> {}
-
-// ===== Services =====
-
-export class DOMService extends Context.Tag('DOMService')<
-  DOMService,
-  {
-    readonly getElementById: <T extends HTMLElement>(
-      id: string
-    ) => Effect.Effect<T, DOMElementNotFoundError>;
-
-    readonly querySelector: <T extends Element>(
-      element: HTMLElement,
-      selector: string
-    ) => Effect.Effect<T | null, never>;
-
-    readonly setTextContent: (
-      element: HTMLElement,
-      text: string
-    ) => Effect.Effect<void, never>;
-
-    readonly setDisabled: (
-      element: HTMLButtonElement,
-      disabled: boolean
-    ) => Effect.Effect<void, never>;
-
-    readonly addEventListener: <K extends keyof HTMLElementEventMap>(
-      element: HTMLElement,
-      type: K,
-      listener: (event: HTMLElementEventMap[K]) => void
-    ) => Effect.Effect<void, never>;
-  }
->() {}
 
 export class StatusMessageService extends Context.Tag('StatusMessageService')<
   StatusMessageService,
@@ -146,7 +110,7 @@ export function initSettingsForm<LoadError, SaveError>(
   config: FormConfig<LoadError, SaveError>
 ): Effect.Effect<
   void,
-  DOMElementNotFoundError | LoadError | SaveError,
+  DOMError | LoadError | SaveError,
   DOMService | StatusMessageService
 > {
   return Effect.gen(function* () {
@@ -154,8 +118,8 @@ export function initSettingsForm<LoadError, SaveError>(
     const statusService = yield* StatusMessageService;
 
     // Get DOM elements
-    const form = yield* dom.getElementById<HTMLFormElement>(config.formId);
-    const statusDiv = yield* dom.getElementById<HTMLDivElement>(config.statusId);
+    const form = yield* dom.getElement<HTMLFormElement>(config.formId);
+    const statusDiv = yield* dom.getElement<HTMLDivElement>(config.statusId);
 
     // Load initial settings
     yield* config.onLoad.pipe(
@@ -174,15 +138,13 @@ export function initSettingsForm<LoadError, SaveError>(
 
     // Set up form submission handler
     // The handler captures services in closure and runs effects when form is submitted
-    yield* dom.addEventListener(form, 'submit', (e) => {
-      e.preventDefault();
+    yield* Effect.sync(() => {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
 
       // Create the submit effect
       const submitEffect = Effect.gen(function* () {
-        const submitBtn = yield* dom.querySelector<HTMLButtonElement>(
-          form,
-          '[type="submit"]'
-        );
+        const submitBtn = form.querySelector<HTMLButtonElement>('[type="submit"]');
 
         if (!submitBtn) {
           return;
@@ -226,7 +188,8 @@ export function initSettingsForm<LoadError, SaveError>(
         )
       ).catch((error) => {
         // Final fallback for unhandled errors
-        console.error('Unhandled form submission error:', error);
+          console.error('Unhandled form submission error:', error);
+        });
       });
     });
   });

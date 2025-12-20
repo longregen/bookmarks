@@ -8,8 +8,7 @@ import {
   type Theme,
 } from '../platform';
 import { getSettingsFromDb, saveSettingToDb } from '../../../src/lib/adapters/common';
-
-const THEME_STORAGE_KEY = 'bookmark-rag-theme';
+import { THEME_STORAGE_KEY } from './common';
 
 /**
  * Platform service Layer for Chrome/Edge extension environment.

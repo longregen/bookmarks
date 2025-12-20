@@ -1,14 +1,9 @@
 import * as Effect from 'effect/Effect';
-import * as Data from 'effect/Data';
 import * as Ref from 'effect/Ref';
 import { ConfigService, CONFIG_CATEGORIES, type ConfigEntryWithMetadata } from '../../lib/config-registry';
 import { getErrorMessage } from '../../lib/errors';
-
-export class DOMError extends Data.TaggedError('DOMError')<{
-  readonly elementId: string;
-  readonly operation: 'get' | 'render' | 'event';
-  readonly message: string;
-}> {}
+import { DOMError } from '../shared/errors';
+import { createElement, getElementSafe, clearChildren } from '../shared/dom-helpers';
 
 interface ModuleState {
   editingKey: string | null;
@@ -21,30 +16,6 @@ interface DOMRefs {
   configTableBody: HTMLTableSectionElement;
   resetAllBtn: HTMLButtonElement;
   modifiedCountSpan: HTMLElement | null;
-}
-
-function getElementSafe<T extends HTMLElement>(id: string): Effect.Effect<T, DOMError> {
-  return Effect.sync(() => {
-    const el = document.getElementById(id);
-    if (!el) {
-      throw new DOMError({
-        elementId: id,
-        operation: 'get',
-        message: `Required element #${id} not found`,
-      });
-    }
-    return el as T;
-  }).pipe(
-    Effect.catchAllDefect((defect) =>
-      Effect.fail(
-        new DOMError({
-          elementId: id,
-          operation: 'get',
-          message: defect instanceof DOMError ? defect.message : `Failed to get element #${id}`,
-        })
-      )
-    )
-  );
 }
 
 function getDOMRefs(): Effect.Effect<DOMRefs, DOMError> {
@@ -65,43 +36,6 @@ function getDOMRefs(): Effect.Effect<DOMRefs, DOMError> {
       modifiedCountSpan,
     };
   });
-}
-
-interface CreateElementOptions {
-  className?: string;
-  textContent?: string;
-  title?: string;
-  attributes?: Record<string, string>;
-}
-
-function createElement<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  options?: CreateElementOptions,
-  children?: (HTMLElement | Text | string)[]
-): HTMLElementTagNameMap[K] {
-  const el = document.createElement(tag);
-
-  if (options?.className !== undefined && options.className !== '') el.className = options.className;
-  if (options?.textContent !== undefined && options.textContent !== '') el.textContent = options.textContent;
-  if (options?.title !== undefined && options.title !== '') el.title = options.title;
-
-  if (options?.attributes) {
-    for (const [key, value] of Object.entries(options.attributes)) {
-      el.setAttribute(key, value);
-    }
-  }
-
-  if (children) {
-    for (const child of children) {
-      if (typeof child === 'string') {
-        el.appendChild(document.createTextNode(child));
-      } else {
-        el.appendChild(child);
-      }
-    }
-  }
-
-  return el;
 }
 
 function populateCategoryFilter(categoryFilter: HTMLSelectElement): Effect.Effect<void> {
@@ -143,10 +77,6 @@ function getFilteredEntries(
   }
 
   return entries;
-}
-
-function clearChildren(element: HTMLElement): void {
-  element.replaceChildren();
 }
 
 function formatValue(value: number | string | boolean, type: string): HTMLElement {

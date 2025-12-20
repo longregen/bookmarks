@@ -91,9 +91,10 @@ export interface QueryFilter {
 
 /**
  * Storage service tag for dependency injection
+ * Renamed to JobsStorageService to match tag name and avoid naming collision
  */
-export class StorageService extends Context.Tag('JobsStorageService')<
-  StorageService,
+export class JobsStorageService extends Context.Tag('JobsStorageService')<
+  JobsStorageService,
   IStorageService
 >() {}
 
@@ -227,7 +228,7 @@ export class JobService extends Context.Tag('JobService')<
  * Create the JobService implementation
  */
 const makeJobService = Effect.gen(function* () {
-  const storage = yield* StorageService;
+  const storage = yield* JobsStorageService;
 
   return {
     createJob: (params: {
@@ -1024,7 +1025,7 @@ const makeJobService = Effect.gen(function* () {
  * Live layer that provides JobService implementation
  * Requires StorageService to be provided
  */
-export const JobServiceLive: Layer.Layer<JobService, never, StorageService> =
+export const JobServiceLive: Layer.Layer<JobService, never, JobsStorageService> =
   Layer.effect(JobService, makeJobService);
 
 // ============================================================================

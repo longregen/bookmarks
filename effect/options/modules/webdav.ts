@@ -8,6 +8,7 @@ import { createPoller, type Poller } from '../../../src/lib/polling-manager';
 import { validateWebDAVUrl as validateWebDAVUrlShared } from '../../../src/lib/url-validator';
 import { getErrorMessage } from '../../lib/errors';
 import type { ApiSettings } from '../../../src/lib/platform';
+import { DOMError } from '../shared/errors';
 
 /**
  * Error types for WebDAV module
@@ -33,12 +34,8 @@ export class MessagingError extends Data.TaggedError('MessagingError')<{
   readonly originalError?: unknown;
 }> {}
 
-export class DOMError extends Data.TaggedError('DOMError')<{
-  readonly elementId: string;
-  readonly operation: 'query' | 'update' | 'event';
-  readonly message: string;
-  readonly originalError?: unknown;
-}> {}
+// Note: This module keeps its own DOMService with additional methods beyond the shared version
+// The shared DOMService and UIService could be used but this module has specific requirements
 
 /**
  * Service for Chrome runtime messaging

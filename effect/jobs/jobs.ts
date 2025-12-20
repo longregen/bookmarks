@@ -1007,4 +1007,7 @@ const initEffect = initialize().pipe(
 );
 
 // Run the effect
-Effect.runPromise(initEffect);
+// Skip during tests to avoid initialization errors
+if (!import.meta.vitest) {
+  Effect.runPromise(initEffect);
+}

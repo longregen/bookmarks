@@ -351,6 +351,9 @@ const initialize = (runtime: Effect.Runtime<
 const runtime = makeRuntime();
 console.log('[Offscreen] Document loaded');
 
-Effect.runPromise(initialize(runtime), { runtime }).catch((error) => {
-  console.error('[Offscreen] Initialization failed:', getErrorMessage(error));
-});
+// Skip during tests to avoid initialization errors
+if (!import.meta.vitest) {
+  Effect.runPromise(initialize(runtime), { runtime }).catch((error) => {
+    console.error('[Offscreen] Initialization failed:', getErrorMessage(error));
+  });
+}

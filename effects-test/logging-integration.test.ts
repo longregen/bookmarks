@@ -468,7 +468,10 @@ describe('LoggingService Integration Tests', () => {
 
   describe('Advanced Integration Scenarios', () => {
     it('should support nested Effect.gen blocks with logging', async () => {
-      const appLayer = Layer.provide(DataServiceLive, testLoggingLayer);
+      const appLayer = Layer.mergeAll(
+        testLoggingLayer,
+        Layer.provide(DataServiceLive, testLoggingLayer)
+      );
 
       const program = Effect.gen(function* () {
         const dataService = yield* DataService;
@@ -580,6 +583,7 @@ describe('LoggingService Integration Tests', () => {
   describe('Real-world Pipeline Simulation', () => {
     it('should log a complete bookmark processing pipeline', async () => {
       const appLayer = Layer.mergeAll(
+        testLoggingLayer,
         Layer.provide(DataServiceLive, testLoggingLayer),
         Layer.provide(ProcessorServiceLive, testLoggingLayer)
       );

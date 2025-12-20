@@ -3,32 +3,24 @@ import * as Context from 'effect/Context';
 import * as Data from 'effect/Data';
 import * as Layer from 'effect/Layer';
 import type { Bookmark, BookmarkTag } from '../db/schema';
-import { db } from '../../src/db/schema';
 import { getErrorMessage } from '../lib/errors';
 import { createElement, getElement } from '../ui/dom';
 import { formatDateByAge } from '../lib/date-format';
-import { onThemeChange, applyTheme } from '../shared/theme';
-import { initExtension } from '../ui/init-extension';
-import { initWeb } from '../web/init-web';
-import { addEventListener as addBookmarkEventListener } from '../lib/events';
-import { createHealthIndicator } from '../ui/health-indicator';
 import { BookmarkDetailManager } from '../ui/bookmark-detail';
+import {
+  BookmarkRepository,
+  TagRepository,
+  BookmarkRepositoryError,
+  TagRepositoryError,
+  RepositoryLayerLive,
+} from '../services/repository-services';
+import { initializeUI } from '../shared/ui-init';
+import { setupBookmarkEventHandlers } from '../shared/event-handling';
+import { getStatusModifier, sortBookmarks } from '../shared/rendering';
 
 // ============================================================================
 // Errors
 // ============================================================================
-
-export class BookmarkRepositoryError extends Data.TaggedError('BookmarkRepositoryError')<{
-  readonly operation: 'getAll' | 'getByTag' | 'getUntagged';
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
-
-export class TagRepositoryError extends Data.TaggedError('TagRepositoryError')<{
-  readonly operation: 'getAll' | 'getForBookmarks';
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
 
 export class UIStateError extends Data.TaggedError('UIStateError')<{
   readonly operation: 'getState' | 'setState';
@@ -49,28 +41,6 @@ export interface BookmarkWithTags {
   readonly bookmark: Bookmark;
   readonly tags: BookmarkTag[];
 }
-
-export class BookmarkRepository extends Context.Tag('BookmarkRepository')<
-  BookmarkRepository,
-  {
-    readonly getAll: () => Effect.Effect<Bookmark[], BookmarkRepositoryError>;
-    readonly getByTag: (
-      tagName: string
-    ) => Effect.Effect<Bookmark[], BookmarkRepositoryError>;
-    readonly getUntagged: () => Effect.Effect<Bookmark[], BookmarkRepositoryError>;
-  }
->() {}
-
-export class TagRepository extends Context.Tag('TagRepository')<
-  TagRepository,
-  {
-    readonly getAll: () => Effect.Effect<BookmarkTag[], TagRepositoryError>;
-    readonly getForBookmarks: (
-      bookmarkIds: string[]
-    ) => Effect.Effect<Map<string, BookmarkTag[]>, TagRepositoryError>;
-    readonly getTaggedBookmarkIds: () => Effect.Effect<Set<string>, TagRepositoryError>;
-  }
->() {}
 
 export interface UIState {
   selectedTag: string;
@@ -157,30 +127,6 @@ function computeTagStatistics(
 // ============================================================================
 // Effects
 // ============================================================================
-
-function getStatusModifier(status: string): string {
-  const statusMap: Record<string, string> = {
-    'complete': 'status-dot--success',
-    'pending': 'status-dot--warning',
-    'processing': 'status-dot--info',
-    'error': 'status-dot--error'
-  };
-  return statusMap[status] || 'status-dot--warning';
-}
-
-function sortBookmarks(bookmarks: Bookmark[], sortBy: string): Bookmark[] {
-  const sorted = [...bookmarks];
-
-  if (sortBy === 'newest') {
-    sorted.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  } else if (sortBy === 'oldest') {
-    sorted.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-  } else if (sortBy === 'title') {
-    sorted.sort((a, b) => a.title.localeCompare(b.title));
-  }
-
-  return sorted;
-}
 
 export function loadTagsEffect(
   tagList: HTMLElement
@@ -403,8 +349,8 @@ export class LibraryManager {
   };
 
   private detailManager: BookmarkDetailManager;
-  private removeEventListener: (() => void) | null = null;
-  private healthCleanup: (() => void) | null = null;
+  private eventHandlerCleanup: (() => void) | null = null;
+  private uiCleanup: (() => void) | null = null;
 
   constructor(private readonly config: LibraryConfig) {
     this.detailManager = new BookmarkDetailManager({
@@ -444,33 +390,19 @@ export class LibraryManager {
     });
 
     // Bookmark/tag events
-    this.removeEventListener = addBookmarkEventListener((event) => {
-      if (event.type.startsWith('bookmark:') || event.type.startsWith('tag:')) {
-        void this.reload();
-      }
+    const { cleanup } = setupBookmarkEventHandlers({
+      onBookmarkChange: () => void this.reload(),
+      onTagChange: () => void this.reload(),
     });
-
-    // Cleanup on unload
-    window.addEventListener('beforeunload', () => {
-      this.cleanup();
-    });
+    this.eventHandlerCleanup = cleanup;
   }
 
   async initialize(bookmarkIdParam: string | null): Promise<void> {
-    // Setup theme
-    onThemeChange((theme) => applyTheme(theme));
-
-    // Initialize extension or web
-    if (__IS_WEB__) {
-      await initWeb();
-    } else {
-      await initExtension();
-    }
-
-    // Initialize health indicator
-    if (this.config.healthIndicatorContainer) {
-      this.healthCleanup = createHealthIndicator(this.config.healthIndicatorContainer);
-    }
+    // Initialize UI (theme, platform, health indicator)
+    const { cleanup } = await initializeUI({
+      healthIndicatorContainer: this.config.healthIndicatorContainer,
+    });
+    this.uiCleanup = cleanup;
 
     // Load initial data
     await this.runEffect(
@@ -504,8 +436,8 @@ export class LibraryManager {
   }
 
   private cleanup(): void {
-    this.removeEventListener?.();
-    this.healthCleanup?.();
+    this.eventHandlerCleanup?.();
+    this.uiCleanup?.();
   }
 
   private async runEffect<A, E>(effect: Effect.Effect<A, E,
@@ -520,108 +452,6 @@ export class LibraryManager {
     never,
     never
   > {
-    const bookmarkRepoLayer = Layer.succeed(BookmarkRepository, {
-      getAll: () =>
-        Effect.tryPromise({
-          try: () => db.bookmarks.toArray(),
-          catch: (error) =>
-            new BookmarkRepositoryError({
-              operation: 'getAll',
-              message: 'Failed to fetch all bookmarks',
-              cause: error,
-            }),
-        }),
-
-      getByTag: (tagName: string) =>
-        Effect.tryPromise({
-          try: async () => {
-            const tagRecords = await db.bookmarkTags
-              .where('tagName')
-              .equals(tagName)
-              .toArray();
-            const taggedIds = tagRecords.map((t) => t.bookmarkId);
-            return await db.bookmarks.where('id').anyOf(taggedIds).toArray();
-          },
-          catch: (error) =>
-            new BookmarkRepositoryError({
-              operation: 'getByTag',
-              message: `Failed to fetch bookmarks for tag: ${tagName}`,
-              cause: error,
-            }),
-        }),
-
-      getUntagged: () =>
-        Effect.tryPromise({
-          try: async () => {
-            const allBookmarks = await db.bookmarks.toArray();
-            const taggedIds = new Set(
-              (await db.bookmarkTags.toArray()).map((t) => t.bookmarkId)
-            );
-            return allBookmarks.filter((b) => !taggedIds.has(b.id));
-          },
-          catch: (error) =>
-            new BookmarkRepositoryError({
-              operation: 'getUntagged',
-              message: 'Failed to fetch untagged bookmarks',
-              cause: error,
-            }),
-        }),
-    });
-
-    const tagRepoLayer = Layer.succeed(TagRepository, {
-      getAll: () =>
-        Effect.tryPromise({
-          try: () => db.bookmarkTags.toArray(),
-          catch: (error) =>
-            new TagRepositoryError({
-              operation: 'getAll',
-              message: 'Failed to fetch all tags',
-              cause: error,
-            }),
-        }),
-
-      getForBookmarks: (bookmarkIds: string[]) =>
-        Effect.tryPromise({
-          try: async () => {
-            const allTags = await db.bookmarkTags
-              .where('bookmarkId')
-              .anyOf(bookmarkIds)
-              .toArray();
-
-            const tagsByBookmarkId = new Map<string, BookmarkTag[]>();
-            for (const tag of allTags) {
-              const existing = tagsByBookmarkId.get(tag.bookmarkId);
-              if (existing) {
-                existing.push(tag);
-              } else {
-                tagsByBookmarkId.set(tag.bookmarkId, [tag]);
-              }
-            }
-            return tagsByBookmarkId;
-          },
-          catch: (error) =>
-            new TagRepositoryError({
-              operation: 'getForBookmarks',
-              message: 'Failed to fetch tags for bookmarks',
-              cause: error,
-            }),
-        }),
-
-      getTaggedBookmarkIds: () =>
-        Effect.tryPromise({
-          try: async () => {
-            const allTags = await db.bookmarkTags.toArray();
-            return new Set(allTags.map((t) => t.bookmarkId));
-          },
-          catch: (error) =>
-            new TagRepositoryError({
-              operation: 'getAll',
-              message: 'Failed to fetch tagged bookmark IDs',
-              cause: error,
-            }),
-        }),
-    });
-
     const uiStateLayer = Layer.succeed(UIStateService, {
       getState: () => Effect.succeed(this.uiState),
       setState: (state) =>
@@ -638,8 +468,7 @@ export class LibraryManager {
     });
 
     return Layer.mergeAll(
-      bookmarkRepoLayer,
-      tagRepoLayer,
+      RepositoryLayerLive,
       uiStateLayer,
       domLayer
     );

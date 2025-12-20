@@ -152,6 +152,9 @@ const program = Effect.gen(function* () {
  * Note: Since this is a long-lived page, the program runs but doesn't complete
  * until the page unloads. Resources remain acquired for the lifetime of the page.
  */
-Effect.runPromise(program).catch((error: unknown) => {
-  console.error('Failed to initialize options page:', error);
-});
+// Skip during tests to avoid initialization errors
+if (!import.meta.vitest) {
+  Effect.runPromise(program).catch((error: unknown) => {
+    console.error('Failed to initialize options page:', error);
+  });
+}

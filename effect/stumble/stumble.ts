@@ -6,14 +6,19 @@ import { db, type BookmarkTag, type Bookmark, type QuestionAnswer } from '../../
 import { createElement, getElement } from '../../src/ui/dom';
 import { formatDateByAge } from '../../src/lib/date-format';
 import { getErrorMessage } from '../../src/lib/errors';
-import { onThemeChange, applyTheme } from '../../src/shared/theme';
-import { initExtension } from '../../src/ui/init-extension';
-import { initWeb } from '../../src/web/init-web';
-import { createHealthIndicator } from '../../src/ui/health-indicator';
 import { BookmarkDetailManager } from '../../src/ui/bookmark-detail';
 import { loadTagFilters } from '../../src/ui/tag-filter';
 import { config } from '../../src/lib/config-registry';
-import { addEventListener as addBookmarkEventListener } from '../../src/lib/events';
+import {
+  BookmarkRepository,
+  TagRepository,
+  BookmarkRepositoryError,
+  TagRepositoryError,
+  RepositoryLayerLive,
+} from '../services/repository-services';
+import { initializeUI } from '../shared/ui-init';
+import { setupBookmarkEventHandlers } from '../shared/event-handling';
+import { getStatusModifier } from '../shared/rendering';
 
 // ============================================================================
 // Typed Errors
@@ -130,59 +135,63 @@ export class StumbleUIService extends Context.Tag('StumbleUIService')<
 // ============================================================================
 
 /**
- * Production implementation of StumbleDataService using Dexie
+ * Production implementation of StumbleDataService using shared repositories
  */
-export const StumbleDataServiceLive = Layer.succeed(StumbleDataService, {
-  getCompleteBookmarks: () =>
-    Effect.tryPromise({
-      try: () => db.bookmarks.where('status').equals('complete').toArray(),
-      catch: (error) =>
-        new StumbleLoadError({
-          message: 'Failed to load complete bookmarks',
-          cause: error,
-        }),
-    }),
+export const StumbleDataServiceLive = Layer.effect(
+  StumbleDataService,
+  Effect.gen(function* () {
+    const bookmarkRepo = yield* BookmarkRepository;
+    const tagRepo = yield* TagRepository;
 
-  getBookmarksByTags: (tagNames: string[]) =>
-    Effect.tryPromise({
-      try: async () => {
-        const tagResults = await db.bookmarkTags
-          .where('tagName')
-          .anyOf(tagNames)
-          .toArray();
-        return new Set(tagResults.map((t: BookmarkTag) => t.bookmarkId));
-      },
-      catch: (error) =>
-        new TagFilterError({
-          message: 'Failed to filter bookmarks by tags',
-          cause: error,
-        }),
-    }),
+    return {
+      getCompleteBookmarks: () =>
+        bookmarkRepo.getComplete().pipe(
+          Effect.mapError(
+            (error) =>
+              new StumbleLoadError({
+                message: error.message,
+                cause: error.cause,
+              })
+          )
+        ),
 
-  getQAPairsForBookmarks: (bookmarkIds: string[]) =>
-    Effect.tryPromise({
-      try: async () => {
-        const allQAPairs = await db.questionsAnswers
-          .where('bookmarkId')
-          .anyOf(bookmarkIds)
-          .toArray();
+      getBookmarksByTags: (tagNames: string[]) =>
+        tagRepo.getBookmarksByTags(tagNames).pipe(
+          Effect.mapError(
+            (error) =>
+              new TagFilterError({
+                message: error.message,
+                cause: error.cause,
+              })
+          )
+        ),
 
-        const qaPairsByBookmark = new Map<string, QuestionAnswer[]>();
-        for (const qa of allQAPairs) {
-          if (!qaPairsByBookmark.has(qa.bookmarkId)) {
-            qaPairsByBookmark.set(qa.bookmarkId, []);
-          }
-          qaPairsByBookmark.get(qa.bookmarkId)!.push(qa);
-        }
-        return qaPairsByBookmark;
-      },
-      catch: (error) =>
-        new StumbleLoadError({
-          message: 'Failed to load Q&A pairs',
-          cause: error,
+      getQAPairsForBookmarks: (bookmarkIds: string[]) =>
+        Effect.tryPromise({
+          try: async () => {
+            const allQAPairs = await db.questionsAnswers
+              .where('bookmarkId')
+              .anyOf(bookmarkIds)
+              .toArray();
+
+            const qaPairsByBookmark = new Map<string, QuestionAnswer[]>();
+            for (const qa of allQAPairs) {
+              if (!qaPairsByBookmark.has(qa.bookmarkId)) {
+                qaPairsByBookmark.set(qa.bookmarkId, []);
+              }
+              qaPairsByBookmark.get(qa.bookmarkId)!.push(qa);
+            }
+            return qaPairsByBookmark;
+          },
+          catch: (error) =>
+            new StumbleLoadError({
+              message: 'Failed to load Q&A pairs',
+              cause: error,
+            }),
         }),
-    }),
-});
+    };
+  })
+);
 
 /**
  * Production implementation of ShuffleService
@@ -413,20 +422,6 @@ export function loadFiltersEffect(
 }
 
 // ============================================================================
-// Helper Functions
-// ============================================================================
-
-function getStatusModifier(status: string): string {
-  const statusMap: Record<string, string> = {
-    complete: 'status-dot--success',
-    pending: 'status-dot--warning',
-    processing: 'status-dot--info',
-    error: 'status-dot--error',
-  };
-  return statusMap[status] || 'status-dot--warning';
-}
-
-// ============================================================================
 // Application Runtime
 // ============================================================================
 
@@ -463,9 +458,9 @@ export function runStumbleApp(): void {
 
   // Create runtime with all layers
   const StumbleAppLayer = Layer.mergeAll(
-    StumbleDataServiceLive,
     ShuffleServiceLive,
-    makeStumbleUIServiceLive(shuffleBtn, resultCount, stumbleList)
+    makeStumbleUIServiceLive(shuffleBtn, resultCount, stumbleList),
+    StumbleDataServiceLive.pipe(Layer.provide(RepositoryLayerLive))
   );
 
   // Load filters function
@@ -508,40 +503,22 @@ export function runStumbleApp(): void {
   // Shuffle button click handler
   shuffleBtn.addEventListener('click', () => void loadStumble());
 
-  // Initialize platform
-  if (__IS_WEB__) {
-    void initWeb();
-  } else {
-    void initExtension();
-  }
+  // Initialize UI
+  const healthIndicatorContainer = document.getElementById('healthIndicator');
+  void initializeUI({ healthIndicatorContainer: healthIndicatorContainer || undefined });
 
-  // Theme handling
-  onThemeChange((theme) => applyTheme(theme));
+  // Setup event handlers
+  setupBookmarkEventHandlers({
+    onTagChange: () => void loadFilters(),
+  });
 
   // Initial load
   void loadFilters();
   void loadStumble();
-
-  // Health indicator
-  const healthIndicatorContainer = document.getElementById('healthIndicator');
-  if (healthIndicatorContainer) {
-    createHealthIndicator(healthIndicatorContainer);
-  }
-
-  // Bookmark event listener
-  const removeEventListener = addBookmarkEventListener((event) => {
-    if (event.type.startsWith('tag:')) {
-      void loadFilters();
-    }
-  });
-
-  // Cleanup on unload
-  window.addEventListener('beforeunload', () => {
-    removeEventListener();
-  });
 }
 
 // Run the application if this is the main entry point
-if (typeof window !== 'undefined') {
+// Skip during tests to avoid DOM initialization errors
+if (typeof window !== 'undefined' && !import.meta.vitest) {
   runStumbleApp();
 }

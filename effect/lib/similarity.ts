@@ -119,12 +119,6 @@ export function findTopK<T>(
     const logging = yield* LoggingService;
     const config = yield* ConfigService;
 
-    yield* logging.debug('findTopK called', {
-      queryDimension: queryEmbedding.length,
-      itemCount: items.length,
-      k,
-    });
-
     // Validate query embedding
     if (!Array.isArray(queryEmbedding)) {
       yield* logging.debug('Invalid query embedding', {
@@ -138,6 +132,12 @@ export function findTopK<T>(
         })
       );
     }
+
+    yield* logging.debug('findTopK called', {
+      queryDimension: queryEmbedding.length,
+      itemCount: items.length,
+      k,
+    });
 
     // Validate items array
     if (!Array.isArray(items)) {

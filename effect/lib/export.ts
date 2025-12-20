@@ -74,8 +74,11 @@ export class ExportError extends Data.TaggedError('ExportError')<{
 // Services
 // ============================================================================
 
-export class StorageService extends Context.Tag('ExportStorageService')<
-  StorageService,
+/**
+ * Renamed to ExportStorageService to match tag name and avoid naming collision
+ */
+export class ExportStorageService extends Context.Tag('ExportStorageService')<
+  ExportStorageService,
   {
     readonly getBookmark: (id: string) => Effect.Effect<Bookmark | null, ExportError>;
     readonly addBookmark: (bookmark: Bookmark) => Effect.Effect<void, ExportError>;
@@ -92,8 +95,11 @@ export class StorageService extends Context.Tag('ExportStorageService')<
   }
 >() {}
 
-export class JobService extends Context.Tag('ExportJobService')<
-  JobService,
+/**
+ * Renamed to ExportJobService to match tag name and avoid naming collision
+ */
+export class ExportJobService extends Context.Tag('ExportJobService')<
+  ExportJobService,
   {
     readonly createJob: (params: {
       type: JobType;
@@ -173,10 +179,10 @@ function getBookmarkContentEffect(
 ): Effect.Effect<
   { markdown: Markdown | undefined; qaPairs: QuestionAnswer[] },
   ExportError,
-  StorageService
+  ExportStorageService
 > {
   return Effect.gen(function* () {
-    const storage = yield* StorageService;
+    const storage = yield* ExportStorageService;
 
     const markdown = yield* storage.getMarkdown(bookmarkId);
     const qaPairs = yield* storage.getQAPairs(bookmarkId);
@@ -187,9 +193,9 @@ function getBookmarkContentEffect(
 
 export function exportSingleBookmark(
   bookmarkId: string
-): Effect.Effect<BookmarkExport, BookmarkNotFoundError | ExportError, StorageService> {
+): Effect.Effect<BookmarkExport, BookmarkNotFoundError | ExportError, ExportStorageService> {
   return Effect.gen(function* () {
-    const storage = yield* StorageService;
+    const storage = yield* ExportStorageService;
 
     const bookmark = yield* storage.getBookmark(bookmarkId);
 
@@ -212,10 +218,10 @@ export function exportSingleBookmark(
 export function exportAllBookmarks(): Effect.Effect<
   BookmarkExport,
   ExportError,
-  StorageService
+  ExportStorageService
 > {
   return Effect.gen(function* () {
-    const storage = yield* StorageService;
+    const storage = yield* ExportStorageService;
 
     const bookmarks = yield* storage.getBookmarksArray();
 
@@ -250,9 +256,9 @@ export function exportAllBookmarks(): Effect.Effect<
 
 function importSingleBookmarkEffect(
   exportedBookmark: ExportedBookmark
-): Effect.Effect<string, ExportError, StorageService> {
+): Effect.Effect<string, ExportError, ExportStorageService> {
   return Effect.gen(function* () {
-    const storage = yield* StorageService;
+    const storage = yield* ExportStorageService;
 
     const now = new Date();
     const bookmarkId = crypto.randomUUID();
@@ -282,9 +288,9 @@ function importSingleBookmarkEffect(
 function importMarkdownEffect(
   bookmarkId: string,
   content: string
-): Effect.Effect<void, ExportError, StorageService> {
+): Effect.Effect<void, ExportError, ExportStorageService> {
   return Effect.gen(function* () {
-    const storage = yield* StorageService;
+    const storage = yield* ExportStorageService;
     const now = new Date();
 
     const markdown: Markdown = {
@@ -302,13 +308,13 @@ function importMarkdownEffect(
 function importQAPairsEffect(
   bookmarkId: string,
   questionsAnswers: ExportedBookmark['questionsAnswers']
-): Effect.Effect<void, ExportError, StorageService> {
+): Effect.Effect<void, ExportError, ExportStorageService> {
   return Effect.gen(function* () {
     if (questionsAnswers.length === 0) {
       return;
     }
 
-    const storage = yield* StorageService;
+    const storage = yield* ExportStorageService;
     const now = new Date();
     const qaPairsToAdd: QuestionAnswer[] = [];
 
@@ -347,10 +353,10 @@ function importQAPairsEffect(
 export function importBookmarks(
   data: BookmarkExport,
   fileName?: string
-): Effect.Effect<ImportResult, ExportError, StorageService | JobService> {
+): Effect.Effect<ImportResult, ExportError, ExportStorageService | ExportJobService> {
   return Effect.gen(function* () {
-    const storage = yield* StorageService;
-    const jobService = yield* JobService;
+    const storage = yield* ExportStorageService;
+    const jobService = yield* ExportJobService;
 
     const result: ImportResult = {
       success: true,
@@ -415,7 +421,7 @@ export function importBookmarks(
   }).pipe(
     Effect.catchAll((error) =>
       Effect.gen(function* () {
-        const jobService = yield* JobService;
+        const jobService = yield* ExportJobService;
 
         // Create failed job log entry
         yield* jobService.createJob({

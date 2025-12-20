@@ -4,6 +4,7 @@ import * as Layer from 'effect/Layer';
 import { Data } from 'effect';
 import type { BookmarkTag } from '../db/schema';
 import { RepositoryError } from '../lib/errors';
+import { DOMService, DOMServiceLive } from './dom';
 
 export interface TagFilterConfig {
   readonly container: HTMLElement;
@@ -25,35 +26,6 @@ export class TagRepository extends Context.Tag('TagRepository')<
   }
 >() {}
 
-export interface CreateElementOptions {
-  readonly className?: string;
-  readonly textContent?: string;
-  readonly attributes?: Record<string, string>;
-}
-
-function createElement<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  options?: CreateElementOptions
-): Effect.Effect<HTMLElementTagNameMap[K], never, never> {
-  return Effect.sync(() => {
-    const el = document.createElement(tag);
-
-    if (options?.className) {
-      el.className = options.className;
-    }
-    if (options?.textContent) {
-      el.textContent = options.textContent;
-    }
-    if (options?.attributes) {
-      for (const [key, value] of Object.entries(options.attributes)) {
-        el.setAttribute(key, value);
-      }
-    }
-
-    return el;
-  });
-}
-
 function extractUniqueTagNames(
   bookmarkTags: readonly BookmarkTag[]
 ): Effect.Effect<readonly string[], never, never> {
@@ -65,9 +37,10 @@ function extractUniqueTagNames(
 
 function createClearButton(
   config: TagFilterConfig
-): Effect.Effect<HTMLButtonElement, never, never> {
+): Effect.Effect<HTMLButtonElement, never, DOMService> {
   return Effect.gen(function* () {
-    const btn = yield* createElement('button', {
+    const dom = yield* DOMService;
+    const btn = yield* dom.createElement('button', {
       className: 'clear-selection-btn',
       textContent: 'Clear selection',
     });
@@ -86,13 +59,14 @@ function createClearButton(
 function createTagFilterCheckbox(
   tag: string,
   config: TagFilterConfig
-): Effect.Effect<HTMLLabelElement, never, never> {
+): Effect.Effect<HTMLLabelElement, never, DOMService> {
   return Effect.gen(function* () {
-    const label = yield* createElement('label', { className: 'filter-item' });
-    const checkbox = yield* createElement('input', {
+    const dom = yield* DOMService;
+    const label = yield* dom.createElement('label', { className: 'filter-item' });
+    const checkbox = yield* dom.createElement('input', {
       attributes: { type: 'checkbox' },
     });
-    const span = yield* createElement('span', { textContent: `#${tag}` });
+    const span = yield* dom.createElement('span', { textContent: `#${tag}` });
 
     yield* Effect.sync(() => {
       checkbox.checked = config.selectedTags.has(tag);
@@ -116,7 +90,7 @@ function createTagFilterCheckbox(
 function createTagFilterElements(
   tags: readonly string[],
   config: TagFilterConfig
-): Effect.Effect<readonly HTMLElement[], never, never> {
+): Effect.Effect<readonly HTMLElement[], never, DOMService> {
   return Effect.gen(function* () {
     const elements: HTMLElement[] = [];
 
@@ -160,7 +134,7 @@ function renderToContainer(
 
 export function loadTagFilters(
   config: TagFilterConfig
-): Effect.Effect<void, RepositoryError | UIError, TagRepository> {
+): Effect.Effect<void, RepositoryError | UIError, TagRepository | DOMService> {
   return Effect.gen(function* () {
     const tagRepository = yield* TagRepository;
 
@@ -196,9 +170,10 @@ export function runLoadTagFilters(
   config: TagFilterConfig,
   getAllTagsFn: () => Promise<BookmarkTag[]>
 ): Promise<void> {
-  const layer = TagRepositoryLive(getAllTagsFn);
+  const tagRepoLayer = TagRepositoryLive(getAllTagsFn);
+  const combinedLayer = Layer.mergeAll(tagRepoLayer, DOMServiceLive);
 
   return Effect.runPromise(
-    loadTagFilters(config).pipe(Effect.provide(layer))
+    loadTagFilters(config).pipe(Effect.provide(combinedLayer))
   );
 }

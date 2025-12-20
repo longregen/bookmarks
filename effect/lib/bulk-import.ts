@@ -3,6 +3,8 @@ import * as Context from 'effect/Context';
 import * as Data from 'effect/Data';
 import type { Bookmark, JobStatus, JobType } from '../../src/db/schema';
 import { validateWebUrl } from '../../src/lib/url-validator';
+import { extractTitleFromHtml } from './html-utils';
+import { JobService } from './jobs';
 
 // ============================================================================
 // Types
@@ -50,20 +52,11 @@ export class BookmarkRepository extends Context.Tag('BookmarkRepository')<
   }
 >() {}
 
-export class JobQueueService extends Context.Tag('JobQueueService')<
-  JobQueueService,
-  {
-    createJob(params: {
-      type: JobType;
-      status: JobStatus;
-      metadata: Record<string, unknown>;
-    }): Effect.Effect<{ id: string }, BulkImportError, never>;
-    createJobItems(
-      jobId: string,
-      bookmarkIds: string[]
-    ): Effect.Effect<void, BulkImportError, never>;
-  }
->() {}
+/**
+ * @deprecated Use JobService from './jobs' instead
+ * This is kept for backward compatibility but should be replaced
+ */
+export type JobQueueService = JobService;
 
 // ============================================================================
 // Pure Functions
@@ -115,45 +108,16 @@ export function validateSingleUrl(url: string): UrlValidation {
   };
 }
 
-function decodeHtmlEntities(text: string): string {
-  const entities: Record<string, string> = {
-    '&lt;': '<',
-    '&gt;': '>',
-    '&quot;': '"',
-    '&#39;': "'",
-    '&apos;': "'",
-    '&nbsp;': ' ',
-    '&amp;': '&',
-  };
-  return text.replace(
-    /&(?:#(\d+)|#x([0-9a-fA-F]+)|([a-z]+));/gi,
-    (match, dec?: string, hex?: string, named?: string) => {
-      if (dec !== undefined) return String.fromCharCode(parseInt(dec, 10));
-      if (hex !== undefined) return String.fromCharCode(parseInt(hex, 16));
-      if (named !== undefined) return entities[`&${named};`] ?? match;
-      return match;
-    }
-  );
-}
-
-export function extractTitleFromHtml(html: string): string {
-  const titleMatch = /<title[^>]*>(.*?)<\/title>/i.exec(html);
-  if (titleMatch?.[1] !== undefined) {
-    return decodeHtmlEntities(titleMatch[1]).trim();
-  }
-  return '';
-}
-
 // ============================================================================
 // Effect Functions
 // ============================================================================
 
 export function createBulkImportJob(
   urls: string[]
-): Effect.Effect<string, BulkImportError, BookmarkRepository | JobQueueService> {
+): Effect.Effect<string, BulkImportError, BookmarkRepository | JobService> {
   return Effect.gen(function* () {
     const bookmarkRepo = yield* BookmarkRepository;
-    const jobQueue = yield* JobQueueService;
+    const jobQueue = yield* JobService;
 
     const now = yield* Effect.sync(() => new Date());
     const bookmarkIds: string[] = [];
@@ -208,7 +172,7 @@ export function createBulkImportJob(
     // Create job with IN_PROGRESS status (will be updated as items complete)
     const job = yield* jobQueue.createJob({
       type: 'BULK_URL_IMPORT' as JobType,
-      status: 'IN_PROGRESS' as JobStatus,
+      status: 'in_progress' as JobStatus,
       metadata: {
         totalUrls: urls.length,
       },

@@ -7,11 +7,11 @@ import {
   validateSingleUrl,
   createBulkImportJob,
   BookmarkRepository,
-  JobQueueService,
   BulkImportError,
   type ValidationResult,
   type UrlValidation,
 } from '../effect/lib/bulk-import';
+import { JobService } from '../effect/lib/jobs';
 import type { Bookmark, Job, JobType, JobStatus } from '../effect/db/schema';
 
 /**
@@ -189,7 +189,7 @@ describe('Bulk Import Pipeline Integration', () => {
       };
 
       const bookmarkLayer = Layer.succeed(BookmarkRepository, mockBookmarkRepo);
-      const jobQueueLayer = Layer.succeed(JobQueueService, mockJobQueue);
+      const jobQueueLayer = Layer.succeed(JobService, mockJobQueue);
 
       const program = Effect.gen(function* () {
         const jobId = yield* createBulkImportJob(urls);
@@ -208,7 +208,7 @@ describe('Bulk Import Pipeline Integration', () => {
         expect(jobsStore.size).toBe(1);
         const job = jobsStore.get(jobId);
         expect(job?.type).toBe('BULK_URL_IMPORT');
-        expect(job?.status).toBe('IN_PROGRESS');
+        expect(job?.status).toBe('in_progress');
         expect(job?.metadata.totalUrls).toBe(2);
 
         // Verify job items were created
@@ -272,7 +272,7 @@ describe('Bulk Import Pipeline Integration', () => {
       };
 
       const bookmarkLayer = Layer.succeed(BookmarkRepository, mockBookmarkRepo);
-      const jobQueueLayer = Layer.succeed(JobQueueService, mockJobQueue);
+      const jobQueueLayer = Layer.succeed(JobService, mockJobQueue);
 
       const program = Effect.gen(function* () {
         const jobId = yield* createBulkImportJob([url]);
@@ -350,7 +350,7 @@ describe('Bulk Import Pipeline Integration', () => {
       };
 
       const bookmarkLayer = Layer.succeed(BookmarkRepository, mockBookmarkRepo);
-      const jobQueueLayer = Layer.succeed(JobQueueService, mockJobQueue);
+      const jobQueueLayer = Layer.succeed(JobService, mockJobQueue);
 
       const program = Effect.gen(function* () {
         yield* createBulkImportJob([existingUrl, newUrl]);
@@ -390,7 +390,7 @@ describe('Bulk Import Pipeline Integration', () => {
       };
 
       const bookmarkLayer = Layer.succeed(BookmarkRepository, mockBookmarkRepo);
-      const jobQueueLayer = Layer.succeed(JobQueueService, mockJobQueue);
+      const jobQueueLayer = Layer.succeed(JobService, mockJobQueue);
 
       const program = Effect.gen(function* () {
         yield* createBulkImportJob(['https://example.com']);
@@ -430,7 +430,7 @@ describe('Bulk Import Pipeline Integration', () => {
       };
 
       const bookmarkLayer = Layer.succeed(BookmarkRepository, mockBookmarkRepo);
-      const jobQueueLayer = Layer.succeed(JobQueueService, mockJobQueue);
+      const jobQueueLayer = Layer.succeed(JobService, mockJobQueue);
 
       const program = Effect.gen(function* () {
         yield* createBulkImportJob(['https://example.com']);
@@ -501,7 +501,7 @@ describe('Bulk Import Pipeline Integration', () => {
       };
 
       const bookmarkLayer = Layer.succeed(BookmarkRepository, mockBookmarkRepo);
-      const jobQueueLayer = Layer.succeed(JobQueueService, mockJobQueue);
+      const jobQueueLayer = Layer.succeed(JobService, mockJobQueue);
 
       const program = Effect.gen(function* () {
         yield* createBulkImportJob(validation.validUrls);
@@ -719,7 +719,7 @@ describe('Bulk Import Pipeline Integration', () => {
       };
 
       const bookmarkLayer = Layer.succeed(BookmarkRepository, mockBookmarkRepo);
-      const jobQueueLayer = Layer.succeed(JobQueueService, mockJobQueue);
+      const jobQueueLayer = Layer.succeed(JobService, mockJobQueue);
 
       const program = Effect.gen(function* () {
         // Try to import same URL twice
@@ -787,7 +787,7 @@ describe('Bulk Import Pipeline Integration', () => {
       };
 
       const bookmarkLayer = Layer.succeed(BookmarkRepository, mockBookmarkRepo);
-      const jobQueueLayer = Layer.succeed(JobQueueService, mockJobQueue);
+      const jobQueueLayer = Layer.succeed(JobService, mockJobQueue);
 
       const program = Effect.gen(function* () {
         yield* createBulkImportJob(urls);

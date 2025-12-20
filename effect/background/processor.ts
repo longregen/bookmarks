@@ -1,135 +1,19 @@
 import * as Effect from 'effect/Effect';
-import * as Context from 'effect/Context';
-import * as Data from 'effect/Data';
 import type { Bookmark } from '../../src/db/schema';
-
-// ============================================================================
-// Error Types
-// ============================================================================
-
-export class FetchError extends Data.TaggedError('FetchError')<{
-  url: string;
-  message: string;
-  cause?: unknown;
-}> {}
-
-export class MarkdownError extends Data.TaggedError('MarkdownError')<{
-  bookmarkId: string;
-  message: string;
-  cause?: unknown;
-}> {}
-
-export class QAGenerationError extends Data.TaggedError('QAGenerationError')<{
-  bookmarkId: string;
-  message: string;
-  cause?: unknown;
-}> {}
-
-export class EmbeddingError extends Data.TaggedError('EmbeddingError')<{
-  message: string;
-  cause?: unknown;
-}> {}
-
-export class StorageError extends Data.TaggedError('StorageError')<{
-  operation: string;
-  table: string;
-  message: string;
-  cause?: unknown;
-}> {}
-
-// ============================================================================
-// Service Interfaces
-// ============================================================================
-
-export class StorageService extends Context.Tag('StorageService')<
-  StorageService,
-  {
-    updateBookmark(
-      id: string,
-      data: Partial<Bookmark>
-    ): Effect.Effect<void, StorageError>;
-
-    getMarkdown(
-      bookmarkId: string
-    ): Effect.Effect<{ content: string } | null, StorageError>;
-
-    saveMarkdown(data: {
-      id: string;
-      bookmarkId: string;
-      content: string;
-      createdAt: Date;
-      updatedAt: Date;
-    }): Effect.Effect<void, StorageError>;
-
-    getQuestionAnswers(
-      bookmarkId: string
-    ): Effect.Effect<unknown | null, StorageError>;
-
-    saveQuestionAnswers(
-      records: Array<{
-        id: string;
-        bookmarkId: string;
-        question: string;
-        answer: string;
-        embeddingQuestion: number[];
-        embeddingAnswer: number[];
-        embeddingBoth: number[];
-        createdAt: Date;
-        updatedAt: Date;
-      }>
-    ): Effect.Effect<void, StorageError>;
-  }
->() {}
-
-export class FetchService extends Context.Tag('FetchService')<
-  FetchService,
-  {
-    fetchHtml(
-      url: string,
-      timeout: number
-    ): Effect.Effect<{ html: string; title: string | null }, FetchError>;
-  }
->() {}
-
-export class MarkdownService extends Context.Tag('MarkdownService')<
-  MarkdownService,
-  {
-    extract(
-      html: string,
-      url: string
-    ): Effect.Effect<{ content: string }, MarkdownError>;
-  }
->() {}
-
-export class QAService extends Context.Tag('QAService')<
-  QAService,
-  {
-    generatePairs(
-      markdownContent: string
-    ): Effect.Effect<Array<{ question: string; answer: string }>, QAGenerationError>;
-  }
->() {}
-
-export class EmbeddingService extends Context.Tag('EmbeddingService')<
-  EmbeddingService,
-  {
-    generate(texts: string[]): Effect.Effect<number[][], EmbeddingError>;
-  }
->() {}
-
-export class ConfigService extends Context.Tag('ConfigService')<
-  ConfigService,
-  {
-    getFetchTimeout(): Effect.Effect<number>;
-  }
->() {}
-
-export class TitleExtractor extends Context.Tag('TitleExtractor')<
-  TitleExtractor,
-  {
-    extractFromHtml(html: string): Effect.Effect<string | null>;
-  }
->() {}
+import {
+  FetchError,
+  MarkdownError,
+  QAGenerationError,
+  EmbeddingError,
+  StorageError,
+} from '../lib/errors';
+import { StorageService } from '../services/storage-service';
+import { FetchService } from '../services/fetch-service';
+import { MarkdownService } from '../services/markdown-service';
+import { QAService } from '../services/qa-service';
+import { EmbeddingService } from '../services/embedding-service';
+import { ConfigService } from '../services/config-service';
+import { TitleExtractor } from '../services/title-extractor';
 
 // ============================================================================
 // Core Processing Functions
