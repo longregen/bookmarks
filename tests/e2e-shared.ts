@@ -500,6 +500,75 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
+  await runner.runTest('Export all bookmarks as JSON returns valid data', async () => {
+    // Open library page where test helpers are available
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('library'));
+    await page.waitForSelector('#bookmarkList');
+
+    // Wait for test helpers to be available
+    await page.waitForFunction(
+      `window.__testHelpers && typeof window.__testHelpers.exportAllBookmarks === 'function'`,
+      10000
+    );
+
+    // Call export function via test helpers
+    const exportResult = await page.evaluate(`
+      (async () => {
+        try {
+          const result = await window.__testHelpers.exportAllBookmarks();
+          return { success: true, data: result };
+        } catch (error) {
+          return { success: false, error: error.message || String(error) };
+        }
+      })()
+    `) as { success: boolean; data?: unknown; error?: string };
+
+    if (!exportResult.success) {
+      throw new Error(`Export failed: ${exportResult.error}`);
+    }
+
+    const exportData = exportResult.data as {
+      version?: number;
+      exportedAt?: string;
+      bookmarkCount?: number;
+      bookmarks?: unknown[];
+    };
+
+    // Verify export structure
+    if (typeof exportData.version !== 'number') {
+      throw new Error(`Export missing version field, got: ${JSON.stringify(exportData)}`);
+    }
+    if (typeof exportData.exportedAt !== 'string') {
+      throw new Error(`Export missing exportedAt field`);
+    }
+    if (typeof exportData.bookmarkCount !== 'number') {
+      throw new Error(`Export missing bookmarkCount field`);
+    }
+    if (!Array.isArray(exportData.bookmarks)) {
+      throw new Error(`Export missing bookmarks array`);
+    }
+    if (exportData.bookmarks.length !== exportData.bookmarkCount) {
+      throw new Error(`Export bookmarkCount (${exportData.bookmarkCount}) doesn't match actual bookmarks length (${exportData.bookmarks.length})`);
+    }
+
+    // Verify each bookmark has required fields
+    for (const bookmark of exportData.bookmarks) {
+      const b = bookmark as Record<string, unknown>;
+      if (typeof b.id !== 'string') throw new Error(`Bookmark missing id field`);
+      if (typeof b.url !== 'string') throw new Error(`Bookmark missing url field`);
+      if (typeof b.title !== 'string') throw new Error(`Bookmark missing title field`);
+      if (typeof b.status !== 'string') throw new Error(`Bookmark missing status field`);
+      if (typeof b.createdAt !== 'string') throw new Error(`Bookmark missing createdAt field`);
+      if (typeof b.updatedAt !== 'string') throw new Error(`Bookmark missing updatedAt field`);
+      if (!Array.isArray(b.questionsAnswers)) throw new Error(`Bookmark missing questionsAnswers array`);
+    }
+
+    console.log(`  ✓ Export returned ${exportData.bookmarkCount} bookmarks with valid structure`);
+
+    await page.close();
+  });
+
   await runner.runTest('Import file input exists', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('options'));
@@ -798,6 +867,78 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
       console.log(`  ✓ Found ${qaCount} Q&A pairs for test article`);
 
       await verifyPage.close();
+    });
+
+    await runner.runTest('Export all bookmarks includes saved bookmarks with Q&A data', async () => {
+      // Open library page where test helpers are available
+      const page = await adapter.newPage();
+      await page.goto(adapter.getPageUrl('library'));
+      await page.waitForSelector('#bookmarkList');
+
+      // Wait for test helpers to be available
+      await page.waitForFunction(
+        `window.__testHelpers && typeof window.__testHelpers.exportAllBookmarks === 'function'`,
+        10000
+      );
+
+      // Call export function via test helpers
+      const exportResult = await page.evaluate(`
+        (async () => {
+          try {
+            const result = await window.__testHelpers.exportAllBookmarks();
+            return { success: true, data: result };
+          } catch (error) {
+            return { success: false, error: error.message || String(error) };
+          }
+        })()
+      `) as { success: boolean; data?: unknown; error?: string };
+
+      if (!exportResult.success) {
+        throw new Error(`Export failed: ${exportResult.error}`);
+      }
+
+      const exportData = exportResult.data as {
+        version?: number;
+        exportedAt?: string;
+        bookmarkCount?: number;
+        bookmarks?: Record<string, unknown>[];
+      };
+
+      // Verify we have at least some bookmarks (from previous tests)
+      if (!exportData.bookmarkCount || exportData.bookmarkCount < 1) {
+        throw new Error(`Expected at least 1 bookmark in export, got ${exportData.bookmarkCount}`);
+      }
+
+      // Find a bookmark with Q&A data (should exist from previous tests)
+      const bookmarkWithQA = exportData.bookmarks?.find(
+        (b) => Array.isArray(b.questionsAnswers) && (b.questionsAnswers as unknown[]).length > 0
+      );
+
+      if (!bookmarkWithQA) {
+        throw new Error('No bookmark found with Q&A data in export');
+      }
+
+      // Verify the Q&A structure
+      const qa = (bookmarkWithQA.questionsAnswers as Record<string, unknown>[])[0];
+      if (typeof qa.question !== 'string') {
+        throw new Error('Q&A pair missing question field');
+      }
+      if (typeof qa.answer !== 'string') {
+        throw new Error('Q&A pair missing answer field');
+      }
+
+      // Check for markdown field
+      const bookmarkWithMarkdown = exportData.bookmarks?.find(
+        (b) => typeof b.markdown === 'string' && (b.markdown as string).length > 0
+      );
+
+      if (!bookmarkWithMarkdown) {
+        throw new Error('No bookmark found with markdown content in export');
+      }
+
+      console.log(`  ✓ Export contains ${exportData.bookmarkCount} bookmarks with Q&A and markdown data`);
+
+      await page.close();
     });
   }
 

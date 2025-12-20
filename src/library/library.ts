@@ -225,8 +225,14 @@ declare global {
   interface Window {
     __testHelpers?: {
       getBookmarkStatus: () => Promise<unknown>;
+      exportAllBookmarks: () => Promise<unknown>;
     };
   }
+}
+
+// Dynamic import to avoid bundling issues in test mode
+async function getExportModule(): Promise<typeof import('../lib/export')> {
+  return await import('../lib/export');
 }
 
 window.__testHelpers = {
@@ -249,5 +255,9 @@ window.__testHelpers = {
         contentPreview: m.content ? m.content.substring(0, 200) : ''
       }))
     };
+  },
+  async exportAllBookmarks() {
+    const { exportAllBookmarks } = await getExportModule();
+    return await exportAllBookmarks();
   }
 };
