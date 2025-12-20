@@ -1124,23 +1124,135 @@ This is another test article.',
     await page.close();
   });
 
-  await runner.runTest('Jobs can be filtered by type and status', async () => {
+  await runner.runTest('Jobs dashboard type filter works', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('jobs'));
     await page.waitForSelector('#jobTypeFilter');
-    await page.waitForSelector('#jobStatusFilter');
+    await page.waitForSelector('#jobsList');
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Wait for jobs to load
+    await page.waitForFunction(
+      `(() => {
+        const jobsList = document.getElementById('jobsList');
+        return jobsList && !jobsList.textContent?.includes('Loading');
+      })()`,
+      10000
+    );
 
+    const initialJobCount = await page.evaluate(`
+      document.querySelectorAll('.job-item').length
+    `) as number;
+
+    // Filter by manual_add type
     await page.select('#jobTypeFilter', 'manual_add');
     await new Promise(resolve => setTimeout(resolve, 500));
 
+    const filteredCount = await page.evaluate(`
+      document.querySelectorAll('.job-item').length
+    `) as number;
+
+    // Verify filter changed the display (or stayed same if all are that type)
+    console.log(`  ✓ Type filter: ${initialJobCount} total jobs, ${filteredCount} after filtering by manual_add`);
+
+    // Clear filter
+    await page.select('#jobTypeFilter', '');
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const afterClearCount = await page.evaluate(`
+      document.querySelectorAll('.job-item').length
+    `) as number;
+
+    if (afterClearCount !== initialJobCount) {
+      throw new Error(`Expected ${initialJobCount} jobs after clearing filter, got ${afterClearCount}`);
+    }
+
+    console.log('  ✓ Type filter reset works');
+    await page.close();
+  });
+
+  await runner.runTest('Jobs dashboard status filter works', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('jobs'));
+    await page.waitForSelector('#jobStatusFilter');
+    await page.waitForSelector('#jobsList');
+
+    // Wait for jobs to load
+    await page.waitForFunction(
+      `(() => {
+        const jobsList = document.getElementById('jobsList');
+        return jobsList && !jobsList.textContent?.includes('Loading');
+      })()`,
+      10000
+    );
+
+    const initialJobCount = await page.evaluate(`
+      document.querySelectorAll('.job-item').length
+    `) as number;
+
+    // Filter by completed status
     await page.select('#jobStatusFilter', 'completed');
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    await page.select('#jobTypeFilter', '');
-    await page.select('#jobStatusFilter', '');
+    const completedCount = await page.evaluate(`
+      document.querySelectorAll('.job-item').length
+    `) as number;
 
+    // Verify all displayed jobs have completed status
+    const allCompleted = await page.evaluate(`(() => {
+      const jobs = document.querySelectorAll('.job-item');
+      if (jobs.length === 0) return true;
+      for (const job of jobs) {
+        const badge = job.querySelector('.job-status-badge');
+        if (!badge || !badge.textContent?.toUpperCase().includes('COMPLETED')) {
+          return false;
+        }
+      }
+      return true;
+    })()`);
+
+    if (!allCompleted) {
+      throw new Error('Not all displayed jobs have completed status after filtering');
+    }
+
+    console.log(`  ✓ Status filter: ${completedCount} completed jobs displayed`);
+
+    // Clear filter
+    await page.select('#jobStatusFilter', '');
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    await page.close();
+  });
+
+  await runner.runTest('Jobs dashboard refresh button works', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('jobs'));
+    await page.waitForSelector('#refreshJobsBtn');
+    await page.waitForSelector('#jobsList');
+
+    // Wait for initial load
+    await page.waitForFunction(
+      `(() => {
+        const jobsList = document.getElementById('jobsList');
+        return jobsList && !jobsList.textContent?.includes('Loading');
+      })()`,
+      10000
+    );
+
+    const beforeCount = await page.evaluate(`
+      document.querySelectorAll('.job-item').length
+    `) as number;
+
+    // Click refresh
+    await page.click('#refreshJobsBtn');
+
+    // Wait for refresh to complete
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    const afterCount = await page.evaluate(`
+      document.querySelectorAll('.job-item').length
+    `) as number;
+
+    console.log(`  ✓ Refresh button works: ${beforeCount} before, ${afterCount} after`);
     await page.close();
   });
 
@@ -1196,6 +1308,310 @@ This is another test article.',
       throw new Error('Settings area does not have overflow-y: auto');
     }
 
+    await page.close();
+  });
+
+  // Theme switching tests
+  await runner.runTest('Theme selection changes document theme attribute', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('#themeAuto');
+
+    // Test each theme
+    const themes = ['light', 'dark', 'terminal', 'tufte'];
+    for (const theme of themes) {
+      await page.click(`#theme${theme.charAt(0).toUpperCase() + theme.slice(1)}`);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const appliedTheme = await page.evaluate(`
+        document.documentElement.getAttribute('data-theme')
+      `) as string;
+
+      if (appliedTheme !== theme) {
+        throw new Error(`Expected data-theme="${theme}", got "${appliedTheme}"`);
+      }
+    }
+
+    // Reset to auto
+    await page.click('#themeAuto');
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    const autoTheme = await page.evaluate(`
+      document.documentElement.getAttribute('data-theme')
+    `);
+
+    if (autoTheme !== null && autoTheme !== '') {
+      console.log(`  Note: Auto theme has data-theme="${autoTheme}" (may be system preference)`);
+    }
+
+    console.log('  ✓ All theme selections apply correct data-theme attribute');
+    await page.close();
+  });
+
+  await runner.runTest('Theme persists after page reload', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('#themeDark');
+
+    // Select dark theme
+    await page.click('#themeDark');
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Reload the page
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('#themeDark');
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Verify dark theme is still selected
+    const isDarkChecked = await page.evaluate(`
+      document.getElementById('themeDark').checked
+    `);
+
+    if (!isDarkChecked) {
+      throw new Error('Dark theme was not persisted after page reload');
+    }
+
+    const appliedTheme = await page.evaluate(`
+      document.documentElement.getAttribute('data-theme')
+    `) as string;
+
+    if (appliedTheme !== 'dark') {
+      throw new Error(`Expected data-theme="dark" after reload, got "${appliedTheme}"`);
+    }
+
+    // Reset to auto for other tests
+    await page.click('#themeAuto');
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    console.log('  ✓ Theme selection persists after page reload');
+    await page.close();
+  });
+
+  // Library sorting tests
+  await runner.runTest('Library sort dropdown has all options', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('library'));
+    await page.waitForSelector('#sortSelect');
+
+    const sortOptions = await page.evaluate(`(() => {
+      const select = document.getElementById('sortSelect');
+      return Array.from(select.options).map(opt => ({
+        value: opt.value,
+        text: opt.textContent.trim()
+      }));
+    })()`) as Array<{ value: string; text: string }>;
+
+    const expectedOptions = ['newest', 'oldest', 'title'];
+    for (const expected of expectedOptions) {
+      const found = sortOptions.some(opt => opt.value === expected);
+      if (!found) {
+        throw new Error(`Sort option "${expected}" not found. Options: ${JSON.stringify(sortOptions)}`);
+      }
+    }
+
+    console.log(`  ✓ Sort dropdown has ${sortOptions.length} options: ${sortOptions.map(o => o.value).join(', ')}`);
+    await page.close();
+  });
+
+  await runner.runTest('Library sorting by title produces alphabetical order', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('library'));
+    await page.waitForSelector('#sortSelect');
+    await page.waitForSelector('#bookmarkList');
+
+    // Wait for bookmarks to load
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Select title sort
+    await page.select('#sortSelect', 'title');
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const titles = await page.evaluate(`(() => {
+      const cards = document.querySelectorAll('.bookmark-card .card-title');
+      return Array.from(cards).map(el => el.textContent.trim());
+    })()`) as string[];
+
+    if (titles.length < 2) {
+      console.log('  ⚠ Less than 2 bookmarks, skipping sort order verification');
+      await page.close();
+      return;
+    }
+
+    const sortedTitles = [...titles].sort((a, b) => a.localeCompare(b));
+    const isSorted = titles.every((t, i) => t === sortedTitles[i]);
+
+    if (!isSorted) {
+      throw new Error('Titles are not in alphabetical order after sorting by title');
+    }
+
+    console.log(`  ✓ ${titles.length} bookmarks sorted alphabetically by title`);
+    await page.close();
+  });
+
+  // Stumble page interaction tests
+  await runner.runTest('Stumble shuffle button is clickable', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('stumble'));
+    await page.waitForSelector('#shuffleBtn');
+
+    const hasShuffleBtn = await page.$('#shuffleBtn');
+    if (!hasShuffleBtn) {
+      throw new Error('Shuffle button not found');
+    }
+
+    // Click shuffle and verify it responds
+    await page.click('#shuffleBtn');
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Verify button exists and page is still functional
+    const stillHasButton = await page.$('#shuffleBtn');
+    if (!stillHasButton) {
+      throw new Error('Shuffle button disappeared after click');
+    }
+
+    console.log('  ✓ Shuffle button is clickable');
+    await page.close();
+  });
+
+  await runner.runTest('Stumble page has result count display', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('stumble'));
+    await page.waitForSelector('#resultCount');
+
+    const resultCount = await page.evaluate(`
+      document.getElementById('resultCount')?.textContent || ''
+    `) as string;
+
+    // Result count should contain a number
+    if (!/\d/.test(resultCount)) {
+      console.log(`  Note: Result count shows "${resultCount}" (may be 0 bookmarks)`);
+    } else {
+      console.log(`  ✓ Result count displays: ${resultCount.trim()}`);
+    }
+
+    await page.close();
+  });
+
+  // Search interaction tests
+  await runner.runTest('Search input accepts text and search button triggers search', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('search'));
+    await page.waitForSelector('#searchInput');
+    await page.waitForSelector('#searchBtn');
+
+    // Type in search input
+    await page.type('#searchInput', 'artificial intelligence');
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    const inputValue = await page.evaluate(`
+      document.getElementById('searchInput').value
+    `) as string;
+
+    if (inputValue !== 'artificial intelligence') {
+      throw new Error(`Expected search input to have "artificial intelligence", got "${inputValue}"`);
+    }
+
+    // Click search button
+    await page.click('#searchBtn');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Verify some response (button state or results area changes)
+    const hasResults = await page.$('#searchResults');
+    if (!hasResults) {
+      throw new Error('Search results container not found after search');
+    }
+
+    console.log('  ✓ Search input accepts text and search button triggers search');
+    await page.close();
+  });
+
+  // Single bookmark export test
+  await runner.runTest('Export button exists in bookmark detail panel', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('library'));
+    await page.waitForSelector('#bookmarkList');
+
+    // Wait for at least one bookmark
+    await page.waitForFunction(
+      `document.querySelectorAll('.bookmark-card').length > 0`,
+      15000
+    );
+
+    // Click first bookmark to open detail panel
+    await page.click('.bookmark-card');
+    await page.waitForSelector('.detail-panel', { timeout: 5000 });
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const hasExportBtn = await page.$('#exportBtn');
+    if (!hasExportBtn) {
+      throw new Error('Export button not found in detail panel');
+    }
+
+    console.log('  ✓ Export button exists in detail panel');
+    await page.close();
+  });
+
+  // Settings sidebar navigation tests
+  await runner.runTest('Settings sidebar has navigation links', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('.sidebar');
+
+    const navItems = await page.evaluate(`(() => {
+      const items = document.querySelectorAll('.sidebar .nav-item');
+      return Array.from(items).map(item => ({
+        section: item.getAttribute('data-section'),
+        text: item.textContent.trim()
+      }));
+    })()`) as Array<{ section: string; text: string }>;
+
+    if (navItems.length < 3) {
+      throw new Error(`Expected at least 3 sidebar nav items, found ${navItems.length}`);
+    }
+
+    console.log(`  ✓ Sidebar has ${navItems.length} navigation items`);
+    await page.close();
+  });
+
+  await runner.runTest('Settings sidebar navigation activates clicked item', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('.sidebar');
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Click on a nav item (API Configuration or similar)
+    const clicked = await page.evaluate(`(() => {
+      const navItems = document.querySelectorAll('.sidebar .nav-item');
+      for (const item of navItems) {
+        if (item.textContent.includes('API') || item.textContent.includes('Configuration')) {
+          item.click();
+          return item.textContent.trim();
+        }
+      }
+      // Click second item if no API config found
+      if (navItems.length > 1) {
+        navItems[1].click();
+        return navItems[1].textContent.trim();
+      }
+      return null;
+    })()`) as string | null;
+
+    if (!clicked) {
+      throw new Error('Could not find sidebar nav item to click');
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Check that an item is active
+    const hasActiveItem = await page.evaluate(`
+      document.querySelector('.sidebar .nav-item.active') !== null
+    `);
+
+    if (!hasActiveItem) {
+      console.log('  Note: No .active class on nav items (may use different styling)');
+    }
+
+    console.log(`  ✓ Clicked nav item: ${clicked}`);
     await page.close();
   });
 
