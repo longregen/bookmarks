@@ -617,9 +617,7 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
           status: 'complete',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          markdown: '# Test Import Article 1
-
-This is a test article for import testing.',
+          markdown: '# Test Import Article 1\n\nThis is a test article for import testing.',
           questionsAnswers: [
             {
               question: 'What is this article about?',
@@ -635,9 +633,7 @@ This is a test article for import testing.',
           status: 'complete',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          markdown: '# Test Import Guide 2
-
-This is another test article.',
+          markdown: '# Test Import Guide 2\n\nThis is another test article.',
           questionsAnswers: [
             {
               question: 'What is the purpose of this guide?',
