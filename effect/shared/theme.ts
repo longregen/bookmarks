@@ -40,11 +40,39 @@ const applyThemeToDOM = (theme: Theme): Effect.Effect<void, never> =>
     }
   });
 
-// Web implementation (uses localStorage)
-export const ThemeServiceWeb: Layer.Layer<ThemeService, never> = Layer.succeed(
-  ThemeService,
-  {
-    getTheme: Effect.tryPromise({
+// Storage adapter interface
+interface ThemeStorageAdapter {
+  get: () => Effect.Effect<Theme, ThemeError>;
+  set: (theme: Theme) => Effect.Effect<void, ThemeError>;
+  onChange: (callback: (theme: Theme) => void) => Effect.Effect<() => void, never>;
+}
+
+// Factory function to create ThemeService implementation
+function makeThemeService(storage: ThemeStorageAdapter): Context.Tag.Service<ThemeService> {
+  return {
+    getTheme: storage.get(),
+
+    setTheme: (theme: Theme) =>
+      Effect.gen(function* () {
+        yield* storage.set(theme);
+        yield* applyThemeToDOM(theme);
+      }),
+
+    applyTheme: applyThemeToDOM,
+
+    initTheme: Effect.gen(function* () {
+      const theme = yield* storage.get();
+      yield* applyThemeToDOM(theme);
+    }),
+
+    onThemeChange: storage.onChange,
+  };
+}
+
+// Web storage adapter
+const webStorageAdapter: ThemeStorageAdapter = {
+  get: () =>
+    Effect.tryPromise({
       try: async () => {
         const stored = localStorage.getItem(THEME_STORAGE_KEY);
         return (stored as Theme | null) ?? 'auto';
@@ -57,68 +85,43 @@ export const ThemeServiceWeb: Layer.Layer<ThemeService, never> = Layer.succeed(
         }),
     }),
 
-    setTheme: (theme: Theme) =>
-      Effect.gen(function* () {
-        yield* Effect.tryPromise({
-          try: async () => {
-            localStorage.setItem(THEME_STORAGE_KEY, theme);
-          },
-          catch: (error) =>
-            new ThemeError({
-              operation: 'set',
-              message: 'Failed to set theme in localStorage',
-              cause: error,
-            }),
-        });
-
-        yield* applyThemeToDOM(theme);
-      }),
-
-    applyTheme: applyThemeToDOM,
-
-    initTheme: Effect.gen(function* () {
-      const theme = yield* Effect.tryPromise({
-        try: async () => {
-          const stored = localStorage.getItem(THEME_STORAGE_KEY);
-          return (stored as Theme | null) ?? 'auto';
-        },
-        catch: (error) =>
-          new ThemeError({
-            operation: 'get',
-            message: 'Failed to get theme from localStorage',
-            cause: error,
-          }),
-      });
-
-      yield* applyThemeToDOM(theme);
+  set: (theme: Theme) =>
+    Effect.tryPromise({
+      try: async () => {
+        localStorage.setItem(THEME_STORAGE_KEY, theme);
+      },
+      catch: (error) =>
+        new ThemeError({
+          operation: 'set',
+          message: 'Failed to set theme in localStorage',
+          cause: error,
+        }),
     }),
 
-    onThemeChange: (callback: (theme: Theme) => void) =>
-      Effect.sync(() => {
-        const handler = (event: StorageEvent): void => {
-          if (
-            event.key === THEME_STORAGE_KEY &&
-            event.newValue !== null &&
-            event.newValue !== ''
-          ) {
-            callback(event.newValue as Theme);
-          }
-        };
+  onChange: (callback: (theme: Theme) => void) =>
+    Effect.sync(() => {
+      const handler = (event: StorageEvent): void => {
+        if (
+          event.key === THEME_STORAGE_KEY &&
+          event.newValue !== null &&
+          event.newValue !== ''
+        ) {
+          callback(event.newValue as Theme);
+        }
+      };
 
-        window.addEventListener('storage', handler);
+      window.addEventListener('storage', handler);
 
-        // Return cleanup function
-        return () => {
-          window.removeEventListener('storage', handler);
-        };
-      }),
-  }
-);
+      return () => {
+        window.removeEventListener('storage', handler);
+      };
+    }),
+};
 
-// Extension implementation (uses chrome.storage.local)
-export const ThemeServiceExtension: Layer.Layer<ThemeService, never> =
-  Layer.succeed(ThemeService, {
-    getTheme: Effect.tryPromise({
+// Extension storage adapter
+const extensionStorageAdapter: ThemeStorageAdapter = {
+  get: () =>
+    Effect.tryPromise({
       try: async () => {
         const result = await chrome.storage.local.get(THEME_STORAGE_KEY);
         return (result[THEME_STORAGE_KEY] as Theme | undefined) ?? 'auto';
@@ -131,64 +134,50 @@ export const ThemeServiceExtension: Layer.Layer<ThemeService, never> =
         }),
     }),
 
-    setTheme: (theme: Theme) =>
-      Effect.gen(function* () {
-        yield* Effect.tryPromise({
-          try: async () => {
-            await chrome.storage.local.set({ [THEME_STORAGE_KEY]: theme });
-          },
-          catch: (error) =>
-            new ThemeError({
-              operation: 'set',
-              message: 'Failed to set theme in chrome.storage',
-              cause: error,
-            }),
-        });
-
-        yield* applyThemeToDOM(theme);
-      }),
-
-    applyTheme: applyThemeToDOM,
-
-    initTheme: Effect.gen(function* () {
-      const theme = yield* Effect.tryPromise({
-        try: async () => {
-          const result = await chrome.storage.local.get(THEME_STORAGE_KEY);
-          return (result[THEME_STORAGE_KEY] as Theme | undefined) ?? 'auto';
-        },
-        catch: (error) =>
-          new ThemeError({
-            operation: 'get',
-            message: 'Failed to get theme from chrome.storage',
-            cause: error,
-          }),
-      });
-
-      yield* applyThemeToDOM(theme);
+  set: (theme: Theme) =>
+    Effect.tryPromise({
+      try: async () => {
+        await chrome.storage.local.set({ [THEME_STORAGE_KEY]: theme });
+      },
+      catch: (error) =>
+        new ThemeError({
+          operation: 'set',
+          message: 'Failed to set theme in chrome.storage',
+          cause: error,
+        }),
     }),
 
-    onThemeChange: (callback: (theme: Theme) => void) =>
-      Effect.sync(() => {
-        const handler = (
-          changes: {
-            [key: string]: chrome.storage.StorageChange;
-          },
-          areaName: string
-        ): void => {
-          if (areaName === 'local' && THEME_STORAGE_KEY in changes) {
-            const newTheme = changes[THEME_STORAGE_KEY].newValue as Theme;
-            callback(newTheme);
-          }
-        };
+  onChange: (callback: (theme: Theme) => void) =>
+    Effect.sync(() => {
+      const handler = (
+        changes: {
+          [key: string]: chrome.storage.StorageChange;
+        },
+        areaName: string
+      ): void => {
+        if (areaName === 'local' && THEME_STORAGE_KEY in changes) {
+          const newTheme = changes[THEME_STORAGE_KEY].newValue as Theme;
+          callback(newTheme);
+        }
+      };
 
-        chrome.storage.onChanged.addListener(handler);
+      chrome.storage.onChanged.addListener(handler);
 
-        // Return cleanup function
-        return () => {
-          chrome.storage.onChanged.removeListener(handler);
-        };
-      }),
-  });
+      return () => {
+        chrome.storage.onChanged.removeListener(handler);
+      };
+    }),
+};
+
+// Web implementation (uses localStorage)
+export const ThemeServiceWeb: Layer.Layer<ThemeService, never> = Layer.succeed(
+  ThemeService,
+  makeThemeService(webStorageAdapter)
+);
+
+// Extension implementation (uses chrome.storage.local)
+export const ThemeServiceExtension: Layer.Layer<ThemeService, never> =
+  Layer.succeed(ThemeService, makeThemeService(extensionStorageAdapter));
 
 // Public API functions (for backwards compatibility)
 // These will need the ThemeService to be provided via Layer

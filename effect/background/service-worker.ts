@@ -16,16 +16,24 @@ import {
   type UpdateSyncSettingsResponse,
 } from '../lib/messages';
 import { getErrorMessage } from '../lib/errors';
+import {
+  ChromeApiError,
+  wrapChromePromise,
+  wrapChromeCallback,
+  wrapChromeVoidPromise,
+} from './utils/chrome-api';
+import {
+  createStandardMessageHandler,
+  createNoArgMessageHandler,
+} from './utils/message-handlers';
+import {
+  createChromeEventListener,
+  createSimpleChromeEventListener,
+} from './utils/event-listeners';
 
 // ============================================================================
 // Errors
 // ============================================================================
-
-export class ChromeApiError extends Data.TaggedError('ChromeApiError')<{
-  readonly operation: string;
-  readonly message: string;
-  readonly originalError?: unknown;
-}> {}
 
 export class ServiceWorkerError extends Data.TaggedError('ServiceWorkerError')<{
   readonly operation: string;
@@ -62,60 +70,40 @@ export class ChromeRuntimeService extends Context.Tag('ChromeRuntimeService')<
 
 const makeChromeRuntimeService = Effect.sync(() => ({
   queryActiveTab: () =>
-    Effect.async<chrome.tabs.Tab, ChromeApiError>((resume) => {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const tab = tabs.at(0);
-        if (tab === undefined) {
-          resume(
-            Effect.fail(
-              new ChromeApiError({
-                operation: 'queryActiveTab',
-                message: 'No active tab found',
-              })
-            )
-          );
-          return;
-        }
-        resume(Effect.succeed(tab));
-      });
-    }),
+    wrapChromeCallback<chrome.tabs.Tab>(
+      'queryActiveTab',
+      (resume) => {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          const tab = tabs.at(0);
+          if (tab === undefined) {
+            throw new Error('No active tab found');
+          }
+          resume(tab);
+        });
+      }
+    ),
 
   executeScript: <T>(tabId: number, func: () => T) =>
-    Effect.tryPromise({
-      try: () =>
+    wrapChromeVoidPromise(
+      'executeScript',
+      () =>
         chrome.scripting.executeScript({
           target: { tabId },
           func,
-        }),
-      catch: (error) =>
-        new ChromeApiError({
-          operation: 'executeScript',
-          message: getErrorMessage(error),
-          originalError: error,
-        }),
-    }).pipe(Effect.asVoid),
+        })
+    ),
 
   createAlarm: (name: string, options: chrome.alarms.AlarmCreateInfo) =>
-    Effect.tryPromise({
-      try: () => chrome.alarms.create(name, options),
-      catch: (error) =>
-        new ChromeApiError({
-          operation: 'createAlarm',
-          message: getErrorMessage(error),
-          originalError: error,
-        }),
-    }),
+    wrapChromePromise(
+      'createAlarm',
+      () => chrome.alarms.create(name, options)
+    ),
 
   clearAlarm: (name: string) =>
-    Effect.tryPromise({
-      try: () => chrome.alarms.clear(name),
-      catch: (error) =>
-        new ChromeApiError({
-          operation: 'clearAlarm',
-          message: getErrorMessage(error),
-          originalError: error,
-        }),
-    }).pipe(Effect.asVoid),
+    wrapChromeVoidPromise(
+      'clearAlarm',
+      () => chrome.alarms.clear(name)
+    ),
 }));
 
 const ChromeRuntimeServiceLayer = Layer.effect(
@@ -530,256 +518,151 @@ const registerMessageListeners = Effect.gen(function* () {
   yield* logging.debug('Registering message listeners');
 
   // bookmark:save_from_page
-  const cleanup1 = yield* messaging.addMessageListener(
-    'bookmark:save_from_page',
-    (msg) =>
-      handleSaveBookmark(msg.data).pipe(
-        Effect.provide(MainLayer),
-        Effect.catchAll((error) =>
-          Effect.succeed({
-            success: false,
-            error: getErrorMessage(error),
-          } as SaveBookmarkResponse)
-        )
-      )
+  cleanups.push(
+    yield* createStandardMessageHandler(
+      messaging,
+      'bookmark:save_from_page',
+      (msg: { data: { url: string; title: string; html: string } }) =>
+        handleSaveBookmark(msg.data),
+      MainLayer
+    )
   );
-  cleanups.push(cleanup1);
 
   // import:create_from_url_list
-  const cleanup2 = yield* messaging.addMessageListener(
-    'import:create_from_url_list',
-    (msg) =>
-      handleBulkImport(msg.urls).pipe(
-        Effect.provide(MainLayer),
-        Effect.catchAll((error) =>
-          Effect.succeed({
-            success: false,
-            error: getErrorMessage(error),
-          } as StartBulkImportResponse)
-        )
-      )
+  cleanups.push(
+    yield* createStandardMessageHandler(
+      messaging,
+      'import:create_from_url_list',
+      (msg: { urls: string[] }) => handleBulkImport(msg.urls),
+      MainLayer
+    )
   );
-  cleanups.push(cleanup2);
 
   // sync:trigger
-  const cleanup3 = yield* messaging.addMessageListener('sync:trigger', () =>
-    handleSyncTrigger.pipe(
-      Effect.provide(MainLayer),
-      Effect.catchAll((error) =>
-        Effect.succeed({
-          success: false,
-          error: getErrorMessage(error),
-        } as TriggerSyncResponse)
-      )
+  cleanups.push(
+    yield* createStandardMessageHandler(
+      messaging,
+      'sync:trigger',
+      () => handleSyncTrigger,
+      MainLayer
     )
   );
-  cleanups.push(cleanup3);
 
   // query:sync_status
-  const cleanup4 = yield* messaging.addMessageListener('query:sync_status', () =>
-    handleSyncStatus.pipe(
-      Effect.provide(MainLayer),
-      Effect.catchAll((error) =>
-        Effect.succeed({
-          lastSyncTime: null,
-          lastSyncError: getErrorMessage(error),
-          isSyncing: false,
-        } as SyncStatus)
-      )
+  cleanups.push(
+    yield* createNoArgMessageHandler(
+      messaging,
+      'query:sync_status',
+      handleSyncStatus,
+      MainLayer,
+      (error) => ({
+        lastSyncTime: null,
+        lastSyncError: getErrorMessage(error),
+        isSyncing: false,
+      })
     )
   );
-  cleanups.push(cleanup4);
 
   // sync:update_settings
-  const cleanup5 = yield* messaging.addMessageListener('sync:update_settings', () =>
-    handleSyncUpdateSettings.pipe(
-      Effect.provide(MainLayer),
-      Effect.catchAll((error) =>
-        Effect.succeed({
-          success: false,
-        } as UpdateSyncSettingsResponse)
-      )
+  cleanups.push(
+    yield* createStandardMessageHandler(
+      messaging,
+      'sync:update_settings',
+      () => handleSyncUpdateSettings,
+      MainLayer
     )
   );
-  cleanups.push(cleanup5);
 
   // query:current_tab_info
-  const cleanup6 = yield* messaging.addMessageListener('query:current_tab_info', () =>
-    handleCurrentTabInfo.pipe(
-      Effect.provide(MainLayer),
-      Effect.catchAll((error) =>
-        Effect.succeed({
-          error: getErrorMessage(error),
-        } as TabInfo)
-      )
+  cleanups.push(
+    yield* createNoArgMessageHandler(
+      messaging,
+      'query:current_tab_info',
+      handleCurrentTabInfo,
+      MainLayer,
+      (error) => ({ error: getErrorMessage(error) })
     )
   );
-  cleanups.push(cleanup6);
 
   // bookmark:retry
-  const cleanup7 = yield* messaging.addMessageListener('bookmark:retry', () =>
-    handleBookmarkRetry.pipe(
-      Effect.provide(MainLayer),
-      Effect.catchAll((error) =>
-        Effect.succeed({
-          success: false,
-        } as StartProcessingResponse)
-      )
+  cleanups.push(
+    yield* createStandardMessageHandler(
+      messaging,
+      'bookmark:retry',
+      () => handleBookmarkRetry,
+      MainLayer
     )
   );
-  cleanups.push(cleanup7);
 
   return () => {
     cleanups.forEach((cleanup) => cleanup());
   };
 });
 
-const registerAlarmListener = Effect.gen(function* () {
-  const logging = yield* LoggingService;
+const registerAlarmListener = createChromeEventListener(
+  chrome.alarms.onAlarm,
+  'alarm',
+  (alarm: chrome.alarms.Alarm) =>
+    Effect.gen(function* () {
+      if (alarm.name === WEBDAV_SYNC_ALARM) {
+        const syncService = yield* SyncService;
+        const logging = yield* LoggingService;
 
-  yield* logging.debug('Registering alarm listener');
+        yield* logging.info('WebDAV sync alarm triggered');
+        yield* syncService.triggerSyncIfEnabled();
+      }
+    }),
+  MainLayer
+);
 
-  const listener = (alarm: chrome.alarms.Alarm) => {
-    if (alarm.name === WEBDAV_SYNC_ALARM) {
-      console.log('WebDAV sync alarm triggered');
+const registerCommandListener = createChromeEventListener(
+  chrome.commands.onCommand,
+  'command',
+  (command: string) =>
+    Effect.gen(function* () {
+      if (command === 'save-bookmark') {
+        const chromeRuntime = yield* ChromeRuntimeService;
+        const logging = yield* LoggingService;
 
-      Effect.runPromise(
-        Effect.gen(function* () {
-          const syncService = yield* SyncService;
-          const logging = yield* LoggingService;
+        const tab = yield* chromeRuntime.queryActiveTab();
 
-          yield* logging.info('WebDAV sync alarm triggered');
-          yield* syncService.triggerSyncIfEnabled();
-        }).pipe(
-          Effect.provide(MainLayer),
-          Effect.catchAll((error) =>
-            Effect.gen(function* () {
-              const logging = yield* LoggingService;
-              yield* logging.error('WebDAV sync alarm failed', {
-                error: getErrorMessage(error),
-              });
-            }).pipe(Effect.provide(MainLayer))
-          )
-        )
-      ).catch((error) => {
-        console.error('WebDAV sync alarm failed:', error);
-      });
-    }
-  };
+        if (tab.id === undefined) {
+          yield* logging.warn('Cannot save bookmark: tab ID is undefined');
+          return;
+        }
 
-  chrome.alarms.onAlarm.addListener(listener);
+        if (tab.url === undefined || tab.url === '') {
+          yield* logging.warn(
+            'Cannot save bookmark: tab URL is undefined (incognito mode or restricted URL)'
+          );
+          return;
+        }
 
-  return Effect.sync(() => {
-    chrome.alarms.onAlarm.removeListener(listener);
-  });
-});
-
-const registerCommandListener = Effect.gen(function* () {
-  const logging = yield* LoggingService;
-
-  yield* logging.debug('Registering command listener');
-
-  const listener = (command: string) => {
-    if (command === 'save-bookmark') {
-      Effect.runPromise(
-        Effect.gen(function* () {
-          const chromeRuntime = yield* ChromeRuntimeService;
-          const logging = yield* LoggingService;
-
-          const tab = yield* chromeRuntime.queryActiveTab();
-
-          if (tab.id === undefined) {
-            yield* logging.warn('Cannot save bookmark: tab ID is undefined');
-            return;
-          }
-
-          if (tab.url === undefined || tab.url === '') {
-            yield* logging.warn(
-              'Cannot save bookmark: tab URL is undefined (incognito mode or restricted URL)'
-            );
-            return;
-          }
-
-          yield* chromeRuntime.executeScript(tab.id, () => {
-            void chrome.runtime.sendMessage({
-              type: 'user_request:capture_current_tab',
-            });
+        yield* chromeRuntime.executeScript(tab.id, () => {
+          void chrome.runtime.sendMessage({
+            type: 'user_request:capture_current_tab',
           });
-        }).pipe(
-          Effect.provide(MainLayer),
-          Effect.catchAll((error) =>
-            Effect.gen(function* () {
-              const logging = yield* LoggingService;
-              yield* logging.error('Failed to inject content script', {
-                error: getErrorMessage(error),
-              });
-            }).pipe(Effect.provide(MainLayer))
-          )
-        )
-      ).catch((error) => {
-        console.error('Command handler error:', error);
-      });
-    }
-  };
+        });
+      }
+    }),
+  MainLayer
+);
 
-  chrome.commands.onCommand.addListener(listener);
+const registerInstallListener = createSimpleChromeEventListener(
+  chrome.runtime.onInstalled,
+  'install',
+  'Extension installed/updated',
+  initializeExtension,
+  MainLayer
+);
 
-  return Effect.sync(() => {
-    chrome.commands.onCommand.removeListener(listener);
-  });
-});
-
-const registerInstallListener = Effect.gen(function* () {
-  const logging = yield* LoggingService;
-
-  yield* logging.debug('Registering install listener');
-
-  const listener = () => {
-    console.log('Extension installed/updated');
-
-    Effect.runPromise(
-      Effect.gen(function* () {
-        const logging = yield* LoggingService;
-        yield* logging.info('Extension installed/updated');
-        yield* initializeExtension;
-      }).pipe(Effect.provide(MainLayer))
-    ).catch((error) => {
-      console.error('Install handler error:', error);
-    });
-  };
-
-  chrome.runtime.onInstalled.addListener(listener);
-
-  return Effect.sync(() => {
-    chrome.runtime.onInstalled.removeListener(listener);
-  });
-});
-
-const registerStartupListener = Effect.gen(function* () {
-  const logging = yield* LoggingService;
-
-  yield* logging.debug('Registering startup listener');
-
-  const listener = () => {
-    console.log('Browser started, initializing');
-
-    Effect.runPromise(
-      Effect.gen(function* () {
-        const logging = yield* LoggingService;
-        yield* logging.info('Browser started, initializing');
-        yield* initializeExtension;
-      }).pipe(Effect.provide(MainLayer))
-    ).catch((error) => {
-      console.error('Startup handler error:', error);
-    });
-  };
-
-  chrome.runtime.onStartup.addListener(listener);
-
-  return Effect.sync(() => {
-    chrome.runtime.onStartup.removeListener(listener);
-  });
-});
+const registerStartupListener = createSimpleChromeEventListener(
+  chrome.runtime.onStartup,
+  'startup',
+  'Browser started, initializing',
+  initializeExtension,
+  MainLayer
+);
 
 // ============================================================================
 // Initialization

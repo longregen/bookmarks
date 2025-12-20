@@ -17,6 +17,7 @@ import {
 import { initializeUI } from '../shared/ui-init';
 import { setupBookmarkEventHandlers } from '../shared/event-handling';
 import { getStatusModifier, sortBookmarks } from '../shared/rendering';
+import { makeLayer } from '../lib/effect-utils';
 
 // ============================================================================
 // Errors
@@ -452,7 +453,7 @@ export class LibraryManager {
     never,
     never
   > {
-    const uiStateLayer = Layer.succeed(UIStateService, {
+    const uiStateLayer = makeLayer(UIStateService, {
       getState: () => Effect.succeed(this.uiState),
       setState: (state) =>
         Effect.sync(() => {
@@ -461,7 +462,7 @@ export class LibraryManager {
         }),
     });
 
-    const domLayer = Layer.succeed(DOMService, {
+    const domLayer = makeLayer(DOMService, {
       createElement,
       getElement,
       formatDateByAge,

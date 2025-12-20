@@ -9,7 +9,7 @@ import { getErrorMessage } from '../../lib/errors';
 import type { Bookmark } from '../../db/schema';
 import { db } from '../../../src/db/schema';
 import { startProcessingQueue } from '../../../src/background/queue';
-import { UIElementNotFoundError } from '../shared/errors';
+import { UIElementNotFoundError, UIService as SharedUIService, UIServiceLive as SharedUIServiceLive } from '../shared';
 import { getElement } from '../shared/dom-helpers';
 
 // ============================================================================
@@ -114,9 +114,9 @@ export class ProgressTrackingService extends Context.Tag('ProgressTrackingServic
 // ============================================================================
 
 /**
- * Creates the UIService implementation
+ * Creates the UIService implementation using shared UIService where possible
  */
-const makeUIService = (elements: UIElements): UIService['Type'] => ({
+const makeUIService = (elements: UIElements, sharedUI: SharedUIService['Type']): UIService['Type'] => ({
   getElements: () => Effect.succeed(elements),
 
   showValidationFeedback: (validation: ValidationResult) =>
@@ -159,16 +159,15 @@ const makeUIService = (elements: UIElements): UIService['Type'] => ({
     }),
 
   showProgress: (total: number) =>
-    Effect.sync(() => {
-      elements.bulkImportProgress.classList.remove('hidden');
-      elements.bulkImportProgressBar.style.width = '0%';
-      elements.bulkImportStatus.textContent = `Imported 0 of ${total}`;
+    Effect.gen(function* () {
+      yield* sharedUI.showElement(elements.bulkImportProgress);
+      yield* Effect.sync(() => {
+        elements.bulkImportProgressBar.style.width = '0%';
+        elements.bulkImportStatus.textContent = `Imported 0 of ${total}`;
+      });
     }),
 
-  hideProgress: () =>
-    Effect.sync(() => {
-      elements.bulkImportProgress.classList.add('hidden');
-    }),
+  hideProgress: () => sharedUI.hideElement(elements.bulkImportProgress),
 
   updateProgressBar: (status: ProgressStatus) =>
     Effect.sync(() => {
@@ -192,16 +191,7 @@ const makeUIService = (elements: UIElements): UIService['Type'] => ({
     }),
 
   showStatus: (message: string, type: 'success' | 'error' | 'warning', timeoutMs = 3000) =>
-    Effect.sync(() => {
-      const { statusDiv } = elements;
-      statusDiv.textContent = message;
-      statusDiv.className = `status ${type}`;
-      statusDiv.classList.remove('hidden');
-
-      setTimeout(() => {
-        statusDiv.classList.add('hidden');
-      }, timeoutMs);
-    }),
+    sharedUI.showStatus(elements.statusDiv, message, type, timeoutMs),
 
   clearInput: () =>
     Effect.sync(() => {
@@ -398,8 +388,14 @@ const makeProgressTrackingService = (
  */
 export const makeUIServiceLayer = (
   elements: UIElements
-): Layer.Layer<UIService, never, never> =>
-  Layer.succeed(UIService, makeUIService(elements));
+): Layer.Layer<UIService, never, SharedUIService> =>
+  Layer.effect(
+    UIService,
+    Effect.gen(function* () {
+      const sharedUI = yield* SharedUIService;
+      return makeUIService(elements, sharedUI);
+    })
+  );
 
 /**
  * BulkImportService layer
@@ -539,9 +535,14 @@ const setupImportButton = (
 
         Effect.runPromise(
           program.pipe(
-            Effect.provide(makeUIServiceLayer(elements)),
-            Effect.provide(BulkImportServiceLive),
-            Effect.provide(makeProgressTrackingServiceLayer(elements))
+            Effect.provide(
+              Layer.mergeAll(
+                makeUIServiceLayer(elements),
+                BulkImportServiceLive,
+                makeProgressTrackingServiceLayer(elements),
+                SharedUIServiceLive
+              )
+            )
           )
         ).catch((error) => {
           console.error('Unexpected error in import handler:', error);
@@ -621,9 +622,14 @@ export function initBulkImportModule(): () => void {
     const elements = yield* getAllUIElements();
 
     cleanup = yield* initBulkImportModuleEffect().pipe(
-      Effect.provide(makeUIServiceLayer(elements)),
-      Effect.provide(BulkImportServiceLive),
-      Effect.provide(makeProgressTrackingServiceLayer(elements))
+      Effect.provide(
+        Layer.mergeAll(
+          makeUIServiceLayer(elements),
+          BulkImportServiceLive,
+          makeProgressTrackingServiceLayer(elements),
+          SharedUIServiceLive
+        )
+      )
     );
   });
 

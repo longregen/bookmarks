@@ -360,10 +360,7 @@ export const OffscreenServiceLive: Layer.Layer<OffscreenService, never> = Layer.
  * For new code, prefer using the OffscreenService directly via dependency injection.
  */
 export const ensureOffscreenDocument = (): Effect.Effect<void, OffscreenError, OffscreenService> =>
-  Effect.gen(function* () {
-    const service = yield* OffscreenService;
-    yield* service.ensureDocument();
-  });
+  Effect.flatMap(OffscreenService, (service) => service.ensureDocument());
 
 /**
  * Resets the offscreen ready state.
@@ -372,7 +369,4 @@ export const ensureOffscreenDocument = (): Effect.Effect<void, OffscreenError, O
  * For new code, prefer using the OffscreenService directly via dependency injection.
  */
 export const resetOffscreenState = (): Effect.Effect<void, never, OffscreenService> =>
-  Effect.gen(function* () {
-    const service = yield* OffscreenService;
-    yield* service.reset();
-  });
+  Effect.flatMap(OffscreenService, (service) => service.reset());

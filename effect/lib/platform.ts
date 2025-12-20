@@ -171,11 +171,7 @@ export const getSettings = (): Effect.Effect<
   ApiSettings,
   PlatformSettingsError,
   PlatformService
-> =>
-  Effect.gen(function* () {
-    const platform = yield* PlatformService;
-    return yield* platform.getSettings();
-  });
+> => Effect.flatMap(PlatformService, (platform) => platform.getSettings());
 
 /**
  * Saves a single setting to the platform storage.
@@ -184,28 +180,19 @@ export const saveSetting = (
   key: keyof ApiSettings,
   value: string | boolean | number
 ): Effect.Effect<void, PlatformSettingsError, PlatformService> =>
-  Effect.gen(function* () {
-    const platform = yield* PlatformService;
-    return yield* platform.saveSetting(key, value);
-  });
+  Effect.flatMap(PlatformService, (platform) => platform.saveSetting(key, value));
 
 /**
  * Gets the current theme from platform storage.
  */
 export const getTheme = (): Effect.Effect<Theme, PlatformThemeError, PlatformService> =>
-  Effect.gen(function* () {
-    const platform = yield* PlatformService;
-    return yield* platform.getTheme();
-  });
+  Effect.flatMap(PlatformService, (platform) => platform.getTheme());
 
 /**
  * Sets the theme in platform storage.
  */
 export const setTheme = (theme: Theme): Effect.Effect<void, PlatformThemeError, PlatformService> =>
-  Effect.gen(function* () {
-    const platform = yield* PlatformService;
-    return yield* platform.setTheme(theme);
-  });
+  Effect.flatMap(PlatformService, (platform) => platform.setTheme(theme));
 
 /**
  * Fetches content from a URL using platform-specific fetch implementation.
@@ -214,10 +201,7 @@ export const setTheme = (theme: Theme): Effect.Effect<void, PlatformThemeError, 
 export const fetchContent = (
   url: string
 ): Effect.Effect<{ html: string; finalUrl: string } | null, PlatformFetchError, PlatformService> =>
-  Effect.gen(function* () {
-    const platform = yield* PlatformService;
-    return yield* platform.fetchContent(url);
-  });
+  Effect.flatMap(PlatformService, (platform) => platform.fetchContent(url));
 
 // ============================================================================
 // Legacy Compatibility Layer (deprecated, use Effect-based API)

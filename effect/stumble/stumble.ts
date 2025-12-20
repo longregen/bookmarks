@@ -19,6 +19,7 @@ import {
 import { initializeUI } from '../shared/ui-init';
 import { setupBookmarkEventHandlers } from '../shared/event-handling';
 import { getStatusModifier } from '../shared/rendering';
+import { groupBy, mapErrorType, makeLayer } from '../lib/effect-utils';
 
 // ============================================================================
 // Typed Errors
@@ -145,25 +146,23 @@ export const StumbleDataServiceLive = Layer.effect(
 
     return {
       getCompleteBookmarks: () =>
-        bookmarkRepo.getComplete().pipe(
-          Effect.mapError(
-            (error) =>
-              new StumbleLoadError({
-                message: error.message,
-                cause: error.cause,
-              })
-          )
+        mapErrorType(
+          bookmarkRepo.getComplete(),
+          (error) =>
+            new StumbleLoadError({
+              message: error.message,
+              cause: error.cause,
+            })
         ),
 
       getBookmarksByTags: (tagNames: string[]) =>
-        tagRepo.getBookmarksByTags(tagNames).pipe(
-          Effect.mapError(
-            (error) =>
-              new TagFilterError({
-                message: error.message,
-                cause: error.cause,
-              })
-          )
+        mapErrorType(
+          tagRepo.getBookmarksByTags(tagNames),
+          (error) =>
+            new TagFilterError({
+              message: error.message,
+              cause: error.cause,
+            })
         ),
 
       getQAPairsForBookmarks: (bookmarkIds: string[]) =>
@@ -174,14 +173,7 @@ export const StumbleDataServiceLive = Layer.effect(
               .anyOf(bookmarkIds)
               .toArray();
 
-            const qaPairsByBookmark = new Map<string, QuestionAnswer[]>();
-            for (const qa of allQAPairs) {
-              if (!qaPairsByBookmark.has(qa.bookmarkId)) {
-                qaPairsByBookmark.set(qa.bookmarkId, []);
-              }
-              qaPairsByBookmark.get(qa.bookmarkId)!.push(qa);
-            }
-            return qaPairsByBookmark;
+            return groupBy(allQAPairs, (qa) => qa.bookmarkId);
           },
           catch: (error) =>
             new StumbleLoadError({
@@ -196,7 +188,7 @@ export const StumbleDataServiceLive = Layer.effect(
 /**
  * Production implementation of ShuffleService
  */
-export const ShuffleServiceLive = Layer.succeed(ShuffleService, {
+export const ShuffleServiceLive = makeLayer(ShuffleService, {
   shuffle: <T>(items: T[]) =>
     Effect.sync(() => {
       const shuffled = [...items];
@@ -219,7 +211,7 @@ export const makeStumbleUIServiceLive = (
   resultCount: HTMLElement,
   stumbleList: HTMLElement
 ) =>
-  Layer.succeed(StumbleUIService, {
+  makeLayer(StumbleUIService, {
     setShuffling: (shuffling: boolean) =>
       Effect.sync(() => {
         shuffleBtn.disabled = shuffling;

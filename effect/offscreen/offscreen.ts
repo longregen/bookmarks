@@ -347,12 +347,13 @@ const initialize = (runtime: Effect.Runtime<
     yield* messageService.addListener(makeMessageHandler(runtime));
   });
 
-// Initialize the offscreen document
-const runtime = makeRuntime();
-console.log('[Offscreen] Document loaded');
-
 // Skip during tests to avoid initialization errors
-if (!import.meta.vitest) {
+// Check if we're not in a test environment (vitest sets describe globally)
+if (!import.meta.vitest && typeof describe === 'undefined') {
+  // Initialize the offscreen document
+  const runtime = makeRuntime();
+  console.log('[Offscreen] Document loaded');
+
   Effect.runPromise(initialize(runtime), { runtime }).catch((error) => {
     console.error('[Offscreen] Initialization failed:', getErrorMessage(error));
   });

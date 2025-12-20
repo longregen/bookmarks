@@ -14,6 +14,14 @@ export class UIService extends Context.Tag('UIService')<
       type: 'success' | 'error' | 'warning' | 'info',
       duration?: number
     ) => Effect.Effect<void, never>;
+    readonly hideElement: (element: HTMLElement) => Effect.Effect<void, never>;
+    readonly showElement: (element: HTMLElement) => Effect.Effect<void, never>;
+    readonly toggleClass: (
+      element: HTMLElement,
+      className: string,
+      condition: boolean
+    ) => Effect.Effect<void, never>;
+    readonly clearElement: (element: HTMLElement) => Effect.Effect<void, never>;
   }
 >() {}
 
@@ -41,6 +49,26 @@ export const UIServiceLive: Layer.Layer<UIService, never, never> = Layer.succeed
             element.style.display = 'none';
           }, duration);
         }
+      }),
+
+    hideElement: (element: HTMLElement) =>
+      Effect.sync(() => {
+        element.classList.add('hidden');
+      }),
+
+    showElement: (element: HTMLElement) =>
+      Effect.sync(() => {
+        element.classList.remove('hidden');
+      }),
+
+    toggleClass: (element: HTMLElement, className: string, condition: boolean) =>
+      Effect.sync(() => {
+        element.classList.toggle(className, condition);
+      }),
+
+    clearElement: (element: HTMLElement) =>
+      Effect.sync(() => {
+        element.textContent = '';
       }),
   }
 );

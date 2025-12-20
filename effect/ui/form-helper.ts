@@ -3,6 +3,7 @@ import * as Context from 'effect/Context';
 import * as Data from 'effect/Data';
 import type * as Runtime from 'effect/Runtime';
 import { DOMService, DOMError } from './dom';
+import { withButtonState } from './ui-helpers';
 
 // ===== Errors =====
 
@@ -43,42 +44,9 @@ export interface FormConfig<LoadError = FormLoadError, SaveError = FormSaveError
 
 // ===== Public API =====
 
-/**
- * Manages button state during an async operation.
- * Disables the button and changes text while the effect runs,
- * then restores original state afterwards.
- *
- * @param button - The button element to manage
- * @param loadingText - Text to display while effect is running
- * @param effect - The effect to execute
- * @returns Effect that manages button state and executes the given effect
- */
-export function withButtonState<A, E, R>(
-  button: HTMLButtonElement,
-  loadingText: string,
-  effect: Effect.Effect<A, E, R>
-): Effect.Effect<A, E, R> {
-  return Effect.gen(function* () {
-    const originalText = button.textContent || '';
-
-    // Set loading state (synchronous DOM operations)
-    yield* Effect.sync(() => {
-      button.disabled = true;
-      button.textContent = loadingText;
-    });
-
-    try {
-      // Execute the effect
-      return yield* effect;
-    } finally {
-      // Restore original state (always runs, even on error)
-      yield* Effect.sync(() => {
-        button.disabled = false;
-        button.textContent = originalText;
-      });
-    }
-  });
-}
+// Note: withButtonState is now imported from ui-helpers.ts
+// Re-export for backward compatibility
+export { withButtonState } from './ui-helpers';
 
 /**
  * Initializes a settings form with load/save lifecycle.

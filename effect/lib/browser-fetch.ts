@@ -52,6 +52,40 @@ function extractTitleFromHtmlSync(html: string): string {
   return extractTitleFromHtmlUtil(html);
 }
 
+/**
+ * Helper to convert caught errors to FetchError
+ */
+function catchToFetchError(url: string, error: unknown, timeoutMs?: number): FetchError {
+  if (error instanceof FetchError) {
+    return error;
+  }
+
+  if (error instanceof Error) {
+    if (error.name === 'AbortError' && timeoutMs !== undefined) {
+      return new FetchError({
+        url,
+        code: 'TIMEOUT',
+        message: `Request timeout after ${timeoutMs}ms`,
+        originalError: error,
+      });
+    }
+
+    return new FetchError({
+      url,
+      code: 'NETWORK_ERROR',
+      message: error.message,
+      originalError: error,
+    });
+  }
+
+  return new FetchError({
+    url,
+    code: 'UNKNOWN',
+    message: String(error),
+    originalError: error,
+  });
+}
+
 export const makeBrowserFetchService = (
   config: BrowserFetchConfig
 ): Effect.Effect<Context.Tag.Service<BrowserFetchService>, never, never> =>
@@ -110,36 +144,7 @@ export const makeBrowserFetchService = (
             clearTimeout(timeoutId);
           }
         },
-        catch: (error) => {
-          if (error instanceof FetchError) {
-            return error;
-          }
-
-          if (error instanceof Error) {
-            if (error.name === 'AbortError') {
-              return new FetchError({
-                url,
-                code: 'TIMEOUT',
-                message: `Request timeout after ${timeoutMs}ms`,
-                originalError: error,
-              });
-            }
-
-            return new FetchError({
-              url,
-              code: 'NETWORK_ERROR',
-              message: error.message,
-              originalError: error,
-            });
-          }
-
-          return new FetchError({
-            url,
-            code: 'UNKNOWN',
-            message: String(error),
-            originalError: error,
-          });
-        },
+        catch: (error) => catchToFetchError(url, error, timeoutMs),
       });
 
     const browserFetch = (
@@ -152,22 +157,7 @@ export const makeBrowserFetchService = (
         if (!__IS_WEB__ && isLocalhost) {
           const renderEffect = Effect.tryPromise({
             try: () => renderPage(url, timeoutMs),
-            catch: (error) => {
-              if (error instanceof Error) {
-                return new FetchError({
-                  url,
-                  code: 'NETWORK_ERROR',
-                  message: error.message,
-                  originalError: error,
-                });
-              }
-              return new FetchError({
-                url,
-                code: 'UNKNOWN',
-                message: String(error),
-                originalError: error,
-              });
-            },
+            catch: (error) => catchToFetchError(url, error),
           });
 
           const fallbackEffect = Effect.gen(function* () {
@@ -182,22 +172,7 @@ export const makeBrowserFetchService = (
         if (!isLocalhost) {
           return yield* Effect.tryPromise({
             try: () => renderPage(url, timeoutMs),
-            catch: (error) => {
-              if (error instanceof Error) {
-                return new FetchError({
-                  url,
-                  code: 'NETWORK_ERROR',
-                  message: error.message,
-                  originalError: error,
-                });
-              }
-              return new FetchError({
-                url,
-                code: 'UNKNOWN',
-                message: String(error),
-                originalError: error,
-              });
-            },
+            catch: (error) => catchToFetchError(url, error),
           });
         }
 

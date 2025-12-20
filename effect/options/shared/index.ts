@@ -9,3 +9,4 @@ export * from './errors';
 export * from './dom-service';
 export * from './ui-service';
 export * from './dom-helpers';
+export * from './button-state-service';

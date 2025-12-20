@@ -15,6 +15,7 @@ import { LoggingService } from '../services/logging-service';
 import { ConfigService } from '../services/config-service';
 import { initializeUI } from '../shared/ui-init';
 import { setupBookmarkEventHandlers } from '../shared/event-handling';
+import { groupBy, makeLayer } from '../lib/effect-utils';
 
 // ============================================================================
 // Types
@@ -60,8 +61,8 @@ export interface SearchSettings {
 /**
  * Service for accessing database storage in the search context
  */
-export class StorageService extends Context.Tag('StorageService')<
-  StorageService,
+export class SearchStorageService extends Context.Tag('SearchStorageService')<
+  SearchStorageService,
   {
     /**
      * Get a setting value by key
@@ -141,9 +142,9 @@ export class SearchService extends Context.Tag('SearchService')<
 // ============================================================================
 
 /**
- * Live implementation of StorageService using Dexie
+ * Live implementation of SearchStorageService using Dexie
  */
-export const StorageServiceLive = Layer.succeed(StorageService, {
+export const SearchStorageServiceLive = makeLayer(SearchStorageService, {
   getSetting: <T>(key: string) =>
     Effect.tryPromise({
       try: async () => {
@@ -210,17 +211,7 @@ export const StorageServiceLive = Layer.succeed(StorageService, {
           .anyOf([...bookmarkIds])
           .toArray();
 
-        const tagsByBookmarkId = new Map<string, BookmarkTag[]>();
-        for (const tag of allTags) {
-          const existing = tagsByBookmarkId.get(tag.bookmarkId);
-          if (existing) {
-            existing.push(tag);
-          } else {
-            tagsByBookmarkId.set(tag.bookmarkId, [tag]);
-          }
-        }
-
-        return tagsByBookmarkId;
+        return groupBy(allTags, (tag) => tag.bookmarkId);
       },
       catch: (error) =>
         new SearchError({
@@ -303,7 +294,7 @@ export const StorageServiceLive = Layer.succeed(StorageService, {
 export const SearchServiceLive = Layer.effect(
   SearchService,
   Effect.gen(function* () {
-    const storage = yield* StorageService;
+    const storage = yield* SearchStorageService;
     const api = yield* ApiService;
     const logging = yield* LoggingService;
     const configService = yield* ConfigService;
@@ -463,7 +454,7 @@ export const SearchServiceLive = Layer.effect(
         }),
     };
   })
-).pipe(Layer.provide(StorageServiceLive));
+).pipe(Layer.provide(SearchStorageServiceLive));
 
 // ============================================================================
 // Main Layer
@@ -473,7 +464,7 @@ export const SearchServiceLive = Layer.effect(
  * Complete search layer with all dependencies
  */
 export const SearchLayerLive = Layer.mergeAll(
-  StorageServiceLive,
+  SearchStorageServiceLive,
   SearchServiceLive
 );
 
@@ -490,7 +481,7 @@ export const SearchLayerLive = Layer.mergeAll(
 export class SearchUI {
   private selectedTags = new Set<string>();
   private searchService: typeof SearchService.Service;
-  private storageService: typeof StorageService.Service;
+  private storageService: typeof SearchStorageService.Service;
 
   constructor(
     private readonly elements: {
@@ -506,7 +497,7 @@ export class SearchUI {
     },
     private readonly detailManager: BookmarkDetailManager,
     searchService: typeof SearchService.Service,
-    storageService: typeof StorageService.Service
+    storageService: typeof SearchStorageService.Service
   ) {
     this.searchService = searchService;
     this.storageService = storageService;
@@ -845,10 +836,10 @@ export function initializeSearchUI(): void {
   const storageService = {
     saveSearchHistory: (query: string, resultCount: number) =>
       Effect.provide(
-        StorageService.pipe(
+        SearchStorageService.pipe(
           Effect.flatMap((s) => s.saveSearchHistory(query, resultCount))
         ),
-        StorageServiceLive
+        SearchStorageServiceLive
       ),
   };
 

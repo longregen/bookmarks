@@ -5,6 +5,7 @@ import { Data } from 'effect';
 import type { BookmarkTag } from '../db/schema';
 import { RepositoryError } from '../lib/errors';
 import { DOMService, DOMServiceLive } from './dom';
+import { renderToContainer, UIOperationError } from './ui-helpers';
 
 export interface TagFilterConfig {
   readonly container: HTMLElement;
@@ -12,12 +13,8 @@ export interface TagFilterConfig {
   readonly onChange: () => void;
 }
 
-export class UIError extends Data.TaggedError('UIError')<{
-  readonly code: 'ELEMENT_NOT_FOUND' | 'RENDER_FAILED' | 'EVENT_HANDLER_FAILED';
-  readonly component: string;
-  readonly message: string;
-  readonly originalError?: unknown;
-}> {}
+// Re-export UIOperationError as UIError for backward compatibility
+export { UIOperationError as UIError } from './ui-helpers';
 
 export class TagRepository extends Context.Tag('TagRepository')<
   TagRepository,
@@ -108,33 +105,9 @@ function createTagFilterElements(
   });
 }
 
-function renderToContainer(
-  container: HTMLElement,
-  elements: readonly HTMLElement[]
-): Effect.Effect<void, UIError, never> {
-  return Effect.try({
-    try: () => {
-      const fragment = document.createDocumentFragment();
-      for (const element of elements) {
-        fragment.appendChild(element);
-      }
-
-      container.innerHTML = '';
-      container.appendChild(fragment);
-    },
-    catch: (error) =>
-      new UIError({
-        code: 'RENDER_FAILED',
-        component: 'tag-filter',
-        message: 'Failed to render tag filters to container',
-        originalError: error,
-      }),
-  });
-}
-
 export function loadTagFilters(
   config: TagFilterConfig
-): Effect.Effect<void, RepositoryError | UIError, TagRepository | DOMService> {
+): Effect.Effect<void, RepositoryError | UIOperationError, TagRepository | DOMService> {
   return Effect.gen(function* () {
     const tagRepository = yield* TagRepository;
 

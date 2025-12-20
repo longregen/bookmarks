@@ -3,9 +3,6 @@ import * as Effect from 'effect/Effect';
 import type { Bookmark } from '../../src/db/schema';
 import { StorageError } from '../lib/errors';
 
-/**
- * Service for database storage operations in an Effect context
- */
 export class StorageService extends Context.Tag('StorageService')<
   StorageService,
   {

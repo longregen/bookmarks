@@ -270,9 +270,11 @@ function createMockStorageLayer(mockStorage: MockStorage): Layer.Layer<MockStora
     put: <T extends { id?: string }>(table: TableName, item: T, keyPath: string = 'id') =>
       Effect.try({
         try: () => {
-          const key = (item as any)[keyPath];
+          // Try to get the key from the item's property first
+          let key = (item as any)[keyPath];
+          // If not found, use keyPath as the literal key value (for compound keys)
           if (key === undefined) {
-            throw new Error(`Key not found: ${keyPath}`);
+            key = keyPath;
           }
           mockStorage.set(table, key, item);
         },

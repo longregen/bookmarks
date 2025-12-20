@@ -157,22 +157,13 @@ export const validateUrl = (
   url: string,
   options?: UrlValidationOptions
 ): Effect.Effect<UrlValidationResult, never> =>
-  Effect.gen(function* () {
-    const validator = yield* UrlValidator;
-    return yield* validator.validateUrl(url, options);
-  });
+  Effect.flatMap(UrlValidator, (validator) => validator.validateUrl(url, options));
 
 export const validateWebDAVUrl = (
   url: string,
   allowInsecure = false
 ): Effect.Effect<UrlValidationResult, never> =>
-  Effect.gen(function* () {
-    const validator = yield* UrlValidator;
-    return yield* validator.validateWebDAVUrl(url, allowInsecure);
-  });
+  Effect.flatMap(UrlValidator, (validator) => validator.validateWebDAVUrl(url, allowInsecure));
 
 export const validateWebUrl = (url: string): Effect.Effect<UrlValidationResult, never> =>
-  Effect.gen(function* () {
-    const validator = yield* UrlValidator;
-    return yield* validator.validateWebUrl(url);
-  });
+  Effect.flatMap(UrlValidator, (validator) => validator.validateWebUrl(url));

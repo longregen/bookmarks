@@ -301,14 +301,10 @@ export const MessagingServiceChromeLayer: Layer.Layer<MessagingService, never> =
  * const result = await Effect.runPromise(effect, MessagingServiceChromeLayer);
  * ```
  */
-export function sendMessage<T extends MessageType>(
+export const sendMessage = <T extends MessageType>(
   message: MessageOfType<T>
-): Effect.Effect<MessageResponse<T>, MessagingError, MessagingService> {
-  return Effect.gen(function* () {
-    const messagingService = yield* MessagingService;
-    return yield* messagingService.sendMessage(message);
-  });
-}
+): Effect.Effect<MessageResponse<T>, MessagingError, MessagingService> =>
+  Effect.flatMap(MessagingService, (service) => service.sendMessage(message));
 
 /**
  * Type alias for message handlers.
@@ -330,15 +326,11 @@ export type MessageHandler<T extends MessageType> = (
  * // Later: cleanup();
  * ```
  */
-export function addMessageListener<T extends MessageType>(
+export const addMessageListener = <T extends MessageType>(
   messageType: T,
   handler: MessageHandler<T>
-): Effect.Effect<() => void, never, MessagingService> {
-  return Effect.gen(function* () {
-    const messagingService = yield* MessagingService;
-    return yield* messagingService.addMessageListener(messageType, handler);
-  });
-}
+): Effect.Effect<() => void, never, MessagingService> =>
+  Effect.flatMap(MessagingService, (service) => service.addMessageListener(messageType, handler));
 
 /**
  * Broadcast an event to all listeners.
@@ -353,11 +345,7 @@ export function addMessageListener<T extends MessageType>(
  * await Effect.runPromise(effect, MessagingServiceChromeLayer);
  * ```
  */
-export function broadcastEvent(
+export const broadcastEvent = (
   event: EventData
-): Effect.Effect<void, MessagingError, MessagingService> {
-  return Effect.gen(function* () {
-    const messagingService = yield* MessagingService;
-    return yield* messagingService.broadcastEvent(event);
-  });
-}
+): Effect.Effect<void, MessagingError, MessagingService> =>
+  Effect.flatMap(MessagingService, (service) => service.broadcastEvent(event));

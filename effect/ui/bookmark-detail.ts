@@ -6,6 +6,7 @@ import type { Bookmark, Markdown, QuestionAnswer } from '../db/schema';
 import { DOMService as SharedDOMService, createElement, setSanitizedHTML } from './dom';
 import { formatDateByAge } from '../lib/date-format';
 import { parseMarkdown } from '../lib/markdown';
+import { withButtonState, createFragment } from './ui-helpers';
 
 // ============================================================================
 // Errors
@@ -345,17 +346,13 @@ export class BookmarkDetailManager {
         return;
       }
 
-      this.config.exportBtn.disabled = true;
-      this.config.exportBtn.textContent = 'Exporting...';
-
-      try {
-        const exportService = yield* ExportService;
-        const data = yield* exportService.exportBookmark(this.currentBookmarkId);
+      const exportService = yield* ExportService;
+      const exportEffect = Effect.gen(function* () {
+        const data = yield* exportService.exportBookmark(this.currentBookmarkId!);
         yield* exportService.downloadExport(data);
-      } finally {
-        this.config.exportBtn.disabled = false;
-        this.config.exportBtn.textContent = 'Export';
-      }
+      });
+
+      yield* withButtonState(this.config.exportBtn, 'Exporting...', exportEffect);
     });
   }
 
@@ -391,29 +388,28 @@ export class BookmarkDetailManager {
       }
 
       const retryBtn = this.config.retryBtn;
-      if (retryBtn) {
-        retryBtn.disabled = true;
-        retryBtn.textContent = 'Retrying...';
+      if (!retryBtn) {
+        return;
       }
 
-      try {
-        const jobService = yield* JobService;
-        yield* jobService.retryBookmark(this.currentBookmarkId);
+      const jobService = yield* JobService;
+      const retryEffect = Effect.gen(function* () {
+        yield* jobService.retryBookmark(this.currentBookmarkId!);
         yield* jobService.triggerProcessingQueue();
-
         this.closeDetail();
         this.config.onRetry?.();
-      } catch (error) {
-        console.error('Failed to retry bookmark:', error);
-        yield* Effect.sync(() => {
-          alert('Failed to retry bookmark. Please try again.');
-        });
-      } finally {
-        if (retryBtn) {
-          retryBtn.disabled = false;
-          retryBtn.textContent = 'Retry';
-        }
-      }
+      }).pipe(
+        Effect.catchAll((error) =>
+          Effect.gen(function* () {
+            console.error('Failed to retry bookmark:', error);
+            yield* Effect.sync(() => {
+              alert('Failed to retry bookmark. Please try again.');
+            });
+          })
+        )
+      );
+
+      yield* withButtonState(retryBtn, 'Retrying...', retryEffect);
     });
   }
 

@@ -134,7 +134,7 @@ export const capturePage = Effect.gen(function* () {
     );
   }
 
-  return Effect.void;
+  yield* Effect.void;
 });
 
 /**
@@ -222,7 +222,8 @@ const setupMessageListener = Effect.sync(() => {
 const program = setupMessageListener;
 
 // Skip during tests to avoid initialization errors
-if (!import.meta.vitest) {
+// Check if we're not in a test environment (vitest sets describe globally)
+if (!import.meta.vitest && typeof describe === 'undefined' && typeof chrome !== 'undefined' && chrome.runtime) {
   Effect.runPromise(program).catch((error) => {
     console.error('Failed to initialize capture content script:', error);
   });

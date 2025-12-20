@@ -2,7 +2,7 @@ import * as Effect from 'effect/Effect';
 import * as Ref from 'effect/Ref';
 import { ConfigService, CONFIG_CATEGORIES, type ConfigEntryWithMetadata } from '../../lib/config-registry';
 import { getErrorMessage } from '../../lib/errors';
-import { DOMError } from '../shared/errors';
+import { DOMError, UIService, UIServiceLive } from '../shared';
 import { createElement, getElementSafe, clearChildren } from '../shared/dom-helpers';
 
 interface ModuleState {
@@ -16,6 +16,7 @@ interface DOMRefs {
   configTableBody: HTMLTableSectionElement;
   resetAllBtn: HTMLButtonElement;
   modifiedCountSpan: HTMLElement | null;
+  statusElement: HTMLElement | null;
 }
 
 function getDOMRefs(): Effect.Effect<DOMRefs, DOMError> {
@@ -26,6 +27,7 @@ function getDOMRefs(): Effect.Effect<DOMRefs, DOMError> {
     const configTableBody = yield* getElementSafe<HTMLTableSectionElement>('configTableBody');
     const resetAllBtn = yield* getElementSafe<HTMLButtonElement>('resetAllConfig');
     const modifiedCountSpan = yield* Effect.sync(() => document.getElementById('modifiedConfigCount'));
+    const statusElement = yield* Effect.sync(() => document.getElementById('configStatus'));
 
     return {
       searchInput,
@@ -34,6 +36,7 @@ function getDOMRefs(): Effect.Effect<DOMRefs, DOMError> {
       configTableBody,
       resetAllBtn,
       modifiedCountSpan,
+      statusElement,
     };
   });
 }
@@ -301,20 +304,6 @@ function updateModifiedCount(
   });
 }
 
-function showStatus(message: string, type: 'success' | 'error'): Effect.Effect<void> {
-  return Effect.sync(() => {
-    const status = document.getElementById('configStatus');
-    if (!status) return;
-
-    status.textContent = message;
-    status.className = `config-status ${type}`;
-    status.classList.remove('hidden');
-
-    setTimeout(() => {
-      status.classList.add('hidden');
-    }, 3000);
-  });
-}
 
 function startEditing(
   domRefs: DOMRefs,
@@ -355,9 +344,10 @@ function saveEdit(
   domRefs: DOMRefs,
   stateRef: Ref.Ref<ModuleState>,
   key: string
-): Effect.Effect<void, never, ConfigService> {
+): Effect.Effect<void, never, ConfigService | UIService> {
   return Effect.gen(function* () {
     const configService = yield* ConfigService;
+    const uiService = yield* UIService;
     const allEntries = yield* configService.getAllEntries;
     const entry = allEntries.find((e) => e.key === key);
     if (!entry) return;
@@ -388,7 +378,9 @@ function saveEdit(
     yield* configService.setValue(key, newValue).pipe(
       Effect.catchAll((error) =>
         Effect.gen(function* () {
-          yield* showStatus(getErrorMessage(error), 'error');
+          if (domRefs.statusElement) {
+            yield* uiService.showStatus(domRefs.statusElement, getErrorMessage(error), 'error');
+          }
         })
       ),
       Effect.flatMap(() =>
@@ -396,13 +388,20 @@ function saveEdit(
           yield* Ref.set(stateRef, { editingKey: null });
           yield* renderConfigTable(domRefs, stateRef);
           yield* updateModifiedCount(domRefs);
-          yield* showStatus(`Updated ${key}`, 'success');
+          if (domRefs.statusElement) {
+            yield* uiService.showStatus(domRefs.statusElement, `Updated ${key}`, 'success');
+          }
         })
       )
     );
   }).pipe(
     Effect.catchAllDefect((defect) =>
-      showStatus(getErrorMessage(defect), 'error')
+      Effect.gen(function* () {
+        const uiService = yield* UIService;
+        if (domRefs.statusElement) {
+          yield* uiService.showStatus(domRefs.statusElement, getErrorMessage(defect), 'error');
+        }
+      })
     )
   );
 }
@@ -411,20 +410,25 @@ function resetValue(
   domRefs: DOMRefs,
   stateRef: Ref.Ref<ModuleState>,
   key: string
-): Effect.Effect<void, never, ConfigService> {
+): Effect.Effect<void, never, ConfigService | UIService> {
   return Effect.gen(function* () {
     const configService = yield* ConfigService;
+    const uiService = yield* UIService;
     yield* configService.resetValue(key).pipe(
       Effect.catchAll((error) =>
         Effect.gen(function* () {
-          yield* showStatus(getErrorMessage(error), 'error');
+          if (domRefs.statusElement) {
+            yield* uiService.showStatus(domRefs.statusElement, getErrorMessage(error), 'error');
+          }
         })
       ),
       Effect.flatMap(() =>
         Effect.gen(function* () {
           yield* renderConfigTable(domRefs, stateRef);
           yield* updateModifiedCount(domRefs);
-          yield* showStatus(`Reset ${key} to default`, 'success');
+          if (domRefs.statusElement) {
+            yield* uiService.showStatus(domRefs.statusElement, `Reset ${key} to default`, 'success');
+          }
         })
       )
     );
@@ -435,7 +439,7 @@ function handleTableClick(
   domRefs: DOMRefs,
   stateRef: Ref.Ref<ModuleState>,
   event: MouseEvent
-): Effect.Effect<void, never, ConfigService> {
+): Effect.Effect<void, never, ConfigService | UIService> {
   return Effect.gen(function* () {
     const target = event.target as HTMLElement;
 
@@ -474,7 +478,7 @@ function handleTableKeydown(
   domRefs: DOMRefs,
   stateRef: Ref.Ref<ModuleState>,
   event: KeyboardEvent
-): Effect.Effect<void, never, ConfigService> {
+): Effect.Effect<void, never, ConfigService | UIService> {
   return Effect.gen(function* () {
     const target = event.target as HTMLElement;
 
@@ -526,9 +530,10 @@ function handleTableKeydown(
 function setupEventListeners(
   domRefs: DOMRefs,
   stateRef: Ref.Ref<ModuleState>
-): Effect.Effect<void, never, ConfigService> {
+): Effect.Effect<void, never, ConfigService | UIService> {
   return Effect.gen(function* () {
     const configService = yield* ConfigService;
+    const uiService = yield* UIService;
 
     yield* Effect.sync(() => {
       domRefs.searchInput.addEventListener('input', () => {
@@ -548,6 +553,7 @@ function setupEventListeners(
           Effect.provide(
             Effect.gen(function* () {
               const configService = yield* ConfigService;
+              const uiService = yield* UIService;
               const count = yield* configService.getModifiedCount;
               if (count === 0) return;
 
@@ -560,36 +566,40 @@ function setupEventListeners(
                 yield* configService.resetAll.pipe(
                   Effect.catchAll((error) =>
                     Effect.gen(function* () {
-                      yield* showStatus(getErrorMessage(error), 'error');
+                      if (domRefs.statusElement) {
+                        yield* uiService.showStatus(domRefs.statusElement, getErrorMessage(error), 'error');
+                      }
                     })
                   ),
                   Effect.flatMap(() =>
                     Effect.gen(function* () {
                       yield* renderConfigTable(domRefs, stateRef);
                       yield* updateModifiedCount(domRefs);
-                      yield* showStatus('All settings have been reset to defaults.', 'success');
+                      if (domRefs.statusElement) {
+                        yield* uiService.showStatus(domRefs.statusElement, 'All settings have been reset to defaults.', 'success');
+                      }
                     })
                   )
                 );
               }
             }),
-            configService
+            Layer.mergeAll(ConfigService.context(configService), UIService.context(uiService))
           )
         );
       });
 
       domRefs.configTableBody.addEventListener('click', (event) => {
-        Effect.runPromise(Effect.provide(handleTableClick(domRefs, stateRef, event), configService));
+        Effect.runPromise(Effect.provide(handleTableClick(domRefs, stateRef, event), Layer.mergeAll(ConfigService.context(configService), UIService.context(uiService))));
       });
 
       domRefs.configTableBody.addEventListener('keydown', (event) => {
-        Effect.runPromise(Effect.provide(handleTableKeydown(domRefs, stateRef, event), configService));
+        Effect.runPromise(Effect.provide(handleTableKeydown(domRefs, stateRef, event), Layer.mergeAll(ConfigService.context(configService), UIService.context(uiService))));
       });
     });
   });
 }
 
-export function initAdvancedConfigModule(): Effect.Effect<void, DOMError, ConfigService> {
+export function initAdvancedConfigModule(): Effect.Effect<void, DOMError, ConfigService | UIService> {
   return Effect.gen(function* () {
     const configService = yield* ConfigService;
 

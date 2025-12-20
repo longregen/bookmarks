@@ -25,9 +25,12 @@ import {
   SyncError,
   getErrorMessage,
 } from '../lib/errors';
-import { calculateBackoffDelay } from '../lib/retry';
 import { ConfigService } from '../services/config-service';
 import { LoggingService } from '../services/logging-service';
+import {
+  handleErrorWithRetry,
+  handleSuccess,
+} from './utils/retry-handler';
 
 /**
  * Service for bookmark CRUD operations
@@ -183,43 +186,15 @@ function fetchSingleBookmark(
               `Fetch error for ${bookmark.url}: ${errorMessage}`
             );
 
-            if (currentRetryCount < maxRetries) {
-              const newRetryCount = currentRetryCount + 1;
-              const retryMessage = `Retry ${newRetryCount}/${maxRetries}: ${errorMessage}`;
-
-              yield* repo.update(bookmark.id, {
-                status: 'fetching',
-                retryCount: newRetryCount,
-                errorMessage: retryMessage,
-                updatedAt: new Date(),
-              });
-
-              yield* jobService.updateJobItemByBookmark(bookmark.id, {
-                status: 'pending' as JobItemStatus,
-                retryCount: newRetryCount,
-                errorMessage: retryMessage,
-              });
-            } else {
-              const failureMessage = `Failed after ${maxRetries + 1} attempts: ${errorMessage}`;
-
-              yield* repo.update(bookmark.id, {
-                status: 'error',
-                errorMessage: failureMessage,
-                updatedAt: new Date(),
-              });
-
-              yield* jobService.updateJobItemByBookmark(bookmark.id, {
-                status: 'error' as JobItemStatus,
-                errorMessage: failureMessage,
-              });
-
-              const jobItem = yield* jobService.getJobItemByBookmark(
-                bookmark.id
-              );
-              if (jobItem) {
-                yield* jobService.updateJobStatus(jobItem.jobId);
-              }
-            }
+            const isFinalFailure = yield* handleErrorWithRetry(
+              {
+                bookmark,
+                currentRetryCount,
+                maxRetries,
+              },
+              error,
+              'fetching'
+            );
 
             return { success: false, bookmark };
           }),
@@ -335,23 +310,7 @@ function processSingleBookmarkContent(
       Effect.matchEffect({
         onSuccess: () =>
           Effect.gen(function* () {
-            yield* repo.update(bookmark.id, {
-              status: 'complete',
-              errorMessage: undefined,
-              updatedAt: new Date(),
-            });
-
-            yield* jobService.updateJobItemByBookmark(bookmark.id, {
-              status: 'complete' as JobItemStatus,
-            });
-
-            const jobItem = yield* jobService.getJobItemByBookmark(bookmark.id);
-            if (jobItem) {
-              yield* jobService.updateJobStatus(jobItem.jobId);
-            }
-
-            yield* events.bookmarkReady(bookmark.id);
-
+            yield* handleSuccess(bookmark);
             yield* logging.info(
               `Completed: ${bookmark.title || bookmark.url}`
             );
@@ -363,59 +322,25 @@ function processSingleBookmarkContent(
               `Processing error for ${bookmark.id}: ${errorMessage}`
             );
 
-            if (currentRetryCount < maxRetries) {
-              const newRetryCount = currentRetryCount + 1;
-              const backoffDelay = calculateBackoffDelay(currentRetryCount, {
-                baseDelay,
-                maxDelay,
-              });
+            const isFinalFailure = yield* handleErrorWithRetry(
+              {
+                bookmark,
+                currentRetryCount,
+                maxRetries,
+              },
+              error,
+              'downloaded',
+              { useBackoff: true, baseDelay, maxDelay }
+            );
 
+            if (!isFinalFailure) {
               yield* logging.debug(
-                `Retrying ${bookmark.id} in ${Math.round(backoffDelay)}ms (attempt ${newRetryCount + 1}/${maxRetries + 1})`
+                `Scheduled retry for ${bookmark.id} (attempt ${currentRetryCount + 2}/${maxRetries + 1})`
               );
-
-              const retryMessage = `Retry ${newRetryCount}/${maxRetries}: ${errorMessage}`;
-
-              yield* repo.update(bookmark.id, {
-                status: 'downloaded',
-                retryCount: newRetryCount,
-                errorMessage: retryMessage,
-                updatedAt: new Date(),
-              });
-
-              yield* jobService.updateJobItemByBookmark(bookmark.id, {
-                status: 'pending' as JobItemStatus,
-                retryCount: newRetryCount,
-                errorMessage: retryMessage,
-              });
-
-              yield* Effect.sleep(`${Math.round(backoffDelay)} millis`);
             } else {
               yield* logging.error(
                 `Max retries (${maxRetries}) exceeded for ${bookmark.id}`
               );
-
-              const failureMessage = `Failed after ${maxRetries + 1} attempts: ${errorMessage}`;
-
-              yield* repo.update(bookmark.id, {
-                status: 'error',
-                errorMessage: failureMessage,
-                updatedAt: new Date(),
-              });
-
-              yield* jobService.updateJobItemByBookmark(bookmark.id, {
-                status: 'error' as JobItemStatus,
-                errorMessage: failureMessage,
-              });
-
-              const jobItem = yield* jobService.getJobItemByBookmark(
-                bookmark.id
-              );
-              if (jobItem) {
-                yield* jobService.updateJobStatus(jobItem.jobId);
-              }
-
-              yield* events.bookmarkProcessingFailed(bookmark.id, failureMessage);
             }
           }),
       })

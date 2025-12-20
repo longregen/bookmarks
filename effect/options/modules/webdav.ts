@@ -8,7 +8,7 @@ import { createPoller, type Poller } from '../../../src/lib/polling-manager';
 import { validateWebDAVUrl as validateWebDAVUrlShared } from '../../../src/lib/url-validator';
 import { getErrorMessage } from '../../lib/errors';
 import type { ApiSettings } from '../../../src/lib/platform';
-import { DOMError } from '../shared/errors';
+import { DOMError, UIService, UIServiceLive, ButtonStateService, ButtonStateServiceLive } from '../shared';
 
 /**
  * Error types for WebDAV module
@@ -269,14 +269,16 @@ export const DOMServiceLive: Layer.Layer<DOMService, never, never> =
  * Combined application layer
  */
 export const AppLayer: Layer.Layer<
-  SettingsService | ChromeMessagingService | WebDAVService | DOMService,
+  SettingsService | ChromeMessagingService | WebDAVService | DOMService | UIService | ButtonStateService,
   never,
   never
 > = Layer.mergeAll(
   SettingsServiceLive,
   ChromeMessagingServiceLive,
   WebDAVServiceLive,
-  DOMServiceLive
+  DOMServiceLive,
+  UIServiceLive,
+  ButtonStateServiceLive
 );
 
 /**
@@ -514,27 +516,6 @@ function showConnectionStatus(
   });
 }
 
-/**
- * Helper to execute an effect with button state management
- */
-async function withButtonState<A, E>(
-  button: HTMLButtonElement,
-  loadingText: string,
-  effect: Effect.Effect<A, E, SettingsService | ChromeMessagingService | WebDAVService | DOMService>
-): Promise<void> {
-  const originalText = button.textContent || '';
-  const originalDisabled = button.disabled;
-
-  button.textContent = loadingText;
-  button.disabled = true;
-
-  try {
-    await Effect.runPromise(Effect.provide(effect, AppLayer));
-  } finally {
-    button.textContent = originalText;
-    button.disabled = originalDisabled;
-  }
-}
 
 /**
  * Initialize WebDAV module with Effect-based logic
@@ -637,52 +618,56 @@ export function initWebDAVModule(): () => void {
     );
     if (!submitBtn) return;
 
-    try {
-      await withButtonState(
-        submitBtn,
-        'Saving...',
+    await Effect.runPromise(
+      Effect.provide(
         Effect.gen(function* () {
+          const buttonStateService = yield* ButtonStateService;
           const domService = yield* DOMService;
+          const uiService = yield* UIService;
 
-          yield* saveWebDAVSettings({
-            enabled: webdavEnabledInput.checked,
-            url: webdavUrlInput.value.trim(),
-            username: webdavUsernameInput.value.trim(),
-            password: webdavPasswordInput.value,
-            path: webdavPathInput.value.trim() || '/bookmarks',
-            syncInterval:
-              parseInt(webdavSyncIntervalInput.value, 10) || 15,
-          });
+          yield* buttonStateService.withButtonState(
+            submitBtn,
+            'Saving...',
+            Effect.gen(function* () {
+              yield* saveWebDAVSettings({
+                enabled: webdavEnabledInput.checked,
+                url: webdavUrlInput.value.trim(),
+                username: webdavUsernameInput.value.trim(),
+                password: webdavPasswordInput.value,
+                path: webdavPathInput.value.trim() || '/bookmarks',
+                syncInterval:
+                  parseInt(webdavSyncIntervalInput.value, 10) || 15,
+              });
 
-          yield* domService.showStatus(
-            statusDiv,
-            'WebDAV settings saved successfully!',
-            'success',
-            5000
+              yield* uiService.showStatus(
+                statusDiv,
+                'WebDAV settings saved successfully!',
+                'success',
+                5000
+              );
+
+              if (webdavEnabledInput.checked) {
+                yield* updateSyncStatus({ syncStatusIndicator, syncNowBtn });
+              }
+            })
           );
-
-          if (webdavEnabledInput.checked) {
-            yield* updateSyncStatus({ syncStatusIndicator, syncNowBtn });
-          }
-        })
-      );
-    } catch (error) {
-      console.error('Error saving WebDAV settings:', error);
-      await Effect.runPromise(
-        Effect.provide(
-          Effect.gen(function* () {
-            const domService = yield* DOMService;
-            yield* domService.showStatus(
-              statusDiv,
-              'Failed to save WebDAV settings',
-              'error',
-              5000
-            );
-          }),
-          AppLayer
-        )
-      );
-    }
+        }).pipe(
+          Effect.catchAll((error) =>
+            Effect.gen(function* () {
+              const uiService = yield* UIService;
+              console.error('Error saving WebDAV settings:', error);
+              yield* uiService.showStatus(
+                statusDiv,
+                'Failed to save WebDAV settings',
+                'error',
+                5000
+              );
+            })
+          )
+        ),
+        AppLayer
+      )
+    );
   });
 
   testWebdavBtn.addEventListener('click', async () => {
@@ -711,121 +696,129 @@ export function initWebDAVModule(): () => void {
       )
     );
 
-    try {
-      await withButtonState(
-        testWebdavBtn,
-        'Testing...',
+    await Effect.runPromise(
+      Effect.provide(
         Effect.gen(function* () {
-          yield* testConnection(url, username, password);
-          yield* showConnectionStatus(
-            webdavConnectionStatus,
-            'success',
-            'Connection successful!'
+          const buttonStateService = yield* ButtonStateService;
+
+          yield* buttonStateService.withButtonState(
+            testWebdavBtn,
+            'Testing...',
+            Effect.gen(function* () {
+              yield* testConnection(url, username, password);
+              yield* showConnectionStatus(
+                webdavConnectionStatus,
+                'success',
+                'Connection successful!'
+              );
+            }).pipe(
+              Effect.catchTag('WebDAVConnectionError', (error) =>
+                showConnectionStatus(
+                  webdavConnectionStatus,
+                  'error',
+                  error.message
+                )
+              )
+            )
           );
         }).pipe(
-          Effect.catchTag('WebDAVConnectionError', (error) =>
+          Effect.catchAll((error) =>
             showConnectionStatus(
               webdavConnectionStatus,
               'error',
-              error.message
+              `Connection failed: ${getErrorMessage(error)}`
             )
           )
-        )
-      );
-    } catch (error) {
-      await Effect.runPromise(
-        Effect.provide(
-          showConnectionStatus(
-            webdavConnectionStatus,
-            'error',
-            `Connection failed: ${getErrorMessage(error)}`
-          ),
-          AppLayer
-        )
-      );
-    }
+        ),
+        AppLayer
+      )
+    );
   });
 
   syncNowBtn.addEventListener('click', async () => {
-    try {
-      await withButtonState(
-        syncNowBtn,
-        'Syncing...',
+    await Effect.runPromise(
+      Effect.provide(
         Effect.gen(function* () {
+          const buttonStateService = yield* ButtonStateService;
           const domService = yield* DOMService;
+          const uiService = yield* UIService;
 
-          const statusText = yield* Effect.sync(() => {
-            const el = syncStatusIndicator.querySelector('.sync-status-text');
-            if (!el) throw new Error('Status text element not found');
-            return el as HTMLElement;
-          });
+          yield* buttonStateService.withButtonState(
+            syncNowBtn,
+            'Syncing...',
+            Effect.gen(function* () {
+              const statusText = yield* Effect.sync(() => {
+                const el = syncStatusIndicator.querySelector('.sync-status-text');
+                if (!el) throw new Error('Status text element not found');
+                return el as HTMLElement;
+              });
 
-          yield* domService.removeClass(syncStatusIndicator, 'success');
-          yield* domService.removeClass(syncStatusIndicator, 'error');
-          yield* domService.addClass(syncStatusIndicator, 'syncing');
-          yield* domService.updateText(statusText, 'Syncing...');
+              yield* domService.removeClass(syncStatusIndicator, 'success');
+              yield* domService.removeClass(syncStatusIndicator, 'error');
+              yield* domService.addClass(syncStatusIndicator, 'syncing');
+              yield* domService.updateText(statusText, 'Syncing...');
 
-          const result = yield* triggerSync();
+              const result = yield* triggerSync();
 
-          yield* domService.removeClass(syncStatusIndicator, 'syncing');
+              yield* domService.removeClass(syncStatusIndicator, 'syncing');
 
-          if (result.success) {
-            yield* domService.addClass(syncStatusIndicator, 'success');
-            yield* domService.updateText(
-              statusText,
-              result.message ?? 'Sync completed'
-            );
-            yield* domService.showStatus(
-              statusDiv,
-              `Sync completed: ${result.message ?? 'Success'}`,
-              'success',
-              5000
-            );
-          } else {
-            yield* domService.addClass(syncStatusIndicator, 'error');
-            yield* domService.updateText(
-              statusText,
-              `Error: ${result.message ?? 'Unknown error'}`
-            );
-            yield* domService.showStatus(
-              statusDiv,
-              `Sync failed: ${result.message ?? 'Unknown error'}`,
-              'error',
-              5000
-            );
-          }
+              if (result.success) {
+                yield* domService.addClass(syncStatusIndicator, 'success');
+                yield* domService.updateText(
+                  statusText,
+                  result.message ?? 'Sync completed'
+                );
+                yield* uiService.showStatus(
+                  statusDiv,
+                  `Sync completed: ${result.message ?? 'Success'}`,
+                  'success',
+                  5000
+                );
+              } else {
+                yield* domService.addClass(syncStatusIndicator, 'error');
+                yield* domService.updateText(
+                  statusText,
+                  `Error: ${result.message ?? 'Unknown error'}`
+                );
+                yield* uiService.showStatus(
+                  statusDiv,
+                  `Sync failed: ${result.message ?? 'Unknown error'}`,
+                  'error',
+                  5000
+                );
+              }
 
-          yield* Effect.sync(() =>
-            setTimeout(
-              () =>
-                void Effect.runPromise(
-                  Effect.provide(
-                    updateSyncStatus({ syncStatusIndicator, syncNowBtn }),
-                    AppLayer
-                  )
-                ),
-              1000
-            )
+              yield* Effect.sync(() =>
+                setTimeout(
+                  () =>
+                    void Effect.runPromise(
+                      Effect.provide(
+                        updateSyncStatus({ syncStatusIndicator, syncNowBtn }),
+                        AppLayer
+                      )
+                    ),
+                  1000
+                )
+              );
+            })
           );
-        })
-      );
-    } catch (error) {
-      console.error('Error triggering sync:', error);
-      await Effect.runPromise(
-        Effect.provide(
-          Effect.gen(function* () {
-            const domService = yield* DOMService;
-            yield* domService.showStatus(
-              statusDiv,
-              'Failed to trigger sync',
-              'error',
-              5000
-            );
-          }),
-          AppLayer
-        )
-      );
-    }
+        }).pipe(
+          Effect.catchAll((error) =>
+            Effect.gen(function* () {
+              const uiService = yield* UIService;
+              console.error('Error triggering sync:', error);
+              yield* uiService.showStatus(
+                statusDiv,
+                'Failed to trigger sync',
+                'error',
+                5000
+              );
+            })
+          )
+        ),
+        AppLayer
+      )
+    );
   });
 
   // Initial load

@@ -114,6 +114,86 @@ export interface JobStats {
 }
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Calculate job status from item statistics
+ */
+function calculateJobStatus(stats: JobStats): JobStatus {
+  if (stats.total === 0) {
+    return 'completed';
+  }
+  if (stats.complete === stats.total) {
+    return 'completed';
+  }
+  if (stats.error > 0 && stats.pending === 0 && stats.inProgress === 0) {
+    return stats.complete > 0 ? 'completed' : 'failed';
+  }
+  if (stats.inProgress > 0 || stats.pending > 0) {
+    return 'in_progress';
+  }
+  return 'completed';
+}
+
+/**
+ * Get job stats and update job status
+ */
+function getStatsAndUpdateStatus(
+  jobId: string
+): Effect.Effect<void, RepositoryError, JobsStorageService> {
+  return Effect.gen(function* () {
+    const storage = yield* JobsStorageService;
+
+    const items = yield* storage
+      .query<JobItem>('jobItems', { field: 'jobId', operator: 'eq', value: jobId })
+      .pipe(
+        Effect.mapError(
+          (error) =>
+            new RepositoryError({
+              code: 'UNKNOWN',
+              entity: 'JobItem',
+              operation: 'query',
+              message: `Failed to get job items for status update: ${error.message}`,
+              originalError: error,
+            })
+        )
+      );
+
+    const statCounts = items.reduce<Record<string, number>>(
+      (acc, item) => {
+        acc[item.status]++;
+        return acc;
+      },
+      { pending: 0, in_progress: 0, complete: 0, error: 0 }
+    );
+
+    const stats: JobStats = {
+      total: items.length,
+      pending: statCounts.pending,
+      inProgress: statCounts.in_progress,
+      complete: statCounts.complete,
+      error: statCounts.error,
+    };
+
+    const status = calculateJobStatus(stats);
+
+    yield* storage.update<Job>('jobs', jobId, { status }).pipe(
+      Effect.mapError(
+        (error) =>
+          new RepositoryError({
+            code: error.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'UNKNOWN',
+            entity: 'Job',
+            operation: 'update',
+            message: `Failed to update job status: ${error.message}`,
+            originalError: error,
+          })
+      )
+    );
+  });
+}
+
+// ============================================================================
 // Job Service Interface
 // ============================================================================
 
@@ -665,68 +745,7 @@ const makeJobService = Effect.gen(function* () {
       }),
 
     updateJobStatus: (jobId: string): Effect.Effect<void, RepositoryError> =>
-      Effect.gen(function* () {
-        const stats = yield* Effect.gen(function* () {
-          const items = yield* storage
-            .query<JobItem>('jobItems', { field: 'jobId', operator: 'eq', value: jobId })
-            .pipe(
-              Effect.mapError(
-                (error) =>
-                  new RepositoryError({
-                    code: 'UNKNOWN',
-                    entity: 'JobItem',
-                    operation: 'query',
-                    message: `Failed to get job items for status update: ${error.message}`,
-                    originalError: error,
-                  })
-              )
-            );
-
-          const statCounts = items.reduce<Record<string, number>>(
-            (acc, item) => {
-              acc[item.status]++;
-              return acc;
-            },
-            { pending: 0, in_progress: 0, complete: 0, error: 0 }
-          );
-
-          return {
-            total: items.length,
-            pending: statCounts.pending,
-            inProgress: statCounts.in_progress,
-            complete: statCounts.complete,
-            error: statCounts.error,
-          };
-        });
-
-        let status: JobStatus;
-
-        if (stats.total === 0) {
-          status = 'completed';
-        } else if (stats.complete === stats.total) {
-          status = 'completed';
-        } else if (stats.error > 0 && stats.pending === 0 && stats.inProgress === 0) {
-          // All items are either complete or error, and at least one error
-          status = stats.complete > 0 ? 'completed' : 'failed';
-        } else if (stats.inProgress > 0 || stats.pending > 0) {
-          status = 'in_progress';
-        } else {
-          status = 'completed';
-        }
-
-        yield* storage.update<Job>('jobs', jobId, { status }).pipe(
-          Effect.mapError(
-            (error) =>
-              new RepositoryError({
-                code: error.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'UNKNOWN',
-                entity: 'Job',
-                operation: 'update',
-                message: `Failed to update job status: ${error.message}`,
-                originalError: error,
-              })
-          )
-        );
-      }),
+      getStatsAndUpdateStatus(jobId),
 
     retryFailedJobItems: (jobId: string): Effect.Effect<number, RepositoryError> =>
       Effect.gen(function* () {
@@ -814,67 +833,7 @@ const makeJobService = Effect.gen(function* () {
           );
 
         // Update job status
-        yield* Effect.gen(function* () {
-          const stats = yield* Effect.gen(function* () {
-            const allItems = yield* storage
-              .query<JobItem>('jobItems', { field: 'jobId', operator: 'eq', value: jobId })
-              .pipe(
-                Effect.mapError(
-                  (error) =>
-                    new RepositoryError({
-                      code: 'UNKNOWN',
-                      entity: 'JobItem',
-                      operation: 'query',
-                      message: `Failed to get job items for status update: ${error.message}`,
-                      originalError: error,
-                    })
-                )
-              );
-
-            const statCounts = allItems.reduce<Record<string, number>>(
-              (acc, item) => {
-                acc[item.status]++;
-                return acc;
-              },
-              { pending: 0, in_progress: 0, complete: 0, error: 0 }
-            );
-
-            return {
-              total: allItems.length,
-              pending: statCounts.pending,
-              inProgress: statCounts.in_progress,
-              complete: statCounts.complete,
-              error: statCounts.error,
-            };
-          });
-
-          let status: JobStatus;
-
-          if (stats.total === 0) {
-            status = 'completed';
-          } else if (stats.complete === stats.total) {
-            status = 'completed';
-          } else if (stats.error > 0 && stats.pending === 0 && stats.inProgress === 0) {
-            status = stats.complete > 0 ? 'completed' : 'failed';
-          } else if (stats.inProgress > 0 || stats.pending > 0) {
-            status = 'in_progress';
-          } else {
-            status = 'completed';
-          }
-
-          yield* storage.update<Job>('jobs', jobId, { status }).pipe(
-            Effect.mapError(
-              (error) =>
-                new RepositoryError({
-                  code: error.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'UNKNOWN',
-                  entity: 'Job',
-                  operation: 'update',
-                  message: `Failed to update job status: ${error.message}`,
-                  originalError: error,
-                })
-            )
-          );
-        });
+        yield* getStatsAndUpdateStatus(jobId);
 
         return items.length;
       }),
@@ -947,71 +906,7 @@ const makeJobService = Effect.gen(function* () {
             );
 
           // Update the job status
-          yield* Effect.gen(function* () {
-            const stats = yield* Effect.gen(function* () {
-              const items = yield* storage
-                .query<JobItem>('jobItems', {
-                  field: 'jobId',
-                  operator: 'eq',
-                  value: jobItem[0].jobId,
-                })
-                .pipe(
-                  Effect.mapError(
-                    (error) =>
-                      new RepositoryError({
-                        code: 'UNKNOWN',
-                        entity: 'JobItem',
-                        operation: 'query',
-                        message: `Failed to get job items for status update: ${error.message}`,
-                        originalError: error,
-                      })
-                  )
-                );
-
-              const statCounts = items.reduce<Record<string, number>>(
-                (acc, item) => {
-                  acc[item.status]++;
-                  return acc;
-                },
-                { pending: 0, in_progress: 0, complete: 0, error: 0 }
-              );
-
-              return {
-                total: items.length,
-                pending: statCounts.pending,
-                inProgress: statCounts.in_progress,
-                complete: statCounts.complete,
-                error: statCounts.error,
-              };
-            });
-
-            let status: JobStatus;
-
-            if (stats.total === 0) {
-              status = 'completed';
-            } else if (stats.complete === stats.total) {
-              status = 'completed';
-            } else if (stats.error > 0 && stats.pending === 0 && stats.inProgress === 0) {
-              status = stats.complete > 0 ? 'completed' : 'failed';
-            } else if (stats.inProgress > 0 || stats.pending > 0) {
-              status = 'in_progress';
-            } else {
-              status = 'completed';
-            }
-
-            yield* storage.update<Job>('jobs', jobItem[0].jobId, { status }).pipe(
-              Effect.mapError(
-                (error) =>
-                  new RepositoryError({
-                    code: error.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'UNKNOWN',
-                    entity: 'Job',
-                    operation: 'update',
-                    message: `Failed to update job status: ${error.message}`,
-                    originalError: error,
-                  })
-              )
-            );
-          });
+          yield* getStatsAndUpdateStatus(jobItem[0].jobId);
         }
       }),
   };

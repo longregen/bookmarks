@@ -3,9 +3,6 @@ import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
 import { DOMError } from './errors';
 
-/**
- * Shared DOM service for common DOM operations
- */
 export class DOMService extends Context.Tag('DOMService')<
   DOMService,
   {
@@ -27,9 +24,6 @@ export class DOMService extends Context.Tag('DOMService')<
   }
 >() {}
 
-/**
- * Live implementation of DOMService
- */
 export const DOMServiceLive: Layer.Layer<DOMService, never, never> = Layer.succeed(
   DOMService,
   {

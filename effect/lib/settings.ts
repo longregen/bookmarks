@@ -62,29 +62,20 @@ export const SettingsServiceLive: Layer.Layer<SettingsService, never, never> =
 /**
  * Get all settings
  */
-export function getSettings(): Effect.Effect<
+export const getSettings = (): Effect.Effect<
   ApiSettings,
   SettingsError,
   SettingsService
-> {
-  return Effect.gen(function* () {
-    const settingsService = yield* SettingsService;
-    return yield* settingsService.getSettings();
-  });
-}
+> => Effect.flatMap(SettingsService, (service) => service.getSettings());
 
 /**
  * Save a single setting
  */
-export function saveSetting(
+export const saveSetting = (
   key: keyof ApiSettings,
   value: string | boolean | number
-): Effect.Effect<void, SettingsError, SettingsService> {
-  return Effect.gen(function* () {
-    const settingsService = yield* SettingsService;
-    return yield* settingsService.saveSetting(key, value);
-  });
-}
+): Effect.Effect<void, SettingsError, SettingsService> =>
+  Effect.flatMap(SettingsService, (service) => service.saveSetting(key, value));
 
 /**
  * Batch update multiple settings

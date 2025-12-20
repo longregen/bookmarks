@@ -4,6 +4,7 @@ import * as Layer from 'effect/Layer';
 import * as Data from 'effect/Data';
 import { db } from '../../src/db/schema';
 import type { Bookmark, BookmarkTag } from '../db/schema';
+import { groupBy, makeLayer } from '../lib/effect-utils';
 
 // ============================================================================
 // Errors
@@ -55,7 +56,7 @@ export class TagRepository extends Context.Tag('TagRepository')<
 // Layer Implementations
 // ============================================================================
 
-export const BookmarkRepositoryLive = Layer.succeed(BookmarkRepository, {
+export const BookmarkRepositoryLive = makeLayer(BookmarkRepository, {
   getAll: () =>
     Effect.tryPromise({
       try: () => db.bookmarks.toArray(),
@@ -114,7 +115,7 @@ export const BookmarkRepositoryLive = Layer.succeed(BookmarkRepository, {
     }),
 });
 
-export const TagRepositoryLive = Layer.succeed(TagRepository, {
+export const TagRepositoryLive = makeLayer(TagRepository, {
   getAll: () =>
     Effect.tryPromise({
       try: () => db.bookmarkTags.toArray(),
@@ -134,16 +135,7 @@ export const TagRepositoryLive = Layer.succeed(TagRepository, {
           .anyOf(bookmarkIds)
           .toArray();
 
-        const tagsByBookmarkId = new Map<string, BookmarkTag[]>();
-        for (const tag of allTags) {
-          const existing = tagsByBookmarkId.get(tag.bookmarkId);
-          if (existing) {
-            existing.push(tag);
-          } else {
-            tagsByBookmarkId.set(tag.bookmarkId, [tag]);
-          }
-        }
-        return tagsByBookmarkId;
+        return groupBy(allTags, (tag) => tag.bookmarkId);
       },
       catch: (error) =>
         new TagRepositoryError({

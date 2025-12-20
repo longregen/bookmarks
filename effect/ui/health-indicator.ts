@@ -2,6 +2,7 @@ import { Context, Effect, Layer } from 'effect';
 import { ConfigService } from '../lib/config-registry';
 import { HealthStatusService, type HealthState, type HealthStatus } from '../lib/health-status';
 import { TabsService } from '../lib/tabs';
+import { runEffectWithLogging } from './ui-helpers';
 
 // ============================================================================
 // Types
@@ -96,9 +97,10 @@ function setupEventListeners(
             : 'src/jobs/jobs.html';
 
         // Run navigation effect
-        Effect.runPromise(tabsService.openExtensionPage(pagePath)).catch((error) => {
-          console.error('Failed to open extension page:', error);
-        });
+        runEffectWithLogging(
+          tabsService.openExtensionPage(pagePath),
+          'Failed to open extension page'
+        );
       });
     });
   });
@@ -176,7 +178,7 @@ export function createHealthIndicatorEffect(
     // Setup periodic updates
     const intervalId = setInterval(() => {
       // Run update effect for each interval tick
-      Effect.runPromise(
+      runEffectWithLogging(
         healthService.getHealthStatus().pipe(
           Effect.tap((health) =>
             Effect.sync(() => {
@@ -200,10 +202,9 @@ export function createHealthIndicatorEffect(
               elements.tooltip.textContent = 'Health check failed';
             });
           })
-        )
-      ).catch((error) => {
-        console.error('Health indicator update failed:', error);
-      });
+        ),
+        'Health indicator update failed'
+      );
     }, refreshIntervalMs as number);
 
     // Return cleanup function
@@ -265,7 +266,7 @@ export function createHealthIndicatorScoped(
     yield* Effect.acquireRelease(
       Effect.sync(() => {
         const intervalId = setInterval(() => {
-          Effect.runPromise(
+          runEffectWithLogging(
             healthService.getHealthStatus().pipe(
               Effect.tap((health) =>
                 Effect.sync(() => {
@@ -279,10 +280,9 @@ export function createHealthIndicatorScoped(
                 })
               ),
               Effect.catchAll(() => Effect.void)
-            )
-          ).catch((error) => {
-            console.error('Health indicator update failed:', error);
-          });
+            ),
+            'Health indicator update failed'
+          );
         }, refreshIntervalMs as number);
 
         return intervalId;

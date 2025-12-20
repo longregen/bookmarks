@@ -3,6 +3,7 @@ import * as Effect from 'effect/Effect';
 import * as Data from 'effect/Data';
 import { type BookmarkTag } from '../../src/db/schema';
 import { DOMService as SharedDOMService } from './dom';
+import { runEffectWithLogging, executeAttachedCleanup, attachCleanup } from './ui-helpers';
 
 export interface TagEditorOptions {
   bookmarkId: string;
@@ -81,9 +82,7 @@ function createTagPill(
         yield* events.tagRemoved(bookmarkId, tagName);
       });
 
-      Effect.runPromise(removeEffect).catch(error => {
-        console.error('Failed to remove tag:', error);
-      });
+      runEffectWithLogging(removeEffect, 'Failed to remove tag');
     };
 
     yield* Effect.sync(() => {
@@ -143,9 +142,7 @@ function createDropdownContent(
       const handleClick = (): void => {
         const normalized = normalizeTagName(match);
         const addEffect = addTag(normalized, bookmarkId, container, onTagsChange);
-        Effect.runPromise(addEffect).catch(error => {
-          console.error('Failed to add tag:', error);
-        });
+        runEffectWithLogging(addEffect, 'Failed to add tag');
       };
 
       yield* Effect.sync(() => {
@@ -163,9 +160,7 @@ function createDropdownContent(
 
       const handleCreateClick = (): void => {
         const addEffect = addTag(normalizedValue, bookmarkId, container, onTagsChange);
-        Effect.runPromise(addEffect).catch(error => {
-          console.error('Failed to add tag:', error);
-        });
+        runEffectWithLogging(addEffect, 'Failed to add tag');
       };
 
       yield* Effect.sync(() => {
@@ -191,9 +186,7 @@ export function createTagEditor(
     const storage = yield* TagStorageService;
 
     const containerWithCleanup = container as HTMLElement & { _cleanup?: () => void };
-    if (containerWithCleanup._cleanup) {
-      yield* Effect.sync(() => containerWithCleanup._cleanup?.());
-    }
+    yield* executeAttachedCleanup(containerWithCleanup);
 
     const tags = yield* storage.getTagsForBookmark(bookmarkId);
     const allTags = yield* storage.getAllTags();
@@ -258,9 +251,7 @@ export function createTagEditor(
         });
       });
 
-      Effect.runPromise(dropdownEffect).catch(error => {
-        console.error('Failed to update dropdown:', error);
-      });
+      runEffectWithLogging(dropdownEffect, 'Failed to update dropdown');
     };
 
     const handleKeydown = (e: KeyboardEvent): void => {
@@ -270,9 +261,7 @@ export function createTagEditor(
         const value = normalizeTagName(inputElement.value);
         if (value) {
           const addEffect = addTag(value, bookmarkId, container, onTagsChange);
-          Effect.runPromise(addEffect).catch(error => {
-            console.error('Failed to add tag on Enter:', error);
-          });
+          runEffectWithLogging(addEffect, 'Failed to add tag on Enter');
         }
       }
     };
@@ -295,8 +284,9 @@ export function createTagEditor(
       document.removeEventListener('click', handleClickOutside);
     };
 
+    yield* attachCleanup(containerWithCleanup, cleanup);
+
     yield* Effect.sync(() => {
-      containerWithCleanup._cleanup = cleanup;
       inputWrapper.appendChild(input);
       inputWrapper.appendChild(dropdown);
       section.appendChild(inputWrapper);
