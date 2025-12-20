@@ -637,7 +637,7 @@ export class SearchUI {
     this.showResultsMode();
     this.elements.searchBtn.disabled = true;
 
-    const searchEffect = Effect.gen(() => this.searchService.search(query, this.selectedTags));
+    const searchEffect = this.searchService.search(query, this.selectedTags);
 
     const result = await Effect.runPromise(
       searchEffect.pipe(
