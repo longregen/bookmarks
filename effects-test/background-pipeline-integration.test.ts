@@ -10,6 +10,8 @@ import {
   JobService,
   EventsService,
   SyncService,
+  QueueStateService,
+  QueueStateServiceLive,
   startProcessingQueue,
 } from '../effect/background/queue';
 import { ConfigService } from '../effect/services/config-service';
@@ -264,7 +266,8 @@ describe('Background Processing Pipeline Integration', () => {
       EventsServiceTest,
       SyncServiceTest,
       ConfigServiceTest,
-      LoggingServiceTest
+      LoggingServiceTest,
+      QueueStateServiceLive
     );
 
     // Execute
@@ -345,7 +348,8 @@ describe('Background Processing Pipeline Integration', () => {
       EventsServiceTest,
       SyncServiceTest,
       ConfigServiceTest,
-      LoggingServiceTest
+      LoggingServiceTest,
+      QueueStateServiceLive
     );
 
     await Effect.runPromise(
@@ -406,7 +410,8 @@ describe('Background Processing Pipeline Integration', () => {
       EventsServiceTest,
       SyncServiceTest,
       ConfigServiceTest,
-      LoggingServiceTest
+      LoggingServiceTest,
+      QueueStateServiceLive
     );
 
     await Effect.runPromise(
@@ -469,7 +474,8 @@ describe('Background Processing Pipeline Integration', () => {
       EventsServiceTest,
       SyncServiceTest,
       ConfigServiceTest,
-      LoggingServiceTest
+      LoggingServiceTest,
+      QueueStateServiceLive
     );
 
     await Effect.runPromise(
@@ -524,19 +530,20 @@ describe('Background Processing Pipeline Integration', () => {
       EventsServiceTest,
       SyncServiceTest,
       ConfigServiceTest,
-      LoggingServiceTest
+      LoggingServiceTest,
+      QueueStateServiceLive
     );
 
     // Start three concurrent queue processes
     await Effect.runPromise(
       Effect.all(
         [
-          startProcessingQueue().pipe(Effect.provide(TestLayer)),
-          startProcessingQueue().pipe(Effect.provide(TestLayer)),
-          startProcessingQueue().pipe(Effect.provide(TestLayer)),
+          startProcessingQueue(),
+          startProcessingQueue(),
+          startProcessingQueue(),
         ],
         { concurrency: 'unbounded' }
-      )
+      ).pipe(Effect.provide(TestLayer))
     );
 
     // Should only process once due to isProcessing flag
@@ -578,7 +585,8 @@ describe('Background Processing Pipeline Integration', () => {
       EventsServiceTest,
       SyncServiceTest,
       ConfigServiceTest,
-      LoggingServiceTest
+      LoggingServiceTest,
+      QueueStateServiceLive
     );
 
     await Effect.runPromise(
@@ -630,7 +638,8 @@ describe('Background Processing Pipeline Integration', () => {
       EventsServiceTest,
       SyncServiceTest,
       ConfigServiceTest,
-      LoggingServiceTest
+      LoggingServiceTest,
+      QueueStateServiceLive
     );
 
     await Effect.runPromise(
@@ -696,7 +705,8 @@ describe('Background Processing Pipeline Integration', () => {
       EventsServiceTest,
       SyncServiceTest,
       ConfigServiceTestConcurrency,
-      LoggingServiceTest
+      LoggingServiceTest,
+      QueueStateServiceLive
     );
 
     await Effect.runPromise(
@@ -753,7 +763,8 @@ describe('Background Processing Pipeline Integration', () => {
       EventsServiceTest,
       SyncServiceTestCustom,
       ConfigServiceTest,
-      LoggingServiceTest
+      LoggingServiceTest,
+      QueueStateServiceLive
     );
 
     await Effect.runPromise(
@@ -788,7 +799,8 @@ describe('Background Processing Pipeline Integration', () => {
       EventsServiceTest,
       SyncServiceTestFailing,
       ConfigServiceTest,
-      LoggingServiceTest
+      LoggingServiceTest,
+      QueueStateServiceLive
     );
 
     // Should not throw even though sync fails
@@ -867,7 +879,8 @@ describe('Background Processing Pipeline Integration', () => {
       EventsServiceTest,
       SyncServiceTest,
       ConfigServiceTest,
-      LoggingServiceTest
+      LoggingServiceTest,
+      QueueStateServiceLive
     );
 
     await Effect.runPromise(
@@ -950,7 +963,8 @@ describe('Background Processing Pipeline Integration', () => {
       EventsServiceTest,
       SyncServiceTest,
       ConfigServiceTest,
-      LoggingServiceTest
+      LoggingServiceTest,
+      QueueStateServiceLive
     );
 
     await Effect.runPromise(

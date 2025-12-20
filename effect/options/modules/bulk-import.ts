@@ -3,6 +3,7 @@ import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
 import * as Data from 'effect/Data';
 import * as Ref from 'effect/Ref';
+import { makeLayer, makeEffectLayer } from '../../lib/effect-utils';
 import { createPoller, type Poller } from '../../lib/polling-manager';
 import { validateUrls, createBulkImportJob, type ValidationResult } from '../../lib/bulk-import';
 import { getErrorMessage } from '../../lib/errors';
@@ -389,7 +390,7 @@ const makeProgressTrackingService = (
 export const makeUIServiceLayer = (
   elements: UIElements
 ): Layer.Layer<UIService, never, SharedUIService> =>
-  Layer.effect(
+  makeEffectLayer(
     UIService,
     Effect.gen(function* () {
       const sharedUI = yield* SharedUIService;
@@ -401,7 +402,7 @@ export const makeUIServiceLayer = (
  * BulkImportService layer
  */
 export const BulkImportServiceLive: Layer.Layer<BulkImportService, never, never> =
-  Layer.succeed(BulkImportService, makeBulkImportService());
+  makeLayer(BulkImportService, makeBulkImportService());
 
 /**
  * Creates a ProgressTrackingService layer from DOM elements
@@ -409,7 +410,7 @@ export const BulkImportServiceLive: Layer.Layer<BulkImportService, never, never>
 export const makeProgressTrackingServiceLayer = (
   elements: UIElements
 ): Layer.Layer<ProgressTrackingService, never, never> =>
-  Layer.effect(ProgressTrackingService, makeProgressTrackingService(elements));
+  makeEffectLayer(ProgressTrackingService, makeProgressTrackingService(elements));
 
 // ============================================================================
 // Helper Functions

@@ -25,7 +25,7 @@ import * as Ref from 'effect/Ref';
 import {
   HealthStatusService,
   HealthStatusServiceLive,
-  StorageService,
+  HealthStorageService,
   getHealthStatus,
   type HealthStatus,
   type HealthState,
@@ -107,7 +107,7 @@ const createMockStorageService = (stateRef: Ref.Ref<JobCountState>) => ({
  * Create a test storage layer
  */
 const makeTestStorageLayer = (stateRef: Ref.Ref<JobCountState>) =>
-  Layer.succeed(StorageService, createMockStorageService(stateRef));
+  Layer.succeed(HealthStorageService, createMockStorageService(stateRef));
 
 // ============================================================================
 // Mock Config Service
@@ -932,7 +932,7 @@ describe('Health Monitoring Integration', () => {
       const configService = createMockConfigService(configState);
       const tabsService = createMockTabsService(tabsState);
 
-      const storageLayer = Layer.succeed(StorageService, storageService);
+      const storageLayer = Layer.succeed(HealthStorageService, storageService);
       const healthLayer = HealthStatusServiceLive.pipe(Layer.provide(storageLayer));
       const healthService = await Effect.runPromise(
         HealthStatusService.pipe(Effect.provide(healthLayer))

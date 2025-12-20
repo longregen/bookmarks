@@ -1,6 +1,7 @@
 import * as Context from 'effect/Context';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
+import { makeLayer, makeEffectLayer } from './effect-utils';
 
 export class TimeService extends Context.Tag('TimeService')<
   TimeService,
@@ -10,7 +11,7 @@ export class TimeService extends Context.Tag('TimeService')<
   }
 >() {}
 
-export const TimeServiceLive: Layer.Layer<TimeService, never> = Layer.succeed(
+export const TimeServiceLive: Layer.Layer<TimeService, never> = makeLayer(
   TimeService,
   {
     now: () => Effect.sync(() => new Date()),
@@ -65,7 +66,7 @@ export function formatTimeAgoPure(date: Date): string {
 export const TimeServiceTest = (
   fixedNow: Date
 ): Layer.Layer<TimeService, never> =>
-  Layer.succeed(
+  makeLayer(
     TimeService,
     {
       now: () => Effect.sync(() => new Date(fixedNow)),

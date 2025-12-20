@@ -2,6 +2,7 @@ import * as Effect from 'effect/Effect';
 import * as Context from 'effect/Context';
 import * as Data from 'effect/Data';
 import * as Layer from 'effect/Layer';
+import { makeLayer, makeEffectLayer } from '../../lib/effect-utils';
 import { SettingsService, SettingsServiceLive } from '../../lib/settings';
 import { LoggingService } from '../../services/logging-service';
 import { createPoller, type Poller } from '../../../src/lib/polling-manager';
@@ -113,7 +114,7 @@ export const ChromeMessagingServiceLive: Layer.Layer<
   ChromeMessagingService,
   never,
   never
-> = Layer.succeed(ChromeMessagingService, {
+> = makeLayer(ChromeMessagingService, {
   sendMessage: <T>(message: { type: string; [key: string]: unknown }) =>
     Effect.tryPromise({
       try: () => chrome.runtime.sendMessage(message) as Promise<T>,
@@ -130,7 +131,7 @@ export const ChromeMessagingServiceLive: Layer.Layer<
  * Live implementation of WebDAVService
  */
 export const WebDAVServiceLive: Layer.Layer<WebDAVService, never, never> =
-  Layer.succeed(WebDAVService, {
+  makeLayer(WebDAVService, {
     testConnection: (url: string, username: string, password: string) =>
       Effect.gen(function* () {
         const response = yield* Effect.tryPromise({
@@ -212,7 +213,7 @@ export const WebDAVServiceLive: Layer.Layer<WebDAVService, never, never> =
  * Live implementation of DOMService
  */
 export const DOMServiceLive: Layer.Layer<DOMService, never, never> =
-  Layer.succeed(DOMService, {
+  makeLayer(DOMService, {
     getElement: <T extends HTMLElement>(id: string) =>
       Effect.sync(() => {
         const element = document.getElementById(id) as T | null;

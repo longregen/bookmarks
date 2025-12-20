@@ -4,7 +4,7 @@ import * as Layer from 'effect/Layer';
 import { cosineSimilarity, findTopK, VectorError } from '../effect/lib/similarity';
 import {
   SearchService,
-  StorageService,
+  SearchStorageService,
   type SearchResult,
 } from '../effect/search/search';
 import { ApiService } from '../effect/lib/api';
@@ -277,8 +277,9 @@ describe('Similarity Functions - Effect-based', () => {
       bookmarkIds: string[]
     ): Map<string, BookmarkTag[]> => {
       const tagMap = new Map<string, BookmarkTag[]>();
-      bookmarkIds.forEach((id, index) => {
-        if (index % 2 === 0) {
+      bookmarkIds.forEach((id) => {
+        const bookmarkNum = parseInt(id.split('-')[1]);
+        if (bookmarkNum % 2 === 0) {
           tagMap.set(id, [
             {
               bookmarkId: id,
@@ -331,7 +332,7 @@ describe('Similarity Functions - Effect-based', () => {
         ],
       ]);
 
-      const mockStorageService = Layer.succeed(StorageService, {
+      const mockStorageService = Layer.succeed(SearchStorageService, {
         getSetting: () => Effect.succeed(null),
         getAllQAPairs: () => Effect.succeed(mockQAPairs),
         bulkGetBookmarks: () => Effect.succeed(mockBookmarks),
@@ -350,7 +351,7 @@ describe('Similarity Functions - Effect-based', () => {
       const SearchServiceLive = Layer.effect(
         SearchService,
         Effect.gen(function* () {
-          const storage = yield* StorageService;
+          const storage = yield* SearchStorageService;
           const api = yield* ApiService;
           const logging = yield* LoggingService;
           const configService = yield* ConfigService;
@@ -444,20 +445,21 @@ describe('Similarity Functions - Effect-based', () => {
         })
       );
 
-      const testLayer = Layer.mergeAll(
-        MockLoggingService,
-        MockConfigService,
+      const dependencies = Layer.mergeAll(
         mockStorageService,
         mockApiService,
-        SearchServiceLive
+        MockLoggingService,
+        MockConfigService
       );
+      const testLayer = Layer.provide(SearchServiceLive, dependencies);
+      const fullLayer = Layer.merge(testLayer, dependencies);
 
       const program = Effect.gen(function* () {
         const searchService = yield* SearchService;
         return yield* searchService.search('test query', new Set());
       });
 
-      const results = await Effect.runPromise(program.pipe(Effect.provide(testLayer)));
+      const results = await Effect.runPromise(program.pipe(Effect.provide(fullLayer)));
 
       expect(results.length).toBeGreaterThan(0);
       for (let i = 1; i < results.length; i++) {
@@ -497,7 +499,7 @@ describe('Similarity Functions - Effect-based', () => {
         ],
       ]);
 
-      const mockStorageService = Layer.succeed(StorageService, {
+      const mockStorageService = Layer.succeed(SearchStorageService, {
         getSetting: () => Effect.succeed(null),
         getAllQAPairs: () => Effect.succeed(mockQAPairs),
         bulkGetBookmarks: () => Effect.succeed(mockBookmarks),
@@ -515,7 +517,7 @@ describe('Similarity Functions - Effect-based', () => {
       const SearchServiceLive = Layer.effect(
         SearchService,
         Effect.gen(function* () {
-          const storage = yield* StorageService;
+          const storage = yield* SearchStorageService;
           const api = yield* ApiService;
           const logging = yield* LoggingService;
           const configService = yield* ConfigService;
@@ -609,20 +611,21 @@ describe('Similarity Functions - Effect-based', () => {
         })
       );
 
-      const testLayer = Layer.mergeAll(
-        MockLoggingService,
-        MockConfigService,
+      const dependencies = Layer.mergeAll(
         mockStorageService,
         mockApiService,
-        SearchServiceLive
+        MockLoggingService,
+        MockConfigService
       );
+      const testLayer = Layer.provide(SearchServiceLive, dependencies);
+      const fullLayer = Layer.merge(testLayer, dependencies);
 
       const program = Effect.gen(function* () {
         const searchService = yield* SearchService;
         return yield* searchService.search('test query', new Set(['tech']));
       });
 
-      const results = await Effect.runPromise(program.pipe(Effect.provide(testLayer)));
+      const results = await Effect.runPromise(program.pipe(Effect.provide(fullLayer)));
 
       expect(results.length).toBeGreaterThan(0);
       results.forEach((result) => {
@@ -631,7 +634,7 @@ describe('Similarity Functions - Effect-based', () => {
     });
 
     it('should handle API failures gracefully', async () => {
-      const mockStorageService = Layer.succeed(StorageService, {
+      const mockStorageService = Layer.succeed(SearchStorageService, {
         getSetting: () => Effect.succeed(null),
         getAllQAPairs: () => Effect.succeed([]),
         bulkGetBookmarks: () => Effect.succeed(new Map()),
@@ -656,7 +659,7 @@ describe('Similarity Functions - Effect-based', () => {
       const SearchServiceLive = Layer.effect(
         SearchService,
         Effect.gen(function* () {
-          const storage = yield* StorageService;
+          const storage = yield* SearchStorageService;
           const api = yield* ApiService;
           const logging = yield* LoggingService;
 
@@ -693,13 +696,13 @@ describe('Similarity Functions - Effect-based', () => {
         })
       );
 
-      const testLayer = Layer.mergeAll(
-        MockLoggingService,
-        MockConfigService,
+      const dependencies = Layer.mergeAll(
         mockStorageService,
         mockApiService,
-        SearchServiceLive
+        MockLoggingService,
+        MockConfigService
       );
+      const testLayer = Layer.provide(SearchServiceLive, dependencies);
 
       const program = Effect.gen(function* () {
         const searchService = yield* SearchService;
@@ -718,7 +721,7 @@ describe('Similarity Functions - Effect-based', () => {
     });
 
     it('should return empty results when no indexed bookmarks exist', async () => {
-      const mockStorageService = Layer.succeed(StorageService, {
+      const mockStorageService = Layer.succeed(SearchStorageService, {
         getSetting: () => Effect.succeed(null),
         getAllQAPairs: () => Effect.succeed([]),
         bulkGetBookmarks: () => Effect.succeed(new Map()),
@@ -736,7 +739,7 @@ describe('Similarity Functions - Effect-based', () => {
       const SearchServiceLive = Layer.effect(
         SearchService,
         Effect.gen(function* () {
-          const storage = yield* StorageService;
+          const storage = yield* SearchStorageService;
           const api = yield* ApiService;
           const logging = yield* LoggingService;
           const configService = yield* ConfigService;
@@ -779,13 +782,13 @@ describe('Similarity Functions - Effect-based', () => {
         })
       );
 
-      const testLayer = Layer.mergeAll(
-        MockLoggingService,
-        MockConfigService,
+      const dependencies = Layer.mergeAll(
         mockStorageService,
         mockApiService,
-        SearchServiceLive
+        MockLoggingService,
+        MockConfigService
       );
+      const testLayer = Layer.provide(SearchServiceLive, dependencies);
 
       const program = Effect.gen(function* () {
         const searchService = yield* SearchService;

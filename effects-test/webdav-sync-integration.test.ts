@@ -7,6 +7,7 @@ import {
   getSyncStatus,
   performSync,
   triggerSyncIfEnabled,
+  resetSyncState,
   WebDAVConfigError,
   WebDAVNetworkError,
   WebDAVSyncError,
@@ -19,8 +20,8 @@ import {
   SettingsError,
 } from '../effect/lib/settings';
 import {
-  StorageService as ExportStorageService,
-  JobService as ExportJobService,
+  ExportStorageService,
+  ExportJobService,
   exportAllBookmarks,
   importBookmarks,
   type BookmarkExport,
@@ -231,6 +232,9 @@ describe('WebDAV Sync Integration Tests', () => {
     qaPairsStore = new Map();
     settingsStore = new Map();
     eventLog = [];
+
+    // Reset sync state
+    resetSyncState();
 
     // Set default WebDAV settings
     settingsStore.set('webdavEnabled', true);

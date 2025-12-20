@@ -2,6 +2,7 @@ import * as Context from 'effect/Context';
 import * as Data from 'effect/Data';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
+import { makeEffectLayer, accessService } from './effect-utils';
 
 export class TabError extends Data.TaggedError('TabError')<{
   readonly operation: 'query' | 'update' | 'create' | 'focus_window';
@@ -112,28 +113,26 @@ const makeTabsService = (): Effect.Effect<
     } as const;
   });
 
-export const TabsServiceLive: Layer.Layer<TabsService, never, never> = Layer.effect(
-  TabsService,
-  makeTabsService()
-);
+export const TabsServiceLive: Layer.Layer<TabsService, never, never> =
+  makeEffectLayer(TabsService, makeTabsService());
 
 export const tabsService = TabsService.pipe(Effect.map((service) => service));
 
 export const getExtensionUrl = (path: string): Effect.Effect<string, never, TabsService> =>
-  Effect.flatMap(TabsService, (service) => service.getExtensionUrl(path));
+  accessService(TabsService, (service) => service.getExtensionUrl(path));
 
 export const isExtensionUrl = (
   url: string | undefined
 ): Effect.Effect<boolean, never, TabsService> =>
-  Effect.flatMap(TabsService, (service) => service.isExtensionUrl(url));
+  accessService(TabsService, (service) => service.isExtensionUrl(url));
 
 export const findExtensionTab = (): Effect.Effect<
   chrome.tabs.Tab | null,
   TabError,
   TabsService
-> => Effect.flatMap(TabsService, (service) => service.findExtensionTab());
+> => accessService(TabsService, (service) => service.findExtensionTab());
 
 export const openExtensionPage = (
   pagePath: string
 ): Effect.Effect<void, TabError, TabsService> =>
-  Effect.flatMap(TabsService, (service) => service.openExtensionPage(pagePath));
+  accessService(TabsService, (service) => service.openExtensionPage(pagePath));

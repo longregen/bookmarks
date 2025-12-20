@@ -1,7 +1,8 @@
 import * as Context from 'effect/Context';
+import * as Data from 'effect/Data';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
-import { Data } from 'effect';
+import { makeLayer, makeEffectLayer } from './effect-utils';
 import { ConfigService } from '../services/config-service';
 import { LoggingService } from '../services/logging-service';
 import type { GetPageHtmlResponse } from './messages';
@@ -109,7 +110,7 @@ export class ChromeAlarmService extends Context.Tag('ChromeAlarmService')<
 // ============================================================================
 
 export const ChromeTabServiceLive: Layer.Layer<ChromeTabService, never, never> =
-  Layer.succeed(ChromeTabService, {
+  makeLayer(ChromeTabService, {
     create: (options: chrome.tabs.CreateProperties) =>
       Effect.tryPromise({
         try: () => chrome.tabs.create(options),
@@ -203,7 +204,7 @@ export const ChromeAlarmServiceLive: Layer.Layer<
   ChromeAlarmService,
   never,
   never
-> = Layer.succeed(ChromeAlarmService, {
+> = makeLayer(ChromeAlarmService, {
   create: (name: string, alarmInfo: chrome.alarms.AlarmCreateInfo) =>
     Effect.tryPromise({
       try: () => chrome.alarms.create(name, alarmInfo),

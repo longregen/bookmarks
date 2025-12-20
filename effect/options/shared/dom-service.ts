@@ -1,6 +1,7 @@
 import * as Context from 'effect/Context';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
+import { makeLayer, makeEffectLayer } from '../../lib/effect-utils';
 import { DOMError } from './errors';
 
 export class DOMService extends Context.Tag('DOMService')<
@@ -24,7 +25,7 @@ export class DOMService extends Context.Tag('DOMService')<
   }
 >() {}
 
-export const DOMServiceLive: Layer.Layer<DOMService, never, never> = Layer.succeed(
+export const DOMServiceLive: Layer.Layer<DOMService, never, never> = makeLayer(
   DOMService,
   {
     getElementById: <T extends HTMLElement>(id: string) =>

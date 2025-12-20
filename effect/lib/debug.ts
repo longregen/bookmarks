@@ -8,6 +8,7 @@
 import * as Context from 'effect/Context';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
+import { makeLayer, makeEffectLayer } from './effect-utils';
 
 /**
  * Debug service for logging debug messages.
@@ -27,7 +28,7 @@ export class DebugService extends Context.Tag('DebugService')<
 /**
  * Live implementation that logs to console.
  */
-const DebugServiceLive: Layer.Layer<DebugService> = Layer.succeed(
+const DebugServiceLive: Layer.Layer<DebugService> = makeLayer(
   DebugService,
   {
     log: (prefix: string, msg: string, data?: unknown) =>
@@ -40,7 +41,7 @@ const DebugServiceLive: Layer.Layer<DebugService> = Layer.succeed(
 /**
  * No-op implementation that does nothing.
  */
-const DebugServiceNoop: Layer.Layer<DebugService> = Layer.succeed(
+const DebugServiceNoop: Layer.Layer<DebugService> = makeLayer(
   DebugService,
   {
     log: (_prefix: string, _msg: string, _data?: unknown) => Effect.void,

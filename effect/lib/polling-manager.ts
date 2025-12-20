@@ -6,6 +6,7 @@ import * as Fiber from 'effect/Fiber';
 import * as Ref from 'effect/Ref';
 import * as Context from 'effect/Context';
 import * as Layer from 'effect/Layer';
+import { makeLayer, makeEffectLayer } from './effect-utils';
 
 /**
  * Typed error for poller failures
@@ -45,7 +46,7 @@ export class LoggingService extends Context.Tag('LoggingService')<
 /**
  * Console-based logging implementation
  */
-export const ConsoleLoggingLayer: Layer.Layer<LoggingService> = Layer.succeed(
+export const ConsoleLoggingLayer: Layer.Layer<LoggingService> = makeLayer(
   LoggingService,
   {
     debug: (message: string) =>

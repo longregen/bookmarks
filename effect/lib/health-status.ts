@@ -1,4 +1,5 @@
 import { Context, Effect, Data, Layer } from 'effect';
+import { makeLayer, makeEffectLayer } from './effect-utils';
 import { JobStatus } from '../db/schema';
 import { StorageError } from './errors';
 
@@ -164,7 +165,7 @@ export const HealthStatusServiceLive: Layer.Layer<
   HealthStatusService,
   never,
   HealthStorageService
-> = Layer.effect(HealthStatusService, makeHealthStatusService);
+> = makeEffectLayer(HealthStatusService, makeHealthStatusService);
 
 // ============================================================================
 // Convenience Functions
@@ -191,7 +192,7 @@ export const getHealthStatus = (): Effect.Effect<
 export const getHealthStatusWithStorage = (
   storage: StorageServiceForHealth
 ): Effect.Effect<HealthStatus, HealthCheckError> => {
-  const storageLayer = Layer.succeed(HealthStorageService, storage);
+  const storageLayer = makeLayer(HealthStorageService, storage);
   const healthLayer = HealthStatusServiceLive.pipe(Layer.provide(storageLayer));
 
   return getHealthStatus().pipe(Effect.provide(healthLayer));

@@ -1,4 +1,7 @@
-import { Effect, Context, Layer, Data } from 'effect';
+import * as Context from 'effect/Context';
+import * as Data from 'effect/Data';
+import * as Effect from 'effect/Effect';
+import * as Layer from 'effect/Layer';
 import type {
   SaveBookmarkResponse,
   CapturePageResponse,
@@ -53,52 +56,46 @@ export class RuntimeMessagingService extends Context.Tag('RuntimeMessagingServic
 /**
  * Production layer for PageContentService
  */
-export const PageContentServiceLive = Layer.succeed(
-  PageContentService,
-  {
-    getUrl: Effect.try({
-      try: () => location.href,
-      catch: (error) => new DOMError({
-        operation: 'getUrl',
-        message: 'Failed to get page URL',
-        cause: error
-      }),
+export const PageContentServiceLive = Layer.succeed(PageContentService, {
+  getUrl: Effect.try({
+    try: () => location.href,
+    catch: (error) => new DOMError({
+      operation: 'getUrl',
+      message: 'Failed to get page URL',
+      cause: error
     }),
-    getTitle: Effect.try({
-      try: () => document.title,
-      catch: (error) => new DOMError({
-        operation: 'getTitle',
-        message: 'Failed to get page title',
-        cause: error
-      }),
+  }),
+  getTitle: Effect.try({
+    try: () => document.title,
+    catch: (error) => new DOMError({
+      operation: 'getTitle',
+      message: 'Failed to get page title',
+      cause: error
     }),
-    getHtml: Effect.try({
-      try: () => document.documentElement.outerHTML,
-      catch: (error) => new DOMError({
-        operation: 'getHtml',
-        message: 'Failed to get page HTML',
-        cause: error
-      }),
+  }),
+  getHtml: Effect.try({
+    try: () => document.documentElement.outerHTML,
+    catch: (error) => new DOMError({
+      operation: 'getHtml',
+      message: 'Failed to get page HTML',
+      cause: error
     }),
-  }
-);
+  }),
+});
 
 /**
  * Production layer for RuntimeMessagingService
  */
-export const RuntimeMessagingServiceLive = Layer.succeed(
-  RuntimeMessagingService,
-  {
-    sendMessage: <T>(message: unknown) =>
-      Effect.tryPromise({
-        try: () => chrome.runtime.sendMessage(message) as Promise<T>,
-        catch: (error) => new MessagingError({
-          message: 'Failed to send runtime message',
-          cause: error
-        }),
+export const RuntimeMessagingServiceLive = Layer.succeed(RuntimeMessagingService, {
+  sendMessage: <T>(message: unknown) =>
+    Effect.tryPromise({
+      try: () => chrome.runtime.sendMessage(message) as Promise<T>,
+      catch: (error) => new MessagingError({
+        message: 'Failed to send runtime message',
+        cause: error
       }),
-  }
-);
+    }),
+});
 
 /**
  * Combined application layer

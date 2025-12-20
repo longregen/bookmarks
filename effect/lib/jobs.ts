@@ -98,6 +98,11 @@ export class JobsStorageService extends Context.Tag('JobsStorageService')<
   IStorageService
 >() {}
 
+/**
+ * Alias for backward compatibility with tests
+ */
+export const StorageService = JobsStorageService;
+
 // ============================================================================
 // Job Statistics Type
 // ============================================================================

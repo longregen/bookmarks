@@ -1,6 +1,6 @@
-import * as Effect from 'effect/Effect';
 import * as Context from 'effect/Context';
 import * as Data from 'effect/Data';
+import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
 import type { Bookmark, BookmarkTag } from '../db/schema';
 import { getErrorMessage } from '../lib/errors';
@@ -17,7 +17,6 @@ import {
 import { initializeUI } from '../shared/ui-init';
 import { setupBookmarkEventHandlers } from '../shared/event-handling';
 import { getStatusModifier, sortBookmarks } from '../shared/rendering';
-import { makeLayer } from '../lib/effect-utils';
 
 // ============================================================================
 // Errors
@@ -453,7 +452,7 @@ export class LibraryManager {
     never,
     never
   > {
-    const uiStateLayer = makeLayer(UIStateService, {
+    const uiStateLayer = Layer.succeed(UIStateService, {
       getState: () => Effect.succeed(this.uiState),
       setState: (state) =>
         Effect.sync(() => {
@@ -462,7 +461,7 @@ export class LibraryManager {
         }),
     });
 
-    const domLayer = makeLayer(DOMService, {
+    const domLayer = Layer.succeed(DOMService, {
       createElement,
       getElement,
       formatDateByAge,

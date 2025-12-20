@@ -84,4 +84,4 @@ export const MarkdownServiceLive: Layer.Layer<MarkdownService, never, never> = L
 export const parseMarkdown = (
   markdown: string
 ): Effect.Effect<string, MarkdownParseError | MarkdownSanitizeError, MarkdownService> =>
-  Effect.flatMap(MarkdownService, (service) => service.parseMarkdown(markdown));
+  accessService(MarkdownService, (service) => service.parseMarkdown(markdown));

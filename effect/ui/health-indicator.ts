@@ -1,4 +1,5 @@
 import { Context, Effect, Layer } from 'effect';
+import { makeLayer, makeEffectLayer } from '../lib/effect-utils';
 import { ConfigService } from '../lib/config-registry';
 import { HealthStatusService, type HealthState, type HealthStatus } from '../lib/health-status';
 import { TabsService } from '../lib/tabs';
@@ -323,7 +324,7 @@ export const HealthIndicatorServiceLive: Layer.Layer<
   HealthIndicatorService,
   never,
   never
-> = Layer.succeed(HealthIndicatorService, {
+> = makeLayer(HealthIndicatorService, {
   create: (container: HTMLElement) => createHealthIndicatorEffect(container),
 });
 
@@ -347,9 +348,9 @@ export function createHealthIndicator(
   healthService: Context.Tag.Service<HealthStatusService>,
   tabsService: Context.Tag.Service<TabsService>
 ): () => void {
-  const configLayer = Layer.succeed(ConfigService, config);
-  const healthLayer = Layer.succeed(HealthStatusService, healthService);
-  const tabsLayer = Layer.succeed(TabsService, tabsService);
+  const configLayer = makeLayer(ConfigService, config);
+  const healthLayer = makeLayer(HealthStatusService, healthService);
+  const tabsLayer = makeLayer(TabsService, tabsService);
 
   const appLayer = Layer.mergeAll(configLayer, healthLayer, tabsLayer);
 

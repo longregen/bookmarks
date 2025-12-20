@@ -1,7 +1,7 @@
-import * as Effect from 'effect/Effect';
 import * as Context from 'effect/Context';
-import * as Layer from 'effect/Layer';
 import * as Data from 'effect/Data';
+import * as Effect from 'effect/Effect';
+import * as Layer from 'effect/Layer';
 import { db, type BookmarkTag, type Bookmark, type QuestionAnswer } from '../../src/db/schema';
 import { createElement, getElement } from '../../src/ui/dom';
 import { formatDateByAge } from '../../src/lib/date-format';
@@ -19,7 +19,7 @@ import {
 import { initializeUI } from '../shared/ui-init';
 import { setupBookmarkEventHandlers } from '../shared/event-handling';
 import { getStatusModifier } from '../shared/rendering';
-import { groupBy, mapErrorType, makeLayer } from '../lib/effect-utils';
+import { groupBy, mapErrorType } from '../lib/effect-utils';
 
 // ============================================================================
 // Typed Errors
@@ -188,7 +188,7 @@ export const StumbleDataServiceLive = Layer.effect(
 /**
  * Production implementation of ShuffleService
  */
-export const ShuffleServiceLive = makeLayer(ShuffleService, {
+export const ShuffleServiceLive = Layer.succeed(ShuffleService, {
   shuffle: <T>(items: T[]) =>
     Effect.sync(() => {
       const shuffled = [...items];
@@ -211,7 +211,7 @@ export const makeStumbleUIServiceLive = (
   resultCount: HTMLElement,
   stumbleList: HTMLElement
 ) =>
-  makeLayer(StumbleUIService, {
+  Layer.succeed(StumbleUIService, {
     setShuffling: (shuffling: boolean) =>
       Effect.sync(() => {
         shuffleBtn.disabled = shuffling;

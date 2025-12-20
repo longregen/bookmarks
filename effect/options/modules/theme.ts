@@ -2,6 +2,7 @@ import * as Context from 'effect/Context';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
 import * as Data from 'effect/Data';
+import { makeLayer, makeEffectLayer } from '../../lib/effect-utils';
 import { onThemeChange, applyTheme, getTheme, setTheme, type Theme } from '../../shared/theme';
 import { initExtension } from '../../ui/init-extension';
 import { initWeb } from '../../web/init-web';
@@ -99,7 +100,7 @@ const makeThemeService = Effect.sync(() => {
 });
 
 // Layer
-export const ThemeServiceLive: Layer.Layer<ThemeService, never, never> = Layer.effect(
+export const ThemeServiceLive: Layer.Layer<ThemeService, never, never> = makeEffectLayer(
   ThemeService,
   makeThemeService
 );

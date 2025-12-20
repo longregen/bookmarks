@@ -1,6 +1,6 @@
-import * as Effect from 'effect/Effect';
 import * as Context from 'effect/Context';
 import * as Data from 'effect/Data';
+import * as Effect from 'effect/Effect';
 import type { Bookmark, Markdown, QuestionAnswer } from '../../src/db/schema';
 import { JobType, JobStatus } from '../../src/db/schema';
 import { encodeEmbedding, decodeEmbedding, isEncodedEmbedding } from '../../src/lib/embedding-codec';

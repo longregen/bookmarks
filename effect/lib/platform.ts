@@ -2,6 +2,7 @@ import * as Context from 'effect/Context';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
 import * as Data from 'effect/Data';
+import { makeLayer, accessService } from './effect-utils';
 
 // ============================================================================
 // Type Definitions
@@ -98,7 +99,7 @@ export interface PlatformAdapter {
 export function makePlatformLayer(
   adapter: PlatformAdapter
 ): Layer.Layer<PlatformService, never, never> {
-  return Layer.succeed(PlatformService, {
+  return makeLayer(PlatformService, {
     getSettings: () =>
       Effect.tryPromise({
         try: () => adapter.getSettings(),

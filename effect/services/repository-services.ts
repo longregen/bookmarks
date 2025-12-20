@@ -4,7 +4,7 @@ import * as Layer from 'effect/Layer';
 import * as Data from 'effect/Data';
 import { db } from '../../src/db/schema';
 import type { Bookmark, BookmarkTag } from '../db/schema';
-import { groupBy, makeLayer } from '../lib/effect-utils';
+import { groupBy } from '../lib/effect-utils';
 
 // ============================================================================
 // Errors
@@ -56,7 +56,7 @@ export class TagRepository extends Context.Tag('TagRepository')<
 // Layer Implementations
 // ============================================================================
 
-export const BookmarkRepositoryLive = makeLayer(BookmarkRepository, {
+export const BookmarkRepositoryLive = Layer.succeed(BookmarkRepository, {
   getAll: () =>
     Effect.tryPromise({
       try: () => db.bookmarks.toArray(),
@@ -115,7 +115,7 @@ export const BookmarkRepositoryLive = makeLayer(BookmarkRepository, {
     }),
 });
 
-export const TagRepositoryLive = makeLayer(TagRepository, {
+export const TagRepositoryLive = Layer.succeed(TagRepository, {
   getAll: () =>
     Effect.tryPromise({
       try: () => db.bookmarkTags.toArray(),

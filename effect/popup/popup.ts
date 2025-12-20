@@ -2,6 +2,7 @@ import * as Context from 'effect/Context';
 import * as Data from 'effect/Data';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
+import { makeLayer, makeEffectLayer } from '../lib/effect-utils';
 import { showStatusMessage, getElement, createElement } from '../../src/ui/dom';
 import { openExtensionPage as openExtensionPageOrig } from '../../src/lib/tabs';
 import type { SaveBookmarkResponse } from '../lib/messages';
@@ -265,13 +266,13 @@ export const ChromeScriptingServiceLive: Layer.Layer<
   ChromeScriptingService,
   never,
   never
-> = Layer.effect(ChromeScriptingService, makeChromeScriptingService());
+> = makeEffectLayer(ChromeScriptingService, makeChromeScriptingService());
 
 export const PopupServiceLive: Layer.Layer<
   PopupService,
   never,
   ChromeScriptingService | MessagingService | TabsService | SettingsService
-> = Layer.effect(PopupService, makePopupService());
+> = makeEffectLayer(PopupService, makePopupService());
 
 // ============================================================================
 // UI Layer (traditional DOM manipulation with Effect for async operations)
@@ -362,7 +363,7 @@ function showConfigurationWarning(): void {
 // Create the full application layer with all dependencies
 const AppLayer = Layer.mergeAll(
   ChromeScriptingServiceLive,
-  Layer.succeed(MessagingService, {
+  makeLayer(MessagingService, {
     sendMessage: (message) =>
       Effect.async((resume) => {
         chrome.runtime.sendMessage(message, (response) => {
@@ -383,7 +384,7 @@ const AppLayer = Layer.mergeAll(
     addMessageListener: () => Effect.succeed(() => {}),
     broadcastEvent: () => Effect.succeed(undefined),
   }),
-  Layer.succeed(TabsService, {
+  makeLayer(TabsService, {
     getExtensionUrl: (path) => Effect.sync(() => chrome.runtime.getURL(path)),
     isExtensionUrl: (url) =>
       Effect.gen(function* () {
@@ -465,7 +466,7 @@ const AppLayer = Layer.mergeAll(
         }
       }),
   }),
-  Layer.succeed(SettingsService, {
+  makeLayer(SettingsService, {
     getSettings: () =>
       Effect.tryPromise({
         try: async () => {

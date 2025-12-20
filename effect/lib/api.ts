@@ -7,6 +7,7 @@ import type { ApiSettings as PlatformApiSettings } from '../../src/lib/platform'
 import { config } from '../../src/lib/config-registry';
 import { getErrorMessage } from '../../src/lib/errors';
 import { createDebugLog, debugOnly } from '../../src/lib/debug';
+import { makeLayer, makeEffectLayer } from './effect-utils';
 
 const debugLog = createDebugLog('Embeddings API');
 
@@ -106,7 +107,7 @@ export class ApiService extends Context.Tag('ApiService')<
 // Layer Implementations
 // ============================================================================
 
-export const ConfigServiceLive = Layer.succeed(ConfigService, {
+export const ConfigServiceLive = makeLayer(ConfigService, {
   getApiSettings: () =>
     Effect.tryPromise({
       try: async () => {
@@ -137,7 +138,7 @@ export const ConfigServiceLive = Layer.succeed(ConfigService, {
     Effect.sync(() => config.QA_SYSTEM_PROMPT as string),
 });
 
-export const ApiServiceLive = Layer.effect(
+export const ApiServiceBase = makeEffectLayer(
   ApiService,
   Effect.gen(function* () {
     const configService = yield* ConfigService;
@@ -307,7 +308,9 @@ export const ApiServiceLive = Layer.effect(
         }),
     };
   })
-).pipe(Layer.provide(ConfigServiceLive));
+);
+
+export const ApiServiceLive = ApiServiceBase.pipe(Layer.provide(ConfigServiceLive));
 
 // ============================================================================
 // Main Layer

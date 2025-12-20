@@ -66,7 +66,7 @@ export const getSettings = (): Effect.Effect<
   ApiSettings,
   SettingsError,
   SettingsService
-> => Effect.flatMap(SettingsService, (service) => service.getSettings());
+> => accessService(SettingsService, (service) => service.getSettings());
 
 /**
  * Save a single setting
@@ -75,7 +75,7 @@ export const saveSetting = (
   key: keyof ApiSettings,
   value: string | boolean | number
 ): Effect.Effect<void, SettingsError, SettingsService> =>
-  Effect.flatMap(SettingsService, (service) => service.saveSetting(key, value));
+  accessService(SettingsService, (service) => service.saveSetting(key, value));
 
 /**
  * Batch update multiple settings

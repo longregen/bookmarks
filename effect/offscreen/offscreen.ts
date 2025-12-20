@@ -4,6 +4,7 @@ import * as Context from 'effect/Context';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
 import * as Data from 'effect/Data';
+import { makeLayer, makeEffectLayer } from '../lib/effect-utils';
 import type { ExtractedContent, OffscreenReadyResponse } from '../lib/messages';
 import { getErrorMessage } from '../lib/errors';
 
@@ -86,7 +87,7 @@ export class ChromeMessageService extends Context.Tag('ChromeMessageService')<
 // ============================================================================
 
 export const ReadabilityServiceLive: Layer.Layer<ReadabilityService, never, never> =
-  Layer.succeed(ReadabilityService, {
+  makeLayer(ReadabilityService, {
     parse: (doc: Document) =>
       Effect.try({
         try: () => {
@@ -146,7 +147,7 @@ export const TurndownServiceLive: Layer.Layer<TurndownServiceContext, never, nev
   });
 
 export const DOMParserServiceLive: Layer.Layer<DOMParserService, never, never> =
-  Layer.succeed(DOMParserService, {
+  makeLayer(DOMParserService, {
     parseHTML: (html: string, baseUrl: string) =>
       Effect.try({
         try: () => {
@@ -170,7 +171,7 @@ export const DOMParserServiceLive: Layer.Layer<DOMParserService, never, never> =
   });
 
 export const ChromeMessageServiceLive: Layer.Layer<ChromeMessageService, never, never> =
-  Layer.succeed(ChromeMessageService, {
+  makeLayer(ChromeMessageService, {
     sendMessage: (message: Record<string, unknown>) =>
       Effect.tryPromise({
         try: () => chrome.runtime.sendMessage(message),

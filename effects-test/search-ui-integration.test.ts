@@ -3,7 +3,7 @@ import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
 import {
   SearchService,
-  StorageService,
+  SearchStorageService,
   SearchUI,
   type SearchResult,
   type AutocompleteItem,
@@ -178,7 +178,7 @@ describe('Search UI Lifecycle Integration', () => {
 
   describe('SearchService Initialization', () => {
     it('should initialize SearchService with all dependencies', async () => {
-      const mockStorageService = Layer.succeed(StorageService, {
+      const mockSearchStorageService = Layer.succeed(SearchStorageService, {
         getSetting: () => Effect.succeed(true),
         getAllQAPairs: () => Effect.succeed(mockQAPairs),
         bulkGetBookmarks: () => Effect.succeed(createMockBookmarks(['bookmark-0'])),
@@ -196,12 +196,12 @@ describe('Search UI Lifecycle Integration', () => {
       const testLayer = Layer.mergeAll(
         MockLoggingService,
         MockConfigService,
-        mockStorageService,
+        mockSearchStorageService,
         mockApiService
       );
 
       const program = Effect.gen(function* () {
-        const storage = yield* StorageService;
+        const storage = yield* SearchStorageService;
         const api = yield* ApiService;
         const logging = yield* LoggingService;
         const config = yield* ConfigService;
@@ -236,7 +236,7 @@ describe('Search UI Lifecycle Integration', () => {
         },
       });
 
-      const mockStorageService = Layer.succeed(StorageService, {
+      const mockSearchStorageService = Layer.succeed(SearchStorageService, {
         getSetting: (key: string) => {
           if (key === 'searchAutocomplete') {
             return Effect.succeed(false as any);
@@ -253,12 +253,12 @@ describe('Search UI Lifecycle Integration', () => {
       const testLayer = Layer.mergeAll(
         MockLoggingService,
         customConfig,
-        mockStorageService
+        mockSearchStorageService
       );
 
       const program = Effect.gen(function* () {
         const config = yield* ConfigService;
-        const storage = yield* StorageService;
+        const storage = yield* SearchStorageService;
 
         const topK = yield* config.get<number>('SEARCH_TOP_K_RESULTS');
         const autocompleteLimit = yield* config.get<number>('SEARCH_AUTOCOMPLETE_LIMIT');
@@ -290,7 +290,7 @@ describe('Search UI Lifecycle Integration', () => {
 
   describe('Search Execution Flow', () => {
     it('should execute full search flow from query to results', async () => {
-      const mockStorageService = Layer.succeed(StorageService, {
+      const mockSearchStorageService = Layer.succeed(SearchStorageService, {
         getSetting: () => Effect.succeed(null),
         getAllQAPairs: () => Effect.succeed(mockQAPairs),
         bulkGetBookmarks: () =>
@@ -318,7 +318,7 @@ describe('Search UI Lifecycle Integration', () => {
           Effect.provide(
             Effect.gen(function* () {
               const api = yield* ApiService;
-              const storage = yield* StorageService;
+              const storage = yield* SearchStorageService;
               const logging = yield* LoggingService;
 
               yield* logging.debug('Starting search', { query });
@@ -340,7 +340,7 @@ describe('Search UI Lifecycle Integration', () => {
             Layer.mergeAll(
               MockLoggingService,
               MockConfigService,
-              mockStorageService,
+              mockSearchStorageService,
               mockApiService
             )
           ),
@@ -358,10 +358,10 @@ describe('Search UI Lifecycle Integration', () => {
         saveSearchHistory: (query: string, resultCount: number) =>
           Effect.provide(
             Effect.gen(function* () {
-              const storage = yield* StorageService;
+              const storage = yield* SearchStorageService;
               return yield* storage.saveSearchHistory(query, resultCount);
             }),
-            Layer.mergeAll(MockLoggingService, mockStorageService)
+            Layer.mergeAll(MockLoggingService, mockSearchStorageService)
           ),
       };
 
@@ -1043,7 +1043,7 @@ describe('Search UI Lifecycle Integration', () => {
       let savedQuery: string | null = null;
       let savedCount: number | null = null;
 
-      const mockStorageService = Layer.succeed(StorageService, {
+      const mockSearchStorageService = Layer.succeed(SearchStorageService, {
         getSetting: () => Effect.succeed(null),
         getAllQAPairs: () => Effect.succeed(mockQAPairs),
         bulkGetBookmarks: () =>
@@ -1078,7 +1078,7 @@ describe('Search UI Lifecycle Integration', () => {
                 maxScore: 0.9,
               },
             ] as SearchResult[]),
-            Layer.mergeAll(MockLoggingService, mockStorageService, mockApiService)
+            Layer.mergeAll(MockLoggingService, mockSearchStorageService, mockApiService)
           ),
         getAutocompleteSuggestions: () => Effect.succeed([]),
         getSettings: () =>
@@ -1094,10 +1094,10 @@ describe('Search UI Lifecycle Integration', () => {
         saveSearchHistory: (query: string, resultCount: number) =>
           Effect.provide(
             Effect.gen(function* () {
-              const storage = yield* StorageService;
+              const storage = yield* SearchStorageService;
               return yield* storage.saveSearchHistory(query, resultCount);
             }),
-            mockStorageService
+            mockSearchStorageService
           ),
       };
 

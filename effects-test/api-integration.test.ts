@@ -5,7 +5,7 @@ import * as Context from 'effect/Context';
 import {
   ApiService,
   ConfigService,
-  ApiServiceLive,
+  ApiServiceBase,
   ApiError,
   ApiConfigError,
   ParseError,
@@ -93,7 +93,7 @@ describe('API Integration Tests', () => {
     it('should fail when API key is missing', async () => {
       const mockSettings = createMockApiSettings({ apiKey: '' });
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       const program = Effect.gen(function* () {
         const api = yield* ApiService;
@@ -116,7 +116,7 @@ describe('API Integration Tests', () => {
         message: 'Failed to load settings',
       });
       const mockConfig = createMockConfigServiceWithError(configError);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       const program = Effect.gen(function* () {
         const api = yield* ApiService;
@@ -137,7 +137,7 @@ describe('API Integration Tests', () => {
     it('should successfully retrieve and use API settings', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: true,
@@ -174,7 +174,7 @@ describe('API Integration Tests', () => {
     it('should successfully make API request', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       const responseData = { result: 'success', data: [1, 2, 3] };
       globalThis.fetch = createMockFetch({
@@ -199,7 +199,7 @@ describe('API Integration Tests', () => {
     it('should handle network errors', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network failure'));
 
@@ -224,7 +224,7 @@ describe('API Integration Tests', () => {
     it('should handle 401 Unauthorized errors', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: false,
@@ -254,7 +254,7 @@ describe('API Integration Tests', () => {
     it('should handle 429 Rate Limit errors', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: false,
@@ -283,7 +283,7 @@ describe('API Integration Tests', () => {
     it('should handle 500 Server errors', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: false,
@@ -312,7 +312,7 @@ describe('API Integration Tests', () => {
     it('should handle JSON parse errors', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: true,
@@ -347,7 +347,7 @@ describe('API Integration Tests', () => {
     it('should generate Q&A pairs from markdown content', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       const qaPairs: QAPair[] = [
         { question: 'What is this about?', answer: 'It is a test document.' },
@@ -374,19 +374,19 @@ describe('API Integration Tests', () => {
       const result = await Effect.runPromise(Effect.provide(program, testLayer));
 
       expect(result).toEqual(qaPairs);
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        'https://api.example.com/chat/completions',
-        expect.objectContaining({
-          method: 'POST',
-          body: expect.stringContaining(markdownContent),
-        })
-      );
+
+      const fetchCall = (globalThis.fetch as any).mock.calls[0];
+      expect(fetchCall[0]).toBe('https://api.example.com/chat/completions');
+      expect(fetchCall[1].method).toBe('POST');
+
+      const requestBody = JSON.parse(fetchCall[1].body);
+      expect(requestBody.messages[1].content).toBe(markdownContent);
     });
 
     it('should handle empty response from chat API', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: true,
@@ -412,7 +412,7 @@ describe('API Integration Tests', () => {
     it('should handle malformed JSON in chat response', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: true,
@@ -444,7 +444,7 @@ describe('API Integration Tests', () => {
     it('should return empty array when pairs field is missing', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: true,
@@ -477,7 +477,7 @@ describe('API Integration Tests', () => {
         useChatTemperature: () => Effect.succeed(true),
         getQASystemPrompt: () => Effect.succeed('Test prompt'),
       });
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: true,
@@ -508,7 +508,7 @@ describe('API Integration Tests', () => {
     it('should include temperature when useChatTemperature is true', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: true,
@@ -543,7 +543,7 @@ describe('API Integration Tests', () => {
         useChatTemperature: () => Effect.succeed(false),
         getQASystemPrompt: () => Effect.succeed('Test prompt'),
       });
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: true,
@@ -578,7 +578,7 @@ describe('API Integration Tests', () => {
     it('should generate embeddings for multiple texts', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       const embeddings = [
         [0.1, 0.2, 0.3],
@@ -621,7 +621,7 @@ describe('API Integration Tests', () => {
     it('should sort embeddings by index', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       const embeddings = [
         [0.1, 0.2, 0.3],
@@ -654,7 +654,7 @@ describe('API Integration Tests', () => {
     it('should handle embeddings API errors', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: false,
@@ -679,7 +679,7 @@ describe('API Integration Tests', () => {
     it('should send correct request body', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: true,
@@ -707,7 +707,7 @@ describe('API Integration Tests', () => {
     it('should handle empty embeddings array', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: true,
@@ -737,7 +737,7 @@ describe('API Integration Tests', () => {
         apiBaseUrl: 'https://custom.api.com',
       });
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: true,
@@ -768,7 +768,7 @@ describe('API Integration Tests', () => {
     it('should correctly transform chat completion request', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: true,
@@ -810,7 +810,7 @@ describe('API Integration Tests', () => {
     it('should correctly transform embeddings request', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: true,
@@ -841,7 +841,7 @@ describe('API Integration Tests', () => {
     it('should extract embeddings from response in correct order', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: true,
@@ -877,7 +877,7 @@ describe('API Integration Tests', () => {
     it('should handle sequential API errors gracefully', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       let callCount = 0;
       globalThis.fetch = vi.fn().mockImplementation(() => {
@@ -923,7 +923,7 @@ describe('API Integration Tests', () => {
     it('should preserve error context through the stack', async () => {
       const mockSettings = createMockApiSettings();
       const mockConfig = createMockConfigService(mockSettings);
-      const testLayer = Layer.provide(ApiServiceLive, mockConfig);
+      const testLayer = Layer.provide(ApiServiceBase, mockConfig);
 
       globalThis.fetch = createMockFetch({
         ok: false,

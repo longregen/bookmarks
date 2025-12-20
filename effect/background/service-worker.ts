@@ -1,7 +1,8 @@
-import * as Effect from 'effect/Effect';
-import * as Layer from 'effect/Layer';
 import * as Context from 'effect/Context';
 import * as Data from 'effect/Data';
+import * as Effect from 'effect/Effect';
+import * as Layer from 'effect/Layer';
+import { makeLayer, makeEffectLayer } from '../lib/effect-utils';
 import { LoggingService } from '../services/logging-service';
 import {
   MessagingService,
@@ -106,7 +107,7 @@ const makeChromeRuntimeService = Effect.sync(() => ({
     ),
 }));
 
-const ChromeRuntimeServiceLayer = Layer.effect(
+const ChromeRuntimeServiceLayer = makeEffectLayer(
   ChromeRuntimeService,
   makeChromeRuntimeService
 );
@@ -217,7 +218,7 @@ const makeBookmarkService = Effect.gen(function* () {
   };
 });
 
-const BookmarkServiceLayer = Layer.effect(BookmarkService, makeBookmarkService);
+const BookmarkServiceLayer = makeEffectLayer(BookmarkService, makeBookmarkService);
 
 // ============================================================================
 // QueueService - Manages job queue operations
@@ -249,7 +250,7 @@ const makeQueueService = Effect.gen(function* () {
   };
 });
 
-const QueueServiceLayer = Layer.effect(QueueService, makeQueueService);
+const QueueServiceLayer = makeEffectLayer(QueueService, makeQueueService);
 
 // ============================================================================
 // SyncService - Manages WebDAV sync operations
@@ -309,7 +310,7 @@ const makeSyncService = Effect.gen(function* () {
   };
 });
 
-const SyncServiceLayer = Layer.effect(SyncService, makeSyncService);
+const SyncServiceLayer = makeEffectLayer(SyncService, makeSyncService);
 
 // ============================================================================
 // SettingsService - Manages extension settings
@@ -346,7 +347,7 @@ const makeSettingsService = Effect.gen(function* () {
   };
 });
 
-const SettingsServiceLayer = Layer.effect(SettingsService, makeSettingsService);
+const SettingsServiceLayer = makeEffectLayer(SettingsService, makeSettingsService);
 
 // ============================================================================
 // PlatformService - Manages platform adapter setup
@@ -375,7 +376,7 @@ const makePlatformService = Effect.gen(function* () {
   };
 });
 
-const PlatformServiceLayer = Layer.effect(PlatformService, makePlatformService);
+const PlatformServiceLayer = makeEffectLayer(PlatformService, makePlatformService);
 
 // ============================================================================
 // Alarm Management
@@ -716,7 +717,7 @@ const AppLayer = Layer.mergeAll(
   PlatformServiceLayer
 );
 
-const LoggingServiceLayer = Layer.succeed(LoggingService, {
+const LoggingServiceLayer = makeLayer(LoggingService, {
   debug: (message: string, context?: Record<string, unknown>) =>
     Effect.sync(() => {
       if (context) {

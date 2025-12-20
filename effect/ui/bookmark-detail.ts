@@ -2,6 +2,7 @@ import * as Effect from 'effect/Effect';
 import * as Context from 'effect/Context';
 import * as Data from 'effect/Data';
 import * as Layer from 'effect/Layer';
+import { makeLayer, makeEffectLayer } from '../lib/effect-utils';
 import type { Bookmark, Markdown, QuestionAnswer } from '../db/schema';
 import { DOMService as SharedDOMService, createElement, setSanitizedHTML } from './dom';
 import { formatDateByAge } from '../lib/date-format';
@@ -425,7 +426,7 @@ export class BookmarkDetailManager {
 // Default Layer Implementations
 // ============================================================================
 
-export const DOMUtilsServiceLive: Layer.Layer<DOMUtilsService, never, never> = Layer.succeed(
+export const DOMUtilsServiceLive: Layer.Layer<DOMUtilsService, never, never> = makeLayer(
   DOMUtilsService,
   {
     createElement,

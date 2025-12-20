@@ -2,6 +2,7 @@ import * as Context from 'effect/Context';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
 import * as Data from 'effect/Data';
+import { makeLayer, makeEffectLayer } from '../../lib/effect-utils';
 import {
   ConfigError,
   ValidationError,
@@ -106,7 +107,7 @@ let state: AdvancedConfigState | null = null;
 /**
  * Production layer for DOMService
  */
-export const DOMServiceLive: Layer.Layer<DOMService, never, never> = Layer.succeed(
+export const DOMServiceLive: Layer.Layer<DOMService, never, never> = makeLayer(
   DOMService,
   {
     getElementById: <T extends HTMLElement>(id: string) =>
@@ -168,7 +169,7 @@ export const StatusNotificationServiceLive: Layer.Layer<
   StatusNotificationService,
   never,
   never
-> = Layer.succeed(StatusNotificationService, {
+> = makeLayer(StatusNotificationService, {
   showStatus: (message, type) =>
     Effect.sync(() => {
       const status = document.getElementById('configStatus');
@@ -188,7 +189,7 @@ export const StatusNotificationServiceLive: Layer.Layer<
  * Production layer for UIStateService
  */
 export const UIStateServiceLive: Layer.Layer<UIStateService, never, never> =
-  Layer.succeed(UIStateService, {
+  makeLayer(UIStateService, {
     getEditingKey: () =>
       Effect.sync(() => (state ? state.editingKey : null)),
 

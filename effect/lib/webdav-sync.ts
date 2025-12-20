@@ -1,6 +1,6 @@
-import * as Effect from 'effect/Effect';
 import * as Context from 'effect/Context';
 import * as Data from 'effect/Data';
+import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
 import * as Ref from 'effect/Ref';
 import { SettingsService, type ApiSettings } from './settings';
@@ -106,6 +106,22 @@ function buildFolderUrl(settings: ApiSettings): string {
 
 function getAuthHeader(settings: ApiSettings): string {
   return `Basic ${btoa(`${settings.webdavUsername}:${settings.webdavPassword}`)}`;
+}
+
+// ============================================================================
+// Shared State for Debouncing
+// ============================================================================
+
+// Module-level refs for debounce state that persists across calls
+const isSyncingRef = Effect.runSync(Ref.make(false));
+const lastSyncAttemptRef = Effect.runSync(Ref.make(0));
+
+/**
+ * Reset debounce state (for testing)
+ */
+export function resetSyncState(): void {
+  Effect.runSync(Ref.set(isSyncingRef, false));
+  Effect.runSync(Ref.set(lastSyncAttemptRef, 0));
 }
 
 // ============================================================================
@@ -262,9 +278,7 @@ function getRemoteMetadataEffect(
           : undefined,
       etag: etag ?? undefined,
     };
-  }).pipe(
-    Effect.catchAll(() => Effect.succeed({ exists: false }))
-  );
+  });
 }
 
 function downloadFromServerEffect(
@@ -433,10 +447,8 @@ function performSyncEffect(
 
     // Check debounce
     const now = Date.now();
-    const isSyncing = yield* Ref.make(false);
-    const lastSyncAttempt = yield* Ref.make(0);
 
-    const lastAttempt = yield* Ref.get(lastSyncAttempt);
+    const lastAttempt = yield* Ref.get(lastSyncAttemptRef);
     const debounceMs = yield* configService.get('WEBDAV_SYNC_DEBOUNCE_MS');
 
     if (!force && now - lastAttempt < debounceMs) {
@@ -447,7 +459,7 @@ function performSyncEffect(
       };
     }
 
-    yield* Ref.set(lastSyncAttempt, now);
+    yield* Ref.set(lastSyncAttemptRef, now);
 
     // Check if configured
     const configured = yield* isWebDAVConfiguredEffect();
@@ -460,7 +472,7 @@ function performSyncEffect(
     }
 
     // Check if already syncing
-    const alreadySyncing = yield* Ref.get(isSyncing);
+    const alreadySyncing = yield* Ref.get(isSyncingRef);
     if (alreadySyncing) {
       return {
         success: true,
@@ -469,7 +481,7 @@ function performSyncEffect(
       };
     }
 
-    yield* Ref.set(isSyncing, true);
+    yield* Ref.set(isSyncingRef, true);
 
     // Broadcast sync started event
     yield* eventService.broadcastEvent('sync:started', { manual: force }).pipe(
@@ -572,7 +584,7 @@ function performSyncEffect(
       )
     );
 
-    yield* Ref.set(isSyncing, false);
+    yield* Ref.set(isSyncingRef, false);
     return result;
   });
 }

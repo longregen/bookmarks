@@ -1,5 +1,6 @@
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
+import { makeLayer, makeEffectLayer } from './effect-utils';
 import {
   PlatformService,
   PlatformSettingsError,
@@ -38,7 +39,7 @@ import { THEME_STORAGE_KEY } from './common';
  * ```
  */
 export const ExtensionPlatformLive: Layer.Layer<PlatformService, never, never> =
-  Layer.succeed(PlatformService, {
+  makeLayer(PlatformService, {
     getSettings: () =>
       Effect.tryPromise({
         try: () => getSettingsFromDb(),

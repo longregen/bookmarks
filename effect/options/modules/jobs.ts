@@ -2,6 +2,7 @@ import * as Effect from 'effect/Effect';
 import * as Context from 'effect/Context';
 import * as Layer from 'effect/Layer';
 import * as Data from 'effect/Data';
+import { makeLayer, makeEffectLayer } from '../../lib/effect-utils';
 import { JobType, JobStatus, type Job } from '../../src/db/schema';
 import { db } from '../../src/db/schema';
 import { createElement } from '../../src/ui/dom';
@@ -37,7 +38,7 @@ export class JobRepository extends Context.Tag('JobRepository')<
 // Service Implementation
 // ============================================================================
 
-const JobRepositoryLive = Layer.succeed(JobRepository, {
+const JobRepositoryLive = makeLayer(JobRepository, {
   getRecentJobs: (options) =>
     Effect.tryPromise({
       try: async () => {

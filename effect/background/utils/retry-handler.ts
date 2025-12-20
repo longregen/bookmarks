@@ -6,7 +6,8 @@
 import * as Effect from 'effect/Effect';
 import type { Bookmark, JobItemStatus } from '../../../src/db/schema';
 import { getErrorMessage } from '../../lib/errors';
-import type { BookmarkRepository, JobService, EventsService } from '../queue';
+import { BookmarkRepository, JobService, EventsService } from '../queue';
+import { LoggingService } from '../../services/logging-service';
 import { calculateBackoffDelay } from '../../lib/retry';
 
 export interface RetryConfig {
@@ -33,16 +34,21 @@ export function handleRetry(
 ): Effect.Effect<
   void,
   never,
-  BookmarkRepository | JobService
+  BookmarkRepository | JobService | LoggingService
 > {
   return Effect.gen(function* () {
     const repo = yield* BookmarkRepository;
     const jobService = yield* JobService;
+    const logging = yield* LoggingService;
 
     const { bookmark, currentRetryCount, maxRetries } = context;
     const errorMessage = getErrorMessage(error);
     const newRetryCount = currentRetryCount + 1;
     const retryMessage = `Retry ${newRetryCount}/${maxRetries}: ${errorMessage}`;
+
+    yield* logging.debug(
+      `Retrying bookmark ${bookmark.id} (attempt ${newRetryCount + 1}/${maxRetries + 1})`
+    );
 
     yield* repo.update(bookmark.id, {
       status: nextStatus,
@@ -155,7 +161,7 @@ export function handleErrorWithRetry(
 ): Effect.Effect<
   boolean,
   never,
-  BookmarkRepository | JobService | EventsService
+  BookmarkRepository | JobService | EventsService | LoggingService
 > {
   return Effect.gen(function* () {
     const { currentRetryCount, maxRetries } = context;

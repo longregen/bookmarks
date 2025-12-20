@@ -198,7 +198,7 @@ export const fetchWithTimeout = (
   url: string,
   timeoutMs?: number
 ): Effect.Effect<string, FetchError, BrowserFetchService> =>
-  Effect.flatMap(BrowserFetchService, (service) =>
+  accessService(BrowserFetchService, (service) =>
     service.fetchWithTimeout(url, timeoutMs)
   );
 
@@ -206,14 +206,14 @@ export const browserFetch = (
   url: string,
   timeoutMs?: number
 ): Effect.Effect<CapturedPage, FetchError, BrowserFetchService> =>
-  Effect.flatMap(BrowserFetchService, (service) => service.browserFetch(url, timeoutMs));
+  accessService(BrowserFetchService, (service) => service.browserFetch(url, timeoutMs));
 
 export const isLocalhostUrl = (
   url: string
 ): Effect.Effect<boolean, never, BrowserFetchService> =>
-  Effect.flatMap(BrowserFetchService, (service) => service.isLocalhostUrl(url));
+  accessService(BrowserFetchService, (service) => service.isLocalhostUrl(url));
 
 export const extractTitleFromHtml = (
   html: string
 ): Effect.Effect<string, never, BrowserFetchService> =>
-  Effect.flatMap(BrowserFetchService, (service) => service.extractTitleFromHtml(html));
+  accessService(BrowserFetchService, (service) => service.extractTitleFromHtml(html));

@@ -1,6 +1,7 @@
 import * as Effect from 'effect/Effect';
 import * as Context from 'effect/Context';
 import * as Layer from 'effect/Layer';
+import { makeLayer, makeEffectLayer } from './effect-utils';
 import type { ApiSettings, Theme } from '../../../src/lib/platform';
 import {
   PlatformSettingsError,
@@ -32,7 +33,7 @@ export class WebPlatformAdapter extends Context.Tag('WebPlatformAdapter')<
 >() {}
 
 // Layer implementation
-export const WebPlatformAdapterLive = Layer.succeed(WebPlatformAdapter, {
+export const WebPlatformAdapterLive = makeLayer(WebPlatformAdapter, {
   getSettings: () =>
     Effect.tryPromise({
       try: () => getSettingsFromDb(),

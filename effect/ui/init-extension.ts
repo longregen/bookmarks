@@ -2,6 +2,7 @@ import * as Context from 'effect/Context';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
 import * as Data from 'effect/Data';
+import { makeLayer, makeEffectLayer } from '../lib/effect-utils';
 
 import { setPlatformAdapter } from '../../src/lib/platform';
 import { extensionAdapter } from '../../src/lib/adapters/extension';
@@ -49,7 +50,7 @@ export class ThemeService extends Context.Tag('ThemeService')<
  * Live implementation of PlatformService using the extension adapter.
  */
 export const PlatformServiceLive: Layer.Layer<PlatformService, never, never> =
-  Layer.succeed(PlatformService, {
+  makeLayer(PlatformService, {
     setup: () =>
       Effect.try({
         try: () => setPlatformAdapter(extensionAdapter),
@@ -65,7 +66,7 @@ export const PlatformServiceLive: Layer.Layer<PlatformService, never, never> =
  * Live implementation of ThemeService.
  */
 export const ThemeServiceLive: Layer.Layer<ThemeService, never, never> =
-  Layer.succeed(ThemeService, {
+  makeLayer(ThemeService, {
     init: () =>
       Effect.tryPromise({
         try: () => initTheme(),

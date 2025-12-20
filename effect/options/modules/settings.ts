@@ -2,6 +2,7 @@ import * as Context from 'effect/Context';
 import * as Effect from 'effect/Effect';
 import * as Data from 'effect/Data';
 import * as Layer from 'effect/Layer';
+import { makeLayer, makeEffectLayer } from '../../lib/effect-utils';
 import { DOMService, DOMServiceLive } from '../shared/dom-service';
 import { ServiceError } from '../shared/errors';
 
@@ -380,7 +381,7 @@ export function initSettingsModule(): Effect.Effect<
 // Layer Implementations
 // ============================================================================
 
-export const SettingsServiceLive: Layer.Layer<SettingsService, never> = Layer.effect(
+export const SettingsServiceLive: Layer.Layer<SettingsService, never> = makeEffectLayer(
   SettingsService,
   Effect.sync(() => ({
     getSettings: () =>
@@ -414,7 +415,7 @@ export const SettingsServiceLive: Layer.Layer<SettingsService, never> = Layer.ef
   }))
 );
 
-export const ApiServiceLive: Layer.Layer<ApiService, never> = Layer.effect(
+export const ApiServiceLive: Layer.Layer<ApiService, never> = makeEffectLayer(
   ApiService,
   Effect.sync(() => ({
     makeRequest: (
@@ -446,7 +447,7 @@ export const ApiServiceLive: Layer.Layer<ApiService, never> = Layer.effect(
 );
 
 
-export const FormHelperServiceLive: Layer.Layer<FormHelperService, never> = Layer.effect(
+export const FormHelperServiceLive: Layer.Layer<FormHelperService, never> = makeEffectLayer(
   FormHelperService,
   Effect.sync(() => ({
     initSettingsForm: (config) =>

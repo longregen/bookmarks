@@ -2,6 +2,7 @@ import * as Context from 'effect/Context';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
 import * as Data from 'effect/Data';
+import { makeLayer, makeEffectLayer, accessService } from './effect-utils';
 import type { EventData } from '../../src/lib/events';
 
 // ============================================================================
@@ -285,7 +286,7 @@ const makeMessagingServiceChrome = Effect.sync(() => ({
 // ============================================================================
 
 export const MessagingServiceChromeLayer: Layer.Layer<MessagingService, never> =
-  Layer.effect(MessagingService, makeMessagingServiceChrome);
+  makeEffectLayer(MessagingService, makeMessagingServiceChrome);
 
 // ============================================================================
 // Convenience Functions (backward compatibility with original API)
@@ -304,7 +305,7 @@ export const MessagingServiceChromeLayer: Layer.Layer<MessagingService, never> =
 export const sendMessage = <T extends MessageType>(
   message: MessageOfType<T>
 ): Effect.Effect<MessageResponse<T>, MessagingError, MessagingService> =>
-  Effect.flatMap(MessagingService, (service) => service.sendMessage(message));
+  accessService(MessagingService, (service) => service.sendMessage(message));
 
 /**
  * Type alias for message handlers.
@@ -330,7 +331,7 @@ export const addMessageListener = <T extends MessageType>(
   messageType: T,
   handler: MessageHandler<T>
 ): Effect.Effect<() => void, never, MessagingService> =>
-  Effect.flatMap(MessagingService, (service) => service.addMessageListener(messageType, handler));
+  accessService(MessagingService, (service) => service.addMessageListener(messageType, handler));
 
 /**
  * Broadcast an event to all listeners.
@@ -348,4 +349,4 @@ export const addMessageListener = <T extends MessageType>(
 export const broadcastEvent = (
   event: EventData
 ): Effect.Effect<void, MessagingError, MessagingService> =>
-  Effect.flatMap(MessagingService, (service) => service.broadcastEvent(event));
+  accessService(MessagingService, (service) => service.broadcastEvent(event));

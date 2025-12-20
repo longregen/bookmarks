@@ -4,18 +4,18 @@ import * as Layer from 'effect/Layer';
 import {
   BookmarkDetailManager,
   BookmarkRepository,
-  DOMService,
   TagEditorService,
   ExportService,
   JobService,
   type BookmarkData,
   type BookmarkDetailConfig,
 } from '../effect/ui/bookmark-detail';
+import { DOMService } from '../effect/ui/dom';
 import {
   TagStorageService,
   TagEventsService,
   createTagEditor,
-  DOMService as TagEditorDOMService,
+  DOMHelperService,
 } from '../effect/ui/tag-editor';
 import {
   loadTagFilters,
@@ -197,14 +197,34 @@ describe('Bookmark Detail & Tag Management Integration', () => {
 
   const createMockDOMService = () =>
     Layer.succeed(DOMService, {
-      createElement: mockDOM.createElement,
-      setSanitizedHTML: (el: HTMLElement, html: string) => {
-        el.innerHTML = html;
-      },
-      formatDateByAge: (date: Date) => 'just now',
-      parseMarkdown: (md: string) => `<p>${md}</p>`,
-      confirm: (message: string) => Effect.succeed(true),
-      alert: (message: string) => Effect.void,
+      getElement: <T extends HTMLElement = HTMLElement>(id: string) =>
+        Effect.sync(() => document.getElementById(id) as T),
+      createElement: <K extends keyof HTMLElementTagNameMap>(
+        tag: K,
+        options?: {
+          className?: string;
+          textContent?: string;
+          href?: string;
+          target?: string;
+          title?: string;
+          style?: Partial<CSSStyleDeclaration>;
+          attributes?: Record<string, string>;
+        },
+        children?: (HTMLElement | Text | string)[]
+      ) =>
+        Effect.sync(() => mockDOM.createElement(tag, options)),
+      showStatusMessage: (
+        statusDiv: HTMLElement,
+        message: string,
+        type: 'success' | 'error' | 'warning',
+        timeoutMs?: number
+      ) => Effect.void,
+      createSpinner: () => Effect.sync(() => document.createElement('span')),
+      setSpinnerContent: (element: HTMLElement, text: string) => Effect.void,
+      setSanitizedHTML: (el: HTMLElement, html: string) =>
+        Effect.sync(() => {
+          el.innerHTML = html;
+        }),
     });
 
   const createMockTagStorageService = () =>
@@ -251,8 +271,8 @@ describe('Bookmark Detail & Tag Management Integration', () => {
         }),
     });
 
-  const createMockTagEditorDOMService = () =>
-    Layer.succeed(TagEditorDOMService, {
+  const createMockDOMHelperService = () =>
+    Layer.succeed(DOMHelperService, {
       createElement: <K extends keyof HTMLElementTagNameMap>(
         tag: K,
         options?: {
@@ -273,7 +293,7 @@ describe('Bookmark Detail & Tag Management Integration', () => {
     Layer.effect(
       TagEditorService,
       Effect.gen(function* () {
-        const tagEditorDom = yield* TagEditorDOMService;
+        const domHelper = yield* DOMHelperService;
         const tagStorageService = yield* TagStorageService;
         const tagEventsService = yield* TagEventsService;
 
@@ -289,7 +309,7 @@ describe('Bookmark Detail & Tag Management Integration', () => {
                 container: config.container,
                 onTagsChange: config.onTagsChange,
               }).pipe(
-                Effect.provideService(TagEditorDOMService, tagEditorDom),
+                Effect.provideService(DOMHelperService, domHelper),
                 Effect.provideService(TagStorageService, tagStorageService),
                 Effect.provideService(TagEventsService, tagEventsService)
               );
@@ -329,7 +349,7 @@ describe('Bookmark Detail & Tag Management Integration', () => {
     const container = mockDOM.createElement('div');
 
     const testLayer = Layer.mergeAll(
-      createMockTagEditorDOMService(),
+      createMockDOMHelperService(),
       createMockTagStorageService(),
       createMockTagEventsService()
     );
@@ -448,7 +468,10 @@ describe('Bookmark Detail & Tag Management Integration', () => {
       onChange: onChangeSpy,
     };
 
-    const testLayer = createMockTagRepository();
+    const testLayer = Layer.mergeAll(
+      createMockTagRepository(),
+      createMockDOMService()
+    );
 
     const loadFiltersEffect = loadTagFilters(filterConfig);
 
@@ -478,7 +501,10 @@ describe('Bookmark Detail & Tag Management Integration', () => {
       onChange: onChangeSpy,
     };
 
-    const testLayer = createMockTagRepository();
+    const testLayer = Layer.mergeAll(
+      createMockTagRepository(),
+      createMockDOMService()
+    );
 
     const loadFiltersEffect = loadTagFilters(filterConfig);
 
@@ -518,7 +544,10 @@ describe('Bookmark Detail & Tag Management Integration', () => {
       onChange: onChangeSpy,
     };
 
-    const testLayer = createMockTagRepository();
+    const testLayer = Layer.mergeAll(
+      createMockTagRepository(),
+      createMockDOMService()
+    );
 
     const loadFiltersEffect = loadTagFilters(filterConfig);
 
@@ -602,7 +631,7 @@ describe('Bookmark Detail & Tag Management Integration', () => {
     const container = mockDOM.createElement('div');
 
     const editorTestLayer = Layer.mergeAll(
-      createMockTagEditorDOMService(),
+      createMockDOMHelperService(),
       createMockTagStorageService(),
       createMockTagEventsService()
     );
@@ -643,7 +672,10 @@ describe('Bookmark Detail & Tag Management Integration', () => {
       onChange: filterOnChangeSpy,
     };
 
-    const filterTestLayer = createMockTagRepository();
+    const filterTestLayer = Layer.mergeAll(
+      createMockTagRepository(),
+      createMockDOMService()
+    );
 
     await Effect.runPromise(
       loadTagFilters(filterConfig).pipe(Effect.provide(filterTestLayer))

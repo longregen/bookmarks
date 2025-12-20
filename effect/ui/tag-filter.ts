@@ -1,7 +1,8 @@
 import * as Context from 'effect/Context';
+import * as Data from 'effect/Data';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
-import { Data } from 'effect';
+import { makeLayer, makeEffectLayer } from '../lib/effect-utils';
 import type { BookmarkTag } from '../db/schema';
 import { RepositoryError } from '../lib/errors';
 import { DOMService, DOMServiceLive } from './dom';
@@ -124,7 +125,7 @@ export function loadTagFilters(
 export const TagRepositoryLive = (
   getAllTagsFn: () => Promise<BookmarkTag[]>
 ): Layer.Layer<TagRepository, never, never> =>
-  Layer.succeed(TagRepository, {
+  makeLayer(TagRepository, {
     getAllTags: () =>
       Effect.tryPromise({
         try: getAllTagsFn,

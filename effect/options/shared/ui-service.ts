@@ -1,6 +1,7 @@
 import * as Context from 'effect/Context';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
+import { makeLayer, makeEffectLayer } from '../../lib/effect-utils';
 
 /**
  * Shared UI service for common UI operations
@@ -28,7 +29,7 @@ export class UIService extends Context.Tag('UIService')<
 /**
  * Live implementation of UIService
  */
-export const UIServiceLive: Layer.Layer<UIService, never, never> = Layer.succeed(
+export const UIServiceLive: Layer.Layer<UIService, never, never> = makeLayer(
   UIService,
   {
     showStatus: (

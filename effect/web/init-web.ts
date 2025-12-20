@@ -1,7 +1,7 @@
 import * as Context from 'effect/Context';
+import * as Data from 'effect/Data';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
-import { Data } from 'effect';
 import { setPlatformAdapter } from '../../src/lib/platform';
 import { webAdapter } from '../../src/lib/adapters/web';
 import { ThemeService, ThemeServiceWeb } from '../shared/theme';

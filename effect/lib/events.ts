@@ -2,6 +2,7 @@ import * as Context from 'effect/Context';
 import * as Effect from 'effect/Effect';
 import * as Data from 'effect/Data';
 import * as Layer from 'effect/Layer';
+import { makeLayer, makeEffectLayer } from './effect-utils';
 import { getErrorMessage } from '../../src/lib/errors';
 import type { Message } from '../../src/lib/messages';
 
@@ -169,7 +170,7 @@ function addEventListenerImpl(
 }
 
 // EventService Layer implementation
-export const EventServiceLive: Layer.Layer<EventService, never, never> = Layer.succeed(
+export const EventServiceLive: Layer.Layer<EventService, never, never> = makeLayer(
   EventService,
   {
     broadcastEvent: broadcastEventImpl,

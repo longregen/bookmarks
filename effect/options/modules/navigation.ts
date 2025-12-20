@@ -3,6 +3,7 @@ import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
 import * as Data from 'effect/Data';
 import * as Option from 'effect/Option';
+import { makeLayer, makeEffectLayer } from '../../lib/effect-utils';
 
 // ============================================================================
 // Errors
@@ -64,7 +65,7 @@ export class NavigationStateService extends Context.Tag('NavigationStateService'
 // Layer Implementations
 // ============================================================================
 
-export const DOMQueryServiceLive: Layer.Layer<DOMQueryService> = Layer.succeed(
+export const DOMQueryServiceLive: Layer.Layer<DOMQueryService> = makeLayer(
   DOMQueryService,
   {
     querySelector: <T extends Element>(selector: string) =>
@@ -87,7 +88,7 @@ export const DOMQueryServiceLive: Layer.Layer<DOMQueryService> = Layer.succeed(
   }
 );
 
-export const ScrollServiceLive: Layer.Layer<ScrollService> = Layer.succeed(
+export const ScrollServiceLive: Layer.Layer<ScrollService> = makeLayer(
   ScrollService,
   {
     scrollTo: (container: Element, options: ScrollToOptions) =>
@@ -100,7 +101,7 @@ export const ScrollServiceLive: Layer.Layer<ScrollService> = Layer.succeed(
   }
 );
 
-export const PlatformServiceLive: Layer.Layer<PlatformService> = Layer.succeed(
+export const PlatformServiceLive: Layer.Layer<PlatformService> = makeLayer(
   PlatformService,
   {
     isWeb: () => Effect.sync(() => __IS_WEB__),
@@ -113,7 +114,7 @@ export const NavigationStateServiceLive: Layer.Layer<
   NavigationStateService,
   never,
   DOMQueryService
-> = Layer.effect(
+> = makeEffectLayer(
   NavigationStateService,
   Effect.gen(function* () {
     const domQuery = yield* DOMQueryService;

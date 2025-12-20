@@ -1,6 +1,7 @@
 import * as Context from 'effect/Context';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
+import { makeLayer, makeEffectLayer } from '../../lib/effect-utils';
 
 /**
  * Shared service for managing button state during async operations
@@ -20,7 +21,7 @@ export class ButtonStateService extends Context.Tag('ButtonStateService')<
  * Live implementation of ButtonStateService
  */
 export const ButtonStateServiceLive: Layer.Layer<ButtonStateService, never, never> =
-  Layer.succeed(ButtonStateService, {
+  makeLayer(ButtonStateService, {
     withButtonState: <A, E, R>(
       button: HTMLButtonElement,
       loadingText: string,

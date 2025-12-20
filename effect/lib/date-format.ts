@@ -1,6 +1,7 @@
 import * as Context from 'effect/Context';
 import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
+import { makeLayer, makeEffectLayer } from './effect-utils';
 import { TIME } from '../../src/lib/constants';
 import type { ConfigService } from '../services/config-service';
 
@@ -58,7 +59,7 @@ export const DateFormatServiceLive: Layer.Layer<
   DateFormatService,
   never,
   ConfigService
-> = Layer.effect(
+> = makeEffectLayer(
   DateFormatService,
   Effect.gen(function* () {
     const config = yield* ConfigService;
@@ -153,7 +154,7 @@ export const makeDateFormatServiceTest = (config: {
   DATE_RELATIVE_TIME_THRESHOLD_DAYS: number;
   DATE_FULL_DATE_THRESHOLD_DAYS: number;
 }): Layer.Layer<DateFormatService, never, never> => {
-  const mockConfigService = Layer.succeed(ConfigService, {
+  const mockConfigService = makeLayer(ConfigService, {
     get: () => Effect.succeed(config),
     update: () => Effect.void,
     observe: () => Effect.succeed(() => Effect.void),

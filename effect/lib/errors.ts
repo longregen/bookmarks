@@ -1,4 +1,4 @@
-import { Data } from 'effect';
+import * as Data from 'effect/Data';
 
 export class StorageError extends Data.TaggedError('StorageError')<{
   readonly code:
@@ -153,7 +153,17 @@ export class CriticalError extends Data.TaggedError('CriticalError')<{
 
 export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
-    return error.message;
+    let message = error.message;
+
+    // If there's a cause, append its message
+    if ('cause' in error && error.cause) {
+      const causeMessage = getErrorMessage(error.cause);
+      if (causeMessage) {
+        message = `${message}: ${causeMessage}`;
+      }
+    }
+
+    return message;
   }
 
   if (
@@ -162,7 +172,17 @@ export function getErrorMessage(error: unknown): string {
     'message' in error &&
     typeof error.message === 'string'
   ) {
-    return error.message;
+    let message = error.message;
+
+    // If there's a cause, append its message
+    if ('cause' in error && error.cause) {
+      const causeMessage = getErrorMessage(error.cause);
+      if (causeMessage) {
+        message = `${message}: ${causeMessage}`;
+      }
+    }
+
+    return message;
   }
 
   if (typeof error === 'string') {

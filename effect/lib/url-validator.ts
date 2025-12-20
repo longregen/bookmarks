@@ -1,6 +1,7 @@
 import * as Effect from 'effect/Effect';
 import * as Context from 'effect/Context';
 import * as Layer from 'effect/Layer';
+import { makeLayer, makeEffectLayer } from './effect-utils';
 
 export interface UrlValidationResult {
   valid: boolean;
@@ -138,7 +139,7 @@ function validateWebUrlImpl(url: string): UrlValidationResult {
   });
 }
 
-export const UrlValidatorLive: Layer.Layer<UrlValidator, never> = Layer.succeed(
+export const UrlValidatorLive: Layer.Layer<UrlValidator, never> = makeLayer(
   UrlValidator,
   {
     validateUrl: (url: string, options?: UrlValidationOptions) =>

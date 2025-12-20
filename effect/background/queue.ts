@@ -17,6 +17,7 @@ import * as Context from 'effect/Context';
 import * as Effect from 'effect/Effect';
 import * as Schedule from 'effect/Schedule';
 import * as Ref from 'effect/Ref';
+import * as Layer from 'effect/Layer';
 import type { Bookmark, JobItemStatus } from '../../src/db/schema';
 import {
   FetchError,
@@ -145,6 +146,29 @@ export class SyncService extends Context.Tag('SyncService')<
 >() {}
 
 /**
+ * Service for managing queue processing state
+ * Provides a shared Ref to track whether the queue is currently processing
+ */
+export class QueueStateService extends Context.Tag('QueueStateService')<
+  QueueStateService,
+  {
+    readonly isProcessing: Ref.Ref<boolean>;
+  }
+>() {}
+
+/**
+ * Live implementation of QueueStateService
+ * Creates a shared Ref for tracking processing state
+ */
+export const QueueStateServiceLive = Layer.effect(
+  QueueStateService,
+  Effect.gen(function* () {
+    const isProcessing = yield* Ref.make(false);
+    return { isProcessing };
+  })
+);
+
+/**
  * Fetch a single bookmark with retry logic
  */
 function fetchSingleBookmark(
@@ -177,6 +201,15 @@ function fetchSingleBookmark(
         onSuccess: (fetchedBookmark) =>
           Effect.gen(function* () {
             yield* logging.debug(`Downloaded: ${fetchedBookmark.title}`);
+            // Update the bookmark in the repository with fetched HTML and new status
+            yield* repo.update(bookmark.id, {
+              html: fetchedBookmark.html,
+              title: fetchedBookmark.title,
+              status: fetchedBookmark.status,
+              errorMessage: undefined,
+              retryCount: 0,
+              updatedAt: new Date(),
+            });
             return { success: true, bookmark: fetchedBookmark };
           }),
         onFailure: (error) =>
@@ -407,23 +440,20 @@ export function startProcessingQueue(): Effect.Effect<
   | SyncService
   | ConfigService
   | LoggingService
+  | QueueStateService
 > {
   return Effect.gen(function* () {
     const logging = yield* LoggingService;
     const sync = yield* SyncService;
+    const queueState = yield* QueueStateService;
 
-    // Create ref for processing state
-    const isProcessingRef = yield* Ref.make(false);
-
-    // Check if already processing
-    const isProcessing = yield* Ref.get(isProcessingRef);
-    if (isProcessing) {
+    // Atomically check and set processing flag
+    const wasProcessing = yield* Ref.getAndSet(queueState.isProcessing, true);
+    if (wasProcessing) {
       yield* logging.debug('Already processing, skipping');
       return;
     }
 
-    // Set processing flag
-    yield* Ref.set(isProcessingRef, true);
     yield* logging.info('Starting processing queue');
 
     // Use ensuring to guarantee cleanup
@@ -444,7 +474,7 @@ export function startProcessingQueue(): Effect.Effect<
       );
     }).pipe(
       Effect.ensuring(
-        Ref.set(isProcessingRef, false).pipe(
+        Ref.set(queueState.isProcessing, false).pipe(
           Effect.flatMap(() =>
             logging.debug('Processing queue finished, flag reset')
           )
@@ -474,7 +504,8 @@ export function startProcessingQueue(): Effect.Effect<
  *   EventsServiceLive,
  *   SyncServiceLive,
  *   ConfigServiceLive,
- *   LoggingServiceLive
+ *   LoggingServiceLive,
+ *   QueueStateServiceLive
  * );
  *
  * await runProcessingQueue(runtime, layer);
@@ -493,7 +524,8 @@ export function runProcessingQueue<R>(
       | EventsService
       | SyncService
       | ConfigService
-      | LoggingService,
+      | LoggingService
+      | QueueStateService,
       never,
       never
     >)

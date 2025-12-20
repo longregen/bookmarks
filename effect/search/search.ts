@@ -15,7 +15,7 @@ import { LoggingService } from '../services/logging-service';
 import { ConfigService } from '../services/config-service';
 import { initializeUI } from '../shared/ui-init';
 import { setupBookmarkEventHandlers } from '../shared/event-handling';
-import { groupBy, makeLayer } from '../lib/effect-utils';
+import { groupBy } from '../lib/effect-utils';
 
 // ============================================================================
 // Types
@@ -144,7 +144,7 @@ export class SearchService extends Context.Tag('SearchService')<
 /**
  * Live implementation of SearchStorageService using Dexie
  */
-export const SearchStorageServiceLive = makeLayer(SearchStorageService, {
+export const SearchStorageServiceLive = Layer.succeed(SearchStorageService, {
   getSetting: <T>(key: string) =>
     Effect.tryPromise({
       try: async () => {
