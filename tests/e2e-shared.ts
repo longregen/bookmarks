@@ -581,6 +581,382 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
 
     await page.close();
   });
+
+  await runner.runTest('Import valid JSON file with bookmarks', async () => {
+    // First, get current bookmark count to establish baseline
+    const libraryPage = await adapter.newPage();
+    await libraryPage.goto(adapter.getPageUrl('library'));
+    await libraryPage.waitForSelector('#bookmarkList');
+
+    await libraryPage.waitForFunction(
+      `window.__testHelpers && typeof window.__testHelpers.exportAllBookmarks === 'function'`,
+      10000
+    );
+
+    const initialExport = await libraryPage.evaluate(`
+      (async () => {
+        const result = await window.__testHelpers.exportAllBookmarks();
+        return result;
+      })()
+    `) as { bookmarkCount: number };
+
+    const initialCount = initialExport.bookmarkCount;
+    await libraryPage.close();
+
+    // Create test import data with 2 new bookmarks
+    const testImportData = {
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      bookmarkCount: 2,
+      bookmarks: [
+        {
+          id: crypto.randomUUID(),
+          url: 'https://test-import-1.example.com/article',
+          title: 'Test Import Article 1',
+          html: '<html><body><h1>Test Import Article 1</h1><p>This is a test article for import testing.</p></body></html>',
+          status: 'complete',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          markdown: '# Test Import Article 1
+
+This is a test article for import testing.',
+          questionsAnswers: [
+            {
+              question: 'What is this article about?',
+              answer: 'This is a test article for import testing.',
+            }
+          ]
+        },
+        {
+          id: crypto.randomUUID(),
+          url: 'https://test-import-2.example.com/guide',
+          title: 'Test Import Guide 2',
+          html: '<html><body><h1>Test Import Guide 2</h1><p>This is another test article.</p></body></html>',
+          status: 'complete',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          markdown: '# Test Import Guide 2
+
+This is another test article.',
+          questionsAnswers: [
+            {
+              question: 'What is the purpose of this guide?',
+              answer: 'This is another test article for import testing.',
+            }
+          ]
+        }
+      ]
+    };
+
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('#importFile');
+    await page.waitForSelector('#importBtn');
+
+    // Simulate file selection by creating a File object and triggering the change event
+    const importResult = await page.evaluate(`
+      (async () => {
+        const importData = ${JSON.stringify(JSON.stringify(testImportData))};
+        const blob = new Blob([importData], { type: 'application/json' });
+        const file = new File([blob], 'test-import.json', { type: 'application/json' });
+
+        const fileInput = document.getElementById('importFile');
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInput.files = dataTransfer.files;
+
+        // Trigger change event
+        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+        // Wait a bit for UI to update
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        return {
+          fileName: document.getElementById('importFileName')?.textContent,
+          buttonDisabled: document.getElementById('importBtn')?.disabled
+        };
+      })()
+    `) as { fileName: string; buttonDisabled: boolean };
+
+    // Verify file name is displayed and button is enabled
+    if (!importResult.fileName?.includes('test-import.json')) {
+      throw new Error(`Expected file name to be displayed, got: ${importResult.fileName}`);
+    }
+    if (importResult.buttonDisabled) {
+      throw new Error('Import button should be enabled after file selection');
+    }
+
+    // Click import button
+    await page.click('#importBtn');
+
+    // Wait for import to complete
+    await page.waitForFunction(
+      `(() => {
+        const status = document.getElementById('importStatus');
+        return status && !status.classList.contains('hidden');
+      })()`,
+      15000
+    );
+
+    // Verify success message
+    const statusMessage = await page.evaluate(`
+      document.querySelector('#importStatus .import-result')?.textContent || ''
+    `) as string;
+
+    if (!statusMessage.toLowerCase().includes('imported 2 bookmark')) {
+      throw new Error(`Expected success message with 2 imported bookmarks, got: ${statusMessage}`);
+    }
+
+    console.log(`  ✓ Import status: ${statusMessage.trim()}`);
+
+    await page.close();
+
+    // Verify bookmarks appear in library
+    const verifyPage = await adapter.newPage();
+    await verifyPage.goto(adapter.getPageUrl('library'));
+    await verifyPage.waitForSelector('#bookmarkList');
+
+    // Wait for new bookmarks to appear
+    await verifyPage.waitForFunction(
+      `(() => {
+        const cards = document.querySelectorAll('.bookmark-card');
+        const titles = Array.from(cards).map(c => c.querySelector('.card-title')?.textContent || '');
+        const hasImport1 = titles.some(t => t.includes('Test Import Article 1'));
+        const hasImport2 = titles.some(t => t.includes('Test Import Guide 2'));
+        return hasImport1 && hasImport2;
+      })()`,
+      15000
+    );
+
+    // Verify total count increased by 2
+    const finalExport = await verifyPage.evaluate(`
+      (async () => {
+        const result = await window.__testHelpers.exportAllBookmarks();
+        return result;
+      })()
+    `) as { bookmarkCount: number };
+
+    if (finalExport.bookmarkCount !== initialCount + 2) {
+      throw new Error(`Expected ${initialCount + 2} bookmarks, got ${finalExport.bookmarkCount}`);
+    }
+
+    console.log(`  ✓ Verified 2 new bookmarks in library (total: ${finalExport.bookmarkCount})`);
+
+    await verifyPage.close();
+  });
+
+  await runner.runTest('Import detects and skips duplicate bookmarks', async () => {
+    // Get an existing bookmark to create a duplicate
+    const libraryPage = await adapter.newPage();
+    await libraryPage.goto(adapter.getPageUrl('library'));
+    await libraryPage.waitForSelector('#bookmarkList');
+
+    await libraryPage.waitForFunction(
+      `window.__testHelpers && typeof window.__testHelpers.exportAllBookmarks === 'function'`,
+      10000
+    );
+
+    const exportData = await libraryPage.evaluate(`
+      (async () => {
+        const result = await window.__testHelpers.exportAllBookmarks();
+        return result;
+      })()
+    `) as { bookmarks: Array<{ url: string; title: string }> };
+
+    if (exportData.bookmarks.length === 0) {
+      throw new Error('No existing bookmarks found for duplicate test');
+    }
+
+    const existingBookmark = exportData.bookmarks[0];
+    await libraryPage.close();
+
+    // Create import data with 1 duplicate and 1 new bookmark
+    const testImportData = {
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      bookmarkCount: 2,
+      bookmarks: [
+        {
+          id: crypto.randomUUID(),
+          url: existingBookmark.url, // This is a duplicate
+          title: existingBookmark.title,
+          html: '<html><body><h1>Duplicate</h1></body></html>',
+          status: 'complete',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          questionsAnswers: []
+        },
+        {
+          id: crypto.randomUUID(),
+          url: `https://test-duplicate-check-${Date.now()}.example.com/unique`,
+          title: 'Unique Bookmark for Duplicate Test',
+          html: '<html><body><h1>Unique</h1></body></html>',
+          status: 'complete',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          questionsAnswers: []
+        }
+      ]
+    };
+
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('#importFile');
+
+    // Simulate file selection
+    await page.evaluate(`
+      (async () => {
+        const importData = ${JSON.stringify(JSON.stringify(testImportData))};
+        const blob = new Blob([importData], { type: 'application/json' });
+        const file = new File([blob], 'test-duplicates.json', { type: 'application/json' });
+
+        const fileInput = document.getElementById('importFile');
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInput.files = dataTransfer.files;
+        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+      })()
+    `);
+
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Click import button
+    await page.click('#importBtn');
+
+    // Wait for import to complete
+    await page.waitForFunction(
+      `(() => {
+        const status = document.getElementById('importStatus');
+        return status && !status.classList.contains('hidden');
+      })()`,
+      15000
+    );
+
+    // Verify the status message mentions both imported and skipped
+    const statusMessage = await page.evaluate(`
+      document.querySelector('#importStatus .import-result')?.textContent || ''
+    `) as string;
+
+    if (!statusMessage.toLowerCase().includes('imported 1 bookmark')) {
+      throw new Error(`Expected 1 imported bookmark in message, got: ${statusMessage}`);
+    }
+    if (!statusMessage.toLowerCase().includes('skipped 1 duplicate')) {
+      throw new Error(`Expected 1 skipped duplicate in message, got: ${statusMessage}`);
+    }
+
+    console.log(`  ✓ Duplicate detection status: ${statusMessage.trim()}`);
+
+    await page.close();
+  });
+
+  await runner.runTest('Import shows error for invalid JSON file', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('#importFile');
+
+    // Simulate file selection with invalid JSON
+    await page.evaluate(`
+      (async () => {
+        const invalidJson = 'this is not valid JSON {]';
+        const blob = new Blob([invalidJson], { type: 'application/json' });
+        const file = new File([blob], 'invalid.json', { type: 'application/json' });
+
+        const fileInput = document.getElementById('importFile');
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInput.files = dataTransfer.files;
+        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+      })()
+    `);
+
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Click import button
+    await page.click('#importBtn');
+
+    // Wait for error message
+    await page.waitForFunction(
+      `(() => {
+        const status = document.getElementById('importStatus');
+        return status && !status.classList.contains('hidden');
+      })()`,
+      10000
+    );
+
+    // Verify error message is displayed
+    const statusHtml = await page.evaluate(`
+      document.getElementById('importStatus')?.innerHTML || ''
+    `) as string;
+
+    if (!statusHtml.toLowerCase().includes('error') && !statusHtml.toLowerCase().includes('failed')) {
+      throw new Error(`Expected error message for invalid JSON, got: ${statusHtml}`);
+    }
+
+    console.log('  ✓ Invalid JSON error handled correctly');
+
+    await page.close();
+  });
+
+  await runner.runTest('Import shows error for invalid bookmark format', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('#importFile');
+
+    // Create invalid import data (missing required fields)
+    const invalidImportData = {
+      version: 2,
+      bookmarks: [
+        {
+          // Missing url and title
+          id: crypto.randomUUID(),
+          status: 'complete'
+        }
+      ]
+    };
+
+    // Simulate file selection with invalid format
+    await page.evaluate(`
+      (async () => {
+        const importData = ${JSON.stringify(JSON.stringify(invalidImportData))};
+        const blob = new Blob([importData], { type: 'application/json' });
+        const file = new File([blob], 'invalid-format.json', { type: 'application/json' });
+
+        const fileInput = document.getElementById('importFile');
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInput.files = dataTransfer.files;
+        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+      })()
+    `);
+
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Click import button
+    await page.click('#importBtn');
+
+    // Wait for error message
+    await page.waitForFunction(
+      `(() => {
+        const status = document.getElementById('importStatus');
+        return status && !status.classList.contains('hidden');
+      })()`,
+      10000
+    );
+
+    // Verify error message is displayed
+    const statusMessage = await page.evaluate(`
+      document.querySelector('#importStatus')?.textContent || ''
+    `) as string;
+
+    if (!statusMessage.toLowerCase().includes('failed') && !statusMessage.toLowerCase().includes('invalid')) {
+      throw new Error(`Expected error message for invalid format, got: ${statusMessage}`);
+    }
+
+    console.log('  ✓ Invalid format error handled correctly');
+
+    await page.close();
+  });
+
   await runner.runTest('Delete button exists in detail panel', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('library'));
