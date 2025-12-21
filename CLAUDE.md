@@ -65,6 +65,8 @@ Before modifying code:
 
 ## Running E2E Tests
 
+### Chrome
+
 ```bash
 # Download Chromium
 mkdir -p /tmp/chromium && cd /tmp/chromium && \
@@ -76,3 +78,23 @@ npm run build:chrome && \
   BROWSER_PATH=/tmp/chromium/chrome-linux/chrome OPENAI_API_KEY=not-needed-for-tests \
   xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm run test:e2e:chrome
 ```
+
+### Firefox
+
+```bash
+# Download Firefox and geckodriver
+mkdir -p /tmp/firefox && cd /tmp/firefox && \
+  curl -L -o firefox.tar.bz2 "https://download.mozilla.org/?product=firefox-latest&os=linux64&lang=en-US" && \
+  tar -xf firefox.tar.bz2
+
+curl -L -o /tmp/geckodriver.tar.gz \
+  "https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz" && \
+  tar -xzf /tmp/geckodriver.tar.gz -C /usr/local/bin/
+
+# Run tests (requires xvfb)
+npm run build:firefox && \
+  BROWSER_PATH=/tmp/firefox/firefox/firefox OPENAI_API_KEY=not-needed-for-tests \
+  xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm run test:e2e:firefox
+```
+
+**Note:** The extension requires Firefox 142+. If Firefox crashes with `wasm_rt_syscall_set_segue_base error` (common in containerized environments), use Firefox 127 instead and patch `dist-firefox/manifest.json` to lower `strict_min_version` from `142.0` to `127.0`.
