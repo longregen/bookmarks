@@ -10,6 +10,12 @@ import type { SyncStatus } from './messages';
 let isSyncing = false;
 let lastSyncAttempt = 0;
 
+// For testing purposes only - resets module state
+export function _resetForTesting(): void {
+  isSyncing = false;
+  lastSyncAttempt = 0;
+}
+
 const TIMEOUT_MS = 30000; // 30 seconds
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY_MS = 1000; // 1 second

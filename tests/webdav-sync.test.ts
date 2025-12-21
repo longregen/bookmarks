@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { db } from '../src/db/schema';
-import { performSync, getSyncStatus } from '../src/lib/webdav-sync';
+import { performSync, getSyncStatus, _resetForTesting } from '../src/lib/webdav-sync';
 import * as settings from '../src/lib/settings';
 import * as exportModule from '../src/lib/export';
 
@@ -25,6 +25,7 @@ describe('WebDAV Sync - Race Condition Protection', () => {
     await db.bookmarks.clear();
     vi.clearAllMocks();
     vi.useRealTimers();
+    _resetForTesting();
 
     vi.mocked(settings.getSettings).mockResolvedValue({
       webdavEnabled: true,
@@ -303,9 +304,16 @@ describe('WebDAV Sync - Race Condition Protection', () => {
     });
 
     it('should reset sync state even when error occurs', async () => {
-      vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
+      vi.useFakeTimers();
 
-      await performSync(true);
+      vi.mocked(global.fetch).mockRejectedValue(new Error('Network error'));
+
+      const syncPromise = performSync(true);
+
+      // Advance through all retry delays
+      await vi.runAllTimersAsync();
+
+      await syncPromise;
 
       vi.mocked(global.fetch).mockResolvedValue({
         ok: true,
@@ -313,9 +321,13 @@ describe('WebDAV Sync - Race Condition Protection', () => {
         headers: new Headers(),
       } as Response);
 
-      const result = await performSync(true);
+      const resultPromise = performSync(true);
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
 
       expect(result.action).not.toBe('skipped');
+
+      vi.useRealTimers();
     });
   });
 
