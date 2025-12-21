@@ -375,3 +375,24 @@ window.addEventListener('beforeunload', () => {
   document.removeEventListener('keydown', keydownHandler);
   removeEventListener();
 });
+
+// Test helpers for E2E tests (type declaration in library.ts)
+(window as unknown as { __testHelpers?: Record<string, unknown> }).__testHelpers = {
+  async getSearchHistory() {
+    const history = await db.searchHistory.orderBy('createdAt').reverse().toArray();
+    return history.map(h => ({
+      id: h.id,
+      query: h.query,
+      resultCount: h.resultCount,
+      createdAt: h.createdAt
+    }));
+  },
+  async clearSearchHistory() {
+    await db.searchHistory.clear();
+  },
+  getAutocompleteState() {
+    const isVisible = autocompleteDropdown.classList.contains('active');
+    const itemCount = autocompleteDropdown.querySelectorAll('.autocomplete-item').length;
+    return { isVisible, itemCount };
+  }
+};
