@@ -63,26 +63,20 @@ Before modifying code:
 - **Remove dead code** - Delete unused functions, variables, imports
 - **Verify assumptions** - Research external APIs and browser behaviors
 
-## Running E2E Tests
+## E2E Tests
 
-### Chrome
+### Chrome Setup
 
 ```bash
-# Download Chromium
 mkdir -p /tmp/chromium && cd /tmp/chromium && \
   wget -q "https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/$(wget -qO- https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/LAST_CHANGE)/chrome-linux.zip" && \
   unzip -q chrome-linux.zip
 
-# Run tests (requires xvfb)
-npm run build:chrome && \
-  BROWSER_PATH=/tmp/chromium/chrome-linux/chrome OPENAI_API_KEY=not-needed-for-tests \
-  xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm run test:e2e:chrome
 ```
 
-### Firefox
+### Firefox Setup
 
 ```bash
-# Download Firefox and geckodriver
 mkdir -p /tmp/firefox && cd /tmp/firefox && \
   curl -L -o firefox.tar.bz2 "https://download.mozilla.org/?product=firefox-latest&os=linux64&lang=en-US" && \
   tar -xf firefox.tar.bz2
@@ -90,11 +84,17 @@ mkdir -p /tmp/firefox && cd /tmp/firefox && \
 curl -L -o /tmp/geckodriver.tar.gz \
   "https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz" && \
   tar -xzf /tmp/geckodriver.tar.gz -C /usr/local/bin/
+```
 
-# Run tests (requires xvfb)
+### Run tests
+
+```
+# Firefox
 npm run build:firefox && \
   BROWSER_PATH=/tmp/firefox/firefox/firefox OPENAI_API_KEY=not-needed-for-tests \
   xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm run test:e2e:firefox
+# Chrome
+npm run build:chrome && \
+  BROWSER_PATH=/tmp/chromium/chrome-linux/chrome OPENAI_API_KEY=not-needed-for-tests \
+  xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm run test:e2e:chrome 
 ```
-
-**Note:** The extension requires Firefox 142+. If Firefox crashes with `wasm_rt_syscall_set_segue_base error` (common in containerized environments), use Firefox 127 instead and patch `dist-firefox/manifest.json` to lower `strict_min_version` from `142.0` to `127.0`.
