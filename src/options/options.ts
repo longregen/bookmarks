@@ -3,6 +3,7 @@ import { initWebDAVModule } from './modules/webdav';
 import { initBulkImportModule } from './modules/bulk-import';
 import { initThemeModule } from './modules/theme';
 import { initNavigationModule } from './modules/navigation';
+import './modules/import-export';
 
 const cleanupFunctions: (() => void)[] = [];
 
