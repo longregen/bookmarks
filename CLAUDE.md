@@ -18,18 +18,7 @@ npm run test:e2e:firefox # E2E tests (Selenium)
 
 ## Key Directories
 
-```
-src/
-├── background/ # Service worker, job queue, content processor
-├── db/ # Dexie/IndexedDB schema and queries
-├── lib/ # Shared utilities, adapters, API client
-├── search/ # Semantic vector search
-├── options/ # Settings page modules
-├── library/ # Bookmark management UI
-└── content/ # Content scripts for page capture
-```
-
-See [AGENTS.md](./AGENTS.md) for detailed module documentation.
+The codebase is organized under `src/` with modules for background processing, database, search, UI, and shared utilities. See [AGENTS.md](./AGENTS.md) for the complete directory structure and detailed module documentation.
 
 ## Forbidden Directories
 

@@ -1,4 +1,5 @@
 import { db, type Job, type JobItem, JobType, JobStatus, JobItemStatus } from '../db/schema';
+import { withQuotaHandling } from './quota-monitor';
 
 export { type Job, type JobItem, JobType, JobStatus, JobItemStatus };
 
@@ -17,7 +18,10 @@ export async function createJob(params: {
     createdAt: new Date(),
   };
 
-  await db.jobs.add(job);
+  await withQuotaHandling(
+    () => db.jobs.add(job),
+    'jobs.add'
+  );
   return job;
 }
 
@@ -85,7 +89,10 @@ export async function createJobItems(jobId: string, bookmarkIds: string[]): Prom
     updatedAt: now,
   }));
 
-  await db.jobItems.bulkAdd(jobItems);
+  await withQuotaHandling(
+    () => db.jobItems.bulkAdd(jobItems),
+    'jobItems.bulkAdd'
+  );
 }
 
 export async function getJobItems(jobId: string): Promise<JobItem[]> {
@@ -214,4 +221,13 @@ export async function retryBookmark(bookmarkId: string): Promise<void> {
     });
     await updateJobStatus(jobItem.jobId);
   }
+}
+
+export function formatJobType(type: JobType): string {
+  const labels: Record<JobType, string> = {
+    [JobType.FILE_IMPORT]: 'File Import',
+    [JobType.BULK_URL_IMPORT]: 'Bulk URL Import',
+    [JobType.URL_FETCH]: 'URL Fetch',
+  };
+  return labels[type] || type;
 }
