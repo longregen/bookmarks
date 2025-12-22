@@ -266,7 +266,7 @@ window.__testHelpers = {
     if (bookmark) {
       await db.bookmarks.update(bookmark.id, {
         status: status as 'pending' | 'processing' | 'complete' | 'error',
-        errorMessage: errorMessage
+        errorMessage
       });
       return true;
     }

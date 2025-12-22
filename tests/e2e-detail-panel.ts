@@ -611,8 +611,16 @@ export async function runDetailPanelTests(adapter: TestAdapter, runner: TestRunn
         10000
       );
 
-      // Click retry button
-      await libraryPage.click('#retryBtn');
+      // Click retry button using JavaScript to ensure visibility
+      await libraryPage.evaluate(`
+        (() => {
+          const btn = document.getElementById('retryBtn');
+          if (btn) {
+            btn.scrollIntoView({ behavior: 'instant', block: 'center' });
+            btn.click();
+          }
+        })()
+      `);
 
       // Wait for retry button to show "Retrying..." state
       await libraryPage.waitForFunction(
