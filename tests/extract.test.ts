@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { extractMarkdownNative } from '../src/lib/extract';
+import { extractMarkdown } from '../src/lib/extract';
 
 describe('Content Extraction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe('extractMarkdownNative', () => {
+  describe('extractMarkdown', () => {
     it('should extract content from simple HTML', () => {
       const html = `
         <html>
@@ -22,7 +22,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.title).toBe('Test Article');
       expect(result.content).toContain('This is a test paragraph');
@@ -43,7 +43,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('# Main Title');
       expect(result.content).toContain('## Subtitle');
@@ -61,7 +61,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('[this link](https://example.com/page)');
     });
@@ -81,7 +81,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('First item');
       expect(result.content).toContain('Second item');
@@ -103,7 +103,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('First step');
       expect(result.content).toContain('Second step');
@@ -121,7 +121,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('const x = 42;');
     });
@@ -139,7 +139,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('This is a quote');
     });
@@ -156,7 +156,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('**important**');
       expect(result.content).toContain('**also bold**');
@@ -174,7 +174,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toMatch(/[*_]emphasized[*_]/);
       expect(result.content).toMatch(/[*_]italic[*_]/);
@@ -192,7 +192,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('Visible content');
       expect(result.content).not.toContain('alert');
@@ -211,7 +211,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('Visible content');
       expect(result.content).not.toContain('.hidden');
@@ -229,7 +229,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.byline === null || typeof result.byline === 'string').toBe(true);
     });
@@ -245,7 +245,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.excerpt).toBeDefined();
       expect(typeof result.excerpt).toBe('string');
@@ -262,7 +262,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('https://example.com/relative/path');
     });
@@ -279,7 +279,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('image');
     });
@@ -304,7 +304,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('Header 1');
       expect(result.content).toContain('Cell 1');
@@ -329,7 +329,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('Item 1');
       expect(result.content).toContain('Nested 1');
@@ -341,7 +341,7 @@ describe('Content Extraction', () => {
       const html = '<html><body></body></html>';
 
       expect(() => {
-        extractMarkdownNative(html, 'https://example.com');
+        extractMarkdown(html, 'https://example.com');
       }).toThrow('Readability could not parse the page');
     });
 
@@ -355,7 +355,7 @@ describe('Content Extraction', () => {
       `;
 
       try {
-        const result = extractMarkdownNative(html, 'https://example.com');
+        const result = extractMarkdown(html, 'https://example.com');
         expect(result).toBeDefined();
       } catch (error) {
         expect(error).toBeDefined();
@@ -374,7 +374,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
       expect(result).toBeDefined();
       expect(result.content).toBeDefined();
     });
@@ -395,7 +395,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toBeDefined();
     });
@@ -411,7 +411,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('console.log()');
     });
@@ -429,7 +429,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('Before line');
       expect(result.content).toContain('After line');
@@ -464,7 +464,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com/blog');
+      const result = extractMarkdown(html, 'https://example.com/blog');
 
       expect(result.title).toBe('My Blog Post');
       expect(result.content).toContain('introduction paragraph');
@@ -490,7 +490,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://news.example.com');
+      const result = extractMarkdown(html, 'https://news.example.com');
 
       expect(result.content).toContain('lead paragraph');
       expect(result.content).toContain('Additional details');
@@ -507,7 +507,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('**bold**');
       expect(result.content).toMatch(/[*_]italic[*_]/);
@@ -526,7 +526,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('First paragraph');
       expect(result.content).toContain('Second paragraph');
@@ -543,7 +543,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('&');
       expect(result.content).toContain('<');
@@ -561,10 +561,10 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      let result = extractMarkdownNative(html, 'http://example.com');
+      let result = extractMarkdown(html, 'http://example.com');
       expect(result.content).toBeDefined();
 
-      result = extractMarkdownNative(html, 'https://example.com');
+      result = extractMarkdown(html, 'https://example.com');
       expect(result.content).toBeDefined();
     });
 
@@ -583,7 +583,7 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      const result = extractMarkdownNative(html, 'https://example.com');
+      const result = extractMarkdown(html, 'https://example.com');
 
       expect(result.content).toContain('Deeply');
       expect(result.content).toContain('nested');

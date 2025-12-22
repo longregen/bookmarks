@@ -205,6 +205,16 @@ class SeleniumPageHandle implements PageHandle {
     }, timeout);
   }
 
+  async screenshot(path: string, options?: { fullPage?: boolean }): Promise<void> {
+    const screenshot = await this.driver.takeScreenshot();
+    fs.writeFileSync(path, screenshot, 'base64');
+  }
+
+  async uploadFile(selector: string, filePath: string): Promise<void> {
+    const element = await this.driver.findElement(By.css(selector));
+    await element.sendKeys(filePath);
+  }
+
   async close(): Promise<void> {
     // In Selenium, we don't typically close individual "pages"
     // We could close tabs, but for simplicity we'll leave this as a no-op

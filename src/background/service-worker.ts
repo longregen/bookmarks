@@ -1,6 +1,5 @@
 import { db } from '../db/schema';
 import { startProcessingQueue } from './queue';
-import { resumeIncompleteJobs } from './job-resumption';
 import { createBulkImportJob } from '../lib/bulk-import';
 import { setPlatformAdapter } from '../lib/platform';
 import { extensionAdapter } from '../lib/adapters/extension';
@@ -43,12 +42,7 @@ function initializeExtension(): void {
   console.log('Initializing extension...');
 
   try {
-    void resumeIncompleteJobs().then(() => {
-      void startProcessingQueue();
-    }).catch((err: unknown) => {
-      console.error('Error resuming incomplete jobs:', err);
-      void startProcessingQueue();
-    });
+    void startProcessingQueue();
 
     void setupSyncAlarm().catch((err: unknown) => {
       console.error('Error setting up sync alarm:', err);

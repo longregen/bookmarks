@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { db } from '../src/db/schema';
-import { processBookmarkContent } from '../src/background/processor';
+import { processBookmark } from '../src/background/processor';
 import * as extract from '../src/lib/extract';
 import * as api from '../src/lib/api';
 
@@ -33,7 +33,7 @@ describe('Bookmark Processor', () => {
     await db.questionsAnswers.clear();
   });
 
-  describe('processBookmarkContent', () => {
+  describe('processBookmark', () => {
     it('should process a bookmark successfully', async () => {
       const bookmark = {
         id: 'test-1',
@@ -62,7 +62,7 @@ describe('Bookmark Processor', () => {
         [0.1, 0.2, 0.3],
       ]);
 
-      await processBookmarkContent(bookmark);
+      await processBookmark(bookmark);
 
       expect(extractMock).toHaveBeenCalledWith(bookmark.html, bookmark.url);
       expect(qaPairsMock).toHaveBeenCalledWith('Test markdown content');
@@ -103,7 +103,7 @@ describe('Bookmark Processor', () => {
 
       vi.spyOn(api, 'generateQAPairs').mockResolvedValue([]);
 
-      await processBookmarkContent(bookmark);
+      await processBookmark(bookmark);
 
       expect(extractMock).not.toHaveBeenCalled();
     });
@@ -143,7 +143,7 @@ describe('Bookmark Processor', () => {
 
       const qaPairsMock = vi.spyOn(api, 'generateQAPairs');
 
-      await processBookmarkContent(bookmark);
+      await processBookmark(bookmark);
 
       expect(qaPairsMock).not.toHaveBeenCalled();
     });
@@ -170,7 +170,7 @@ describe('Bookmark Processor', () => {
 
       vi.spyOn(api, 'generateQAPairs').mockResolvedValue([]);
 
-      await processBookmarkContent(bookmark);
+      await processBookmark(bookmark);
 
       const qaPairs = await db.questionsAnswers.where('bookmarkId').equals('test-1').toArray();
       expect(qaPairs).toHaveLength(0);
@@ -209,7 +209,7 @@ describe('Bookmark Processor', () => {
         .mockResolvedValueOnce([answerEmbedding])
         .mockResolvedValueOnce([combinedEmbedding]);
 
-      await processBookmarkContent(bookmark);
+      await processBookmark(bookmark);
 
       const qaPairs = await db.questionsAnswers.where('bookmarkId').equals('test-1').toArray();
       expect(qaPairs).toHaveLength(1);
@@ -233,7 +233,7 @@ describe('Bookmark Processor', () => {
 
       vi.spyOn(extract, 'extractMarkdownAsync').mockRejectedValue(new Error('Extraction failed'));
 
-      await expect(processBookmarkContent(bookmark)).rejects.toThrow('Extraction failed');
+      await expect(processBookmark(bookmark)).rejects.toThrow('Extraction failed');
     });
 
     it('should throw on Q&A generation errors', async () => {
@@ -258,7 +258,7 @@ describe('Bookmark Processor', () => {
 
       vi.spyOn(api, 'generateQAPairs').mockRejectedValue(new Error('API failed'));
 
-      await expect(processBookmarkContent(bookmark)).rejects.toThrow('API failed');
+      await expect(processBookmark(bookmark)).rejects.toThrow('API failed');
     });
 
     it('should throw on embedding generation errors', async () => {
@@ -287,7 +287,7 @@ describe('Bookmark Processor', () => {
 
       vi.spyOn(api, 'generateEmbeddings').mockRejectedValue(new Error('Embedding failed'));
 
-      await expect(processBookmarkContent(bookmark)).rejects.toThrow('Embedding failed');
+      await expect(processBookmark(bookmark)).rejects.toThrow('Embedding failed');
     });
 
     it('should process multiple Q&A pairs', async () => {
@@ -321,7 +321,7 @@ describe('Bookmark Processor', () => {
         .mockResolvedValueOnce([[0.4], [0.5], [0.6]])
         .mockResolvedValueOnce([[0.7], [0.8], [0.9]]);
 
-      await processBookmarkContent(bookmark);
+      await processBookmark(bookmark);
 
       const qaPairs = await db.questionsAnswers.where('bookmarkId').equals('test-1').toArray();
       expect(qaPairs).toHaveLength(3);
@@ -358,7 +358,7 @@ describe('Bookmark Processor', () => {
 
       vi.spyOn(api, 'generateEmbeddings').mockResolvedValue([[0.1]]);
 
-      await processBookmarkContent(bookmark);
+      await processBookmark(bookmark);
 
       const markdown = await db.markdown.where('bookmarkId').equals('test-1').first();
       expect(markdown).toBeDefined();

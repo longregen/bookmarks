@@ -4,7 +4,6 @@ import {
   getJobItems,
   getJobStats,
   retryFailedJobItems,
-  formatJobType,
   type Job,
   type JobItem,
   JobItemStatus,
@@ -389,6 +388,15 @@ function appendMetadataElements(container: HTMLElement, job: Job, stats: { total
   if (!hasMetadata) {
     container.appendChild(createElement('div', { className: 'job-metadata-item', textContent: 'No additional information' }));
   }
+}
+
+function formatJobType(type: JobType): string {
+  const labels: Record<JobType, string> = {
+    [JobType.FILE_IMPORT]: 'File Import',
+    [JobType.BULK_URL_IMPORT]: 'Bulk URL Import',
+    [JobType.URL_FETCH]: 'URL Fetch',
+  };
+  return labels[type] || type;
 }
 
 jobTypeFilter.addEventListener('change', loadJobs);

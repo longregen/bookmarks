@@ -18,7 +18,18 @@ npm run test:e2e:firefox # E2E tests (Selenium)
 
 ## Key Directories
 
-The codebase is organized under `src/` with modules for background processing, database, search, UI, and shared utilities. See [AGENTS.md](./AGENTS.md) for the complete directory structure and detailed module documentation.
+```
+src/
+├── background/ # Service worker, job queue, content processor
+├── db/ # Dexie/IndexedDB schema and queries
+├── lib/ # Shared utilities, adapters, API client
+├── search/ # Semantic vector search
+├── options/ # Settings page modules
+├── library/ # Bookmark management UI
+└── content/ # Content scripts for page capture
+```
+
+See [AGENTS.md](./AGENTS.md) for detailed module documentation.
 
 ## Forbidden Directories
 
@@ -52,38 +63,16 @@ Before modifying code:
 - **Remove dead code** - Delete unused functions, variables, imports
 - **Verify assumptions** - Research external APIs and browser behaviors
 
-## E2E Tests
-
-### Chrome Setup
+## Running E2E Tests
 
 ```bash
+# Download Chromium
 mkdir -p /tmp/chromium && cd /tmp/chromium && \
   wget -q "https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/$(wget -qO- https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/LAST_CHANGE)/chrome-linux.zip" && \
   unzip -q chrome-linux.zip
 
-```
-
-### Firefox Setup
-
-```bash
-mkdir -p /tmp/firefox && cd /tmp/firefox && \
-  curl -L -o firefox.tar.bz2 "https://download.mozilla.org/?product=firefox-latest&os=linux64&lang=en-US" && \
-  tar -xf firefox.tar.bz2
-
-curl -L -o /tmp/geckodriver.tar.gz \
-  "https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz" && \
-  tar -xzf /tmp/geckodriver.tar.gz -C /usr/local/bin/
-```
-
-### Run tests
-
-```
-# Firefox
-npm run build:firefox && \
-  BROWSER_PATH=/tmp/firefox/firefox/firefox OPENAI_API_KEY=not-needed-for-tests \
-  xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm run test:e2e:firefox
-# Chrome
+# Run tests (requires xvfb)
 npm run build:chrome && \
   BROWSER_PATH=/tmp/chromium/chrome-linux/chrome OPENAI_API_KEY=not-needed-for-tests \
-  xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm run test:e2e:chrome 
+  xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm run test:e2e:chrome
 ```

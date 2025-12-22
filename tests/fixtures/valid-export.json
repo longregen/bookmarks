@@ -1,0 +1,53 @@
+{
+  "version": 2,
+  "exportedAt": "2024-01-15T12:00:00Z",
+  "bookmarkCount": 3,
+  "bookmarks": [
+    {
+      "id": "test-bookmark-1",
+      "url": "https://example.com/article-1",
+      "title": "Test Article 1 - Introduction to E2E Testing",
+      "html": "<html><head><title>Test Article 1</title></head><body><article><h1>Introduction to E2E Testing</h1><p>This is a test article about end-to-end testing in browser extensions.</p></article></body></html>",
+      "status": "complete",
+      "createdAt": "2024-01-15T10:00:00Z",
+      "updatedAt": "2024-01-15T11:00:00Z",
+      "markdown": "# Introduction to E2E Testing\n\nThis is a test article about end-to-end testing in browser extensions.",
+      "questionsAnswers": [
+        {
+          "question": "What is E2E testing?",
+          "answer": "End-to-end testing is a methodology used to test whether the flow of an application is performing as designed from start to finish."
+        },
+        {
+          "question": "Why use E2E testing for browser extensions?",
+          "answer": "E2E testing ensures that browser extensions work correctly in real browser environments with actual user workflows."
+        }
+      ]
+    },
+    {
+      "id": "test-bookmark-2",
+      "url": "https://example.com/article-2",
+      "title": "Test Article 2 - Advanced Testing Patterns",
+      "html": "<html><head><title>Test Article 2</title></head><body><article><h1>Advanced Testing Patterns</h1><p>Learn about advanced patterns for testing complex applications.</p></article></body></html>",
+      "status": "complete",
+      "createdAt": "2024-01-15T11:00:00Z",
+      "updatedAt": "2024-01-15T12:00:00Z",
+      "markdown": "# Advanced Testing Patterns\n\nLearn about advanced patterns for testing complex applications.",
+      "questionsAnswers": [
+        {
+          "question": "What are testing patterns?",
+          "answer": "Testing patterns are reusable solutions to common testing problems and scenarios."
+        }
+      ]
+    },
+    {
+      "id": "test-bookmark-3",
+      "url": "https://example.com/article-3",
+      "title": "Test Article 3 - Bookmark Management Best Practices",
+      "html": "<html><head><title>Test Article 3</title></head><body><article><h1>Bookmark Management</h1><p>Best practices for organizing and managing bookmarks effectively.</p></article></body></html>",
+      "status": "complete",
+      "createdAt": "2024-01-15T12:00:00Z",
+      "updatedAt": "2024-01-15T12:00:00Z",
+      "questionsAnswers": []
+    }
+  ]
+}

@@ -11,6 +11,7 @@ export interface PageHandle {
   evaluate<T>(fn: string): Promise<T>;
   waitForFunction(fn: string, timeout?: number): Promise<void>;
   screenshot(path: string, options?: { fullPage?: boolean }): Promise<void>;
+  uploadFile(selector: string, filePath: string): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -582,6 +583,249 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
     await page.close();
   });
 
+  await runner.runTest('Import valid JSON file with bookmarks', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('#importFile');
+
+    // Get absolute path to test fixture
+    const fixturePathModule = await import('path');
+    const { fileURLToPath } = await import('url');
+    const __dirname = fixturePathModule.dirname(fileURLToPath(import.meta.url));
+    const fixturePath = fixturePathModule.resolve(__dirname, './fixtures/valid-export.json');
+
+    // Upload the file
+    await page.uploadFile('#importFile', fixturePath);
+
+    // Wait for file name to appear
+    await page.waitForFunction(
+      `document.getElementById('importFileName')?.textContent?.includes('valid-export.json')`,
+      5000
+    );
+
+    // Verify import button is enabled
+    const importBtnDisabled = await page.evaluate(`document.getElementById('importBtn')?.disabled`);
+    if (importBtnDisabled) {
+      throw new Error('Import button should be enabled after file selection');
+    }
+
+    // Click import button
+    await page.click('#importBtn');
+
+    // Wait for import to complete
+    await page.waitForFunction(
+      `(() => {
+        const status = document.getElementById('importStatus');
+        return status && !status.classList.contains('hidden') && status.textContent?.includes('Imported');
+      })()`,
+      10000
+    );
+
+    // Verify import success message
+    const statusText = await page.evaluate(`document.getElementById('importStatus')?.textContent`) as string;
+    if (!statusText.includes('Imported 3 bookmark')) {
+      throw new Error(`Expected 'Imported 3 bookmark(s)', got: ${statusText}`);
+    }
+
+    console.log(`  ✓ Successfully imported 3 bookmarks from JSON file`);
+
+    await page.close();
+
+    // Verify bookmarks appear in library
+    const libraryPage = await adapter.newPage();
+    await libraryPage.goto(adapter.getPageUrl('library'));
+    await libraryPage.waitForSelector('#bookmarkList');
+
+    // Wait for imported bookmarks to appear
+    await libraryPage.waitForFunction(
+      `(() => {
+        const cards = document.querySelectorAll('.bookmark-card');
+        const titles = Array.from(cards).map(c => c.querySelector('.card-title')?.textContent || '');
+        return titles.some(t => t.includes('E2E Testing') || t.includes('Testing Patterns') || t.includes('Bookmark Management'));
+      })()`,
+      10000
+    );
+
+    const bookmarkCount = await libraryPage.evaluate(`document.querySelectorAll('.bookmark-card').length`) as number;
+    if (bookmarkCount < 3) {
+      throw new Error(`Expected at least 3 bookmarks in library, got ${bookmarkCount}`);
+    }
+
+    await libraryPage.close();
+  });
+
+  await runner.runTest('Import empty JSON file', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('#importFile');
+
+    // Get absolute path to test fixture
+    const fixturePathModule = await import('path');
+    const { fileURLToPath } = await import('url');
+    const __dirname = fixturePathModule.dirname(fileURLToPath(import.meta.url));
+    const fixturePath = fixturePathModule.resolve(__dirname, './fixtures/empty-export.json');
+
+    // Upload the file
+    await page.uploadFile('#importFile', fixturePath);
+
+    // Wait for file name to appear
+    await page.waitForFunction(
+      `document.getElementById('importFileName')?.textContent?.includes('empty-export.json')`,
+      5000
+    );
+
+    // Click import button
+    await page.click('#importBtn');
+
+    // Wait for import to complete
+    await page.waitForFunction(
+      `(() => {
+        const status = document.getElementById('importStatus');
+        return status && !status.classList.contains('hidden');
+      })()`,
+      10000
+    );
+
+    // Verify import message
+    const statusText = await page.evaluate(`document.getElementById('importStatus')?.textContent`) as string;
+    if (!statusText.includes('Imported 0 bookmark')) {
+      throw new Error(`Expected 'Imported 0 bookmark(s)', got: ${statusText}`);
+    }
+
+    console.log(`  ✓ Successfully handled empty import file`);
+
+    await page.close();
+  });
+
+  await runner.runTest('Import invalid JSON structure', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('#importFile');
+
+    // Get absolute path to test fixture
+    const fixturePathModule = await import('path');
+    const { fileURLToPath } = await import('url');
+    const __dirname = fixturePathModule.dirname(fileURLToPath(import.meta.url));
+    const fixturePath = fixturePathModule.resolve(__dirname, './fixtures/invalid-export.json');
+
+    // Upload the file
+    await page.uploadFile('#importFile', fixturePath);
+
+    // Wait for file name to appear
+    await page.waitForFunction(
+      `document.getElementById('importFileName')?.textContent?.includes('invalid-export.json')`,
+      5000
+    );
+
+    // Click import button
+    await page.click('#importBtn');
+
+    // Wait for error message (the 'error' class is on a child div, not the status element itself)
+    await page.waitForFunction(
+      `(() => {
+        const status = document.getElementById('importStatus');
+        return status && !status.classList.contains('hidden') && status.querySelector('.error');
+      })()`,
+      10000
+    );
+
+    // Verify error message
+    const statusText = await page.evaluate(`document.getElementById('importStatus')?.textContent`) as string;
+    if (!statusText.toLowerCase().includes('invalid') && !statusText.toLowerCase().includes('failed')) {
+      throw new Error(`Expected error message about invalid format, got: ${statusText}`);
+    }
+
+    console.log(`  ✓ Correctly rejected invalid JSON structure`);
+
+    await page.close();
+  });
+
+  await runner.runTest('Import malformed JSON file', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('#importFile');
+
+    // Get absolute path to test fixture
+    const fixturePathModule = await import('path');
+    const { fileURLToPath } = await import('url');
+    const __dirname = fixturePathModule.dirname(fileURLToPath(import.meta.url));
+    const fixturePath = fixturePathModule.resolve(__dirname, './fixtures/malformed.json');
+
+    // Upload the file
+    await page.uploadFile('#importFile', fixturePath);
+
+    // Wait for file name to appear
+    await page.waitForFunction(
+      `document.getElementById('importFileName')?.textContent?.includes('malformed.json')`,
+      5000
+    );
+
+    // Click import button
+    await page.click('#importBtn');
+
+    // Wait for error message (the 'error' class is on a child div, not the status element itself)
+    await page.waitForFunction(
+      `(() => {
+        const status = document.getElementById('importStatus');
+        return status && !status.classList.contains('hidden') && status.querySelector('.error');
+      })()`,
+      10000
+    );
+
+    // Verify error message
+    const statusText = await page.evaluate(`document.getElementById('importStatus')?.textContent`) as string;
+    if (!statusText.toLowerCase().includes('failed') && !statusText.toLowerCase().includes('json')) {
+      throw new Error(`Expected error message about JSON parsing, got: ${statusText}`);
+    }
+
+    console.log(`  ✓ Correctly rejected malformed JSON file`);
+
+    await page.close();
+  });
+
+  await runner.runTest('Import skips duplicate bookmarks', async () => {
+    const page = await adapter.newPage();
+    await page.goto(adapter.getPageUrl('options'));
+    await page.waitForSelector('#importFile');
+
+    // Import the same file twice to test duplicate detection
+    const fixturePathModule = await import('path');
+    const { fileURLToPath } = await import('url');
+    const __dirname = fixturePathModule.dirname(fileURLToPath(import.meta.url));
+    const fixturePath = fixturePathModule.resolve(__dirname, './fixtures/valid-export.json');
+
+    // Upload the file again (these bookmarks were already imported in previous test)
+    await page.uploadFile('#importFile', fixturePath);
+
+    // Wait for file name to appear
+    await page.waitForFunction(
+      `document.getElementById('importFileName')?.textContent?.includes('valid-export.json')`,
+      5000
+    );
+
+    // Click import button
+    await page.click('#importBtn');
+
+    // Wait for import to complete
+    await page.waitForFunction(
+      `(() => {
+        const status = document.getElementById('importStatus');
+        return status && !status.classList.contains('hidden') && status.textContent?.includes('skipped');
+      })()`,
+      10000
+    );
+
+    // Verify duplicate detection message
+    const statusText = await page.evaluate(`document.getElementById('importStatus')?.textContent`) as string;
+    if (!statusText.includes('skipped 3 duplicate')) {
+      throw new Error(`Expected message about skipped duplicates, got: ${statusText}`);
+    }
+
+    console.log(`  ✓ Successfully detected and skipped duplicate bookmarks`);
+
+    await page.close();
+  });
+
   await runner.runTest('Jobs dashboard exists', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('jobs'));
@@ -941,6 +1185,10 @@ export async function runSharedTests(adapter: TestAdapter, runner: TestRunner, o
       await page.close();
     });
   }
+
+  // Run detail panel tests after basic functionality tests
+  const { runDetailPanelTests } = await import('./e2e-detail-panel');
+  await runDetailPanelTests(adapter, runner);
 
   if (options.skipRealApiTests) {
     console.log('\n--- REAL API TESTS SKIPPED ---\n');

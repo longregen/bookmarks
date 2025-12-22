@@ -358,6 +358,14 @@ class PuppeteerPageHandle implements PageHandle {
     await this.page.screenshot({ path, fullPage: options?.fullPage });
   }
 
+  async uploadFile(selector: string, filePath: string): Promise<void> {
+    const input = await this.page.$(selector);
+    if (!input) {
+      throw new Error(`File input not found: ${selector}`);
+    }
+    await input.uploadFile(filePath);
+  }
+
   async close(): Promise<void> {
     await this.adapter.collectPageCoverage(this.page);
     await this.page.close();
