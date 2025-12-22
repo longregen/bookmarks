@@ -19,6 +19,74 @@ function calculateBackoffDelay(retryCount: number): number {
   return delay + Math.random() * delay * 0.25;
 }
 
+async function resetStuckBookmarks(): Promise<void> {
+  const timeout = config.QUEUE_PROCESSING_TIMEOUT_MS;
+  const maxRetries = config.QUEUE_MAX_RETRIES;
+  const now = new Date();
+  const cutoffTime = new Date(now.getTime() - timeout);
+
+  const processingBookmarks = await db.bookmarks
+    .where('status')
+    .equals('processing')
+    .toArray();
+
+  const stuckBookmarks = processingBookmarks.filter(
+    bookmark => bookmark.updatedAt < cutoffTime
+  );
+
+  if (stuckBookmarks.length === 0) {
+    return;
+  }
+
+  console.log(`[Queue] Found ${stuckBookmarks.length} stuck bookmarks (processing > ${timeout}ms)`);
+
+  for (const bookmark of stuckBookmarks) {
+    const currentRetryCount = bookmark.retryCount ?? 0;
+
+    if (currentRetryCount < maxRetries) {
+      const newRetryCount = currentRetryCount + 1;
+      const errorMessage = `Timeout after ${timeout}ms, retry ${newRetryCount}/${maxRetries}`;
+
+      console.log(`[Queue] Resetting stuck bookmark ${bookmark.id} to pending (attempt ${newRetryCount}/${maxRetries})`);
+
+      await db.bookmarks.update(bookmark.id, {
+        status: 'pending',
+        retryCount: newRetryCount,
+        errorMessage,
+        updatedAt: now,
+      });
+
+      await updateJobItemByBookmark(bookmark.id, {
+        status: JobItemStatus.PENDING,
+        retryCount: newRetryCount,
+        errorMessage,
+      });
+    } else {
+      const errorMessage = `Failed after ${maxRetries + 1} attempts: Timeout after ${timeout}ms`;
+
+      console.log(`[Queue] Max retries exceeded for stuck bookmark ${bookmark.id}, marking as error`);
+
+      await db.bookmarks.update(bookmark.id, {
+        status: 'error',
+        errorMessage,
+        updatedAt: now,
+      });
+
+      await updateJobItemByBookmark(bookmark.id, {
+        status: JobItemStatus.ERROR,
+        errorMessage,
+      });
+
+      const jobItem = await getJobItemByBookmark(bookmark.id);
+      if (jobItem) {
+        await updateJobStatus(jobItem.jobId);
+      }
+
+      await events.bookmark.processingFailed(bookmark.id, errorMessage);
+    }
+  }
+}
+
 async function sleep(ms: number): Promise<void> {
   return new Promise(resolve => { setTimeout(resolve, ms); });
 }
@@ -216,6 +284,9 @@ export async function startProcessingQueue(): Promise<void> {
   console.log('[Queue] Starting processing queue');
 
   try {
+    // Phase 0: Reset stuck bookmarks that have been in 'processing' state too long
+    await resetStuckBookmarks();
+
     // Phase 1: Parallel fetch - download HTML for all 'fetching' bookmarks
     await processFetchQueue();
 

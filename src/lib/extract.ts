@@ -18,7 +18,7 @@ function getTurndown(): TurndownService {
   return turndownInstance;
 }
 
-function extractMarkdownNative(html: string, url: string): ExtractedContent {
+export function extractMarkdownNative(html: string, url: string): ExtractedContent {
   console.log('[Extract] Using native DOMParser', { url, htmlLength: html.length });
 
   const parser = new DOMParser();
@@ -131,10 +131,5 @@ export async function extractMarkdownAsync(html: string, url: string): Promise<E
   if (__IS_CHROME__) {
     return extractMarkdownViaOffscreen(html, url);
   }
-  return extractMarkdownNative(html, url);
-}
-
-/** Synchronous markdown extraction for testing purposes */
-export function extractMarkdown(html: string, url: string): ExtractedContent {
   return extractMarkdownNative(html, url);
 }

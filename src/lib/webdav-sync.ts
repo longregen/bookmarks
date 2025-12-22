@@ -10,12 +10,93 @@ import type { SyncStatus } from './messages';
 let isSyncing = false;
 let lastSyncAttempt = 0;
 
+// For testing purposes only - resets module state
+export function _resetForTesting(): void {
+  isSyncing = false;
+  lastSyncAttempt = 0;
+}
+
+const TIMEOUT_MS = 30000; // 30 seconds
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY_MS = 1000; // 1 second
+
 export interface SyncResult {
   success: boolean;
   action: 'uploaded' | 'downloaded' | 'no-change' | 'skipped' | 'error';
   message: string;
   timestamp?: string;
   bookmarkCount?: number;
+}
+
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs = TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`WebDAV request timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  operationName: string,
+  maxRetries = MAX_RETRIES
+): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Don't retry on client errors (4xx) except 408 (timeout) and 429 (rate limit)
+      if (error instanceof Error) {
+        const status = extractHttpStatus(error.message);
+        if (status && status >= 400 && status < 500 && status !== 408 && status !== 429) {
+          throw error;
+        }
+      }
+
+      // Don't retry if we've exhausted attempts
+      if (attempt === maxRetries) {
+        break;
+      }
+
+      // Calculate exponential backoff delay with jitter
+      const baseDelay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
+      const jitter = Math.random() * 0.3 * baseDelay; // Add up to 30% jitter
+      const delayMs = baseDelay + jitter;
+
+      console.warn(
+        `WebDAV ${operationName} failed (attempt ${attempt + 1}/${maxRetries + 1}): ${getErrorMessage(error)}. Retrying in ${Math.round(delayMs)}ms...`
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+function extractHttpStatus(message: string): number | null {
+  const match = /\b([4-5]\d{2})\b/.exec(message);
+  return match ? parseInt(match[1], 10) : null;
 }
 
 export async function getSyncStatus(): Promise<SyncStatus> {
@@ -59,7 +140,7 @@ async function ensureFolderExists(settings: ApiSettings): Promise<void> {
   const folderUrl = buildFolderUrl(settings);
 
   try {
-    const response = await fetch(folderUrl, {
+    const response = await fetchWithTimeout(folderUrl, {
       method: 'PROPFIND',
       headers: {
         'Depth': '0',
@@ -73,7 +154,7 @@ async function ensureFolderExists(settings: ApiSettings): Promise<void> {
   // eslint-disable-next-line no-empty
   } catch {}
 
-  const mkcolResponse = await fetch(folderUrl, {
+  const mkcolResponse = await fetchWithTimeout(folderUrl, {
     method: 'MKCOL',
     headers: {
       'Authorization': getAuthHeader(settings),
@@ -86,7 +167,7 @@ async function ensureFolderExists(settings: ApiSettings): Promise<void> {
 
     for (const part of pathParts) {
       currentPath += `/${part}/`;
-      await fetch(currentPath, {
+      await fetchWithTimeout(currentPath, {
         method: 'MKCOL',
         headers: {
           'Authorization': getAuthHeader(settings),
@@ -104,7 +185,7 @@ async function getRemoteMetadata(settings: ApiSettings): Promise<{
   const fileUrl = buildFileUrl(settings);
 
   try {
-    const response = await fetch(fileUrl, {
+    const response = await fetchWithTimeout(fileUrl, {
       method: 'HEAD',
       headers: {
         'Authorization': getAuthHeader(settings),
@@ -116,7 +197,7 @@ async function getRemoteMetadata(settings: ApiSettings): Promise<{
     }
 
     if (!response.ok) {
-      throw new Error(`HEAD request failed: ${response.status}`);
+      throw new Error(`HEAD request failed: ${response.status} ${response.statusText}`);
     }
 
     const lastModifiedStr = response.headers.get('Last-Modified');
@@ -127,15 +208,20 @@ async function getRemoteMetadata(settings: ApiSettings): Promise<{
       lastModified: (lastModifiedStr !== null && lastModifiedStr !== '') ? new Date(lastModifiedStr) : undefined,
       etag: etag ?? undefined,
     };
-  } catch (_error) {
-    return { exists: false };
+  } catch (error) {
+    // Only treat 404 as "file doesn't exist", throw all other errors
+    if (error instanceof Error && error.message.includes('404')) {
+      return { exists: false };
+    }
+    // Re-throw network errors, timeouts, auth failures, etc.
+    throw error;
   }
 }
 
 async function downloadFromServer(settings: ApiSettings): Promise<BookmarkExport | null> {
   const fileUrl = buildFileUrl(settings);
 
-  const response = await fetch(fileUrl, {
+  const response = await fetchWithTimeout(fileUrl, {
     method: 'GET',
     headers: {
       'Authorization': getAuthHeader(settings),
@@ -161,7 +247,7 @@ async function uploadToServer(settings: ApiSettings, data: BookmarkExport): Prom
   const fileUrl = buildFileUrl(settings);
   const json = JSON.stringify(data, null, 2);
 
-  const response = await fetch(fileUrl, {
+  const response = await fetchWithTimeout(fileUrl, {
     method: 'PUT',
     headers: {
       'Authorization': getAuthHeader(settings),
@@ -225,31 +311,46 @@ export async function performSync(force = false): Promise<SyncResult> {
 
     const validation = validateWebDAVUrl(settings.webdavUrl, settings.webdavAllowInsecure);
     if (!validation.valid) {
-      await saveSetting('webdavLastSyncError', validation.error ?? 'Connection validation failed');
+      const errorMsg = validation.error ?? 'Connection validation failed';
+      await saveSetting('webdavLastSyncError', errorMsg);
+      console.error(`WebDAV sync failed: ${errorMsg}`);
       return {
         success: false,
         action: 'error',
-        message: validation.error ?? 'Connection validation failed',
+        message: errorMsg,
       };
     }
 
-    const remote = await getRemoteMetadata(settings);
+    const remote = await withRetry(
+      () => getRemoteMetadata(settings),
+      'getRemoteMetadata'
+    );
+
     const localLastUpdate = await getLocalLastUpdate();
     const localData = await exportAllBookmarks();
 
     if (!remote.exists) {
       if (localData.bookmarkCount > 0) {
-        await uploadToServer(settings, localData);
+        await withRetry(
+          () => uploadToServer(settings, localData),
+          'uploadToServer'
+        );
         return await completeSyncSuccess('uploaded', `Uploaded ${localData.bookmarkCount} bookmarks`, localData.bookmarkCount);
       } else {
         return await completeSyncSuccess('no-change', 'No bookmarks to sync');
       }
     }
 
-    const remoteData = await downloadFromServer(settings);
+    const remoteData = await withRetry(
+      () => downloadFromServer(settings),
+      'downloadFromServer'
+    );
 
     if (!remoteData) {
-      await uploadToServer(settings, localData);
+      await withRetry(
+        () => uploadToServer(settings, localData),
+        'uploadToServer'
+      );
       return await completeSyncSuccess('uploaded', `Uploaded ${localData.bookmarkCount} bookmarks`, localData.bookmarkCount);
     }
 
@@ -259,16 +360,23 @@ export async function performSync(force = false): Promise<SyncResult> {
     if (remoteExportTime > localExportTime) {
       const result = await importBookmarks(remoteData, 'webdav-sync');
       const mergedData = await exportAllBookmarks();
-      await uploadToServer(settings, mergedData);
+      await withRetry(
+        () => uploadToServer(settings, mergedData),
+        'uploadToServer'
+      );
       return await completeSyncSuccess('downloaded', `Imported ${result.imported} bookmarks (${result.skipped} duplicates)`, result.imported);
     } else {
-      await uploadToServer(settings, localData);
+      await withRetry(
+        () => uploadToServer(settings, localData),
+        'uploadToServer'
+      );
       return await completeSyncSuccess('uploaded', `Uploaded ${localData.bookmarkCount} bookmarks`, localData.bookmarkCount);
     }
   } catch (error) {
     const errorMessage = getErrorMessage(error);
     await saveSetting('webdavLastSyncError', errorMessage);
 
+    console.error(`WebDAV sync failed: ${errorMessage}`, error);
     await events.sync.failed(errorMessage);
 
     return {

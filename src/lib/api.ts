@@ -5,6 +5,21 @@ import { createDebugLog, debugOnly } from './debug';
 
 const debugLog = createDebugLog('Embeddings API');
 
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => { setTimeout(resolve, ms); });
+}
+
+function calculateBackoffDelay(retryCount: number, isRateLimited: boolean): number {
+  const baseDelay = config.QUEUE_RETRY_BASE_DELAY_MS;
+  const maxDelay = config.QUEUE_RETRY_MAX_DELAY_MS;
+  const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay);
+  const jitter = delay * 0.25 * Math.random();
+  const finalDelay = delay + jitter;
+
+  // For rate limiting (429), use 3x the normal delay
+  return isRateLimited ? finalDelay * 3 : finalDelay;
+}
+
 export interface QAPair {
   question: string;
   answer: string;
@@ -43,21 +58,83 @@ export async function makeApiRequest<T>(
     throw new Error('API key not configured. Please set your API key in the extension options.');
   }
 
-  const response = await fetch(`${settings.apiBaseUrl}${endpoint}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${settings.apiKey}`,
-    },
-    body: JSON.stringify(body),
-  });
+  const maxRetries = config.QUEUE_MAX_RETRIES;
+  const timeout = config.FETCH_TIMEOUT_MS;
+  let lastError: Error | undefined;
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`API error: ${response.status} - ${error}`);
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      try {
+        const response = await fetch(`${settings.apiBaseUrl}${endpoint}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${settings.apiKey}`,
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const error = await response.text();
+          const isRateLimited = response.status === 429;
+
+          // Don't retry on client errors (except 429)
+          if (response.status >= 400 && response.status < 500 && !isRateLimited) {
+            throw new Error(`API error: ${response.status} - ${error}`);
+          }
+
+          // For server errors and rate limiting, we'll retry
+          if (attempt < maxRetries) {
+            const backoffDelay = calculateBackoffDelay(attempt, isRateLimited);
+            debugLog(`API request failed (${response.status}), retrying in ${Math.round(backoffDelay)}ms (attempt ${attempt + 1}/${maxRetries})`);
+            await sleep(backoffDelay);
+            continue;
+          }
+
+          throw new Error(`API error: ${response.status} - ${error}`);
+        }
+
+        return await response.json() as T;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // If it's an abort error (timeout), retry
+      if (lastError.name === 'AbortError') {
+        if (attempt < maxRetries) {
+          const backoffDelay = calculateBackoffDelay(attempt, false);
+          debugLog(`API request timed out, retrying in ${Math.round(backoffDelay)}ms (attempt ${attempt + 1}/${maxRetries})`);
+          await sleep(backoffDelay);
+          continue;
+        }
+        throw new Error(`API request timed out after ${timeout}ms`);
+      }
+
+      // If it's a network error, retry
+      if (lastError.message.includes('fetch') || lastError.message.includes('network')) {
+        if (attempt < maxRetries) {
+          const backoffDelay = calculateBackoffDelay(attempt, false);
+          debugLog(`Network error, retrying in ${Math.round(backoffDelay)}ms (attempt ${attempt + 1}/${maxRetries})`);
+          await sleep(backoffDelay);
+          continue;
+        }
+      }
+
+      // For other errors (like client errors), throw immediately
+      throw lastError;
+    }
   }
 
-  return await response.json() as T;
+  // This should never be reached, but TypeScript needs it
+  throw lastError ?? new Error('API request failed after all retries');
 }
 
 export async function generateQAPairs(markdownContent: string): Promise<QAPair[]> {
