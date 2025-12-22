@@ -265,10 +265,10 @@ export async function runDetailPanelTests(adapter: TestAdapter, runner: TestRunn
       30000
     );
 
-    // Get the title of the bookmark we're clicking
-    const bookmarkTitle = await page.evaluate(`
-      document.querySelector('.bookmark-card .card-title')?.textContent
-    `) as string;
+    // Get the title of the bookmark we're clicking (and store it in the page context for later comparison)
+    await page.evaluate(`
+      window.__testBookmarkTitle = document.querySelector('.bookmark-card .card-title')?.textContent || '';
+    `);
 
     await page.evaluate(`document.querySelector('.bookmark-card').click()`);
 
@@ -325,10 +325,10 @@ export async function runDetailPanelTests(adapter: TestAdapter, runner: TestRunn
       throw new Error(`Bookmark count changed from ${initialCount} to ${finalCount} even though deletion was cancelled`);
     }
 
-    // Verify the bookmark still exists in the list (use JSON.stringify to safely escape the title)
+    // Verify the bookmark still exists in the list (use stored title from page context)
     const bookmarkStillExists = await page.evaluate(`
       (() => {
-        const targetTitle = ${JSON.stringify(bookmarkTitle)};
+        const targetTitle = window.__testBookmarkTitle;
         const cards = document.querySelectorAll('.bookmark-card .card-title');
         for (const card of cards) {
           if (card.textContent === targetTitle) {
@@ -369,10 +369,10 @@ export async function runDetailPanelTests(adapter: TestAdapter, runner: TestRunn
       30000
     );
 
-    // Get the title of the bookmark we're deleting
-    const bookmarkTitle = await page.evaluate(`
-      document.querySelector('.bookmark-card .card-title')?.textContent
-    `) as string;
+    // Get the title of the bookmark we're deleting (and store it in the page context for later comparison)
+    await page.evaluate(`
+      window.__testBookmarkTitle = document.querySelector('.bookmark-card .card-title')?.textContent || '';
+    `);
 
     await page.evaluate(`document.querySelector('.bookmark-card').click()`);
 
@@ -417,10 +417,10 @@ export async function runDetailPanelTests(adapter: TestAdapter, runner: TestRunn
       throw new Error(`Expected bookmark count to decrease from ${initialCount} to ${initialCount - 1}, got ${finalCount}`);
     }
 
-    // Verify the bookmark no longer exists in the list (use JSON.stringify to safely escape the title)
+    // Verify the bookmark no longer exists in the list (use stored title from page context)
     const bookmarkStillExists = await page.evaluate(`
       (() => {
-        const targetTitle = ${JSON.stringify(bookmarkTitle)};
+        const targetTitle = window.__testBookmarkTitle;
         const cards = document.querySelectorAll('.bookmark-card .card-title');
         for (const card of cards) {
           if (card.textContent === targetTitle) {
@@ -475,25 +475,26 @@ export async function runDetailPanelTests(adapter: TestAdapter, runner: TestRunn
       await libraryPage.goto(adapter.getPageUrl('library'));
       await libraryPage.waitForSelector('#bookmarkList');
 
-      // Wait for test helpers to be available
+      // Wait for test helpers to be available (including setBookmarkStatus)
       await libraryPage.waitForFunction(
-        `window.__testHelpers && typeof window.__testHelpers.getBookmarkStatus === 'function'`,
+        `window.__testHelpers && typeof window.__testHelpers.setBookmarkStatus === 'function'`,
         10000
       );
 
-      // Find the bookmark ID and set it to error status using correct path
-      await libraryPage.evaluate(`
+      // Set the bookmark to error status using the test helper
+      const statusSet = await libraryPage.evaluate(`
         (async () => {
-          const { db } = await import('../db/schema');
-          const bookmark = await db.bookmarks.where('url').equals('${testUrl}').first();
-          if (bookmark) {
-            await db.bookmarks.update(bookmark.id, {
-              status: 'error',
-              errorMessage: 'Test error message'
-            });
-          }
+          return await window.__testHelpers.setBookmarkStatus(
+            '${testUrl}',
+            'error',
+            'Test error message'
+          );
         })()
-      `);
+      `) as boolean;
+
+      if (!statusSet) {
+        throw new Error('Failed to set bookmark status to error');
+      }
 
       // Refresh the page to see the error status
       await libraryPage.goto(adapter.getPageUrl('library'));

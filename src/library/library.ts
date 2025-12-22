@@ -226,6 +226,7 @@ declare global {
     __testHelpers?: {
       getBookmarkStatus: () => Promise<unknown>;
       exportAllBookmarks: () => Promise<unknown>;
+      setBookmarkStatus: (url: string, status: string, errorMessage?: string) => Promise<boolean>;
     };
   }
 }
@@ -259,5 +260,16 @@ window.__testHelpers = {
   async exportAllBookmarks() {
     const { exportAllBookmarks } = await getExportModule();
     return await exportAllBookmarks();
+  },
+  async setBookmarkStatus(url: string, status: string, errorMessage?: string) {
+    const bookmark = await db.bookmarks.where('url').equals(url).first();
+    if (bookmark) {
+      await db.bookmarks.update(bookmark.id, {
+        status: status as 'pending' | 'processing' | 'complete' | 'error',
+        errorMessage: errorMessage
+      });
+      return true;
+    }
+    return false;
   }
 };
