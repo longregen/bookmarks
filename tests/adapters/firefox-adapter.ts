@@ -196,14 +196,14 @@ class SeleniumPageHandle implements PageHandle {
   }
 
   async evaluate<T>(fn: string): Promise<T> {
-    // Wrap with return to match Puppeteer's behavior and return expression values
-    // This works for both expressions and statements (assignments return their value)
-    return await this.driver.executeScript(`return (${fn})`) as T;
+    // Prepend return to match Puppeteer's behavior
+    // Don't wrap in parentheses to avoid syntax errors with trailing semicolons
+    return await this.driver.executeScript(`return ${fn}`) as T;
   }
 
   async waitForFunction(fn: string, timeout = 30000): Promise<void> {
     await this.driver.wait(async () => {
-      return await this.driver.executeScript(`return (${fn})`);
+      return await this.driver.executeScript(`return ${fn}`);
     }, timeout);
   }
 
