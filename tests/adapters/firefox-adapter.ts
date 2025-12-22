@@ -196,7 +196,9 @@ class SeleniumPageHandle implements PageHandle {
   }
 
   async evaluate<T>(fn: string): Promise<T> {
-    return await this.driver.executeScript(`return (${fn})`) as T;
+    // Execute the script directly without wrapping in return ()
+    // This allows both statements (like assignments) and expressions to work
+    return await this.driver.executeScript(fn) as T;
   }
 
   async waitForFunction(fn: string, timeout = 30000): Promise<void> {

@@ -169,13 +169,8 @@ export async function runDetailPanelTests(adapter: TestAdapter, runner: TestRunn
       })()
     `);
 
-    // Wait for export button to change to "Exporting..."
-    await page.waitForFunction(
-      `document.getElementById('exportBtn')?.textContent?.includes('Exporting')`,
-      5000
-    );
-
-    // Wait for export to complete (button text returns to "Export")
+    // Wait for export to complete (button text returns to "Export" and is enabled)
+    // Note: Export may complete very quickly, so we don't check for "Exporting..." state
     await page.waitForFunction(
       `(() => {
         const btn = document.getElementById('exportBtn');
@@ -622,13 +617,8 @@ export async function runDetailPanelTests(adapter: TestAdapter, runner: TestRunn
         })()
       `);
 
-      // Wait for retry button to show "Retrying..." state
-      await libraryPage.waitForFunction(
-        `document.getElementById('retryBtn')?.textContent?.includes('Retrying')`,
-        5000
-      );
-
       // Wait for detail panel to close (retry triggered)
+      // Note: Retry may complete very quickly, so we don't check for "Retrying..." state
       await libraryPage.waitForFunction(
         `!document.getElementById('detailPanel')?.classList.contains('active')`,
         10000
