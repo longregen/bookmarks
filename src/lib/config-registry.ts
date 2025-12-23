@@ -328,6 +328,130 @@ const registryMap = new Map<string, ConfigEntry>(
   CONFIG_REGISTRY.map(entry => [entry.key, entry])
 );
 
+let configCache: Record<string, number | string | boolean> = {};
+
+function rebuildConfigCache(): void {
+  configCache = {};
+  for (const entry of CONFIG_REGISTRY) {
+    configCache[entry.key] = entry.key in configOverrides
+      ? configOverrides[entry.key]
+      : entry.defaultValue;
+  }
+}
+
+rebuildConfigCache();
+
+export async function loadConfigOverrides(): Promise<void> {
+  try {
+    const stored = await db.settings.get(CONFIG_STORAGE_KEY);
+    if (stored?.value !== undefined) {
+      configOverrides = stored.value as Record<string, string | number | boolean>;
+    }
+    overridesLoaded = true;
+    rebuildConfigCache();
+  } catch (error) {
+    console.error('Failed to load config overrides:', error);
+    configOverrides = {};
+    overridesLoaded = true;
+    rebuildConfigCache();
+  }
+}
+
+export async function saveConfigOverrides(): Promise<void> {
+  try {
+    const now = new Date();
+    await db.settings.put({
+      key: CONFIG_STORAGE_KEY,
+      value: configOverrides,
+      createdAt: now,
+      updatedAt: now,
+    });
+  } catch (error) {
+    console.error('Failed to save config overrides:', error);
+    throw error;
+  }
+}
+
+export function getConfigValue(key: string): number | string | boolean {
+  if (!registryMap.has(key)) {
+    throw new Error(`Unknown config key: ${key}`);
+  }
+
+  return configCache[key];
+}
+
+export async function setConfigValue(key: string, value: number | string | boolean): Promise<void> {
+  const entry = registryMap.get(key);
+  if (!entry) {
+    throw new Error(`Unknown config key: ${key}`);
+  }
+
+  if (typeof value !== entry.type) {
+    throw new Error(`Invalid type for ${key}: expected ${entry.type}, got ${typeof value}`);
+  }
+
+  if (entry.type === 'number' && typeof value === 'number') {
+    if (entry.min !== undefined && value < entry.min) {
+      throw new Error(`Value for ${key} must be at least ${entry.min}`);
+    }
+    if (entry.max !== undefined && value > entry.max) {
+      throw new Error(`Value for ${key} must be at most ${entry.max}`);
+    }
+  }
+
+  configOverrides[key] = value;
+  rebuildConfigCache();
+  await saveConfigOverrides();
+}
+
+export async function resetConfigValue(key: string): Promise<void> {
+  if (!registryMap.has(key)) {
+    throw new Error(`Unknown config key: ${key}`);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+  delete configOverrides[key];
+  rebuildConfigCache();
+  await saveConfigOverrides();
+}
+
+export async function resetAllConfigValues(): Promise<void> {
+  configOverrides = {};
+  rebuildConfigCache();
+  await saveConfigOverrides();
+}
+
+export function isConfigModified(key: string): boolean {
+  return key in configOverrides;
+}
+
+export function getAllConfigEntries(): (ConfigEntry & { currentValue: number | string | boolean; isModified: boolean })[] {
+  return CONFIG_REGISTRY.map(entry => ({
+    ...entry,
+    currentValue: getConfigValue(entry.key),
+    isModified: isConfigModified(entry.key),
+  }));
+}
+
+
+export function searchConfigEntries(query: string): (ConfigEntry & { currentValue: number | string | boolean; isModified: boolean })[] {
+  const lowerQuery = query.toLowerCase();
+  return getAllConfigEntries().filter(entry =>
+    entry.key.toLowerCase().includes(lowerQuery) ||
+    entry.description.toLowerCase().includes(lowerQuery)
+  );
+}
+
+export function getModifiedCount(): number {
+  return Object.keys(configOverrides).length;
+}
+
+export async function ensureConfigLoaded(): Promise<void> {
+  if (!overridesLoaded) {
+    await loadConfigOverrides();
+  }
+}
+
 export interface ConfigValues {
   FETCH_CONCURRENCY: number;
   FETCH_TIMEOUT_MS: number;
@@ -363,122 +487,16 @@ export interface ConfigValues {
   SIMILARITY_THRESHOLD_POOR: number;
 }
 
-export const config = {} as ConfigValues;
 
-function updateConfig(): void {
-  for (const entry of CONFIG_REGISTRY) {
-    (config as unknown as Record<string, number | string | boolean>)[entry.key] =
-      entry.key in configOverrides ? configOverrides[entry.key] : entry.defaultValue;
-  }
-}
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const config: ConfigValues = Object.create(null);
 
-updateConfig();
-
-export async function loadConfigOverrides(): Promise<void> {
-  try {
-    const stored = await db.settings.get(CONFIG_STORAGE_KEY);
-    if (stored?.value !== undefined) {
-      configOverrides = stored.value as Record<string, string | number | boolean>;
-    }
-    overridesLoaded = true;
-    updateConfig();
-  } catch (error) {
-    console.error('Failed to load config overrides:', error);
-    configOverrides = {};
-    overridesLoaded = true;
-    updateConfig();
-  }
-}
-
-export async function saveConfigOverrides(): Promise<void> {
-  try {
-    const now = new Date();
-    await db.settings.put({
-      key: CONFIG_STORAGE_KEY,
-      value: configOverrides,
-      createdAt: now,
-      updatedAt: now,
-    });
-  } catch (error) {
-    console.error('Failed to save config overrides:', error);
-    throw error;
-  }
-}
-
-export function getConfigValue(key: string): number | string | boolean {
-  if (!registryMap.has(key)) {
-    throw new Error(`Unknown config key: ${key}`);
-  }
-  return config[key as keyof ConfigValues];
-}
-
-export async function setConfigValue(key: string, value: number | string | boolean): Promise<void> {
-  const entry = registryMap.get(key);
-  if (!entry) {
-    throw new Error(`Unknown config key: ${key}`);
-  }
-
-  if (typeof value !== entry.type) {
-    throw new Error(`Invalid type for ${key}: expected ${entry.type}, got ${typeof value}`);
-  }
-
-  if (entry.type === 'number' && typeof value === 'number') {
-    if (entry.min !== undefined && value < entry.min) {
-      throw new Error(`Value for ${key} must be at least ${entry.min}`);
-    }
-    if (entry.max !== undefined && value > entry.max) {
-      throw new Error(`Value for ${key} must be at most ${entry.max}`);
-    }
-  }
-
-  configOverrides[key] = value;
-  updateConfig();
-  await saveConfigOverrides();
-}
-
-export async function resetConfigValue(key: string): Promise<void> {
-  if (!registryMap.has(key)) {
-    throw new Error(`Unknown config key: ${key}`);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-  delete configOverrides[key];
-  updateConfig();
-  await saveConfigOverrides();
-}
-
-export async function resetAllConfigValues(): Promise<void> {
-  configOverrides = {};
-  updateConfig();
-  await saveConfigOverrides();
-}
-
-export function isConfigModified(key: string): boolean {
-  return key in configOverrides;
-}
-
-export function getAllConfigEntries(): (ConfigEntry & { currentValue: number | string | boolean; isModified: boolean })[] {
-  return CONFIG_REGISTRY.map(entry => ({
-    ...entry,
-    currentValue: getConfigValue(entry.key),
-    isModified: isConfigModified(entry.key),
-  }));
-}
-
-export function searchConfigEntries(query: string): (ConfigEntry & { currentValue: number | string | boolean; isModified: boolean })[] {
-  const lowerQuery = query.toLowerCase();
-  return getAllConfigEntries().filter(entry =>
-    entry.key.toLowerCase().includes(lowerQuery) ||
-    entry.description.toLowerCase().includes(lowerQuery)
-  );
-}
-
-export function getModifiedCount(): number {
-  return Object.keys(configOverrides).length;
-}
-
-export async function ensureConfigLoaded(): Promise<void> {
-  if (!overridesLoaded) {
-    await loadConfigOverrides();
-  }
-}
+CONFIG_REGISTRY.forEach(entry => {
+  Object.defineProperty(config, entry.key, {
+    get(): number | string | boolean {
+      return getConfigValue(entry.key);
+    },
+    enumerable: true,
+    configurable: false,
+  });
+});

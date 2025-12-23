@@ -1,7 +1,7 @@
 import type { PlatformAdapter, ApiSettings, Theme } from '../platform';
 import { getSettingsFromDb, saveSettingToDb } from './common';
 
-const THEME_STORAGE_KEY = 'bookmark-rag-theme';
+const THEME_KEY = 'bookmark-rag-theme';
 
 const CORS_PROXIES = [
   {
@@ -25,7 +25,7 @@ export const webAdapter: PlatformAdapter = {
 
   getTheme(): Promise<Theme> {
     try {
-      const theme = localStorage.getItem(THEME_STORAGE_KEY);
+      const theme = localStorage.getItem(THEME_KEY);
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       return Promise.resolve((theme as Theme) || 'auto');
     } catch {
@@ -34,7 +34,7 @@ export const webAdapter: PlatformAdapter = {
   },
 
   setTheme(theme: Theme): Promise<void> {
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
+    localStorage.setItem(THEME_KEY, theme);
     return Promise.resolve();
   },
 

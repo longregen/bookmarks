@@ -18,7 +18,6 @@ src/
 ├── search/         # Semantic search implementation
 ├── shared/         # Shared theme utilities
 ├── stumble/        # Random bookmark discovery
-├── ui/             # Shared UI components and utilities
 └── web/            # Web standalone initialization
 ```
 
@@ -42,7 +41,7 @@ Key modules: `api.ts` integrates LLM capabilities for semantic enrichment. `even
 
 ## Jobs (`src/jobs/`)
 
-The job system is a background processing framework tracking long-running operations with hierarchical parent-child relationships. Three job types exist: FILE_IMPORT, BULK_URL_IMPORT, and URL_FETCH. Jobs progress through five statuses: PENDING, IN_PROGRESS, COMPLETED, FAILED, and CANCELLED.
+The job system is a background processing framework tracking long-running operations with hierarchical parent-child relationships. Six job types exist: MANUAL_ADD, MARKDOWN_GENERATION, QA_GENERATION, FILE_IMPORT, BULK_URL_IMPORT, and URL_FETCH. Jobs progress through five statuses: PENDING, IN_PROGRESS, COMPLETED, FAILED, and CANCELLED.
 
 The background queue processor continuously polls for pending jobs and processes them sequentially. Failed jobs can be retried with exponential backoff, and interrupted jobs resume by resetting their status to PENDING. Completed jobs are automatically cleaned up after 30 days.
 
@@ -59,11 +58,6 @@ The options page is structured as seven modular feature areas: **Theme** (five a
 **Advanced-Config** exposes internal settings similar to Firefox's about:config, allowing developers to modify behavior without code changes.
 
 ## UI Components
-
-### Shared UI (`src/ui/`)
-Reusable UI components and utilities used across Library, Options, and Stumble interfaces. Core modules include **dom.ts** (CSP-compliant DOM helpers like `createElement`, `getElement`, `setSanitizedHTML`), **bookmark-detail.ts** (`BookmarkDetailManager` class for detail panel display with export/delete/retry actions), **tag-editor.ts** (interactive tag editing with autocomplete dropdown), **tag-filter.ts** (checkbox-based tag filtering), **health-indicator.ts** (system health widget with polling), **form-helper.ts** (async form submission with button state management), and **export-download.ts** (JSON export file downloads).
-
-These utilities enforce content security policies by avoiding `innerHTML` and provide consistent UI patterns across the application.
 
 ### Popup (`src/popup/`)
 The lightweight extension entry point providing bookmark capture functionality. It extracts the active tab's URL, title, and HTML content, validates against restricted pages, and offers navigation to Library, Search, and Stumble interfaces with an integrated quick-search feature.

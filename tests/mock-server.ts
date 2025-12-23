@@ -97,6 +97,83 @@ export async function startMockServer(): Promise<MockServer> {
           return;
         }
 
+        // WebDAV PROPFIND endpoint for testing WebDAV sync
+        if (req.method === 'PROPFIND' && url.startsWith('/webdav')) {
+          const authHeader = req.headers.authorization;
+
+          // Check for valid authorization (Basic auth with testuser:testpass)
+          const validAuth = 'Basic ' + Buffer.from('testuser:testpass').toString('base64');
+
+          if (!authHeader) {
+            res.statusCode = 401;
+            res.setHeader('WWW-Authenticate', 'Basic realm="WebDAV"');
+            res.end();
+            return;
+          }
+
+          if (authHeader !== validAuth) {
+            res.statusCode = 401;
+            res.end();
+            return;
+          }
+
+          // Return successful WebDAV response
+          res.setHeader('Content-Type', 'application/xml');
+          res.statusCode = 207; // Multi-Status
+          res.end(`<?xml version="1.0" encoding="utf-8"?>
+<D:multistatus xmlns:D="DAV:">
+  <D:response>
+    <D:href>/webdav/</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:resourcetype><D:collection/></D:resourcetype>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+</D:multistatus>`);
+          return;
+        }
+
+        // WebDAV PUT endpoint for file uploads (sync)
+        if (req.method === 'PUT' && url.startsWith('/webdav')) {
+          const authHeader = req.headers.authorization;
+          const validAuth = 'Basic ' + Buffer.from('testuser:testpass').toString('base64');
+
+          if (!authHeader || authHeader !== validAuth) {
+            res.statusCode = 401;
+            res.end();
+            return;
+          }
+
+          res.statusCode = 201; // Created
+          res.end();
+          return;
+        }
+
+        // WebDAV GET endpoint for file downloads (sync)
+        if (req.method === 'GET' && url.startsWith('/webdav')) {
+          const authHeader = req.headers.authorization;
+          const validAuth = 'Basic ' + Buffer.from('testuser:testpass').toString('base64');
+
+          if (!authHeader || authHeader !== validAuth) {
+            res.statusCode = 401;
+            res.end();
+            return;
+          }
+
+          // Return empty bookmark data
+          res.setHeader('Content-Type', 'application/json');
+          res.statusCode = 200;
+          res.end(JSON.stringify({
+            version: '1.0.0',
+            exportedAt: new Date().toISOString(),
+            bookmarkCount: 0,
+            bookmarks: []
+          }));
+          return;
+        }
+
         // API endpoints
         res.setHeader('Content-Type', 'application/json');
 

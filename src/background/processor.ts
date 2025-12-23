@@ -4,7 +4,6 @@ import { generateQAPairs, generateEmbeddings } from '../lib/api';
 import { browserFetch } from '../lib/browser-fetch';
 import { extractTitleFromHtml } from '../lib/bulk-import';
 import { config } from '../lib/config-registry';
-import { withQuotaHandling } from '../lib/quota-monitor';
 
 export async function fetchBookmarkHtml(bookmark: Bookmark): Promise<Bookmark> {
   if (bookmark.html && bookmark.html.length > 0) {
@@ -35,16 +34,13 @@ async function generateMarkdownIfNeeded(bookmark: Bookmark): Promise<string> {
   console.log(`[Processor] Extracting markdown for: ${bookmark.title}`);
   const extracted = await extractMarkdownAsync(bookmark.html, bookmark.url);
 
-  await withQuotaHandling(
-    () => db.markdown.add({
-      id: crypto.randomUUID(),
-      bookmarkId: bookmark.id,
-      content: extracted.content,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }),
-    'markdown.add'
-  );
+  await db.markdown.add({
+    id: crypto.randomUUID(),
+    bookmarkId: bookmark.id,
+    content: extracted.content,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
 
   console.log(`[Processor] Saved markdown (${extracted.content.length} chars)`);
   return extracted.content;
@@ -88,10 +84,7 @@ async function generateQAIfNeeded(bookmark: Bookmark, markdownContent: string): 
     createdAt: new Date(),
     updatedAt: new Date(),
   }));
-  await withQuotaHandling(
-    () => db.questionsAnswers.bulkAdd(qaRecords),
-    'questionsAnswers.bulkAdd'
-  );
+  await db.questionsAnswers.bulkAdd(qaRecords);
 
   console.log(`[Processor] Completed Q&A generation for: ${bookmark.title}`);
 }
@@ -108,4 +101,8 @@ export async function processBookmarkContent(bookmark: Bookmark): Promise<void> 
 
   // Generate Q&A with embeddings if needed
   await generateQAIfNeeded(bookmarkWithHtml, markdownContent);
+}
+
+export async function processBookmark(bookmark: Bookmark): Promise<void> {
+  await processBookmarkContent(bookmark);
 }

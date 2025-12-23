@@ -12,7 +12,6 @@ import { loadTagFilters } from '../ui/tag-filter';
 import { config } from '../lib/config-registry';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
 import { getErrorMessage } from '../lib/errors';
-import { withQuotaHandling } from '../lib/quota-monitor';
 
 const selectedTags = new Set<string>();
 
@@ -62,15 +61,12 @@ async function saveSearchHistory(query: string, resultCount: number): Promise<vo
     const id = crypto.randomUUID();
     const createdAt = new Date();
 
-    await withQuotaHandling(
-      () => db.searchHistory.add({
-        id,
-        query,
-        resultCount,
-        createdAt,
-      }),
-      'searchHistory.add'
-    );
+    await db.searchHistory.add({
+      id,
+      query,
+      resultCount,
+      createdAt,
+    });
 
     const allHistory = await db.searchHistory.orderBy('createdAt').toArray();
     if (allHistory.length > config.SEARCH_HISTORY_LIMIT) {
@@ -200,64 +196,7 @@ function showCenteredMode(): void {
   resultHeader.classList.add('hidden');
 }
 
-function filterQAsByEmbeddingDimension(
-  allQAs: QuestionAnswer[],
-  queryEmbedding: number[]
-): { item: QuestionAnswer; embedding: number[]; type: string }[] {
-  return allQAs.flatMap(qa => [
-    { item: qa, embedding: qa.embeddingQuestion, type: 'question' },
-    { item: qa, embedding: qa.embeddingBoth, type: 'both' }
-  ]).filter(({ embedding }) => Array.isArray(embedding) && embedding.length === queryEmbedding.length);
-}
-
-function aggregateResultsByBookmark(
-  topResults: { item: QuestionAnswer; score: number }[]
-): { bookmarkId: string; qaResults: { qa: QuestionAnswer; score: number }[]; maxScore: number }[] {
-  const bookmarkMap = new Map<string, { qa: QuestionAnswer; score: number }[]>();
-
-  for (const result of topResults) {
-    const bookmarkId = result.item.bookmarkId;
-    const existing = bookmarkMap.get(bookmarkId);
-    if (existing) {
-      existing.push({ qa: result.item, score: result.score });
-    } else {
-      bookmarkMap.set(bookmarkId, [{ qa: result.item, score: result.score }]);
-    }
-  }
-
-  const resultsWithMax = Array.from(bookmarkMap.entries()).map(([id, results]) => ({
-    bookmarkId: id,
-    qaResults: results,
-    maxScore: Math.max(...results.map(r => r.score))
-  }));
-
-  resultsWithMax.sort((a, b) => b.maxScore - a.maxScore);
-  return resultsWithMax;
-}
-
-function filterBySelectedTags(
-  results: { bookmarkId: string; qaResults: { qa: QuestionAnswer; score: number }[]; maxScore: number }[],
-  tagFilter: Set<string>,
-  bookmarksById: Map<string, { id: string; title: string; url: string; createdAt: Date }>,
-  tagsByBookmarkId: Map<string, BookmarkTag[]>
-): { bookmark: { id: string; title: string; url: string; createdAt: Date }; qaResults: { qa: QuestionAnswer; score: number }[]; maxScore: number }[] {
-  const filteredResults = [];
-
-  for (const result of results) {
-    const bookmark = bookmarksById.get(result.bookmarkId);
-    if (!bookmark) continue;
-
-    if (tagFilter.size > 0) {
-      const tags = tagsByBookmarkId.get(result.bookmarkId) ?? [];
-      if (!tags.some(t => tagFilter.has(t.tagName))) continue;
-    }
-
-    filteredResults.push({ bookmark, qaResults: result.qaResults, maxScore: result.maxScore });
-  }
-
-  return filteredResults;
-}
-
+// eslint-disable-next-line complexity
 async function performSearch(): Promise<void> {
   const query = searchInput.value.trim();
   if (!query) {
@@ -274,7 +213,10 @@ async function performSearch(): Promise<void> {
     if (queryEmbedding.length === 0) throw new Error('Failed to generate embedding');
 
     const allQAs = await db.questionsAnswers.toArray();
-    const items = filterQAsByEmbeddingDimension(allQAs, queryEmbedding);
+    const items = allQAs.flatMap(qa => [
+      { item: qa, embedding: qa.embeddingQuestion, type: 'question' },
+      { item: qa, embedding: qa.embeddingBoth, type: 'both' }
+    ]).filter(({ embedding }) => Array.isArray(embedding) && embedding.length === queryEmbedding.length);
 
     if (!items.length) {
       resultStatus.classList.remove('loading');
@@ -285,7 +227,24 @@ async function performSearch(): Promise<void> {
     }
 
     const topResults = findTopK(queryEmbedding, items, config.SEARCH_TOP_K_RESULTS);
-    const resultsWithMax = aggregateResultsByBookmark(topResults);
+    const bookmarkMap = new Map<string, { qa: QuestionAnswer; score: number }[]>();
+
+    for (const result of topResults) {
+      const bookmarkId = result.item.bookmarkId;
+      const existing = bookmarkMap.get(bookmarkId);
+      if (existing) {
+        existing.push({ qa: result.item, score: result.score });
+      } else {
+        bookmarkMap.set(bookmarkId, [{ qa: result.item, score: result.score }]);
+      }
+    }
+
+    const resultsWithMax = Array.from(bookmarkMap.entries()).map(([id, results]) => ({
+      bookmarkId: id,
+      qaResults: results,
+      maxScore: Math.max(...results.map(r => r.score))
+    }));
+    resultsWithMax.sort((a, b) => b.maxScore - a.maxScore);
 
     const bookmarkIds = resultsWithMax.map(r => r.bookmarkId);
     const bookmarks = await db.bookmarks.bulkGet(bookmarkIds);
@@ -302,7 +261,18 @@ async function performSearch(): Promise<void> {
       }
     }
 
-    const filteredResults = filterBySelectedTags(resultsWithMax, selectedTags, bookmarksById, tagsByBookmarkId);
+    const filteredResults = [];
+    for (const result of resultsWithMax) {
+      const bookmark = bookmarksById.get(result.bookmarkId);
+      if (!bookmark) continue;
+
+      if (selectedTags.size > 0) {
+        const tags = tagsByBookmarkId.get(result.bookmarkId) ?? [];
+        if (!tags.some(t => selectedTags.has(t.tagName))) continue;
+      }
+
+      filteredResults.push({ bookmark, qaResults: result.qaResults, maxScore: result.maxScore });
+    }
 
     const count = filteredResults.length;
     resultStatus.classList.remove('loading');
@@ -405,3 +375,24 @@ window.addEventListener('beforeunload', () => {
   document.removeEventListener('keydown', keydownHandler);
   removeEventListener();
 });
+
+// Test helpers for E2E tests (type declaration in library.ts)
+(window as unknown as { __testHelpers?: Record<string, unknown> }).__testHelpers = {
+  async getSearchHistory() {
+    const history = await db.searchHistory.orderBy('createdAt').reverse().toArray();
+    return history.map(h => ({
+      id: h.id,
+      query: h.query,
+      resultCount: h.resultCount,
+      createdAt: h.createdAt
+    }));
+  },
+  async clearSearchHistory() {
+    await db.searchHistory.clear();
+  },
+  getAutocompleteState() {
+    const isVisible = autocompleteDropdown.classList.contains('active');
+    const itemCount = autocompleteDropdown.querySelectorAll('.autocomplete-item').length;
+    return { isVisible, itemCount };
+  }
+};

@@ -1,7 +1,6 @@
-import { db, type Bookmark, JobType, JobStatus } from '../db/schema';
+import { db, JobType, JobStatus } from '../db/schema';
 import { createJob, createJobItems } from './jobs';
 import { validateWebUrl } from './url-validator';
-import { withQuotaHandling } from './quota-monitor';
 
 export interface UrlValidation {
   original: string;
@@ -71,8 +70,8 @@ export async function createBulkImportJob(urls: string[]): Promise<string> {
   const existingByUrl = new Map(existingBookmarks.map(b => [b.url, b]));
 
   // Separate new URLs from existing ones
-  const newBookmarks: Bookmark[] = [];
-  const updatedBookmarks: Bookmark[] = [];
+  const newBookmarks = [];
+  const updatedBookmarks = [];
 
   for (const url of urls) {
     const existing = existingByUrl.get(url);
@@ -105,16 +104,10 @@ export async function createBulkImportJob(urls: string[]): Promise<string> {
 
   // Use bulk operations for better performance
   if (newBookmarks.length > 0) {
-    await withQuotaHandling(
-      () => db.bookmarks.bulkAdd(newBookmarks),
-      'bookmarks.bulkAdd'
-    );
+    await db.bookmarks.bulkAdd(newBookmarks);
   }
   if (updatedBookmarks.length > 0) {
-    await withQuotaHandling(
-      () => db.bookmarks.bulkPut(updatedBookmarks),
-      'bookmarks.bulkPut'
-    );
+    await db.bookmarks.bulkPut(updatedBookmarks);
   }
 
   // Create job with IN_PROGRESS status (will be updated as items complete)
