@@ -94,7 +94,7 @@ webdavForm.addEventListener('submit', async (e) => {
       await saveSetting('webdavPath', webdavPathInput.value.trim() || '/bookmarks');
       await saveSetting('webdavSyncInterval', parseInt(webdavSyncIntervalInput.value, 10) || 15);
 
-      await chrome.runtime.sendMessage({ type: 'UPDATE_SYNC_SETTINGS' });
+      await chrome.runtime.sendMessage({ type: 'sync:update_settings' });
     });
 
     showStatusMessage(statusDiv, 'WebDAV settings saved successfully!', 'success', 5000);
@@ -194,7 +194,7 @@ async function testWebDAVConnection(
 async function updateSyncStatus(): Promise<void> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const response = await chrome.runtime.sendMessage({ type: 'GET_SYNC_STATUS' });
+    const response = await chrome.runtime.sendMessage({ type: 'query:sync_status' });
 
     // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     if (response) {
@@ -264,7 +264,7 @@ syncNowBtn.addEventListener('click', async () => {
       statusText.textContent = 'Syncing...';
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const result = await chrome.runtime.sendMessage({ type: 'TRIGGER_SYNC' });
+      const result = await chrome.runtime.sendMessage({ type: 'sync:trigger' });
 
       syncStatusIndicator.classList.remove('syncing');
 

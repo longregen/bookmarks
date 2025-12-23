@@ -8,6 +8,7 @@ import {
   getJobItemByBookmark,
   updateJobStatus,
 } from '../lib/jobs';
+import { events } from '../lib/events';
 
 let isProcessing = false;
 
@@ -132,6 +133,8 @@ async function processContentQueue(): Promise<void> {
         status: JobItemStatus.IN_PROGRESS,
       });
 
+      await events.bookmark.processingStarted(bookmark.id);
+
       await processBookmarkContent(bookmark);
 
       await db.bookmarks.update(bookmark.id, {
@@ -148,6 +151,8 @@ async function processContentQueue(): Promise<void> {
       if (jobItem) {
         await updateJobStatus(jobItem.jobId);
       }
+
+      await events.bookmark.ready(bookmark.id);
 
       console.log(`[Queue] Completed: ${bookmark.title || bookmark.url}`);
     } catch (error) {
@@ -177,21 +182,25 @@ async function processContentQueue(): Promise<void> {
       } else {
         console.error(`[Queue] Max retries (${maxRetries}) exceeded for ${bookmark.id}`);
 
+        const failureMessage = `Failed after ${maxRetries + 1} attempts: ${errorMessage}`;
+
         await db.bookmarks.update(bookmark.id, {
           status: 'error',
-          errorMessage: `Failed after ${maxRetries + 1} attempts: ${errorMessage}`,
+          errorMessage: failureMessage,
           updatedAt: new Date(),
         });
 
         await updateJobItemByBookmark(bookmark.id, {
           status: JobItemStatus.ERROR,
-          errorMessage: `Failed after ${maxRetries + 1} attempts: ${errorMessage}`,
+          errorMessage: failureMessage,
         });
 
         const jobItem = await getJobItemByBookmark(bookmark.id);
         if (jobItem) {
           await updateJobStatus(jobItem.jobId);
         }
+
+        await events.bookmark.processingFailed(bookmark.id, failureMessage);
       }
     }
   }

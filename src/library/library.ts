@@ -203,22 +203,16 @@ async function initializeApp(): Promise<void> {
 void initializeApp();
 
 const removeEventListener = addBookmarkEventListener((event) => {
-  if (event.type === 'BOOKMARK_UPDATED' || event.type === 'PROCESSING_COMPLETE' || event.type === 'TAG_UPDATED') {
+  if (event.type.startsWith('bookmark:') || event.type.startsWith('tag:')) {
     void loadTags();
     void loadBookmarks();
   }
 });
 
-const fallbackInterval = setInterval(() => {
-  void loadTags();
-  void loadBookmarks();
-}, 30000);
-
 let healthCleanup: (() => void) | null = null;
 
 window.addEventListener('beforeunload', () => {
   removeEventListener();
-  clearInterval(fallbackInterval);
   healthCleanup?.();
 });
 

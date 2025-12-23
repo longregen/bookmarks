@@ -165,7 +165,7 @@ startBulkImportBtn.addEventListener('click', async () => {
     } else {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const response = await chrome.runtime.sendMessage({
-        type: 'START_BULK_IMPORT',
+        type: 'import:create_from_url_list',
         urls: validation.validUrls,
       });
 

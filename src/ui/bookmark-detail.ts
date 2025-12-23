@@ -193,7 +193,10 @@ export class BookmarkDetailManager {
       await retryBookmark(this.currentBookmarkId);
 
       // Trigger the processing queue
-      await chrome.runtime.sendMessage({ type: 'START_PROCESSING' });
+      await chrome.runtime.sendMessage({
+        type: 'bookmark:retry',
+        data: { trigger: 'user_manual' }
+      });
 
       this.closeDetail();
       this.config.onRetry?.();

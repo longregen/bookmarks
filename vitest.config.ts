@@ -2,11 +2,14 @@ import { defineConfig } from 'vitest/config';
 import path from 'path';
 
 export default defineConfig({
+  define: {
+    'import.meta.vitest': true,
+  },
   test: {
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
-    include: ['tests/**/*.test.ts'],
+    include: ['tests/**/*.test.ts', 'effects-test/**/*.test.ts'],
     exclude: ['tests/e2e.test.ts', 'tests/e2e-*.test.ts'],
     coverage: {
       provider: 'v8',
@@ -23,5 +26,6 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+    conditions: ['import', 'module', 'browser', 'default'],
   },
 });

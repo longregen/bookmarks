@@ -4,14 +4,6 @@ function isExtensionUrl(url: string | undefined): boolean {
   return url.startsWith(extensionUrlPrefix);
 }
 
-function _getExtensionPagePath(url: string): string | null {
-  const extensionUrlPrefix = chrome.runtime.getURL('');
-  if (!url.startsWith(extensionUrlPrefix)) {
-    return null;
-  }
-  return url.substring(extensionUrlPrefix.length);
-}
-
 async function findExtensionTab(): Promise<chrome.tabs.Tab | null> {
   const tabs = await chrome.tabs.query({});
 

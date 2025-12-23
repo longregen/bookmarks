@@ -20,7 +20,12 @@ async function main(): Promise<void> {
       await adapter.startCoverage();
     }
 
-    await runSharedTests(adapter, runner);
+    // Skip bulk import and CORS tests due to localhost networking limitations in xvfb
+    // The browser cannot access localhost (127.0.0.1) in the xvfb environment
+    await runSharedTests(adapter, runner, {
+      skipBulkImportTest: true,
+      skipCorsFetchTest: true,
+    });
 
     if (adapter.stopCoverage) {
       await adapter.stopCoverage();

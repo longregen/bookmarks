@@ -366,7 +366,7 @@ if (healthIndicatorContainer) {
 }
 
 const removeEventListener = addBookmarkEventListener((event) => {
-  if (event.type === 'TAG_UPDATED') {
+  if (event.type.startsWith('tag:')) {
     void loadFilters();
   }
 });

@@ -56,7 +56,7 @@ describe('Tab Property Null Handling', () => {
     vi.clearAllMocks();
   });
 
-  describe('Service Worker - GET_CURRENT_TAB_INFO handler', () => {
+  describe('Service Worker - query:current_tab_info handler', () => {
     it('should handle undefined tab.url gracefully', () => {
       mockChrome.tabs.query.mockImplementation((query, callback) => {
         callback([{ id: 1, title: 'Test Page', url: undefined }]);
