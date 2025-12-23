@@ -196,14 +196,22 @@ class SeleniumPageHandle implements PageHandle {
   }
 
   async evaluate<T>(fn: string): Promise<T> {
-    // Prepend return to match Puppeteer's behavior
-    // Don't wrap in parentheses to avoid syntax errors with trailing semicolons
-    return await this.driver.executeScript(`return ${fn}`) as T;
+    // Use executeAsyncScript instead of executeScript to properly handle promises
+    // This allows async IIFEs and other Promise-returning code to work correctly
+    // Promise.resolve wraps the result and awaits it if it's a Promise
+    return await this.driver.executeAsyncScript(`
+      const callback = arguments[arguments.length - 1];
+      Promise.resolve(${fn}).then(callback, error => { throw error; });
+    `) as T;
   }
 
   async waitForFunction(fn: string, timeout = 30000): Promise<void> {
     await this.driver.wait(async () => {
-      return await this.driver.executeScript(`return ${fn}`);
+      // Use executeAsyncScript to handle async functions
+      return await this.driver.executeAsyncScript(`
+        const callback = arguments[arguments.length - 1];
+        Promise.resolve(${fn}).then(callback, error => { throw error; });
+      `);
     }, timeout);
   }
 
