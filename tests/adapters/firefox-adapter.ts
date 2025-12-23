@@ -199,18 +199,22 @@ class SeleniumPageHandle implements PageHandle {
     // Use executeAsyncScript instead of executeScript to properly handle promises
     // This allows async IIFEs and other Promise-returning code to work correctly
     // Promise.resolve wraps the result and awaits it if it's a Promise
+    // Strip trailing semicolons to avoid syntax errors when wrapping in Promise.resolve()
+    const cleanFn = fn.trim().replace(/;+\s*$/, '');
     return await this.driver.executeAsyncScript(`
       const callback = arguments[arguments.length - 1];
-      Promise.resolve(${fn}).then(callback, error => { throw error; });
+      Promise.resolve(${cleanFn}).then(callback, error => { throw error; });
     `) as T;
   }
 
   async waitForFunction(fn: string, timeout = 30000): Promise<void> {
     await this.driver.wait(async () => {
       // Use executeAsyncScript to handle async functions
+      // Strip trailing semicolons to avoid syntax errors when wrapping in Promise.resolve()
+      const cleanFn = fn.trim().replace(/;+\s*$/, '');
       return await this.driver.executeAsyncScript(`
         const callback = arguments[arguments.length - 1];
-        Promise.resolve(${fn}).then(callback, error => { throw error; });
+        Promise.resolve(${cleanFn}).then(callback, error => { throw error; });
       `);
     }, timeout);
   }
