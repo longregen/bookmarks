@@ -69,7 +69,26 @@ export class ChromeAdapter implements TestAdapter {
     });
 
     this.extensionId = await this.getExtensionId();
+
+    // Close the welcome page tab that opens on first install
+    await this.closeWelcomeTabs();
+
     console.log(`Extension ID: ${this.extensionId}`);
+  }
+
+  private async closeWelcomeTabs(): Promise<void> {
+    try {
+      const pages = await this.browser!.pages();
+      for (const page of pages) {
+        const url = page.url();
+        if (url.includes('welcome.html')) {
+          await page.close();
+          console.log('Closed welcome page tab');
+        }
+      }
+    } catch (error) {
+      console.warn('Could not close welcome tabs:', error);
+    }
   }
 
   async teardown(): Promise<void> {
