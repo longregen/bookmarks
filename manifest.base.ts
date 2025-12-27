@@ -60,6 +60,9 @@ export const chromeManifest = {
 export const firefoxManifest = {
   ...manifestBase,
   permissions: [...basePermissions, 'tabs'],
+  optional_host_permissions: [
+    '<all_urls>',
+  ],
   background: {
     scripts: ['src/background/service-worker.ts'],
     type: 'module' as const,

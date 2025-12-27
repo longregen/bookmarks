@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome - Bookmark RAG</title>
+  <link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+  <link rel="icon" type="image/png" href="../../favicon.png">
+  <link rel="stylesheet" href="welcome.css">
+</head>
+<body>
+  <div class="welcome-container">
+    <div class="welcome-content">
+      <div class="welcome-header">
+        <h1 class="welcome-title">Welcome to Bookmark RAG</h1>
+        <p class="welcome-subtitle">Your AI-powered bookmark manager</p>
+      </div>
+
+      <div class="welcome-sections">
+        <section class="welcome-section">
+          <h2>What is Bookmark RAG?</h2>
+          <p>
+            Bookmark RAG captures web pages and uses AI to generate searchable
+            question-answer pairs, enabling semantic search across your bookmarks.
+            Never lose track of important information again.
+          </p>
+        </section>
+
+        <section class="welcome-section">
+          <h2>Key Features</h2>
+          <ul class="feature-list">
+            <li>
+              <strong>Semantic Search:</strong> Find bookmarks by meaning, not just keywords
+            </li>
+            <li>
+              <strong>AI-Powered Q&A:</strong> Automatically generates questions and answers from your saved pages
+            </li>
+            <li>
+              <strong>Local Storage:</strong> All bookmarks stored securely in your browser
+            </li>
+            <li>
+              <strong>Flexible API Support:</strong> Works with OpenAI and compatible providers
+            </li>
+          </ul>
+        </section>
+
+        <section class="welcome-section welcome-section--highlight">
+          <h2>Get Started</h2>
+          <p>
+            To use Bookmark RAG, you need to configure an API endpoint for AI processing.
+            This is required for generating embeddings and semantic search capabilities.
+          </p>
+          <div class="welcome-actions">
+            <button id="openSettingsBtn" class="btn btn-primary btn-large">
+              Configure API Settings
+            </button>
+            <button id="skipBtn" class="btn btn-secondary">
+              Skip for Now
+            </button>
+          </div>
+        </section>
+
+        <section class="welcome-section">
+          <h2>Privacy & Security</h2>
+          <p>
+            All bookmarks are stored locally in your browser using IndexedDB.
+            Only the extracted text content is sent to your configured API endpoint
+            for processing. Your API key is stored securely in your browser and
+            never shared with third parties.
+          </p>
+        </section>
+      </div>
+
+      <footer class="welcome-footer">
+        <p>
+          <a href="https://github.com/longregen/bookmarks" target="_blank" rel="noopener">
+            View on GitHub
+          </a>
+          <span class="separator">•</span>
+          <a href="https://longregen.github.io/bookmarks/" target="_blank" rel="noopener">
+            Try Web Version
+          </a>
+        </p>
+      </footer>
+    </div>
+  </div>
+
+  <script src="welcome.ts" type="module"></script>
+</body>
+</html>

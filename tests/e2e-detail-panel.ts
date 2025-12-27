@@ -476,6 +476,15 @@ export async function runDetailPanelTests(adapter: TestAdapter, runner: TestRunn
         10000
       );
 
+      // Wait for the bookmark to exist in the database before trying to set its status
+      await libraryPage.waitForFunction(
+        `(async () => {
+          const status = await window.__testHelpers.getBookmarkStatus();
+          return status.bookmarks.some(b => b.url === '${testUrl}');
+        })()`,
+        30000
+      );
+
       // Set the bookmark to error status using the test helper
       const statusSet = await libraryPage.evaluate(`
         (async () => {

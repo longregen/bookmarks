@@ -39,6 +39,7 @@ export const sharedInput: InputOption = {
   search: 'src/search/search.html',
   stumble: 'src/stumble/stumble.html',
   jobs: 'src/jobs/jobs.html',
+  welcome: 'src/welcome/welcome.html',
 };
 
 /** Extension-specific input (Chrome & Firefox) */

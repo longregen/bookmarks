@@ -57,9 +57,15 @@ function initializeExtension(): void {
   }
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   console.log('Extension installed/updated');
   initializeExtension();
+
+  if (details.reason === 'install') {
+    void chrome.tabs.create({
+      url: chrome.runtime.getURL('src/welcome/welcome.html')
+    });
+  }
 });
 
 chrome.runtime.onStartup.addListener(() => {

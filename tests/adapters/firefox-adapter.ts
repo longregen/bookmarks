@@ -64,6 +64,9 @@ export class FirefoxAdapter implements TestAdapter {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     this.extensionUUID = await this.detectExtensionUUID();
+
+    // Close the welcome page tab that opens on first install
+    await this.closeWelcomeTabs();
     console.log(`Extension UUID: ${this.extensionUUID}`);
   }
 
@@ -130,6 +133,24 @@ export class FirefoxAdapter implements TestAdapter {
     }
   }
 
+  private async closeWelcomeTabs(): Promise<void> {
+    try {
+      const handles = await this.driver!.getAllWindowHandles();
+      if (handles.length > 1) {
+        // Keep the first handle (about:debugging), close others (welcome page)
+        const mainHandle = handles[0];
+        for (let i = 1; i < handles.length; i++) {
+          await this.driver!.switchTo().window(handles[i]);
+          await this.driver!.close();
+        }
+        await this.driver!.switchTo().window(mainHandle);
+        console.log(`Closed ${handles.length - 1} welcome tab(s)`);
+      }
+    } catch (error) {
+      console.warn('Could not close welcome tabs:', error);
+    }
+  }
+
   private async detectExtensionUUID(): Promise<string> {
     await this.driver!.get('about:debugging#/runtime/this-firefox');
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -167,6 +188,11 @@ class SeleniumPageHandle implements PageHandle {
 
   async click(selector: string): Promise<void> {
     const element = await this.driver.findElement(By.css(selector));
+    // Scroll element into view to avoid "could not be scrolled into view" errors
+    await this.driver.executeScript(
+      'arguments[0].scrollIntoView({ behavior: "instant", block: "center" });',
+      element
+    );
     await element.click();
   }
 
