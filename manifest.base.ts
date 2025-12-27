@@ -60,6 +60,18 @@ export const chromeManifest = {
 export const firefoxManifest = {
   ...manifestBase,
   permissions: [...basePermissions, 'tabs'],
+  optional_host_permissions: [
+    'https://api.openai.com/*',
+    'https://api.anthropic.com/*',
+    'https://api.groq.com/*',
+    'https://api.together.xyz/*',
+    'https://api.mistral.ai/*',
+    'https://api.cohere.ai/*',
+    'https://generativelanguage.googleapis.com/*',
+    'https://api.fireworks.ai/*',
+    'https://api.deepseek.com/*',
+    'https://api.perplexity.ai/*',
+  ],
   background: {
     scripts: ['src/background/service-worker.ts'],
     type: 'module' as const,
