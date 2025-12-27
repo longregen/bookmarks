@@ -77,6 +77,9 @@ export class ChromeAdapter implements TestAdapter {
   }
 
   private async closeWelcomeTabs(): Promise<void> {
+    // Wait for welcome page to potentially open (it opens asynchronously on install)
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
     try {
       const pages = await this.browser!.pages();
       for (const page of pages) {
