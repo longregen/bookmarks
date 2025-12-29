@@ -221,6 +221,10 @@ Here are some attack vectors we considered from web content pages:
 - Content script injection: captured HTML goes through Readability + DOMPurify
 - Stored XSS via IndexedDB: unlikely, but avoid innerHTML at all cost and always try to use DOM libs, even for already stored contend, and never display captured HTML
 
+## Privacy
+
+This extension is built on [Open Garden](https://opengarden.tech) principles. We collect no data, have no telemetry, and store everything locally on your device. See our full [Privacy Policy](PRIVACY.md).
+
 ## License
 
 MIT
