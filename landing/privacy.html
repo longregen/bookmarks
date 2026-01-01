@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy - Bookmarks by Localforge</title>
+<meta name="description" content="Privacy policy for Bookmarks by Localforge browser extension. All data stays local unless you choose otherwise.">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:#000;
+  color:#fff;
+  font-family:monospace;
+  line-height:1.6;
+  min-height:100vh;
+  padding:40px 20px;
+}
+.container{max-width:900px;margin:0 auto}
+h1{
+  color:#0f0;
+  font-size:2em;
+  margin-bottom:10px;
+  letter-spacing:2px;
+}
+h2{
+  color:#0f0;
+  font-size:1.4em;
+  margin:40px 0 20px;
+  letter-spacing:1px;
+}
+h3{
+  color:#0f0;
+  font-size:1.1em;
+  margin:25px 0 10px;
+}
+.tagline{
+  color:#888;
+  font-size:14px;
+  margin-bottom:30px;
+}
+.highlight{color:#0f0}
+a{color:#0f0;text-decoration:none}
+a:hover{text-decoration:underline}
+.back-link{
+  display:inline-block;
+  margin-bottom:30px;
+  font-size:14px;
+}
+.section{
+  margin:30px 0;
+  padding:20px;
+  border:1px solid #333;
+  background:#0a0a0a;
+}
+.section p{
+  font-size:14px;
+  color:#ccc;
+  margin:12px 0;
+}
+.section ul{
+  margin:12px 0 12px 20px;
+  font-size:14px;
+  color:#ccc;
+}
+.section li{
+  margin:8px 0;
+}
+.summary{
+  margin:30px 0;
+  padding:20px;
+  border:1px solid #0f0;
+  background:#001100;
+}
+.summary p{
+  font-size:14px;
+  color:#ccc;
+  margin:8px 0;
+}
+.update{
+  color:#666;
+  font-size:12px;
+  margin-top:40px;
+}
+footer{
+  margin-top:60px;
+  padding-top:20px;
+  border-top:1px solid #333;
+  text-align:center;
+}
+footer p{
+  color:#666;
+  font-size:12px;
+  margin:5px 0;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link"><span class="highlight">&lt;</span> Back to Home</a>
+
+  <h1>Privacy Policy</h1>
+  <p class="tagline">Bookmarks by Localforge</p>
+
+  <div class="summary">
+    <p><span class="highlight">&gt;</span> <strong>The short version:</strong> All your data stays in your browser. We don't collect, store, or have access to any of your bookmarks, browsing data, or personal information. There are no analytics, no telemetry, and no tracking of any kind.</p>
+  </div>
+
+  <h2>Data Storage</h2>
+  <div class="section">
+    <h3>What is stored locally</h3>
+    <p>All extension data is stored exclusively in your browser's local IndexedDB database:</p>
+    <ul>
+      <li><strong>Bookmarks</strong> — URLs, titles, and captured page content</li>
+      <li><strong>Extracted content</strong> — Readable Markdown converted from page HTML</li>
+      <li><strong>Q&A pairs</strong> — AI-generated question-answer pairs with vector embeddings</li>
+      <li><strong>Tags</strong> — Your organizational tags for bookmarks</li>
+      <li><strong>Search history</strong> — Your search queries (stored only locally)</li>
+      <li><strong>Settings</strong> — Your API configuration and preferences</li>
+    </ul>
+    <p>This data never leaves your browser unless you explicitly configure external services (see below).</p>
+  </div>
+
+  <h2>External Services</h2>
+  <div class="section">
+    <h3>AI API (User-configured)</h3>
+    <p>To generate Q&A pairs and embeddings, the extension sends requests to an AI API endpoint that <strong>you configure</strong>. By default, this is set to OpenAI's API, but you can change it to any OpenAI-compatible endpoint.</p>
+    <p><strong>What is sent:</strong> Only the extracted Markdown content of bookmarked pages. Full HTML, URLs, and your browsing history are never sent.</p>
+    <p><strong>Privacy option:</strong> For maximum privacy, you can configure the extension to use a local AI model (via vLLM, llama.cpp, Ollama, or similar) so no data ever leaves your machine.</p>
+
+    <h3>WebDAV Sync (Optional, user-configured)</h3>
+    <p>If you enable WebDAV synchronization, the extension will sync your bookmark data to a WebDAV server <strong>you specify</strong>. This is entirely optional and disabled by default.</p>
+    <p><strong>What is sent:</strong> Your complete bookmark collection including content, metadata, and embeddings.</p>
+    <p><strong>Your control:</strong> You choose the server, you control the data. We have no access to your WebDAV server or its contents.</p>
+  </div>
+
+  <h2>What We Don't Do</h2>
+  <div class="section">
+    <ul>
+      <li><strong>No analytics</strong> — We don't use Google Analytics, Mixpanel, or any tracking service</li>
+      <li><strong>No telemetry</strong> — We don't collect usage data, crash reports, or diagnostics</li>
+      <li><strong>No tracking</strong> — No cookies, pixels, or fingerprinting</li>
+      <li><strong>No accounts</strong> — No sign-up, no user accounts, no authentication with our servers</li>
+      <li><strong>No server-side storage</strong> — We don't operate servers that store your data</li>
+      <li><strong>No selling data</strong> — We have no data to sell</li>
+    </ul>
+  </div>
+
+  <h2>Web Version</h2>
+  <div class="section">
+    <p>The standalone web version (not the browser extension) uses CORS proxy services to fetch page content when you save bookmarks. These third-party proxies may see:</p>
+    <ul>
+      <li>The URL of the page you're saving</li>
+      <li>The content of that page</li>
+    </ul>
+    <p>The browser extension does not use these proxies — it uses the browser's native fetch capability.</p>
+  </div>
+
+  <h2>Permissions</h2>
+  <div class="section">
+    <p>The browser extension requests only the permissions necessary to function:</p>
+    <ul>
+      <li><strong>Active Tab</strong> — To capture the current page when you click "Save"</li>
+      <li><strong>Storage</strong> — To store your bookmarks locally</li>
+      <li><strong>Alarms</strong> — To schedule optional WebDAV sync</li>
+    </ul>
+    <p>The extension cannot access your browsing history, other tabs, or any data you don't explicitly save.</p>
+  </div>
+
+  <h2>Your Control</h2>
+  <div class="section">
+    <p>You have complete control over your data:</p>
+    <ul>
+      <li><strong>Export</strong> — Download all your bookmarks as JSON at any time</li>
+      <li><strong>Delete</strong> — Remove individual bookmarks or clear all data</li>
+      <li><strong>API choice</strong> — Use any OpenAI-compatible API, including local models</li>
+      <li><strong>Sync choice</strong> — Enable or disable WebDAV sync to your own server</li>
+    </ul>
+  </div>
+
+  <h2>Open Source</h2>
+  <div class="section">
+    <p>This extension is open source. You can review the code yourself:</p>
+    <p><a href="https://github.com/longregen/bookmarks">github.com/longregen/bookmarks</a></p>
+    <p>The code does exactly what this policy describes — nothing more.</p>
+  </div>
+
+  <h2>Contact</h2>
+  <div class="section">
+    <p>For privacy questions or concerns, open an issue on GitHub or reach out via <a href="https://localforge.org">localforge.org</a>.</p>
+  </div>
+
+  <p class="update">Last updated: January 2026</p>
+
+  <footer>
+    <p>Built by <a href="https://localforge.org">localforge.org</a></p>
+    <p>Own your stack. Run what you can, cloud what you must.</p>
+  </footer>
+</div>
+</body>
+</html>
