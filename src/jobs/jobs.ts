@@ -1,11 +1,12 @@
 import {
   getRecentJobs,
   deleteJob,
-  getJobItems,
-  getJobStats,
+  getBatchJobStats,
+  getBatchJobItems,
   retryFailedJobItems,
   type Job,
   type JobItem,
+  type JobStats,
   JobItemStatus,
 } from '../lib/jobs';
 import { db, JobType, JobStatus, type Bookmark } from '../db/schema';
@@ -22,6 +23,12 @@ const expandedJobs = new Set<string>();
 
 // Store interval ID for cleanup
 let refreshIntervalId: number | undefined;
+
+interface PreloadedJobData {
+  stats: Map<string, JobStats>;
+  jobItems: Map<string, JobItem[]>;
+  bookmarks: Map<string, Bookmark | undefined>;
+}
 
 async function loadJobs(): Promise<void> {
   try {
@@ -49,9 +56,43 @@ async function loadJobs(): Promise<void> {
       return;
     }
 
+    // Batch load all job stats and items to avoid N+1 queries
+    const jobIds = filteredJobs.map(job => job.id);
+    const [statsMap, jobItemsMap] = await Promise.all([
+      getBatchJobStats(jobIds),
+      getBatchJobItems(jobIds)
+    ]);
+
+    // Collect all bookmark IDs from job items that need bookmarks loaded
+    const allBookmarkIds = new Set<string>();
+    for (const job of filteredJobs) {
+      if (job.type === JobType.BULK_URL_IMPORT) {
+        const items = jobItemsMap.get(job.id) ?? [];
+        for (const item of items) {
+          allBookmarkIds.add(item.bookmarkId);
+        }
+      }
+    }
+
+    // Batch load all bookmarks
+    const bookmarkIds = Array.from(allBookmarkIds);
+    const bookmarksArray = bookmarkIds.length > 0
+      ? await db.bookmarks.bulkGet(bookmarkIds)
+      : [];
+    const bookmarksMap = new Map<string, Bookmark | undefined>();
+    bookmarkIds.forEach((id, idx) => {
+      bookmarksMap.set(id, bookmarksArray[idx]);
+    });
+
+    const preloadedData: PreloadedJobData = {
+      stats: statsMap,
+      jobItems: jobItemsMap,
+      bookmarks: bookmarksMap
+    };
+
     jobsList.textContent = '';
     for (const job of filteredJobs) {
-      const jobEl = await renderJobItemElement(job);
+      const jobEl = renderJobItemElement(job, preloadedData);
       jobsList.appendChild(jobEl);
     }
   } catch (error) {
@@ -61,7 +102,7 @@ async function loadJobs(): Promise<void> {
   }
 }
 
-async function renderJobItemElement(job: Job): Promise<HTMLElement> {
+function renderJobItemElement(job: Job, data: PreloadedJobData): HTMLElement {
   const typeLabel = formatJobType(job.type);
   const statusClass = job.status.toLowerCase();
   const statusLabel = job.status.replace('_', ' ').toUpperCase();
@@ -93,21 +134,19 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
 
   jobItem.appendChild(header);
 
-  // Get job stats for bulk imports
-  const stats = await getJobStats(job.id);
+  // Get job stats from preloaded data
+  const stats = data.stats.get(job.id) ?? { total: 0, pending: 0, inProgress: 0, complete: 0, error: 0 };
+  const jobItems = data.jobItems.get(job.id) ?? [];
 
   // Show progress bar and stats for bulk imports
   if (job.type === JobType.BULK_URL_IMPORT && stats.total > 0) {
-    // Get bookmark-level stats for more granular progress
-    const jobItems = await getJobItems(job.id);
-    const bookmarkIds = jobItems.map(item => item.bookmarkId);
-    const bookmarks = await db.bookmarks.bulkGet(bookmarkIds);
-
     let downloadedCount = 0;
     let fetchingCount = 0;
     let processingCount = 0;
 
-    for (const bookmark of bookmarks) {
+    // Use preloaded bookmarks data
+    for (const item of jobItems) {
+      const bookmark = data.bookmarks.get(item.bookmarkId);
       if (bookmark?.status === 'downloaded') downloadedCount++;
       else if (bookmark?.status === 'fetching') fetchingCount++;
       else if (bookmark?.status === 'processing') processingCount++;
@@ -207,10 +246,9 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
   actionsDiv.appendChild(dismissBtn);
   jobItem.appendChild(actionsDiv);
 
-  // Show items list when expanded
+  // Show items list when expanded (use preloaded data)
   if (expandedJobs.has(job.id) && stats.total > 0) {
     const itemsContainer = createElement('div', { className: 'job-items-container' });
-    const items = await getJobItems(job.id);
 
     // Sort: errors first, then in-progress, then pending, then complete
     const statusOrder: Record<JobItemStatus, number> = {
@@ -219,17 +257,10 @@ async function renderJobItemElement(job: Job): Promise<HTMLElement> {
       [JobItemStatus.PENDING]: 2,
       [JobItemStatus.COMPLETE]: 3,
     };
-    items.sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+    const sortedItems = [...jobItems].sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
 
-    // Batch load all bookmarks to avoid N+1 query
-    const bookmarkIds = items.map(item => item.bookmarkId);
-    const bookmarks = await db.bookmarks.bulkGet(bookmarkIds);
-    const bookmarkMap = new Map(
-      bookmarks.map((bookmark, idx) => [bookmarkIds[idx], bookmark])
-    );
-
-    for (const item of items) {
-      const bookmark = bookmarkMap.get(item.bookmarkId);
+    for (const item of sortedItems) {
+      const bookmark = data.bookmarks.get(item.bookmarkId);
       const itemEl = renderJobItemRow(item, bookmark);
       itemsContainer.appendChild(itemEl);
     }

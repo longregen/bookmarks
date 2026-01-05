@@ -172,6 +172,18 @@ export class BookmarkDatabase extends Dexie {
       bookmarkTags: '[bookmarkId+tagName], bookmarkId, tagName, addedAt',
       searchHistory: 'id, query, createdAt',
     });
+
+    // Add compound index [status+updatedAt] for efficient stuck bookmark queries
+    this.version(6).stores({
+      bookmarks: 'id, url, status, createdAt, updatedAt, [status+updatedAt]',
+      markdown: 'id, bookmarkId, createdAt, updatedAt',
+      questionsAnswers: 'id, bookmarkId, createdAt, updatedAt',
+      settings: 'key, createdAt, updatedAt',
+      jobs: 'id, parentJobId, status, type, createdAt',
+      jobItems: 'id, jobId, bookmarkId, status, createdAt, updatedAt, [jobId+status]',
+      bookmarkTags: '[bookmarkId+tagName], bookmarkId, tagName, addedAt',
+      searchHistory: 'id, query, createdAt',
+    });
   }
 }
 
