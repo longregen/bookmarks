@@ -2,7 +2,7 @@ import { db, getBookmarkContent } from '../db/schema';
 import { createElement, setSanitizedHTML } from './dom';
 import { formatDateByAge } from '../lib/date-format';
 import { exportSingleBookmark } from '../lib/export';
-import { downloadExport } from './export-download';
+import { downloadExport, downloadMarkdown, downloadHtml, type ExportFormat } from './export-download';
 import { createTagEditor } from './tag-editor';
 import { parseMarkdown } from '../lib/markdown';
 import { retryBookmark, deleteBookmarkWithData } from '../lib/jobs';
@@ -156,14 +156,80 @@ export class BookmarkDetailManager {
     this.config.onDelete?.();
   }
 
-  async exportCurrentBookmark(): Promise<void> {
+  exportCurrentBookmark(): void {
+    if (this.currentBookmarkId === null) return;
+
+    // Show format selection dropdown
+    this.showExportFormatMenu();
+  }
+
+  private showExportFormatMenu(): void {
+    // Remove any existing menu
+    const existingMenu = document.querySelector('.export-format-menu');
+    if (existingMenu) {
+      existingMenu.remove();
+      return;
+    }
+
+    const menu = createElement('div', { className: 'export-format-menu' });
+    const formats: { format: ExportFormat; label: string }[] = [
+      { format: 'json', label: 'JSON (Full backup)' },
+      { format: 'markdown', label: 'Markdown' },
+      { format: 'html', label: 'Raw HTML' },
+    ];
+
+    for (const { format, label } of formats) {
+      const item = createElement('button', {
+        className: 'export-format-item',
+        textContent: label,
+      });
+      item.addEventListener('click', () => {
+        menu.remove();
+        void this.performExport(format);
+      });
+      menu.appendChild(item);
+    }
+
+    // Position menu below the export button
+    const btnRect = this.config.exportBtn.getBoundingClientRect();
+    const panelRect = this.config.detailPanel.getBoundingClientRect();
+    menu.style.position = 'absolute';
+    menu.style.top = `${btnRect.bottom - panelRect.top + 4}px`;
+    menu.style.right = `${panelRect.right - btnRect.right}px`;
+
+    this.config.detailPanel.appendChild(menu);
+
+    // Close menu when clicking outside
+    const closeHandler = (e: MouseEvent): void => {
+      if (!menu.contains(e.target as Node) && e.target !== this.config.exportBtn) {
+        menu.remove();
+        document.removeEventListener('click', closeHandler);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', closeHandler), 0);
+  }
+
+  private async performExport(format: ExportFormat): Promise<void> {
     if (this.currentBookmarkId === null) return;
 
     this.config.exportBtn.disabled = true;
     this.config.exportBtn.textContent = 'Exporting...';
     try {
-      const data = await exportSingleBookmark(this.currentBookmarkId);
-      downloadExport(data);
+      const bookmark = await db.bookmarks.get(this.currentBookmarkId);
+      if (!bookmark) return;
+
+      if (format === 'json') {
+        const data = await exportSingleBookmark(this.currentBookmarkId);
+        downloadExport(data);
+      } else if (format === 'markdown') {
+        const { markdown } = await getBookmarkContent(this.currentBookmarkId);
+        const content = markdown?.content ?? '_No content available_';
+        const fullContent = `# ${bookmark.title}\n\n**URL:** ${bookmark.url}\n**Saved:** ${bookmark.createdAt.toISOString()}\n\n${content}`;
+        downloadMarkdown(fullContent, bookmark.title);
+      } else {
+        // format === 'html'
+        downloadHtml(bookmark.html || '<p>No content available</p>', bookmark.title);
+      }
     } finally {
       this.config.exportBtn.disabled = false;
       this.config.exportBtn.textContent = 'Export';
