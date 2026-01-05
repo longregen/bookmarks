@@ -686,6 +686,37 @@ body {
   background: var(--bg-secondary);
 }
 
+.export-format-menu {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  overflow: hidden;
+  min-width: 160px;
+}
+
+.export-format-item {
+  display: block;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.export-format-item:hover {
+  background: var(--bg-hover);
+}
+
+.export-format-item:not(:last-child) {
+  border-bottom: 1px solid var(--border-primary);
+}
+
 .sidebar-nav {
   display: flex;
   flex-direction: column;
