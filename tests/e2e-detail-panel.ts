@@ -129,7 +129,7 @@ export async function runDetailPanelTests(adapter: TestAdapter, runner: TestRunn
     await page.close();
   });
 
-  await runner.runTest('Export button exports single bookmark', async () => {
+  await runner.runTest('Export button shows format selection menu', async () => {
     const page = await adapter.newPage();
     await page.goto(adapter.getPageUrl('library'));
     await page.waitForSelector('#bookmarkList');
@@ -158,7 +158,7 @@ export async function runDetailPanelTests(adapter: TestAdapter, runner: TestRunn
       throw new Error('Export button is disabled');
     }
 
-    // Click export button using JavaScript to ensure it's scrolled into view and clicked
+    // Click export button to show format menu
     await page.evaluate(`
       (() => {
         const btn = document.getElementById('exportBtn');
@@ -169,17 +169,52 @@ export async function runDetailPanelTests(adapter: TestAdapter, runner: TestRunn
       })()
     `);
 
+    // Wait for format selection menu to appear
+    await page.waitForFunction(
+      `document.querySelector('.export-format-menu') !== null`,
+      5000
+    );
+
+    // Verify all format options are present
+    const formatOptions = await page.evaluate(`
+      (() => {
+        const items = document.querySelectorAll('.export-format-item');
+        return Array.from(items).map(item => item.textContent);
+      })()
+    `) as string[];
+
+    if (!formatOptions.includes('JSON (Full backup)') ||
+        !formatOptions.includes('Markdown') ||
+        !formatOptions.includes('Raw HTML')) {
+      throw new Error(`Missing format options. Found: ${formatOptions.join(', ')}`);
+    }
+
+    console.log('  ✓ Export format menu displayed with all options');
+
+    // Click JSON format option to trigger export
+    await page.evaluate(`
+      (() => {
+        const items = document.querySelectorAll('.export-format-item');
+        for (const item of items) {
+          if (item.textContent === 'JSON (Full backup)') {
+            item.click();
+            return;
+          }
+        }
+      })()
+    `);
+
     // Wait for export to complete (button text returns to "Export" and is enabled)
-    // Note: Export may complete very quickly, so we don't check for "Exporting..." state
     await page.waitForFunction(
       `(() => {
         const btn = document.getElementById('exportBtn');
-        return btn && btn.textContent === 'Export' && !btn.disabled;
+        const menu = document.querySelector('.export-format-menu');
+        return btn && btn.textContent === 'Export' && !btn.disabled && !menu;
       })()`,
       15000
     );
 
-    console.log('  ✓ Export button triggered successfully');
+    console.log('  ✓ Export triggered successfully via format menu');
 
     await page.close();
   });
