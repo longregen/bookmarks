@@ -59,9 +59,12 @@ sortSelect.addEventListener('change', () => {
 });
 
 async function loadTags(): Promise<void> {
-  const bookmarks = await db.bookmarks.toArray();
+  // Use count() instead of loading all bookmarks - more efficient for large libraries
+  const [totalBookmarks, allTagRecords] = await Promise.all([
+    db.bookmarks.count(),
+    db.bookmarkTags.toArray()
+  ]);
 
-  const allTagRecords = await db.bookmarkTags.toArray();
   const allTags: Record<string, number> = {};
   const taggedBookmarkIds = new Set<string>();
 
@@ -70,14 +73,14 @@ async function loadTags(): Promise<void> {
     taggedBookmarkIds.add(tagRecord.bookmarkId);
   }
 
-  const untaggedCount = bookmarks.length - taggedBookmarkIds.size;
+  const untaggedCount = totalBookmarks - taggedBookmarkIds.size;
 
   const fragment = document.createDocumentFragment();
 
   const allTag = createElement('div', { className: `tag-item ${selectedTag === 'All' ? 'active' : ''}` });
   allTag.onclick = () => selectTag('All');
   allTag.appendChild(createElement('span', { className: 'tag-name', textContent: 'All' }));
-  allTag.appendChild(createElement('span', { className: 'tag-count', textContent: bookmarks.length.toString() }));
+  allTag.appendChild(createElement('span', { className: 'tag-count', textContent: totalBookmarks.toString() }));
   fragment.appendChild(allTag);
 
   if (untaggedCount > 0) {
@@ -114,9 +117,14 @@ async function loadBookmarks(): Promise<void> {
   if (selectedTag === 'All') {
     bookmarks = await db.bookmarks.toArray();
   } else if (selectedTag === 'Untagged') {
-    const allBookmarks = await db.bookmarks.toArray();
-    const taggedIds = new Set((await db.bookmarkTags.toArray()).map(t => t.bookmarkId));
-    bookmarks = allBookmarks.filter(b => !taggedIds.has(b.id));
+    // Get only the bookmark IDs and tagged IDs, then load only untagged bookmarks
+    const [allBookmarkIds, taggedIds] = await Promise.all([
+      db.bookmarks.toCollection().primaryKeys(),
+      db.bookmarkTags.orderBy('bookmarkId').uniqueKeys()
+    ]);
+    const taggedIdSet = new Set(taggedIds as string[]);
+    const untaggedIds = allBookmarkIds.filter(id => !taggedIdSet.has(id as string));
+    bookmarks = await db.bookmarks.where('id').anyOf(untaggedIds as string[]).toArray();
   } else {
     const tagRecords = await db.bookmarkTags.where('tagName').equals(selectedTag).toArray();
     const taggedIds = tagRecords.map(t => t.bookmarkId);

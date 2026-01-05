@@ -97,7 +97,8 @@ export async function cleanupOldData(): Promise<CleanupResult> {
 
     if (allHistory.length > limit) {
       const toDelete = allHistory.slice(0, allHistory.length - limit);
-      await Promise.all(toDelete.map(h => db.searchHistory.delete(h.id)));
+      const idsToDelete = toDelete.map(h => h.id);
+      await db.searchHistory.bulkDelete(idsToDelete);
       result.searchHistoryDeleted = toDelete.length;
       console.log(`[QuotaMonitor] Deleted ${toDelete.length} old search history entries`);
     }
@@ -123,14 +124,11 @@ export async function cleanupOldData(): Promise<CleanupResult> {
     if (oldJobs.length > 0) {
       const jobIds = oldJobs.map(j => j.id);
 
-      // Delete associated job items first
-      for (const jobId of jobIds) {
-        const deletedItems = await db.jobItems.where('jobId').equals(jobId).delete();
-        result.jobItemsDeleted += deletedItems;
-      }
+      // Delete associated job items first (batch operation using anyOf)
+      result.jobItemsDeleted = await db.jobItems.where('jobId').anyOf(jobIds).delete();
 
-      // Delete the jobs
-      await Promise.all(jobIds.map(id => db.jobs.delete(id)));
+      // Delete the jobs (batch operation)
+      await db.jobs.bulkDelete(jobIds);
       result.jobsDeleted = oldJobs.length;
 
       console.log(

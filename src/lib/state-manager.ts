@@ -15,10 +15,10 @@ export async function resetStuckBookmarks(): Promise<number> {
   const timeout = config.QUEUE_PROCESSING_TIMEOUT_MS;
   const cutoffTime = new Date(Date.now() - timeout);
 
+  // Use compound index [status+updatedAt] for efficient range query
   const stuckBookmarks = await db.bookmarks
-    .where('status')
-    .equals('processing')
-    .filter(bookmark => bookmark.updatedAt < cutoffTime)
+    .where('[status+updatedAt]')
+    .between(['processing', new Date(0)], ['processing', cutoffTime])
     .toArray();
 
   if (stuckBookmarks.length === 0) {

@@ -92,6 +92,31 @@ export async function getJobItems(jobId: string): Promise<JobItem[]> {
   return db.jobItems.where('jobId').equals(jobId).toArray();
 }
 
+/**
+ * Batch load job items for multiple jobs at once to avoid N+1 queries.
+ * Returns a Map keyed by jobId.
+ */
+export async function getBatchJobItems(jobIds: string[]): Promise<Map<string, JobItem[]>> {
+  if (jobIds.length === 0) {
+    return new Map();
+  }
+
+  const allItems = await db.jobItems.where('jobId').anyOf(jobIds).toArray();
+
+  const itemsByJob = new Map<string, JobItem[]>();
+  for (const jobId of jobIds) {
+    itemsByJob.set(jobId, []);
+  }
+  for (const item of allItems) {
+    const items = itemsByJob.get(item.jobId);
+    if (items) {
+      items.push(item);
+    }
+  }
+
+  return itemsByJob;
+}
+
 export async function getJobItemByBookmark(bookmarkId: string): Promise<JobItem | undefined> {
   return db.jobItems.where('bookmarkId').equals(bookmarkId).first();
 }
@@ -116,14 +141,53 @@ export async function updateJobItemByBookmark(
   }
 }
 
-export async function getJobStats(jobId: string): Promise<{
+export interface JobStats {
   total: number;
   pending: number;
   inProgress: number;
   complete: number;
   error: number;
-}> {
+}
+
+export async function getJobStats(jobId: string): Promise<JobStats> {
   const items = await getJobItems(jobId);
+  return computeStatsFromItems(items);
+}
+
+/**
+ * Batch load stats for multiple jobs at once to avoid N+1 queries.
+ * Returns a Map keyed by jobId.
+ */
+export async function getBatchJobStats(jobIds: string[]): Promise<Map<string, JobStats>> {
+  if (jobIds.length === 0) {
+    return new Map();
+  }
+
+  // Load all job items for all jobs in a single query
+  const allItems = await db.jobItems.where('jobId').anyOf(jobIds).toArray();
+
+  // Group items by jobId
+  const itemsByJob = new Map<string, JobItem[]>();
+  for (const jobId of jobIds) {
+    itemsByJob.set(jobId, []);
+  }
+  for (const item of allItems) {
+    const items = itemsByJob.get(item.jobId);
+    if (items) {
+      items.push(item);
+    }
+  }
+
+  // Compute stats for each job
+  const statsMap = new Map<string, JobStats>();
+  for (const [jobId, items] of itemsByJob) {
+    statsMap.set(jobId, computeStatsFromItems(items));
+  }
+
+  return statsMap;
+}
+
+function computeStatsFromItems(items: JobItem[]): JobStats {
   const stats = items.reduce<Record<string, number>>((acc, item) => {
     acc[item.status]++;
     return acc;
