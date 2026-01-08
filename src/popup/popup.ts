@@ -91,7 +91,6 @@ function showSuccessWithCTA(bookmarkId: string): void {
   const ctaBtn = createElement('button', { className: 'btn-cta', textContent: 'View in Library' });
   ctaBtn.onclick = () => {
     void openExtensionPage(`src/library/library.html?bookmarkId=${bookmarkId}`);
-    window.close();
   };
 
   statusDiv.appendChild(message);
@@ -116,22 +115,18 @@ function showSaveSuccess(): void {
 
 navLibrary.addEventListener('click', () => {
   void openExtensionPage('src/library/library.html');
-  window.close();
 });
 
 navSearch.addEventListener('click', () => {
   void openExtensionPage('src/search/search.html');
-  window.close();
 });
 
 navStumble.addEventListener('click', () => {
   void openExtensionPage('src/stumble/stumble.html');
-  window.close();
 });
 
 navSettings.addEventListener('click', () => {
   void openExtensionPage('src/options/options.html');
-  window.close();
 });
 
 function performSearch(): void {
@@ -141,7 +136,6 @@ function performSearch(): void {
   } else {
     void openExtensionPage('src/search/search.html');
   }
-  window.close();
 }
 
 searchBtn.addEventListener('click', performSearch);
@@ -183,7 +177,6 @@ function showConfigurationWarning(): void {
   const settingsLink = createElement('button', { className: 'btn-cta', textContent: 'Configure in Settings' });
   settingsLink.onclick = () => {
     void openExtensionPage('src/options/options.html');
-    window.close();
   };
 
   statusDiv.appendChild(message);

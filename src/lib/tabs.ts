@@ -36,4 +36,6 @@ export async function openExtensionPage(pagePath: string): Promise<void> {
   } else {
     await chrome.tabs.create({ url: targetUrl });
   }
+
+  window.close();
 }

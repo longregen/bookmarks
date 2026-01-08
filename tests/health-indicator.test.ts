@@ -2,19 +2,28 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { db, JobType, JobStatus } from '../src/db/schema';
 import { getHealthStatus } from '../src/lib/health-status';
 import { createHealthIndicator } from '../src/ui/health-indicator';
-import * as tabs from '../src/lib/tabs';
-
-vi.mock('../src/lib/tabs', () => ({
-  openExtensionPage: vi.fn()
-}));
 
 describe('Health Indicator', () => {
+  let locationHrefSpy: ReturnType<typeof vi.fn>;
+
   beforeEach(async () => {
     await db.jobs.clear();
-    vi.clearAllMocks();
+    vi.stubGlobal('chrome', {
+      runtime: { getURL: (path: string) => `chrome-extension://test/${path}` }
+    });
+    locationHrefSpy = vi.fn();
+    Object.defineProperty(window, 'location', {
+      value: { href: '' },
+      writable: true
+    });
+    Object.defineProperty(window.location, 'href', {
+      set: locationHrefSpy,
+      get: () => 'http://localhost:3000/'
+    });
   });
 
   afterEach(async () => {
+    vi.unstubAllGlobals();
     await db.jobs.clear();
   });
 
@@ -239,7 +248,7 @@ describe('Health Indicator', () => {
       const indicator = container.querySelector('.health-indicator') as HTMLElement;
       indicator.click();
 
-      expect(tabs.openExtensionPage).toHaveBeenCalledWith('src/jobs/jobs.html?status=failed');
+      expect(locationHrefSpy).toHaveBeenCalledWith('chrome-extension://test/src/jobs/jobs.html?status=failed');
     });
 
     it('should navigate to jobs page when clicked in healthy state', async () => {
@@ -260,7 +269,7 @@ describe('Health Indicator', () => {
       const indicator = container.querySelector('.health-indicator') as HTMLElement;
       indicator.click();
 
-      expect(tabs.openExtensionPage).toHaveBeenCalledWith('src/jobs/jobs.html');
+      expect(locationHrefSpy).toHaveBeenCalledWith('chrome-extension://test/src/jobs/jobs.html');
     });
 
     it('should navigate to jobs page when clicked in processing state', async () => {
@@ -281,7 +290,7 @@ describe('Health Indicator', () => {
       const indicator = container.querySelector('.health-indicator') as HTMLElement;
       indicator.click();
 
-      expect(tabs.openExtensionPage).toHaveBeenCalledWith('src/jobs/jobs.html');
+      expect(locationHrefSpy).toHaveBeenCalledWith('chrome-extension://test/src/jobs/jobs.html');
     });
 
     it('should update tooltip with error message', async () => {
