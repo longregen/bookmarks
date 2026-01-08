@@ -6,8 +6,6 @@ import { getSettings } from '../lib/settings';
 import type { SaveBookmarkResponse } from '../lib/messages';
 import { getErrorMessage } from '../lib/errors';
 
-const close = () => window.close();
-
 const saveBtn = getElement<HTMLButtonElement>('saveBtn');
 const statusDiv = getElement<HTMLDivElement>('status');
 const navLibrary = getElement<HTMLButtonElement>('navLibrary');
@@ -92,7 +90,7 @@ function showSuccessWithCTA(bookmarkId: string): void {
   const message = createElement('span', { className: 'success-message', textContent: 'Bookmark saved!' });
   const ctaBtn = createElement('button', { className: 'btn-cta', textContent: 'View in Library' });
   ctaBtn.onclick = () => {
-    void openExtensionPage(`src/library/library.html?bookmarkId=${bookmarkId}`).then(close);
+    void openExtensionPage(`src/library/library.html?bookmarkId=${bookmarkId}`, true);
   };
 
   statusDiv.appendChild(message);
@@ -116,27 +114,28 @@ function showSaveSuccess(): void {
 }
 
 navLibrary.addEventListener('click', () => {
-  void openExtensionPage('src/library/library.html').then(close);
+  void openExtensionPage('src/library/library.html', true);
 });
 
 navSearch.addEventListener('click', () => {
-  void openExtensionPage('src/search/search.html').then(close);
+  void openExtensionPage('src/search/search.html', true);
 });
 
 navStumble.addEventListener('click', () => {
-  void openExtensionPage('src/stumble/stumble.html').then(close);
+  void openExtensionPage('src/stumble/stumble.html', true);
 });
 
 navSettings.addEventListener('click', () => {
-  void openExtensionPage('src/options/options.html').then(close);
+  void openExtensionPage('src/options/options.html', true);
 });
 
 function performSearch(): void {
   const query = searchInput.value.trim();
-  const url = query
-    ? `src/search/search.html?q=${encodeURIComponent(query)}`
-    : 'src/search/search.html';
-  void openExtensionPage(url).then(close);
+  if (query) {
+    void openExtensionPage(`src/search/search.html?q=${encodeURIComponent(query)}`, true);
+  } else {
+    void openExtensionPage('src/search/search.html', true);
+  }
 }
 
 searchBtn.addEventListener('click', performSearch);
@@ -177,7 +176,7 @@ function showConfigurationWarning(): void {
   const message = createElement('span', { textContent: 'API endpoint not configured.' });
   const settingsLink = createElement('button', { className: 'btn-cta', textContent: 'Configure in Settings' });
   settingsLink.onclick = () => {
-    void openExtensionPage('src/options/options.html').then(close);
+    void openExtensionPage('src/options/options.html', true);
   };
 
   statusDiv.appendChild(message);
