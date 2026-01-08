@@ -16,7 +16,7 @@ async function findExtensionTab(): Promise<chrome.tabs.Tab | null> {
   return null;
 }
 
-export async function openExtensionPage(pagePath: string, closePopup = false): Promise<void> {
+export async function openExtensionPage(pagePath: string): Promise<void> {
   const targetUrl = chrome.runtime.getURL(pagePath);
   const existingTab = await findExtensionTab();
 
@@ -37,5 +37,5 @@ export async function openExtensionPage(pagePath: string, closePopup = false): P
     await chrome.tabs.create({ url: targetUrl });
   }
 
-  if (closePopup) window.close();
+  window.close();
 }

@@ -90,7 +90,7 @@ function showSuccessWithCTA(bookmarkId: string): void {
   const message = createElement('span', { className: 'success-message', textContent: 'Bookmark saved!' });
   const ctaBtn = createElement('button', { className: 'btn-cta', textContent: 'View in Library' });
   ctaBtn.onclick = () => {
-    void openExtensionPage(`src/library/library.html?bookmarkId=${bookmarkId}`, true);
+    void openExtensionPage(`src/library/library.html?bookmarkId=${bookmarkId}`);
   };
 
   statusDiv.appendChild(message);
@@ -114,27 +114,27 @@ function showSaveSuccess(): void {
 }
 
 navLibrary.addEventListener('click', () => {
-  void openExtensionPage('src/library/library.html', true);
+  void openExtensionPage('src/library/library.html');
 });
 
 navSearch.addEventListener('click', () => {
-  void openExtensionPage('src/search/search.html', true);
+  void openExtensionPage('src/search/search.html');
 });
 
 navStumble.addEventListener('click', () => {
-  void openExtensionPage('src/stumble/stumble.html', true);
+  void openExtensionPage('src/stumble/stumble.html');
 });
 
 navSettings.addEventListener('click', () => {
-  void openExtensionPage('src/options/options.html', true);
+  void openExtensionPage('src/options/options.html');
 });
 
 function performSearch(): void {
   const query = searchInput.value.trim();
   if (query) {
-    void openExtensionPage(`src/search/search.html?q=${encodeURIComponent(query)}`, true);
+    void openExtensionPage(`src/search/search.html?q=${encodeURIComponent(query)}`);
   } else {
-    void openExtensionPage('src/search/search.html', true);
+    void openExtensionPage('src/search/search.html');
   }
 }
 
@@ -176,7 +176,7 @@ function showConfigurationWarning(): void {
   const message = createElement('span', { textContent: 'API endpoint not configured.' });
   const settingsLink = createElement('button', { className: 'btn-cta', textContent: 'Configure in Settings' });
   settingsLink.onclick = () => {
-    void openExtensionPage('src/options/options.html', true);
+    void openExtensionPage('src/options/options.html');
   };
 
   statusDiv.appendChild(message);
