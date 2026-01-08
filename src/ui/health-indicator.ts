@@ -1,5 +1,4 @@
 import { config } from '../lib/config-registry';
-import { openExtensionPage } from '../lib/tabs';
 import { getHealthStatus, type HealthState } from '../lib/health-status';
 
 function getHealthIndicatorStyle(state: HealthState): { symbol: string; color: string; className: string } {
@@ -41,11 +40,10 @@ export function createHealthIndicator(container: HTMLElement): () => void {
   let currentHealthState: HealthState = 'idle';
 
   indicator.addEventListener('click', () => {
-    if (currentHealthState === 'error') {
-      void openExtensionPage('src/jobs/jobs.html?status=failed');
-    } else {
-      void openExtensionPage('src/jobs/jobs.html');
-    }
+    const path = currentHealthState === 'error'
+      ? 'src/jobs/jobs.html?status=failed'
+      : 'src/jobs/jobs.html';
+    location.href = chrome.runtime.getURL(path);
   });
 
   async function updateIndicator(): Promise<void> {
