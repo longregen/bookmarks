@@ -62,13 +62,11 @@ Download for **[Firefox](https://addons.mozilla.org/en-US/firefox/addon/bookmark
 
 ### Web Version
 
-A standalone web version is available for testing without installing the extension:
+A standalone web version is available for testing; but it's of limited use because of the lack of generalized cross-origin requests.
 
 ```bash
 npm run dev:web
 ```
-
-Or try the hosted demo at [bookmarks.localforge.org](https://bookmarks.localforge.org).
 
 ## Configuration
 
