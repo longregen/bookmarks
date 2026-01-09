@@ -2,7 +2,7 @@
 
 A browser extension for Chrome and Firefox that captures web pages as bookmarks, extracts readable content, and enables semantic search using RAG (Retrieval-Augmented Generation). All data is stored locally in your browser.
 
-**[Try the web demo](https://bookmarks.localforge.org/webapp)**
+Download for **[Firefox](https://addons.mozilla.org/en-US/firefox/addon/bookmarks-localforge/)** or **[Chrome](https://chromewebstore.google.com/detail/bookmark-rag/ookiidhdklbobjnobjocokffmmlphjpi)**
 
 ## Screenshots
 
