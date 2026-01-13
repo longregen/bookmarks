@@ -1,6 +1,6 @@
 import type { BookmarkExport } from '../lib/export';
 
-export type ExportFormat = 'json' | 'markdown' | 'html';
+export type ExportFormat = 'json' | 'markdown' | 'html' | 'copy-markdown';
 
 export function downloadExport(data: BookmarkExport, filename?: string): void {
   const json = JSON.stringify(data, null, 2);
@@ -32,6 +32,10 @@ export function downloadMarkdown(content: string, title: string): void {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+export async function copyMarkdown(content: string): Promise<void> {
+  await navigator.clipboard.writeText(content);
 }
 
 export function downloadHtml(content: string, title: string): void {

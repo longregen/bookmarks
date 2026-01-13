@@ -2,7 +2,7 @@ import { db, getBookmarkContent } from '../db/schema';
 import { createElement, setSanitizedHTML } from './dom';
 import { formatDateByAge } from '../lib/date-format';
 import { exportSingleBookmark } from '../lib/export';
-import { downloadExport, downloadMarkdown, downloadHtml, type ExportFormat } from './export-download';
+import { downloadExport, downloadMarkdown, downloadHtml, copyMarkdown, type ExportFormat } from './export-download';
 import { createTagEditor } from './tag-editor';
 import { parseMarkdown } from '../lib/markdown';
 import { retryBookmark, deleteBookmarkWithData } from '../lib/jobs';
@@ -175,6 +175,7 @@ export class BookmarkDetailManager {
     const formats: { format: ExportFormat; label: string }[] = [
       { format: 'json', label: 'JSON (Full backup)' },
       { format: 'markdown', label: 'Markdown' },
+      { format: 'copy-markdown', label: 'Copy Markdown' },
       { format: 'html', label: 'Raw HTML' },
     ];
 
@@ -221,11 +222,15 @@ export class BookmarkDetailManager {
       if (format === 'json') {
         const data = await exportSingleBookmark(this.currentBookmarkId);
         downloadExport(data);
-      } else if (format === 'markdown') {
+      } else if (format === 'markdown' || format === 'copy-markdown') {
         const { markdown } = await getBookmarkContent(this.currentBookmarkId);
         const content = markdown?.content ?? '_No content available_';
         const fullContent = `# ${bookmark.title}\n\n**URL:** ${bookmark.url}\n**Saved:** ${bookmark.createdAt.toISOString()}\n\n${content}`;
-        downloadMarkdown(fullContent, bookmark.title);
+        if (format === 'copy-markdown') {
+          await copyMarkdown(fullContent);
+        } else {
+          downloadMarkdown(fullContent, bookmark.title);
+        }
       } else {
         // format === 'html'
         downloadHtml(bookmark.html || '<p>No content available</p>', bookmark.title);
