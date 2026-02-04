@@ -1,0 +1,62 @@
+name = "bookmark-rag-server"
+main = "src/worker.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Map JSR imports (used by Deno) to npm packages (used by wrangler)
+[alias]
+"@hono/hono" = "hono"
+"@hono/hono/cors" = "hono/cors"
+"@hono/hono/logger" = "hono/logger"
+"@simplewebauthn/server" = "@simplewebauthn/server"
+"@simplewebauthn/types" = "@simplewebauthn/types"
+
+# Environment variables (set via wrangler secret or dashboard)
+# OPENAI_API_KEY - required for embeddings and Q&A generation
+# RP_ID - WebAuthn relying party ID
+# RP_NAME - WebAuthn relying party name
+# ORIGIN - allowed origin(s) for WebAuthn (comma-separated for multiple)
+# CORS_ORIGIN - CORS allowed origin
+
+[vars]
+OPENAI_API_BASE = "https://api.openai.com/v1"
+CHAT_MODEL = "gpt-4o-mini"
+EMBEDDING_MODEL = "text-embedding-3-small"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "bookmark-rag"
+database_id = "local"  # Use "local" for wrangler dev --local, replace with real ID for production
+
+# Queue binding for bookmark processing
+[[queues.producers]]
+binding = "BOOKMARK_QUEUE"
+queue = "bookmark-processing"
+
+[[queues.consumers]]
+queue = "bookmark-processing"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "bookmark-processing-dlq"
+
+# Development environment
+[env.dev]
+name = "bookmark-rag-server-dev"
+
+[env.dev.vars]
+RP_ID = "localhost"
+RP_NAME = "Bookmark RAG (Dev)"
+ORIGIN = "http://localhost:3000"
+CORS_ORIGIN = "*"
+
+# Production environment
+[env.production]
+name = "bookmark-rag-server"
+
+# Set these via wrangler secret:
+# wrangler secret put OPENAI_API_KEY --env production
+# wrangler secret put RP_ID --env production
+# wrangler secret put RP_NAME --env production
+# wrangler secret put ORIGIN --env production

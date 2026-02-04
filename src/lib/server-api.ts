@@ -81,16 +81,38 @@ export interface CreateBookmarkRequest {
   html: string;
 }
 
+export interface UpdateBookmarkRequest {
+  title?: string;
+  html?: string;
+  tags?: string[];
+}
+
+// Core bookmark data returned from server
 export interface ServerBookmark {
   id: string;
   url: string;
   title: string;
-  html: string;
-  markdown?: string;
+  html: string | null;
+  markdown: string | null;
+  status: string;
+  errorMessage: string | null;
   createdAt: string;
   updatedAt: string;
-  deletedAt?: string;
+  deletedAt: string | null;
   tags: string[];
+}
+
+// Q&A pair returned from server
+export interface ServerQAPair {
+  id: string;
+  question: string;
+  answer: string;
+  createdAt: string;
+}
+
+// Full bookmark with Q&A pairs (returned by detail endpoint)
+export interface ServerBookmarkFull extends ServerBookmark {
+  qaPairs: ServerQAPair[];
 }
 
 export interface BookmarkListResponse {
@@ -150,7 +172,8 @@ export interface SyncChangesResponse {
   hasMore: boolean;
 }
 
-export interface FullSyncRequest {
+// Request for uploading local bookmarks to server
+export interface FullSyncUploadRequest {
   bookmarks: {
     id: string;
     url: string;
@@ -163,11 +186,18 @@ export interface FullSyncRequest {
   }[];
 }
 
-export interface FullSyncResponse {
+// Response from uploading local bookmarks
+export interface FullSyncUploadResponse {
   created: number;
   updated: number;
   conflicts: { localId: string; serverId: string; resolution: 'local' | 'server' }[];
   syncToken: string;
+}
+
+// Response from downloading all bookmarks from server
+export interface FullSyncDownloadResponse {
+  bookmarks: ServerBookmark[];
+  syncTimestamp: string;
 }
 
 // Error class
@@ -397,6 +427,12 @@ export class ServerApiClient {
     await this.request<undefined>('DELETE', `/api/v1/bookmarks/${encodeURIComponent(id)}`);
   }
 
+  async updateBookmark(id: string, data: UpdateBookmarkRequest): Promise<ServerBookmark> {
+    return this.request<ServerBookmark>('PUT', `/api/v1/bookmarks/${encodeURIComponent(id)}`, {
+      body: data,
+    });
+  }
+
   // Tag endpoints
 
   async addTag(bookmarkId: string, tag: string): Promise<ServerBookmark> {
@@ -440,9 +476,19 @@ export class ServerApiClient {
     });
   }
 
-  async fullSync(request: FullSyncRequest): Promise<FullSyncResponse> {
-    return this.request<FullSyncResponse>('POST', '/api/v1/sync/full', {
+  /**
+   * Upload local bookmarks to server (initial sync from existing device)
+   */
+  async uploadFullSync(request: FullSyncUploadRequest): Promise<FullSyncUploadResponse> {
+    return this.request<FullSyncUploadResponse>('POST', '/api/v1/sync/full', {
       body: request,
     });
+  }
+
+  /**
+   * Download all bookmarks from server (new device sync)
+   */
+  async downloadFullSync(): Promise<FullSyncDownloadResponse> {
+    return this.request<FullSyncDownloadResponse>('GET', '/api/v1/sync/full');
   }
 }

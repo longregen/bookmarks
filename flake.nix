@@ -1,5 +1,5 @@
 {
-  description = "Bookmark RAG Extension development environment and E2E tests";
+  description = "Bookmark RAG Extension development environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -11,93 +11,67 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
-        # Common packages for development and testing
         commonPackages = with pkgs; [
           nodejs_22
           deno
           chromium
-        ];
-
-        # Test-specific packages
-        testPackages = with pkgs; [
+          firefox
+          wrangler
           xvfb-run
+          zip
         ];
 
-        # Script to run E2E server sync tests (runs in current directory)
-        runE2EServerSync = pkgs.writeShellScriptBin "run-e2e-server-sync" ''
+        # E2E walkthrough test (matrix of browser × server)
+        runE2EWalkthrough = pkgs.writeShellScriptBin "run-e2e-walkthrough" ''
           set -e
 
           export BROWSER_PATH="${pkgs.chromium}/bin/chromium"
+          export FIREFOX_PATH="${pkgs.firefox}/bin/firefox"
           export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
           export NODE_ENV=development
           export OPENAI_API_KEY="''${OPENAI_API_KEY:-test-key-for-mock}"
-          export PATH="${pkgs.nodejs_22}/bin:${pkgs.deno}/bin:$PATH"
+          export WRANGLER_SEND_METRICS=false
+          export PATH="${pkgs.nodejs_22}/bin:${pkgs.deno}/bin:${pkgs.wrangler}/bin:${pkgs.zip}/bin:$PATH"
 
-          # Ensure we're in a bookmarks project directory
-          if [ ! -f "package.json" ] || [ ! -d "server" ]; then
-            echo "Error: Must be run from the bookmarks project root directory"
-            echo "Current directory: $(pwd)"
-            exit 1
-          fi
-
-          # Ensure dependencies are installed
-          if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
-            echo "Installing npm dependencies..."
-            npm install
-          fi
-
-          # Build extension if not built or if source is newer
-          if [ ! -d "dist-chrome" ] || [ "$(find src -newer dist-chrome -type f 2>/dev/null | head -1)" ]; then
-            echo "Building Chrome extension..."
-            npx vite build --config vite.config.chrome.ts
-          fi
-
-          echo "Running E2E server sync tests..."
-          ${pkgs.xvfb-run}/bin/xvfb-run \
-            --auto-servernum \
-            --server-args="-screen 0 1920x1080x24" \
-            npx tsx tests/e2e-server-sync.test.ts
-        '';
-
-        # Script to run all E2E tests (runs in current directory)
-        runE2EAll = pkgs.writeShellScriptBin "run-e2e-all" ''
-          set -e
-
-          export BROWSER_PATH="${pkgs.chromium}/bin/chromium"
-          export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
-          export NODE_ENV=development
-          export OPENAI_API_KEY="''${OPENAI_API_KEY:-test-key-for-mock}"
-          export PATH="${pkgs.nodejs_22}/bin:${pkgs.deno}/bin:$PATH"
-
-          # Ensure we're in a bookmarks project directory
           if [ ! -f "package.json" ]; then
             echo "Error: Must be run from the bookmarks project root directory"
             exit 1
           fi
 
-          # Ensure dependencies are installed
-          if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
+          if [ ! -d "node_modules" ]; then
             echo "Installing npm dependencies..."
-            npm install
+            NODE_ENV=development npm install
           fi
 
-          # Build extension
-          echo "Building Chrome extension..."
-          npx vite build --config vite.config.chrome.ts
+          # Build extensions if needed
+          if [ ! -d "dist-chrome" ]; then
+            echo "Building Chrome extension..."
+            npx vite build --config vite.config.chrome.ts
+          fi
 
-          echo "Running all E2E tests..."
+          if [ ! -d "dist-firefox" ]; then
+            echo "Building Firefox extension..."
+            npx vite build --config vite.config.firefox.ts
+          fi
+
+          # Install server dependencies for wrangler
+          if [ -d "server" ] && [ ! -d "server/node_modules" ]; then
+            echo "Installing server npm dependencies..."
+            (cd server && npm install)
+          fi
+
+          echo "Running E2E walkthrough test matrix..."
           ${pkgs.xvfb-run}/bin/xvfb-run \
             --auto-servernum \
             --server-args="-screen 0 1920x1080x24" \
-            npx tsx tests/e2e.test.ts
+            npx tsx tests/e2e-walkthrough.test.ts
         '';
 
-        # Script to start the server (runs in current directory)
+        # Deno server
         runServer = pkgs.writeShellScriptBin "run-server" ''
           set -e
           export PATH="${pkgs.deno}/bin:$PATH"
 
-          # Ensure we're in the right directory
           if [ -d "server" ]; then
             cd server
           fi
@@ -111,12 +85,11 @@
           deno task start
         '';
 
-        # Script to start server in dev mode
+        # Deno server (dev mode with watch)
         runServerDev = pkgs.writeShellScriptBin "run-server-dev" ''
           set -e
           export PATH="${pkgs.deno}/bin:$PATH"
 
-          # Ensure we're in the right directory
           if [ -d "server" ]; then
             cd server
           fi
@@ -130,51 +103,144 @@
           deno task dev
         '';
 
+        # Cloudflare Worker (local dev)
+        runWorkerDev = pkgs.writeShellScriptBin "run-worker-dev" ''
+          set -e
+          export PATH="${pkgs.nodejs_22}/bin:${pkgs.wrangler}/bin:$PATH"
+          export WRANGLER_SEND_METRICS=false
+
+          if [ -d "server" ]; then
+            cd server
+          fi
+
+          if [ ! -f "wrangler.toml" ]; then
+            echo "Error: Must be run from bookmarks project root or server directory"
+            exit 1
+          fi
+
+          if [ ! -d "node_modules" ]; then
+            echo "Installing server npm dependencies..."
+            npm install
+          fi
+
+          if [ ! -d ".wrangler/state" ]; then
+            echo "Running D1 migrations..."
+            wrangler d1 execute bookmark-rag --local --file=./migrations/0001_initial.sql
+          fi
+
+          echo "Starting Cloudflare Worker at http://localhost:8787"
+          OPENAI_API_KEY="''${OPENAI_API_KEY:-}" \
+          wrangler dev --local --persist-to=.wrangler/state
+        '';
+
+        # Common E2E test setup
+        e2eTestSetup = ''
+          set -e
+
+          export BROWSER_PATH="${pkgs.chromium}/bin/chromium"
+          export FIREFOX_PATH="${pkgs.firefox}/bin/firefox"
+          export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
+          export NODE_ENV=development
+          export OPENAI_API_KEY="''${OPENAI_API_KEY:-test-key-for-mock}"
+          export WRANGLER_SEND_METRICS=false
+          export PATH="${pkgs.nodejs_22}/bin:${pkgs.deno}/bin:${pkgs.wrangler}/bin:${pkgs.zip}/bin:$PATH"
+
+          if [ ! -f "package.json" ]; then
+            echo "Error: Must be run from the bookmarks project root directory"
+            exit 1
+          fi
+
+          if [ ! -d "node_modules" ]; then
+            echo "Installing npm dependencies..."
+            NODE_ENV=development npm install
+          fi
+
+          if [ ! -d "dist-chrome" ]; then
+            echo "Building Chrome extension..."
+            npx vite build --config vite.config.chrome.ts
+          fi
+
+          if [ -d "server" ] && [ ! -d "server/node_modules" ]; then
+            echo "Installing server npm dependencies..."
+            (cd server && npm install)
+          fi
+        '';
+
+        # E2E tests with Deno server only
+        runE2EServerDeno = pkgs.writeShellScriptBin "run-e2e-server-deno" ''
+          ${e2eTestSetup}
+
+          echo "Running E2E tests with Deno server..."
+          export SKIP_FIREFOX=1
+          export SKIP_WRANGLER=1
+          ${pkgs.xvfb-run}/bin/xvfb-run \
+            --auto-servernum \
+            --server-args="-screen 0 1920x1080x24" \
+            npx tsx tests/e2e-walkthrough.test.ts
+        '';
+
+        # E2E tests with Wrangler/Worker server only
+        runE2EServerWorker = pkgs.writeShellScriptBin "run-e2e-server-worker" ''
+          ${e2eTestSetup}
+
+          echo "Running E2E tests with Cloudflare Worker..."
+          export SKIP_FIREFOX=1
+          export SKIP_DENO=1
+          ${pkgs.xvfb-run}/bin/xvfb-run \
+            --auto-servernum \
+            --server-args="-screen 0 1920x1080x24" \
+            npx tsx tests/e2e-walkthrough.test.ts
+        '';
+
+        # Run all E2E tests (full matrix)
+        runE2EAll = pkgs.writeShellScriptBin "run-e2e-all" ''
+          ${e2eTestSetup}
+
+          if [ ! -d "dist-firefox" ]; then
+            echo "Building Firefox extension..."
+            npx vite build --config vite.config.firefox.ts
+          fi
+
+          echo "Running full E2E test matrix (Chrome+Firefox × Deno+Wrangler)..."
+          ${pkgs.xvfb-run}/bin/xvfb-run \
+            --auto-servernum \
+            --server-args="-screen 0 1920x1080x24" \
+            npx tsx tests/e2e-walkthrough.test.ts
+        '';
+
       in
       {
-        # Development shell
         devShells.default = pkgs.mkShell {
-          buildInputs = commonPackages ++ testPackages;
+          buildInputs = commonPackages;
 
           shellHook = ''
             export BROWSER_PATH="${pkgs.chromium}/bin/chromium"
+            export FIREFOX_PATH="${pkgs.firefox}/bin/firefox"
             export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
-            export CHROMIUM_FLAGS="--no-sandbox --disable-gpu --ozone-platform=x11"
+            export WRANGLER_SEND_METRICS=false
 
             echo "========================================"
             echo "Bookmark RAG Extension Dev Environment"
             echo "========================================"
             echo ""
-            echo "Available tools:"
-            echo "  node     - $(node --version)"
-            echo "  deno     - $(deno --version | head -1)"
-            echo "  chromium - ${pkgs.chromium}/bin/chromium"
+            echo "Tools: node $(node --version), deno $(deno --version | head -1)"
             echo ""
-            echo "BROWSER_PATH is set to: $BROWSER_PATH"
+            echo "Servers:"
+            echo "  nix run .#server-dev  - Start Deno server (dev mode)"
+            echo "  nix run .#worker-dev  - Start Cloudflare Worker locally"
             echo ""
-            echo "Nix apps (run from project root):"
-            echo "  nix run .#test-e2e-server-sync  - Run server sync E2E tests"
-            echo "  nix run .#test-e2e-all          - Run all E2E tests"
-            echo "  nix run .#server                - Start the server"
-            echo "  nix run .#server-dev            - Start server in dev mode"
-            echo ""
-            echo "Or run tests manually:"
-            echo "  xvfb-run --auto-servernum --server-args=\"-screen 0 1920x1080x24\" \\"
-            echo "    npx tsx tests/e2e-server-sync.test.ts"
+            echo "E2E Tests:"
+            echo "  nix run .#test-e2e-server-deno   - Chrome + Deno"
+            echo "  nix run .#test-e2e-server-worker - Chrome + Worker"
+            echo "  nix run .#test-e2e-all           - Full matrix"
             echo ""
           '';
         };
 
-        # Runnable apps
         apps = {
-          test-e2e-server-sync = {
+          test = {
             type = "app";
-            program = "${runE2EServerSync}/bin/run-e2e-server-sync";
-          };
-
-          test-e2e-all = {
-            type = "app";
-            program = "${runE2EAll}/bin/run-e2e-all";
+            program = "${runE2EWalkthrough}/bin/run-e2e-walkthrough";
           };
 
           server = {
@@ -186,14 +252,26 @@
             type = "app";
             program = "${runServerDev}/bin/run-server-dev";
           };
-        };
 
-        # Packages
-        packages = {
-          run-e2e-server-sync = runE2EServerSync;
-          run-e2e-all = runE2EAll;
-          run-server = runServer;
-          run-server-dev = runServerDev;
+          worker-dev = {
+            type = "app";
+            program = "${runWorkerDev}/bin/run-worker-dev";
+          };
+
+          test-e2e-server-deno = {
+            type = "app";
+            program = "${runE2EServerDeno}/bin/run-e2e-server-deno";
+          };
+
+          test-e2e-server-worker = {
+            type = "app";
+            program = "${runE2EServerWorker}/bin/run-e2e-server-worker";
+          };
+
+          test-e2e-all = {
+            type = "app";
+            program = "${runE2EAll}/bin/run-e2e-all";
+          };
         };
       }
     );

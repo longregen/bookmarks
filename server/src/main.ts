@@ -1,47 +1,52 @@
-import { Hono } from '@hono/hono';
-import { cors } from '@hono/hono/cors';
-import { logger } from '@hono/hono/logger';
-import { initializeDatabase, closeDatabase } from './db/database.ts';
-import auth from './routes/auth.ts';
-import bookmarks from './routes/bookmarks.ts';
-import search from './routes/search.ts';
-import sync from './routes/sync.ts';
+import { Database } from '@db/sqlite';
+import { createApp } from './app.ts';
+import { DenoDatabase } from './adapters/database/deno.ts';
+import { DenoQueue } from './adapters/queue/deno.ts';
+import { DenoEnv } from './adapters/env/deno.ts';
+import { createQueueConsumer } from './services/processor.app.ts';
 
-const app = new Hono();
+// Initialize environment adapter
+const env = new DenoEnv();
 
-// Middleware
-app.use('*', logger());
-app.use('*', cors({
-  origin: Deno.env.get('CORS_ORIGIN') || '*',
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
-  exposeHeaders: ['Content-Length'],
-  maxAge: 3600,
-}));
+// Initialize database
+const dbPath = env.get('DATABASE_PATH') || './data/bookmarks.db';
+const dir = dbPath.substring(0, dbPath.lastIndexOf('/'));
+if (dir) {
+  try {
+    Deno.mkdirSync(dir, { recursive: true });
+  } catch {
+    // Ignore - directory already exists
+  }
+}
 
-// Health check
-app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
+const sqliteDb = new Database(dbPath);
+sqliteDb.exec('PRAGMA foreign_keys = ON');
+sqliteDb.exec('PRAGMA journal_mode = WAL');
 
-// API routes
-app.route('/api/v1/auth', auth);
-app.route('/api/v1/bookmarks', bookmarks);
-app.route('/api/v1/search', search);
-app.route('/api/v1/sync', sync);
+// Initialize schema
+async function initializeSchema(): Promise<void> {
+  const schemaPath = new URL('./db/schema.sql', import.meta.url);
+  const schema = await Deno.readTextFile(schemaPath);
+  sqliteDb.exec(schema);
+  console.log('Database initialized');
+}
 
-// 404 handler
-app.notFound((c) => c.json({ error: 'Not found' }, 404));
+// Create adapters
+const db = new DenoDatabase(sqliteDb);
+const queue = new DenoQueue();
 
-// Error handler
-app.onError((err, c) => {
-  console.error('Unhandled error:', err);
-  return c.json({ error: 'Internal server error' }, 500);
-});
+// Set up queue consumer for processing bookmarks
+const consumer = createQueueConsumer({ db, queue, env });
+queue.setConsumer(consumer);
 
-// Initialize database and start server
-const port = parseInt(Deno.env.get('PORT') || '3000', 10);
+// Create app with dependencies
+const app = createApp({ db, queue, env });
+
+// Initialize and start server
+const port = parseInt(env.get('PORT') || '3000', 10);
 
 console.log('Initializing database...');
-await initializeDatabase();
+await initializeSchema();
 
 console.log(`Starting server on port ${port}...`);
 
@@ -50,17 +55,17 @@ Deno.serve({
   onListen: ({ hostname, port }) => {
     console.log(`Server running at http://${hostname}:${port}`);
     console.log('\nConfiguration:');
-    console.log(`  RP_ID: ${Deno.env.get('RP_ID') || 'localhost'}`);
-    console.log(`  RP_NAME: ${Deno.env.get('RP_NAME') || 'Bookmark RAG'}`);
-    console.log(`  ORIGIN: ${Deno.env.get('ORIGIN') || 'http://localhost:3000'}`);
-    console.log(`  DATABASE_PATH: ${Deno.env.get('DATABASE_PATH') || './data/bookmarks.db'}`);
-    console.log(`  OPENAI_API_KEY: ${Deno.env.get('OPENAI_API_KEY') ? '(set)' : '(not set)'}`);
+    console.log(`  RP_ID: ${env.get('RP_ID') || 'localhost'}`);
+    console.log(`  RP_NAME: ${env.get('RP_NAME') || 'Bookmark RAG'}`);
+    console.log(`  ORIGIN: ${env.get('ORIGIN') || 'http://localhost:3000'}`);
+    console.log(`  DATABASE_PATH: ${dbPath}`);
+    console.log(`  OPENAI_API_KEY: ${env.get('OPENAI_API_KEY') ? '(set)' : '(not set)'}`);
   },
 }, app.fetch);
 
 // Graceful shutdown
 Deno.addSignalListener('SIGINT', () => {
   console.log('\nShutting down...');
-  closeDatabase();
+  sqliteDb.close();
   Deno.exit(0);
 });

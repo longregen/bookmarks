@@ -92,6 +92,22 @@ jobs:
       - name: Run TypeScript type check
         run: npm run typecheck
 
+  typecheck-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@5fae568d37c3b73449009674875529a984555dd1 # v2.0.2
+        with:
+          deno-version: v2.x
+
+      - name: Type check Deno server
+        run: deno check server/src/main.ts
+
+      - name: Type check Worker entry point
+        run: deno check server/src/worker.ts
+
   lint-firefox:
     needs: build
     runs-on: ubuntu-latest
@@ -263,3 +279,112 @@ jobs:
         run: |
           CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
           BROWSER_PATH="$CHROME_PATH" npx tsx tests/e2e-web.test.ts
+
+  test-e2e-server-sync-deno:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@5fae568d37c3b73449009674875529a984555dd1 # v2.0.2
+        with:
+          deno-version: v2.x
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download Chrome build artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: extension-chrome
+          path: dist-chrome/
+
+      - name: Cache Chromium
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/puppeteer
+          key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium via Puppeteer
+        run: npx @puppeteer/browsers install chromium@latest
+
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Run Server Sync E2E tests (Deno)
+        env:
+          SERVER_TYPE: deno
+          OPENAI_API_KEY: test-key-for-mock
+        run: |
+          CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
+          BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npx tsx tests/e2e-server-sync.test.ts
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: screenshots-server-sync-deno
+          path: screenshots-server-sync-deno/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  test-e2e-server-sync-worker:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install server dependencies
+        run: cd server && npm ci
+
+      - name: Download Chrome build artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: extension-chrome
+          path: dist-chrome/
+
+      - name: Cache Chromium
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/puppeteer
+          key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium via Puppeteer
+        run: npx @puppeteer/browsers install chromium@latest
+
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Run Server Sync E2E tests (Worker)
+        env:
+          SERVER_TYPE: worker
+          OPENAI_API_KEY: test-key-for-mock
+          WRANGLER_SEND_METRICS: 'false'
+        run: |
+          CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
+          BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npx tsx tests/e2e-server-sync.test.ts
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: screenshots-server-sync-worker
+          path: screenshots-server-sync-worker/
+          retention-days: 7
+          if-no-files-found: ignore

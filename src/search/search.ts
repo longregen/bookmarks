@@ -7,11 +7,14 @@ import { onThemeChange, applyTheme } from '../shared/theme';
 import { initExtension } from '../ui/init-extension';
 import { initWeb } from '../web/init-web';
 import { createHealthIndicator } from '../ui/health-indicator';
+import { createSyncStatusIndicator } from '../ui/sync-status-indicator';
 import { BookmarkDetailManager } from '../ui/bookmark-detail';
 import { loadTagFilters } from '../ui/tag-filter';
 import { config } from '../lib/config-registry';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
 import { getErrorMessage } from '../lib/errors';
+import { getSettings } from '../lib/settings';
+import { ServerApiClient } from '../lib/server-api';
 
 const selectedTags = new Set<string>();
 
@@ -196,6 +199,87 @@ function showCenteredMode(): void {
   resultHeader.classList.add('hidden');
 }
 
+async function isServerSearchEnabled(): Promise<{ enabled: boolean; client?: ServerApiClient }> {
+  try {
+    const settings = await getSettings();
+    if (settings.serverEnabled && settings.serverSessionToken && settings.serverUrl) {
+      const client = new ServerApiClient(settings.serverUrl, settings.serverSessionToken);
+      return { enabled: true, client };
+    }
+  } catch {
+    // Fall back to local search
+  }
+  return { enabled: false };
+}
+
+interface ServerSearchResult {
+  bookmark: { id: string; title: string; url: string; createdAt: Date };
+  score: number;
+  qa: { question: string; answer: string };
+}
+
+async function performServerSearch(client: ServerApiClient, query: string): Promise<ServerSearchResult[]> {
+  const response = await client.semanticSearch({ query, limit: config.SEARCH_TOP_K_RESULTS });
+
+  return response.results.map(result => ({
+    bookmark: {
+      id: result.bookmark.id,
+      title: result.bookmark.title,
+      url: result.bookmark.url,
+      createdAt: new Date(result.bookmark.createdAt),
+    },
+    score: result.score,
+    qa: {
+      question: 'No preview available',
+      answer: 'Open bookmark details to view content',
+    },
+  }));
+}
+
+async function renderServerResults(results: ServerSearchResult[], query: string): Promise<void> {
+  // Filter by selected tags if any
+  let filteredResults = results;
+  if (selectedTags.size > 0) {
+    const bookmarkIds = results.map(r => r.bookmark.id);
+    const allTags = await db.bookmarkTags.where('bookmarkId').anyOf(bookmarkIds).toArray();
+    const tagsByBookmarkId = new Map<string, string[]>();
+    for (const tag of allTags) {
+      const existing = tagsByBookmarkId.get(tag.bookmarkId);
+      if (existing) {
+        existing.push(tag.tagName);
+      } else {
+        tagsByBookmarkId.set(tag.bookmarkId, [tag.tagName]);
+      }
+    }
+    filteredResults = results.filter(r => {
+      const tags = tagsByBookmarkId.get(r.bookmark.id) ?? [];
+      return tags.some(t => selectedTags.has(t));
+    });
+  }
+
+  const count = filteredResults.length;
+  resultStatus.classList.remove('loading');
+  resultStatus.textContent = count === 0
+    ? 'No results found'
+    : `${count} result${count === 1 ? '' : 's'} (server)`;
+  resultsList.innerHTML = '';
+
+  if (!filteredResults.length) {
+    resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'Try a different search term or check your filters' }));
+    await saveSearchHistory(query, 0);
+    return;
+  }
+
+  await saveSearchHistory(query, filteredResults.length);
+
+  const fragment = document.createDocumentFragment();
+  for (const { bookmark, score, qa } of filteredResults) {
+    const card = buildResultCard(bookmark, score, qa, () => detailManager.showDetail(bookmark.id));
+    fragment.appendChild(card);
+  }
+  resultsList.appendChild(fragment);
+}
+
 // eslint-disable-next-line complexity
 async function performSearch(): Promise<void> {
   const query = searchInput.value.trim();
@@ -209,6 +293,24 @@ async function performSearch(): Promise<void> {
   searchBtn.disabled = true;
 
   try {
+    // Check if server search is enabled
+    const { enabled: serverEnabled, client } = await isServerSearchEnabled();
+
+    if (serverEnabled && client) {
+      try {
+        const serverResults = await performServerSearch(client, query);
+
+        if (serverResults.length > 0) {
+          await renderServerResults(serverResults, query);
+          return;
+        }
+        // If no results from server, fall through to local search
+      } catch (serverError) {
+        console.warn('Server search failed, falling back to local:', getErrorMessage(serverError));
+        // Fall through to local search
+      }
+    }
+
     const [queryEmbedding] = await generateEmbeddings([query]);
     if (queryEmbedding.length === 0) throw new Error('Failed to generate embedding');
 
@@ -360,9 +462,17 @@ const keydownHandler = (e: KeyboardEvent): void => {
 };
 document.addEventListener('keydown', keydownHandler);
 
+let healthCleanup: (() => void) | null = null;
+let syncCleanup: (() => void) | null = null;
+
 const healthIndicatorContainer = document.getElementById('healthIndicator');
 if (healthIndicatorContainer) {
-  createHealthIndicator(healthIndicatorContainer);
+  healthCleanup = createHealthIndicator(healthIndicatorContainer);
+}
+
+const syncIndicatorContainer = document.getElementById('syncIndicator');
+if (syncIndicatorContainer) {
+  syncCleanup = createSyncStatusIndicator(syncIndicatorContainer, 'compact');
 }
 
 const removeEventListener = addBookmarkEventListener((event) => {
@@ -374,6 +484,8 @@ const removeEventListener = addBookmarkEventListener((event) => {
 window.addEventListener('beforeunload', () => {
   document.removeEventListener('keydown', keydownHandler);
   removeEventListener();
+  healthCleanup?.();
+  syncCleanup?.();
 });
 
 // Test helpers for E2E tests (type declaration in library.ts)

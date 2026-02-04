@@ -22,7 +22,7 @@ Download for **[Firefox](https://addons.mozilla.org/en-US/firefox/addon/bookmark
 - **Jobs dashboard** — Monitor processing jobs with status and progress
 - **Bulk URL import** — Import multiple bookmarks at once with validation
 - **Import/Export** — Backup and restore bookmarks as JSON files
-- **WebDAV sync** — Sync bookmarks across devices using your own WebDAV server
+- **Server sync** — Optional self-hosted server for multi-device sync with passkey authentication
 - **Configurable API** — Use OpenAI or any compatible endpoint (local models included)
 
 ## Installation
@@ -138,13 +138,20 @@ The extension works with any OpenAI-compatible API server (vLLM, llama.cpp, etc.
 4. Click "Import URLs"
 5. Monitor progress in the Jobs dashboard
 
-### WebDAV Sync
+### Server Sync (Optional)
 
-1. Open Settings
-2. Enable WebDAV sync
-3. Enter your WebDAV server URL, username, and password
-4. Set a sync path (default: `/bookmarks`)
-5. Sync happens automatically when bookmarks change
+The extension works fully standalone with local storage. For multi-device sync, you can optionally run the self-hosted server:
+
+1. Deploy the server from `server/` (Deno + SQLite)
+2. Open Settings in the extension
+3. Enter your server URL
+4. Register or log in with a passkey (works with Bitwarden, 1Password, etc.)
+5. Bookmarks sync automatically across devices
+
+When server sync is enabled:
+- Server stores and processes bookmarks (RAG, embeddings)
+- Client caches minimal data locally for offline access
+- Full content (HTML, markdown, Q&A) fetched on-demand
 
 ### Import/Export Bookmarks
 
@@ -185,7 +192,7 @@ When you search:
 - All bookmarks are stored locally in your browser's IndexedDB
 - Only the extracted Markdown content is sent to your configured API for processing
 - No data is sent to any third-party servers (except your configured LLM API)
-- WebDAV sync sends bookmark data to your own server
+- Optional server sync sends bookmark data to your own self-hosted server
 - Export your data anytime as JSON files
 
 ## Development

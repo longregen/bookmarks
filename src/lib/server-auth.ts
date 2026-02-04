@@ -134,11 +134,8 @@ export async function registerWithPasskey(
     throw new Error('Username is required');
   }
 
-  const credentials = navigator.credentials as CredentialsContainer | undefined;
-  if (credentials === undefined) {
-    throw new Error(
-      'WebAuthn is not supported in this browser. Please use a modern browser with passkey support.'
-    );
+  if (!window.PublicKeyCredential) {
+    throw new Error('WebAuthn is not supported in this browser');
   }
 
   const client = new ServerApiClient(serverUrl, '');
@@ -224,11 +221,8 @@ export async function loginWithPasskey(
   serverUrl: string,
   username?: string
 ): Promise<AuthResult> {
-  const credentials = navigator.credentials as CredentialsContainer | undefined;
-  if (credentials === undefined) {
-    throw new Error(
-      'WebAuthn is not supported in this browser. Please use a modern browser with passkey support.'
-    );
+  if (!window.PublicKeyCredential) {
+    throw new Error('WebAuthn is not supported in this browser');
   }
 
   const client = new ServerApiClient(serverUrl, '');

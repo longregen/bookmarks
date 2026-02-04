@@ -127,10 +127,11 @@ footer p{
     <p><strong>What is sent:</strong> Only the extracted Markdown content of bookmarked pages. Full HTML, URLs, and your browsing history are never sent.</p>
     <p><strong>Privacy option:</strong> For maximum privacy, you can configure the extension to use a local AI model (via vLLM, llama.cpp, Ollama, or similar) so no data ever leaves your machine.</p>
 
-    <h3>WebDAV Sync (Optional, user-configured)</h3>
-    <p>If you enable WebDAV synchronization, the extension will sync your bookmark data to a WebDAV server <strong>you specify</strong>. This is entirely optional and disabled by default.</p>
-    <p><strong>What is sent:</strong> Your complete bookmark collection including content, metadata, and embeddings.</p>
-    <p><strong>Your control:</strong> You choose the server, you control the data. We have no access to your WebDAV server or its contents.</p>
+    <h3>Server Sync (Optional, self-hosted)</h3>
+    <p>You can optionally run a self-hosted sync server for multi-device access. This is entirely optional and disabled by default.</p>
+    <p><strong>What is sent:</strong> Your bookmark collection including URLs, titles, content, and metadata.</p>
+    <p><strong>Authentication:</strong> Uses passkeys (WebAuthn) for passwordless, phishing-resistant login. Works with password managers like Bitwarden and 1Password.</p>
+    <p><strong>Your control:</strong> You host the server, you control the data. We provide the server code; you run it on your own infrastructure.</p>
   </div>
 
   <h2>What We Don't Do</h2>
@@ -139,7 +140,7 @@ footer p{
       <li><strong>No analytics</strong> — We don't use Google Analytics, Mixpanel, or any tracking service</li>
       <li><strong>No telemetry</strong> — We don't collect usage data, crash reports, or diagnostics</li>
       <li><strong>No tracking</strong> — No cookies, pixels, or fingerprinting</li>
-      <li><strong>No accounts</strong> — No sign-up, no user accounts, no authentication with our servers</li>
+      <li><strong>No accounts with us</strong> — Server sync is self-hosted; we don't operate any servers</li>
       <li><strong>No server-side storage</strong> — We don't operate servers that store your data</li>
       <li><strong>No selling data</strong> — We have no data to sell</li>
     </ul>
@@ -161,7 +162,7 @@ footer p{
     <ul>
       <li><strong>Active Tab</strong> — To capture the current page when you click "Save"</li>
       <li><strong>Storage</strong> — To store your bookmarks locally</li>
-      <li><strong>Alarms</strong> — To schedule optional WebDAV sync</li>
+      <li><strong>Alarms</strong> — To schedule background sync operations</li>
     </ul>
     <p>The extension cannot access your browsing history, other tabs, or any data you don't explicitly save.</p>
   </div>
@@ -173,7 +174,7 @@ footer p{
       <li><strong>Export</strong> — Download all your bookmarks as JSON at any time</li>
       <li><strong>Delete</strong> — Remove individual bookmarks or clear all data</li>
       <li><strong>API choice</strong> — Use any OpenAI-compatible API, including local models</li>
-      <li><strong>Sync choice</strong> — Enable or disable WebDAV sync to your own server</li>
+      <li><strong>Sync choice</strong> — Optionally enable server sync to your own self-hosted server</li>
     </ul>
   </div>
 
@@ -189,7 +190,7 @@ footer p{
     <p>For privacy questions or concerns, open an issue on GitHub or reach out via <a href="https://localforge.org">localforge.org</a>.</p>
   </div>
 
-  <p class="update">Last updated: January 2026</p>
+  <p class="update">Last updated: February 2026</p>
 
   <footer>
     <p>Built by <a href="https://localforge.org">localforge.org</a></p>

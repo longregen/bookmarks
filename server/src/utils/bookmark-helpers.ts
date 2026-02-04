@@ -1,23 +1,30 @@
-import type { Database } from '@db/sqlite';
-import { now } from '../db/database.ts';
+import type { AppDependencies } from '../app.ts';
 import type { Bookmark } from '../types/index.ts';
 
-export interface BookmarkMinimal {
-  id: string;
-  userId: string;
-  url: string;
-  title: string;
-  status: 'pending' | 'processing' | 'complete' | 'error';
-  errorMessage: string | null;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-  tags: string[];
+export async function getBookmarkTags(deps: AppDependencies, bookmarkId: string): Promise<string[]> {
+  const tags = await deps.db.prepare<{ tag_name: string }>('SELECT tag_name FROM bookmark_tags WHERE bookmark_id = ?').bind(bookmarkId).all();
+  return tags.map(t => t.tag_name);
 }
 
-export function getBookmarkTags(db: Database, bookmarkId: string): string[] {
-  const tags = db.prepare('SELECT tag_name FROM bookmark_tags WHERE bookmark_id = ?').all(bookmarkId) as { tag_name: string }[];
-  return tags.map(t => t.tag_name);
+export async function getBookmarkTagsBatch(deps: AppDependencies, bookmarkIds: string[]): Promise<Map<string, string[]>> {
+  const result = new Map<string, string[]>();
+  if (bookmarkIds.length === 0) {
+    return result;
+  }
+
+  const placeholders = bookmarkIds.map(() => '?').join(', ');
+  const tags = await deps.db.prepare<{ bookmark_id: string; tag_name: string }>(
+    `SELECT bookmark_id, tag_name FROM bookmark_tags WHERE bookmark_id IN (${placeholders})`
+  ).bind(...bookmarkIds).all();
+
+  for (const id of bookmarkIds) {
+    result.set(id, []);
+  }
+  for (const tag of tags) {
+    result.get(tag.bookmark_id)?.push(tag.tag_name);
+  }
+
+  return result;
 }
 
 export function rowToBookmark(row: Record<string, unknown>, tags: string[]): Bookmark {
@@ -35,26 +42,4 @@ export function rowToBookmark(row: Record<string, unknown>, tags: string[]): Boo
     deletedAt: row.deleted_at as string | null,
     tags,
   };
-}
-
-/**
- * Convert row to minimal bookmark (for sync - excludes html/markdown)
- */
-export function rowToBookmarkMinimal(row: Record<string, unknown>, tags: string[]): BookmarkMinimal {
-  return {
-    id: row.id as string,
-    userId: row.user_id as string,
-    url: row.url as string,
-    title: row.title as string,
-    status: row.status as 'pending' | 'processing' | 'complete' | 'error',
-    errorMessage: row.error_message as string | null,
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
-    deletedAt: row.deleted_at as string | null,
-    tags,
-  };
-}
-
-export function logSync(db: Database, userId: string, entityType: string, entityId: string, operation: string): void {
-  db.prepare('INSERT INTO sync_log (user_id, entity_type, entity_id, operation, timestamp) VALUES (?, ?, ?, ?, ?)').run(userId, entityType, entityId, operation, now());
 }

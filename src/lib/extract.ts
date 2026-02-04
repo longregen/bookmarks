@@ -1,6 +1,7 @@
 import { Readability } from '@mozilla/readability';
 import TurndownService from 'turndown';
 import type { ExtractContentResponse } from './messages';
+import { ensureOffscreenDocument, resetOffscreenState } from './offscreen';
 
 export interface ExtractedContent {
   title: string;
@@ -96,9 +97,6 @@ async function sendExtractMessage(html: string, url: string): Promise<ExtractedC
 }
 
 async function extractMarkdownViaOffscreen(html: string, url: string): Promise<ExtractedContent> {
-  // Chrome-only: dynamically import offscreen module to allow tree-shaking
-  const { ensureOffscreenDocument, resetOffscreenState } = await import('./offscreen');
-
   console.log('[Extract] Using offscreen document (Chrome)', { url, htmlLength: html.length });
 
   await ensureOffscreenDocument();

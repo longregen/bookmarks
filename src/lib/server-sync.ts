@@ -2,7 +2,13 @@ import { db, type Bookmark, type Markdown, type BookmarkTag } from '../db/schema
 import { getSettings, saveSetting } from './settings';
 import { events } from './events';
 import { getErrorMessage } from './errors';
-import { ServerApiClient, ServerApiError } from './server-api';
+import {
+  ServerApiClient,
+  ServerApiError,
+  type ServerBookmark,
+  type ServerBookmarkFull,
+  type FullSyncDownloadResponse,
+} from './server-api';
 
 export type SyncAction = 'full_sync' | 'incremental_sync' | 'no_change';
 
@@ -30,37 +36,8 @@ export interface OfflineChange {
   timestamp: number;
 }
 
-// Minimal bookmark data from sync (stored locally)
-export interface ServerBookmarkMinimal {
-  id: string;
-  url: string;
-  title: string;
-  status: string;
-  errorMessage: string | null;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-  tags: string[];
-}
-
-// Full bookmark data from detail endpoint (fetched on-demand, cached)
-export interface ServerBookmarkFull extends ServerBookmarkMinimal {
-  html: string | null;
-  markdown: string | null;
-  qaPairs: { id: string; question: string; answer: string; createdAt: string }[];
-}
-
-// Legacy type for compatibility
-export interface ServerBookmark extends ServerBookmarkMinimal {
-  html: string | null;
-  markdown: string | null;
-  qaPairs?: { id: string; question: string; answer: string; createdAt: string }[];
-}
-
-interface FullSyncResponse {
-  bookmarks: ServerBookmark[];
-  syncTimestamp: string;
-}
+// Re-export types from server-api for convenience
+export type { ServerBookmark, ServerBookmarkFull, ServerQAPair, FullSyncDownloadResponse } from './server-api';
 
 interface IncrementalSyncResponse {
   changes: {
@@ -75,6 +52,7 @@ const OFFLINE_QUEUE_KEY = 'serverSync:offlineQueue';
 
 export class ServerSyncManager {
   private isSyncing = false;
+  private isProcessingQueue = false;
   private offlineQueue: OfflineChange[] = [];
 
   constructor() {
@@ -140,23 +118,8 @@ export class ServerSyncManager {
     }
   }
 
-  private async fetchFullSync(client: ServerApiClient): Promise<FullSyncResponse> {
-    const settings = await getSettings();
-    const url = settings.serverUrl.replace(/\/$/, '');
-
-    const response = await fetch(`${url}/api/v1/sync/full`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${client.getSessionToken()}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new ServerApiError(`Server error: ${response.status}`, response.status);
-    }
-
-    return response.json() as Promise<FullSyncResponse>;
+  private async fetchFullSync(client: ServerApiClient): Promise<FullSyncDownloadResponse> {
+    return client.downloadFullSync();
   }
 
   async incrementalSync(): Promise<SyncResult> {
@@ -222,52 +185,91 @@ export class ServerSyncManager {
   }
 
   queueOfflineChange(change: OfflineChange): void {
-    const existingIndex = this.offlineQueue.findIndex(c => c.bookmarkId === change.bookmarkId && c.type === change.type);
-    if (existingIndex >= 0) {
-      this.offlineQueue[existingIndex] = change;
-    } else {
+    const existingIndex = this.offlineQueue.findIndex(c => c.bookmarkId === change.bookmarkId);
+
+    if (existingIndex < 0) {
+      // No existing change for this bookmark, just add it
       this.offlineQueue.push(change);
+      this.saveOfflineQueue();
+      return;
     }
+
+    const existing = this.offlineQueue[existingIndex];
+
+    if (change.type === 'delete') {
+      if (existing.type === 'create') {
+        // Create + delete = no sync needed (bookmark never existed on server)
+        this.offlineQueue.splice(existingIndex, 1);
+      } else {
+        // Update + delete = just delete (replace update with delete)
+        this.offlineQueue[existingIndex] = change;
+      }
+    } else if (change.type === 'update') {
+      if (existing.type === 'create') {
+        // Create + update = merge update data into create
+        existing.data = { ...existing.data, ...change.data };
+        existing.timestamp = change.timestamp;
+      } else if (existing.type === 'update') {
+        // Update + update = merge and keep latest timestamp
+        existing.data = { ...existing.data, ...change.data };
+        existing.timestamp = change.timestamp;
+      }
+      // If existing is delete, ignore the update (can't update deleted bookmark)
+    } else if (change.type === 'create') {
+      if (existing.type === 'delete') {
+        // Delete + create = replace with create (re-creating after delete)
+        this.offlineQueue[existingIndex] = change;
+      }
+      // If existing is create or update, keep existing (shouldn't happen normally)
+    }
+
     this.saveOfflineQueue();
   }
 
   async processOfflineQueue(): Promise<void> {
-    if (!(await this.isServerEnabled()) || this.offlineQueue.length === 0) {
+    if (this.isProcessingQueue || !(await this.isServerEnabled()) || this.offlineQueue.length === 0) {
       return;
     }
 
-    const client = await ServerApiClient.fromSettings();
-    const processedIds = new Set<string>();
+    this.isProcessingQueue = true;
+    try {
+      const client = await ServerApiClient.fromSettings();
+      const processedIds = new Set<string>();
 
-    for (const change of [...this.offlineQueue]) {
-      const key = `${change.bookmarkId}:${change.type}`;
-      try {
-        await this.sendOfflineChange(client, change);
-        processedIds.add(key);
-      } catch {
-        // Keep failed changes in queue
+      for (const change of [...this.offlineQueue]) {
+        const key = `${change.bookmarkId}:${change.type}`;
+        try {
+          await this.sendOfflineChange(client, change);
+          processedIds.add(key);
+        } catch {
+          // Keep failed changes in queue
+        }
       }
-    }
 
-    this.offlineQueue = this.offlineQueue.filter(c => !processedIds.has(`${c.bookmarkId}:${c.type}`));
-    this.saveOfflineQueue();
+      this.offlineQueue = this.offlineQueue.filter(c => !processedIds.has(`${c.bookmarkId}:${c.type}`));
+      this.saveOfflineQueue();
+    } finally {
+      this.isProcessingQueue = false;
+    }
   }
 
   private async sendOfflineChange(client: ServerApiClient, change: OfflineChange): Promise<void> {
-    const settings = await getSettings();
-    const url = settings.serverUrl.replace(/\/$/, '');
-
+    const data = change.data ?? {};
     switch (change.type) {
       case 'create':
-      case 'update': {
-        const response = await fetch(`${url}/api/v1/bookmarks/${change.bookmarkId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${client.getSessionToken()}` },
-          body: JSON.stringify(change.data),
+        await client.createBookmark({
+          url: data.url ?? '',
+          title: data.title ?? '',
+          html: data.html ?? '',
         });
-        if (!response.ok) throw new Error(`Failed: ${response.status}`);
         break;
-      }
+      case 'update':
+        await client.updateBookmark(change.bookmarkId, {
+          title: data.title,
+          html: data.html ?? undefined,
+          tags: data.tags,
+        });
+        break;
       case 'delete':
         await client.deleteBookmark(change.bookmarkId);
         break;

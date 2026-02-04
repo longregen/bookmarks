@@ -28,11 +28,11 @@ export class FirefoxAdapter implements TestAdapter {
     this.extensionPath = process.env.EXTENSION_PATH
       ? path.resolve(process.cwd(), process.env.EXTENSION_PATH)
       : path.resolve(__dirname, '../../dist-firefox');
-    this.browserPath = process.env.BROWSER_PATH || '';
+    this.browserPath = process.env.FIREFOX_PATH || process.env.BROWSER_PATH || '';
     this.apiKey = process.env.OPENAI_API_KEY || '';
 
     if (!this.browserPath) {
-      throw new Error('BROWSER_PATH environment variable is required');
+      throw new Error('FIREFOX_PATH or BROWSER_PATH environment variable is required');
     }
     if (!this.apiKey) {
       console.warn('OPENAI_API_KEY not set - real API tests will be skipped');

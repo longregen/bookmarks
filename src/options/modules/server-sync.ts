@@ -271,8 +271,20 @@ export function initServerSyncModule(): () => void {
   // Start polling for sync status updates
   startStatusPolling();
 
-  // Return cleanup function
-  return () => {
+  // Cleanup function
+  const cleanup = (): void => {
     stopStatusPolling();
+  };
+
+  // Ensure cleanup on page unload to prevent memory leaks
+  const handleUnload = (): void => {
+    cleanup();
+  };
+  window.addEventListener('beforeunload', handleUnload);
+
+  // Return cleanup function that also removes the unload listener
+  return () => {
+    window.removeEventListener('beforeunload', handleUnload);
+    cleanup();
   };
 }

@@ -9,6 +9,7 @@ export default defineConfig({
   build: {
     outDir: 'dist-chrome',
     sourcemap: false,
+    modulePreload: { polyfill: false },
     rollupOptions: {
       input: {
         ...extensionInput,

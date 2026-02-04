@@ -95,25 +95,3 @@ CREATE TABLE IF NOT EXISTS webauthn_challenges (
   expires_at TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
-
--- Full-text search virtual table
-CREATE VIRTUAL TABLE IF NOT EXISTS bookmarks_fts USING fts5(
-  title,
-  markdown,
-  content='bookmarks',
-  content_rowid='rowid'
-);
-
--- Triggers to keep FTS in sync
-CREATE TRIGGER IF NOT EXISTS bookmarks_ai AFTER INSERT ON bookmarks BEGIN
-  INSERT INTO bookmarks_fts(rowid, title, markdown) VALUES (NEW.rowid, NEW.title, NEW.markdown);
-END;
-
-CREATE TRIGGER IF NOT EXISTS bookmarks_ad AFTER DELETE ON bookmarks BEGIN
-  INSERT INTO bookmarks_fts(bookmarks_fts, rowid, title, markdown) VALUES('delete', OLD.rowid, OLD.title, OLD.markdown);
-END;
-
-CREATE TRIGGER IF NOT EXISTS bookmarks_au AFTER UPDATE ON bookmarks BEGIN
-  INSERT INTO bookmarks_fts(bookmarks_fts, rowid, title, markdown) VALUES('delete', OLD.rowid, OLD.title, OLD.markdown);
-  INSERT INTO bookmarks_fts(rowid, title, markdown) VALUES (NEW.rowid, NEW.title, NEW.markdown);
-END;

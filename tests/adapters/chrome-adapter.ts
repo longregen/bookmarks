@@ -117,6 +117,35 @@ export class ChromeAdapter implements TestAdapter {
   async newPage(): Promise<PageHandle> {
     const page = await this.browser!.newPage();
 
+    // Forward browser console to test output
+    page.on('console', async (msg) => {
+      const type = msg.type();
+      const args = msg.args();
+      const textParts: string[] = [];
+      for (const arg of args) {
+        try {
+          const val = await arg.jsonValue();
+          textParts.push(typeof val === 'object' ? JSON.stringify(val) : String(val));
+        } catch {
+          textParts.push(msg.text());
+          break;
+        }
+      }
+      const text = textParts.join(' ');
+      if (type === 'error') {
+        console.error(`[Browser] ${text}`);
+      } else if (type === 'warning') {
+        console.warn(`[Browser] ${text}`);
+      } else {
+        console.log(`[Browser] ${text}`);
+      }
+    });
+
+    // Forward page errors (uncaught exceptions)
+    page.on('pageerror', (error) => {
+      console.error(`[Browser Error] ${error.message}\n${error.stack}`);
+    });
+
     // Set viewport to match xvfb screen size for consistent screenshots
     await page.setViewport({ width: 1280, height: 800 });
 

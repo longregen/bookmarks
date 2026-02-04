@@ -12,6 +12,7 @@ import {
   logout,
 } from '../lib/server-auth';
 import { ServerApiClient } from '../lib/server-api';
+import { ensureOffscreenDocument } from '../lib/offscreen';
 import type {
   Message,
   SaveBookmarkResponse,
@@ -284,7 +285,7 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
       serverSync.queueOfflineChange({
         type: 'create',
         bookmarkId: id,
-        data: { id, url, title, html, status: 'pending', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        data: { url, title, html },
         timestamp: Date.now(),
       });
       // Fall through to local processing
@@ -326,8 +327,6 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
 
 async function handleBulkImport(urls: string[]): Promise<StartBulkImportResponse> {
   if (__IS_CHROME__) {
-    // Dynamic import to enable tree-shaking of offscreen module in Firefox builds
-    const { ensureOffscreenDocument } = await import('../lib/offscreen');
     await ensureOffscreenDocument();
   }
 

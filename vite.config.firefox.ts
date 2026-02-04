@@ -36,6 +36,7 @@ export default defineConfig({
   build: {
     outDir: 'dist-firefox',
     sourcemap: false,
+    modulePreload: { polyfill: false },
     rollupOptions: {
       input: extensionInput,
       output: sharedOutput,

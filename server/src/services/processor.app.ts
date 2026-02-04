@@ -1,9 +1,6 @@
-import { getDatabase, generateId, now } from '../db/database.ts';
-import { getEmbeddings } from './embeddings.ts';
-
-const OPENAI_API_BASE = Deno.env.get('OPENAI_API_BASE') || 'https://api.openai.com/v1';
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || '';
-const CHAT_MODEL = Deno.env.get('CHAT_MODEL') || 'gpt-4o-mini';
+import type { AppDependencies } from '../app.ts';
+import type { QueueMessage, QueueConsumer } from '../adapters/queue/interface.ts';
+import { generateId, now } from '../utils/common.ts';
 
 interface QAPair {
   question: string;
@@ -14,75 +11,50 @@ interface ChatCompletionResponse {
   choices: { message: { content: string } }[];
 }
 
-// Simple in-memory queue
-const processingQueue: string[] = [];
-let isProcessing = false;
-
-export function queueBookmarkProcessing(bookmarkId: string): void {
-  if (!processingQueue.includes(bookmarkId)) {
-    processingQueue.push(bookmarkId);
-    processNext();
-  }
+interface EmbeddingResponse {
+  data: { embedding: number[] }[];
 }
 
-async function processNext(): Promise<void> {
-  if (isProcessing || processingQueue.length === 0) return;
+/** Maximum content length (in characters) to send to the LLM for Q&A generation */
+const MAX_CONTENT_LENGTH = 12000;
 
-  isProcessing = true;
-  const bookmarkId = processingQueue.shift()!;
-
-  try {
-    await processBookmark(bookmarkId);
-  } catch (error) {
-    console.error(`Failed to process bookmark ${bookmarkId}:`, error);
-  }
-
-  isProcessing = false;
-
-  // Process next in queue
-  if (processingQueue.length > 0) {
-    setTimeout(processNext, 100);
-  }
+export function createQueueConsumer(deps: AppDependencies): QueueConsumer {
+  return {
+    async process(message: QueueMessage): Promise<void> {
+      await processBookmark(deps, message.bookmarkId);
+    },
+  };
 }
 
-async function processBookmark(bookmarkId: string): Promise<void> {
-  const db = getDatabase();
-
-  // Get bookmark
-  const bookmark = db.prepare('SELECT * FROM bookmarks WHERE id = ?').get(bookmarkId) as {
+async function processBookmark(deps: AppDependencies, bookmarkId: string): Promise<void> {
+  const bookmark = await deps.db.prepare<{
     id: string;
     html: string | null;
     title: string;
     url: string;
-  } | undefined;
+  }>('SELECT * FROM bookmarks WHERE id = ?').bind(bookmarkId).first();
 
   if (!bookmark) {
     console.log(`Bookmark ${bookmarkId} not found, skipping`);
     return;
   }
 
-  // Mark as processing
-  db.prepare(`
+  await deps.db.prepare(`
     UPDATE bookmarks SET status = 'processing', updated_at = ? WHERE id = ?
-  `).run(now(), bookmarkId);
+  `).bind(now(), bookmarkId).run();
 
   try {
-    // Extract markdown from HTML
-    const markdown = await htmlToMarkdown(bookmark.html || '');
+    const markdown = htmlToMarkdown(bookmark.html || '');
 
-    // Update markdown
-    db.prepare(`
+    await deps.db.prepare(`
       UPDATE bookmarks SET markdown = ?, updated_at = ? WHERE id = ?
-    `).run(markdown, now(), bookmarkId);
+    `).bind(markdown, now(), bookmarkId).run();
 
-    // Generate Q&A pairs
-    const qaPairs = await generateQAPairs(bookmark.title, markdown, bookmark.url);
+    const qaPairs = await generateQAPairs(deps, bookmark.title, markdown, bookmark.url);
 
     if (qaPairs.length > 0) {
-      // Delete existing Q&A
-      db.prepare('DELETE FROM questions_answers WHERE bookmark_id = ?').run(bookmarkId);
+      await deps.db.prepare('DELETE FROM questions_answers WHERE bookmark_id = ?').bind(bookmarkId).run();
 
-      // Generate embeddings for all Q&A pairs
       const textsToEmbed: string[] = [];
       for (const qa of qaPairs) {
         textsToEmbed.push(qa.question);
@@ -92,13 +64,11 @@ async function processBookmark(bookmarkId: string): Promise<void> {
 
       let embeddings: Float32Array[] = [];
       try {
-        embeddings = await getEmbeddings(textsToEmbed);
+        embeddings = await getEmbeddings(deps, textsToEmbed);
       } catch (error) {
         console.warn(`Failed to get embeddings for bookmark ${bookmarkId}:`, error);
-        // Continue without embeddings
       }
 
-      // Insert Q&A pairs
       for (let i = 0; i < qaPairs.length; i++) {
         const qa = qaPairs[i];
         const embeddingOffset = i * 3;
@@ -113,10 +83,10 @@ async function processBookmark(bookmarkId: string): Promise<void> {
           ? new Uint8Array(embeddings[embeddingOffset + 2].buffer)
           : null;
 
-        db.prepare(`
+        await deps.db.prepare(`
           INSERT INTO questions_answers (id, bookmark_id, question, answer, embedding_question, embedding_answer, embedding_both, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
+        `).bind(
           generateId(),
           bookmarkId,
           qa.question,
@@ -125,36 +95,30 @@ async function processBookmark(bookmarkId: string): Promise<void> {
           embeddingAnswer,
           embeddingBoth,
           now()
-        );
+        ).run();
       }
     }
 
-    // Mark as complete
-    db.prepare(`
+    await deps.db.prepare(`
       UPDATE bookmarks SET status = 'complete', error_message = NULL, updated_at = ? WHERE id = ?
-    `).run(now(), bookmarkId);
+    `).bind(now(), bookmarkId).run();
 
     console.log(`Processed bookmark ${bookmarkId}: ${qaPairs.length} Q&A pairs generated`);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    db.prepare(`
+    await deps.db.prepare(`
       UPDATE bookmarks SET status = 'error', error_message = ?, updated_at = ? WHERE id = ?
-    `).run(errorMessage, now(), bookmarkId);
+    `).bind(errorMessage, now(), bookmarkId).run();
     throw error;
   }
 }
 
-async function htmlToMarkdown(html: string): Promise<string> {
-  // Simple HTML to markdown conversion
-  // In production, use a proper library like Readability + Turndown
-
+function htmlToMarkdown(html: string): string {
   let text = html;
 
-  // Remove scripts and styles
   text = text.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
   text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
 
-  // Convert common elements
   text = text.replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, '# $1\n\n');
   text = text.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, '## $1\n\n');
   text = text.replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, '### $1\n\n');
@@ -171,10 +135,8 @@ async function htmlToMarkdown(html: string): Promise<string> {
   text = text.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/gi, '```\n$1\n```\n');
   text = text.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, '> $1\n');
 
-  // Remove remaining tags
   text = text.replace(/<[^>]+>/g, '');
 
-  // Decode HTML entities
   text = text.replace(/&nbsp;/g, ' ');
   text = text.replace(/&amp;/g, '&');
   text = text.replace(/&lt;/g, '<');
@@ -182,23 +144,24 @@ async function htmlToMarkdown(html: string): Promise<string> {
   text = text.replace(/&quot;/g, '"');
   text = text.replace(/&#39;/g, "'");
 
-  // Clean up whitespace
   text = text.replace(/\n{3,}/g, '\n\n');
   text = text.trim();
 
   return text;
 }
 
-async function generateQAPairs(title: string, markdown: string, url: string): Promise<QAPair[]> {
+async function generateQAPairs(deps: AppDependencies, title: string, markdown: string, url: string): Promise<QAPair[]> {
+  const OPENAI_API_BASE = deps.env.get('OPENAI_API_BASE') || 'https://api.openai.com/v1';
+  const OPENAI_API_KEY = deps.env.get('OPENAI_API_KEY');
+  const CHAT_MODEL = deps.env.get('CHAT_MODEL') || 'gpt-4o-mini';
+
   if (!OPENAI_API_KEY) {
     console.warn('OPENAI_API_KEY not configured, skipping Q&A generation');
     return [];
   }
 
-  // Truncate content if too long
-  const maxContentLength = 12000;
-  const content = markdown.length > maxContentLength
-    ? markdown.substring(0, maxContentLength) + '...'
+  const content = markdown.length > MAX_CONTENT_LENGTH
+    ? markdown.substring(0, MAX_CONTENT_LENGTH) + '...'
     : markdown;
 
   const prompt = `Given the following webpage content, generate 3-5 question and answer pairs that capture the key information.
@@ -231,9 +194,7 @@ Example format:
       },
       body: JSON.stringify({
         model: CHAT_MODEL,
-        messages: [
-          { role: 'user', content: prompt },
-        ],
+        messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         max_tokens: 1500,
       }),
@@ -245,14 +206,13 @@ Example format:
     }
 
     const data = await response.json() as ChatCompletionResponse;
-    const content = data.choices?.[0]?.message?.content;
+    const responseContent = data.choices?.[0]?.message?.content;
 
-    if (!content) {
+    if (!responseContent) {
       throw new Error('No content in response');
     }
 
-    // Parse JSON from response
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    const jsonMatch = responseContent.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       throw new Error('No JSON array found in response');
     }
@@ -267,3 +227,40 @@ Example format:
     return [];
   }
 }
+
+async function getEmbeddings(deps: AppDependencies, texts: string[]): Promise<Float32Array[]> {
+  const OPENAI_API_BASE = deps.env.get('OPENAI_API_BASE') || 'https://api.openai.com/v1';
+  const OPENAI_API_KEY = deps.env.get('OPENAI_API_KEY');
+  const EMBEDDING_MODEL = deps.env.get('EMBEDDING_MODEL') || 'text-embedding-3-small';
+
+  if (!OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY is not configured');
+  }
+
+  if (texts.length === 0) {
+    return [];
+  }
+
+  const response = await fetch(`${OPENAI_API_BASE}/embeddings`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: EMBEDDING_MODEL,
+      input: texts,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Embedding API error: ${response.status} - ${error}`);
+  }
+
+  const data = await response.json() as EmbeddingResponse;
+
+  return data.data.map(item => new Float32Array(item.embedding));
+}
+
+export { processBookmark };

@@ -7,6 +7,7 @@ import { initExtension } from '../ui/init-extension';
 import { initWeb } from '../web/init-web';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
 import { createHealthIndicator } from '../ui/health-indicator';
+import { createSyncStatusIndicator } from '../ui/sync-status-indicator';
 import { BookmarkDetailManager } from '../ui/bookmark-detail';
 
 let selectedTag = 'All';
@@ -219,15 +220,22 @@ const removeEventListener = addBookmarkEventListener((event) => {
 });
 
 let healthCleanup: (() => void) | null = null;
+let syncCleanup: (() => void) | null = null;
 
 window.addEventListener('beforeunload', () => {
   removeEventListener();
   healthCleanup?.();
+  syncCleanup?.();
 });
 
 const healthIndicatorContainer = document.getElementById('healthIndicator');
 if (healthIndicatorContainer) {
   healthCleanup = createHealthIndicator(healthIndicatorContainer);
+}
+
+const syncIndicatorContainer = document.getElementById('syncIndicator');
+if (syncIndicatorContainer) {
+  syncCleanup = createSyncStatusIndicator(syncIndicatorContainer, 'compact');
 }
 
 declare global {

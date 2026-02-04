@@ -113,6 +113,13 @@ export interface FullSyncResponse {
   syncToken: string;
 }
 
+export interface FullSyncDownloadResponse {
+  bookmarks: Bookmark[];
+  hasMore: boolean;
+  total: number;
+  syncTimestamp: string;
+}
+
 // WebAuthn types
 export interface WebAuthnChallenge {
   sessionId: string;

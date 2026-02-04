@@ -37,7 +37,7 @@ Data retrieval emphasizes efficient batch operations to prevent N+1 query patter
 
 The lib directory contains shared utilities that serve as core infrastructure. The architecture centers on an **adapter pattern** allowing the same business logic to work across browser extensions and web environments. Platform-specific adapters (`extension.ts`, `web.ts`) conform to the `PlatformAdapter` interface, handling storage and API differences transparently.
 
-Key modules: `api.ts` integrates LLM capabilities for semantic enrichment. `events.ts` provides unified broadcasting across tabs. `jobs.ts` tracks long-running async operations. `state-manager.ts` handles operation state with timeout detection. `webdav-sync.ts` implements cloud backup with conflict resolution. `settings.ts` acts as a facade delegating to the appropriate platform adapter.
+Key modules: `api.ts` integrates LLM capabilities for semantic enrichment. `events.ts` provides unified broadcasting across tabs. `jobs.ts` tracks long-running async operations. `state-manager.ts` handles operation state with timeout detection. `server-sync.ts` implements cloud backup with the Localforge sync server. `settings.ts` acts as a facade delegating to the appropriate platform adapter.
 
 ## Jobs (`src/jobs/`)
 
@@ -53,7 +53,7 @@ Query performance is optimized through bulk database operations. Tag-based post-
 
 ## Options (`src/options/`)
 
-The options page is structured as seven modular feature areas: **Theme** (five appearance options with real-time application), **Navigation** (sidebar and scroll synchronization via Intersection Observer), **Settings** (OpenAI-compatible API configuration with connection testing), **Import-Export** (JSON backup/restore with duplicate detection), **WebDAV** (cloud sync configuration and status polling), **Bulk-Import** (multi-URL processing with progress tracking), and **Jobs** (async operation history with filtering).
+The options page is structured as seven modular feature areas: **Theme** (five appearance options with real-time application), **Navigation** (sidebar and scroll synchronization via Intersection Observer), **Settings** (OpenAI-compatible API configuration with connection testing), **Import-Export** (JSON backup/restore with duplicate detection), **Server-Sync** (Localforge sync server with passkey authentication), **Bulk-Import** (multi-URL processing with progress tracking), and **Jobs** (async operation history with filtering).
 
 **Advanced-Config** exposes internal settings similar to Firefox's about:config, allowing developers to modify behavior without code changes.
 
