@@ -56,6 +56,8 @@ Before modifying code:
 3. **Implement** - Make changes incrementally
 4. **Test** - Run `npm run check` and add tests in `tests/`
 
+Always set npm environment to development so that all dependencies get installed.
+
 ## When Making Changes
 
 - **Use lib helpers** - Check `src/lib/` for existing utilities before writing new ones

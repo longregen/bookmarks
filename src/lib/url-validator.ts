@@ -94,19 +94,6 @@ export function validateUrl(url: string, options: UrlValidationOptions = {}): Ur
   };
 }
 
-export function validateWebDAVUrl(url: string, allowInsecure = false): UrlValidationResult {
-  if (!url) {
-    return { valid: false, error: 'WebDAV URL is not configured' };
-  }
-
-  return validateUrl(url, {
-    requireHttps: !allowInsecure,
-    allowedProtocols: ['http:', 'https:'],
-    trimWhitespace: true,
-    autoAddProtocol: false,
-  });
-}
-
 export function validateWebUrl(url: string): UrlValidationResult {
   return validateUrl(url, {
     requireHttps: false,

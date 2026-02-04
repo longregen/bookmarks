@@ -3,9 +3,15 @@ import { startProcessingQueue } from './queue';
 import { createBulkImportJob } from '../lib/bulk-import';
 import { setPlatformAdapter } from '../lib/platform';
 import { extensionAdapter } from '../lib/adapters/extension';
-import { getSettings } from '../lib/settings';
+import { getSettings, saveSetting } from '../lib/settings';
 import { getErrorMessage } from '../lib/errors';
-import { performSync, getSyncStatus, triggerSyncIfEnabled } from '../lib/webdav-sync';
+import { serverSync } from '../lib/server-sync';
+import {
+  registerWithPasskey,
+  loginWithPasskey,
+  logout,
+} from '../lib/server-auth';
+import { ServerApiClient } from '../lib/server-api';
 import type {
   Message,
   SaveBookmarkResponse,
@@ -16,25 +22,42 @@ setPlatformAdapter(extensionAdapter);
 
 console.log('Bookmark RAG service worker loaded');
 
-const WEBDAV_SYNC_ALARM = 'webdav-sync';
+const SERVER_SYNC_ALARM = 'server-sync';
+const DEFAULT_SYNC_INTERVAL_MINUTES = 15;
 
 async function setupSyncAlarm(): Promise<void> {
   try {
     const settings = await getSettings();
 
-    await chrome.alarms.clear(WEBDAV_SYNC_ALARM);
+    await chrome.alarms.clear(SERVER_SYNC_ALARM);
 
-    if (settings.webdavEnabled && settings.webdavSyncInterval > 0) {
-      await chrome.alarms.create(WEBDAV_SYNC_ALARM, {
-        periodInMinutes: settings.webdavSyncInterval,
+    if (settings.serverEnabled && settings.serverSessionToken) {
+      await chrome.alarms.create(SERVER_SYNC_ALARM, {
+        periodInMinutes: DEFAULT_SYNC_INTERVAL_MINUTES,
         delayInMinutes: 1,
       });
-      console.log(`WebDAV sync alarm set for every ${settings.webdavSyncInterval} minutes`);
+      console.log(`Server sync alarm set for every ${DEFAULT_SYNC_INTERVAL_MINUTES} minutes`);
     } else {
-      console.log('WebDAV sync alarm disabled');
+      console.log('Server sync alarm disabled');
     }
   } catch (error) {
     console.error('Error setting up sync alarm:', error);
+  }
+}
+
+async function triggerServerSyncIfEnabled(): Promise<void> {
+  try {
+    const settings = await getSettings();
+    if (!settings.serverEnabled || !settings.serverSessionToken) {
+      return;
+    }
+
+    const result = await serverSync.incrementalSync();
+    if (!result.success) {
+      console.error('Server sync failed:', result.message);
+    }
+  } catch (error) {
+    console.error('Server sync error:', error);
   }
 }
 
@@ -48,8 +71,8 @@ function initializeExtension(): void {
       console.error('Error setting up sync alarm:', err);
     });
 
-    triggerSyncIfEnabled().catch((err: unknown) => {
-      console.error('Initial WebDAV sync failed:', err);
+    triggerServerSyncIfEnabled().catch((err: unknown) => {
+      console.error('Initial server sync failed:', err);
     });
   } catch (error) {
     console.error('Error during initialization:', error);
@@ -76,12 +99,12 @@ chrome.runtime.onStartup.addListener(() => {
 initializeExtension();
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === WEBDAV_SYNC_ALARM) {
-    console.log('WebDAV sync alarm triggered');
+  if (alarm.name === SERVER_SYNC_ALARM) {
+    console.log('Server sync alarm triggered');
     try {
-      await triggerSyncIfEnabled();
+      await triggerServerSyncIfEnabled();
     } catch (err) {
-      console.error('WebDAV sync alarm failed:', err);
+      console.error('Server sync alarm failed:', err);
     }
   }
 });
@@ -97,27 +120,6 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
   if (message.type === 'import:create_from_url_list') {
     handleBulkImport(message.urls)
       .then(sendResponse)
-      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
-    return true;
-  }
-
-  if (message.type === 'sync:trigger') {
-    performSync(true)
-      .then(sendResponse)
-      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
-    return true;
-  }
-
-  if (message.type === 'query:sync_status') {
-    getSyncStatus()
-      .then(sendResponse)
-      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
-    return true;
-  }
-
-  if (message.type === 'sync:update_settings') {
-    setupSyncAlarm()
-      .then(() => sendResponse({ success: true }))
       .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
     return true;
   }
@@ -146,6 +148,82 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
   if (message.type === 'bookmark:retry') {
     void startProcessingQueue();
     sendResponse({ success: true });
+    return true;
+  }
+
+  if (message.type === 'sync:trigger') {
+    serverSync.incrementalSync()
+      .then(sendResponse)
+      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
+    return true;
+  }
+
+  if (message.type === 'query:sync_status') {
+    serverSync.getSyncStatus()
+      .then(sendResponse)
+      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
+    return true;
+  }
+
+  if (message.type === 'sync:update_settings') {
+    setupSyncAlarm()
+      .then(() => sendResponse({ success: true }))
+      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
+    return true;
+  }
+
+  if (message.type === 'server:register') {
+    (async () => {
+      const settings = await getSettings();
+      if (!settings.serverUrl) {
+        return { success: false, error: 'Server URL not configured' };
+      }
+      const result = await registerWithPasskey(settings.serverUrl, message.username);
+      await saveSetting('serverSessionToken', result.sessionToken);
+      await saveSetting('serverSessionExpiry', result.sessionExpiry);
+      await saveSetting('serverUsername', result.username);
+      await saveSetting('serverEnabled', true);
+      await setupSyncAlarm();
+      return { success: true };
+    })()
+      .then(sendResponse)
+      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
+    return true;
+  }
+
+  if (message.type === 'server:login') {
+    (async () => {
+      const settings = await getSettings();
+      if (!settings.serverUrl) {
+        return { success: false, error: 'Server URL not configured' };
+      }
+      const result = await loginWithPasskey(settings.serverUrl, message.username);
+      await saveSetting('serverSessionToken', result.sessionToken);
+      await saveSetting('serverSessionExpiry', result.sessionExpiry);
+      await saveSetting('serverUsername', result.username);
+      await saveSetting('serverEnabled', true);
+      await setupSyncAlarm();
+      return { success: true, username: result.username };
+    })()
+      .then(sendResponse)
+      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
+    return true;
+  }
+
+  if (message.type === 'server:logout') {
+    (async () => {
+      const settings = await getSettings();
+      if (settings.serverUrl && settings.serverSessionToken) {
+        await logout(settings.serverUrl, settings.serverSessionToken);
+      }
+      await saveSetting('serverSessionToken', '');
+      await saveSetting('serverSessionExpiry', '');
+      await saveSetting('serverEnabled', false);
+      await chrome.alarms.clear(SERVER_SYNC_ALARM);
+      return { success: true };
+    })()
+      .then(sendResponse)
+      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
     return true;
   }
 
@@ -191,7 +269,29 @@ chrome.commands.onCommand.addListener((command) => {
 
 async function handleSaveBookmark(data: { url: string; title: string; html: string }): Promise<SaveBookmarkResponse> {
   const { url, title, html } = data;
+  const settings = await getSettings();
 
+  // Server mode: POST to server for processing
+  if (settings.serverEnabled && settings.serverSessionToken && settings.serverUrl) {
+    try {
+      const apiClient = new ServerApiClient(settings.serverUrl, settings.serverSessionToken);
+      const serverResult = await apiClient.createBookmark({ url, title, html });
+      return { success: true, bookmarkId: serverResult.id };
+    } catch (error) {
+      // Queue for offline sync if server unreachable
+      console.warn('Server unreachable, queuing bookmark for offline sync:', error);
+      const id = crypto.randomUUID();
+      serverSync.queueOfflineChange({
+        type: 'create',
+        bookmarkId: id,
+        data: { id, url, title, html, status: 'pending', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        timestamp: Date.now(),
+      });
+      // Fall through to local processing
+    }
+  }
+
+  // Local mode: process bookmark locally
   const existing = await db.bookmarks.where('url').equals(url).first();
 
   if (existing) {

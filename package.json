@@ -29,7 +29,7 @@
     "test:e2e:library-sorting": "npx tsx tests/e2e-library-sorting.test.ts",
     "test:e2e:detail-panel": "npx tsx tests/e2e-detail-panel-standalone.test.ts",
     "test:e2e:stumble": "npx tsx tests/e2e-stumble.test.ts",
-    "test:e2e:webdav": "npx tsx tests/e2e-options-webdav.test.ts",
+    "test:e2e:server-sync": "npx tsx tests/e2e-server-sync.test.ts",
     "test:e2e:jobs-dashboard": "npx tsx tests/e2e-jobs-dashboard.test.ts",
     "test:e2e:tag-filtering": "npx tsx tests/e2e-tag-filtering.test.ts",
     "test:e2e-visual": "npx tsx tests/e2e-screenshots.test.ts",

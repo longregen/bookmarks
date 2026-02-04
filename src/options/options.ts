@@ -1,6 +1,6 @@
 import { initSettingsModule } from './modules/settings';
-import { initWebDAVModule } from './modules/webdav';
 import { initBulkImportModule } from './modules/bulk-import';
+import { initServerSyncModule } from './modules/server-sync';
 import { initThemeModule } from './modules/theme';
 import { initNavigationModule } from './modules/navigation';
 import './modules/import-export';
@@ -12,11 +12,11 @@ function initializeModules(): void {
   initNavigationModule();
   initSettingsModule();
 
-  const webdavCleanup = initWebDAVModule();
-  cleanupFunctions.push(webdavCleanup);
-
   const bulkImportCleanup = initBulkImportModule();
   cleanupFunctions.push(bulkImportCleanup);
+
+  const serverSyncCleanup = initServerSyncModule();
+  cleanupFunctions.push(serverSyncCleanup);
 }
 
 window.addEventListener('beforeunload', () => {

@@ -1,7 +1,7 @@
 import { db, JobItemStatus, type Bookmark } from '../db/schema';
 import { fetchBookmarkHtml, processBookmarkContent } from './processor';
 import { getErrorMessage } from '../lib/errors';
-import { triggerSyncIfEnabled } from '../lib/webdav-sync';
+import { serverSync } from '../lib/server-sync';
 import { config } from '../lib/config-registry';
 import {
   updateJobItemByBookmark,
@@ -222,9 +222,9 @@ export async function startProcessingQueue(): Promise<void> {
     // Phase 2: Sequential content processing - process 'downloaded' and 'pending' bookmarks
     await processContentQueue();
 
-    // Trigger WebDAV sync after queue is empty
-    triggerSyncIfEnabled().catch((err: unknown) => {
-      console.error('[Queue] WebDAV sync after queue empty failed:', err);
+    // Trigger server sync after queue is empty
+    serverSync.incrementalSync().catch((err: unknown) => {
+      console.error('[Queue] Server sync after queue empty failed:', err);
     });
   } finally {
     isProcessing = false;

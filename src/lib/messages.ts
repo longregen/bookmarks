@@ -31,6 +31,11 @@ export type Command =
   | { type: 'sync:trigger' }
   | { type: 'sync:update_settings' }
 
+  // Server auth operations
+  | { type: 'server:register'; username: string }
+  | { type: 'server:login'; username?: string }
+  | { type: 'server:logout' }
+
   // Queries
   | { type: 'query:current_tab_info' }
   | { type: 'query:sync_status' }
@@ -73,6 +78,7 @@ export interface SyncStatus {
   lastSyncTime: string | null;
   lastSyncError: string | null;
   isSyncing: boolean;
+  pendingChanges: number;
 }
 
 export interface TriggerSyncResponse {
@@ -121,6 +127,22 @@ export interface OffscreenReadyResponse {
   ready: true;
 }
 
+export interface ServerRegisterResponse {
+  success: boolean;
+  error?: string;
+}
+
+export interface ServerLoginResponse {
+  success: boolean;
+  username?: string;
+  error?: string;
+}
+
+export interface ServerLogoutResponse {
+  success: boolean;
+  error?: string;
+}
+
 export type MessageType = Message['type'];
 
 export type MessageOfType<T extends MessageType> = Extract<Message, { type: T }>;
@@ -133,6 +155,9 @@ export type MessageResponse<T extends MessageType> =
   : T extends 'sync:trigger' ? TriggerSyncResponse
   : T extends 'query:sync_status' ? SyncStatus
   : T extends 'sync:update_settings' ? UpdateSyncSettingsResponse
+  : T extends 'server:register' ? ServerRegisterResponse
+  : T extends 'server:login' ? ServerLoginResponse
+  : T extends 'server:logout' ? ServerLogoutResponse
   : T extends 'extract:markdown_from_html' ? ExtractContentResponse
   : T extends 'user_request:capture_current_tab' ? CapturePageResponse
   : T extends 'query:current_page_dom' ? GetPageHtmlResponse

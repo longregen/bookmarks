@@ -18,7 +18,6 @@ export const CONFIG_CATEGORIES = {
   SEARCH: 'Search',
   QUEUE: 'Queue',
   PROCESSOR: 'Processor',
-  WEBDAV: 'WebDAV',
   STUMBLE: 'Stumble',
   DATE: 'Date Formatting',
   HEALTH: 'Health Indicator',
@@ -226,24 +225,6 @@ Respond with JSON only, no other text. Format:
     category: CONFIG_CATEGORIES.PROCESSOR,
     min: 10,
     max: 90,
-  },
-  {
-    key: 'WEBDAV_SYNC_TIMEOUT_MS',
-    defaultValue: 2 * 60 * 1000,
-    type: 'number',
-    description: 'Timeout for the WebDAV sync state manager (in milliseconds)',
-    category: CONFIG_CATEGORIES.WEBDAV,
-    min: 30000,
-    max: 1800000,
-  },
-  {
-    key: 'WEBDAV_SYNC_DEBOUNCE_MS',
-    defaultValue: 5000,
-    type: 'number',
-    description: 'Minimum time between sync attempts (in milliseconds)',
-    category: CONFIG_CATEGORIES.WEBDAV,
-    min: 1000,
-    max: 300000,
   },
   {
     key: 'STUMBLE_COUNT',
@@ -475,8 +456,6 @@ export interface ConfigValues {
   QUEUE_RETRY_MAX_DELAY_MS: number;
   PROCESSOR_QA_GENERATION_PROGRESS: number;
   PROCESSOR_QA_SAVING_PROGRESS: number;
-  WEBDAV_SYNC_TIMEOUT_MS: number;
-  WEBDAV_SYNC_DEBOUNCE_MS: number;
   STUMBLE_COUNT: number;
   DATE_RELATIVE_TIME_THRESHOLD_DAYS: number;
   DATE_FULL_DATE_THRESHOLD_DAYS: number;

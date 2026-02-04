@@ -37,8 +37,8 @@
         <a href="#import-export" class="nav-item" data-section="import-export">
           <span class="nav-label">Import / Export</span>
         </a>
-        <a href="#webdav-sync" class="nav-item" data-section="webdav-sync">
-          <span class="nav-label">WebDAV Sync</span>
+        <a href="#server-sync" class="nav-item" data-section="server-sync">
+          <span class="nav-label">Server Sync</span>
         </a>
         <a href="#about" class="nav-item" data-section="about">
           <span class="nav-label">About</span>
@@ -254,135 +254,93 @@
           </div>
         </section>
 
-        <section id="webdav-sync" class="settings-section">
+        <section id="server-sync" class="settings-section">
           <div class="option-panel">
             <div class="option-panel__header">
-              <h2>WebDAV Sync</h2>
+              <h2>Server Sync</h2>
               <p class="section-description">
-                Sync your bookmarks across devices using a WebDAV server (Nextcloud, ownCloud, Synology, etc.)
+                Sync your bookmarks across devices using a Localforge sync server with passkey authentication.
               </p>
             </div>
-            <form id="webdavForm" class="option-panel__content">
+            <div class="option-panel__content">
               <div class="form-group">
                 <label class="toggle-label">
-                  <input type="checkbox" id="webdavEnabled" name="webdavEnabled" />
-                  <span class="toggle-text">Enable WebDAV Sync</span>
+                  <input type="checkbox" id="serverEnabled" name="serverEnabled" />
+                  <span class="toggle-text">Enable Server Sync</span>
                 </label>
                 <small class="help-text">
-                  When enabled, bookmarks will sync automatically with your WebDAV server
+                  When enabled, bookmarks will sync automatically with your server
                 </small>
               </div>
 
-              <div id="webdavFields" class="conditional-fields">
+              <div id="serverSyncFields" class="conditional-fields hidden">
                 <div class="form-group">
-                  <label for="webdavUrl">Server URL</label>
+                  <label for="serverUrl">Server URL</label>
                   <input
                     type="url"
-                    id="webdavUrl"
-                    name="webdavUrl"
-                    placeholder="https://cloud.example.com/remote.php/dav/files/username"
+                    id="serverUrl"
+                    name="serverUrl"
+                    placeholder="https://sync.example.com"
                   />
                   <small class="help-text">
-                    Full WebDAV endpoint URL. For Nextcloud: <code>https://your-server/remote.php/dav/files/USERNAME</code>
+                    The URL of your Localforge sync server
                   </small>
-                  <div id="webdavUrlWarning" class="security-warning hidden">
-                    <strong>Security Warning:</strong> HTTP connections send credentials in plain text.
-                    Please use HTTPS, or enable "Allow insecure connections" below if you understand the risks.
-                  </div>
-                </div>
-
-                <div class="form-group">
-                  <label for="webdavUsername">Username</label>
-                  <input
-                    type="text"
-                    id="webdavUsername"
-                    name="webdavUsername"
-                    placeholder="your-username"
-                    autocomplete="username"
-                  />
-                  <small class="help-text">
-                    Your WebDAV server username
-                  </small>
-                </div>
-
-                <div class="form-group">
-                  <label for="webdavPassword">Password</label>
-                  <input
-                    type="password"
-                    id="webdavPassword"
-                    name="webdavPassword"
-                    placeholder="••••••••"
-                    autocomplete="current-password"
-                  />
-                  <small class="help-text">
-                    Your WebDAV server password or app-specific password. Stored locally only.
-                  </small>
-                </div>
-
-                <div class="form-group">
-                  <label for="webdavPath">Sync Folder Path</label>
-                  <input
-                    type="text"
-                    id="webdavPath"
-                    name="webdavPath"
-                    placeholder="/bookmarks"
-                  />
-                  <small class="help-text">
-                    Folder path on the server where bookmark data will be stored (will be created if it doesn't exist)
-                  </small>
-                </div>
-
-                <div class="form-group">
-                  <label for="webdavSyncInterval">Auto-sync Interval (minutes)</label>
-                  <input
-                    type="number"
-                    id="webdavSyncInterval"
-                    name="webdavSyncInterval"
-                    min="0"
-                    max="1440"
-                    placeholder="15"
-                  />
-                  <small class="help-text">
-                    How often to automatically sync (0 to disable auto-sync)
-                  </small>
-                </div>
-
-                <div class="form-group">
-                  <label class="toggle-label">
-                    <input type="checkbox" id="webdavAllowInsecure" name="webdavAllowInsecure" />
-                    <span class="toggle-text">Allow insecure connections (HTTP)</span>
-                  </label>
-                  <small class="help-text security-help">
-                    Only enable this for development or testing. HTTP connections send your credentials in plain text, which is a security risk.
-                  </small>
-                </div>
-
-                <div id="webdavConnectionStatus" class="connection-status hidden">
-                  <span class="status-indicator"></span>
-                  <span class="status-text"></span>
-                </div>
-
-                <div class="button-group">
-                  <button type="submit" class="btn btn-primary">
-                    Save Settings
+                  <button type="button" id="serverSaveUrlBtn" class="btn btn-secondary btn-sm">
+                    Save URL
                   </button>
-                  <button type="button" id="testWebdavBtn" class="btn btn-secondary">
-                    Test Connection
+                </div>
+
+                <div id="serverAuthSection" class="form-group">
+                  <label>Authentication</label>
+                  <p class="help-text">Register a new account or login with an existing passkey.</p>
+
+                  <div class="auth-form">
+                    <div class="form-group">
+                      <label for="serverUsername">Username</label>
+                      <input
+                        type="text"
+                        id="serverUsername"
+                        name="serverUsername"
+                        placeholder="your-username"
+                        autocomplete="username"
+                      />
+                    </div>
+                    <button type="button" id="serverRegisterBtn" class="btn btn-primary">
+                      Register with Passkey
+                    </button>
+                  </div>
+
+                  <div class="auth-divider">
+                    <span>or</span>
+                  </div>
+
+                  <button type="button" id="serverLoginBtn" class="btn btn-secondary">
+                    Login with Passkey
+                  </button>
+                </div>
+
+                <div id="serverLoggedInSection" class="form-group hidden">
+                  <label>Logged In</label>
+                  <p class="logged-in-status">
+                    Logged in as <strong id="serverUsernameDisplay"></strong>
+                  </p>
+                  <button type="button" id="serverLogoutBtn" class="btn btn-secondary">
+                    Logout
                   </button>
                 </div>
 
                 <div id="syncStatusSection" class="sync-status-section">
                   <h4>Sync Status</h4>
-                  <div id="syncStatusIndicator" class="sync-status-indicator">
-                    <span class="sync-status-icon"></span>
-                    <span class="sync-status-text">Not synced yet</span>
+                  <div id="serverSyncStatusIndicator" class="sync-status-indicator">
+                    <span id="serverSyncStatusIcon" class="sync-status-icon"></span>
+                    <span id="serverSyncStatusText" class="sync-status-text">Not synced yet</span>
                   </div>
-                  <button type="button" id="syncNowBtn" class="btn btn-secondary">
+                  <button type="button" id="serverSyncNowBtn" class="btn btn-secondary">
                     Sync Now
                   </button>
                 </div>
               </div>
-            </form>
+            </div>
           </div>
         </section>
 

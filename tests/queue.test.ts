@@ -15,10 +15,6 @@ vi.mock('../src/background/processor', () => ({
   }),
 }));
 
-vi.mock('../src/lib/webdav-sync', () => ({
-  triggerSyncIfEnabled: vi.fn().mockResolvedValue(undefined),
-}));
-
 vi.mock('../src/lib/jobs', () => ({
   updateJobItemByBookmark: vi.fn().mockResolvedValue(undefined),
   getJobItemByBookmark: vi.fn().mockResolvedValue(undefined),
@@ -220,16 +216,6 @@ describe('Queue Management', () => {
       await startProcessingQueue();
 
       expect(processMock).not.toHaveBeenCalled();
-    });
-
-    it('should trigger WebDAV sync when queue is empty', async () => {
-      const { triggerSyncIfEnabled } = await import('../src/lib/webdav-sync');
-
-      await startProcessingQueue();
-
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      expect(triggerSyncIfEnabled).toHaveBeenCalled();
     });
 
     it('should not process complete bookmarks', async () => {

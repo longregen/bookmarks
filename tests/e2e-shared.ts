@@ -1,5 +1,12 @@
 import { getErrorMessage } from '../src/lib/errors';
 
+export interface CDPSession {
+  send(method: string, params?: Record<string, unknown>): Promise<unknown>;
+  on(event: string, callback: (params: unknown) => void): void;
+  off(event: string, callback: (params: unknown) => void): void;
+  detach(): Promise<void>;
+}
+
 export interface PageHandle {
   goto(url: string): Promise<void>;
   waitForSelector(selector: string, timeout?: number): Promise<void>;
@@ -13,6 +20,7 @@ export interface PageHandle {
   screenshot(path: string, options?: { fullPage?: boolean }): Promise<void>;
   uploadFile(selector: string, filePath: string): Promise<void>;
   close(): Promise<void>;
+  createCDPSession?(): Promise<CDPSession>;
 }
 
 export interface TestAdapter {

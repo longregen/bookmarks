@@ -1,0 +1,18 @@
+{
+  "tasks": {
+    "dev": "deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi --unstable-ffi --watch src/main.ts",
+    "start": "deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi --unstable-ffi src/main.ts",
+    "migrate": "deno run --allow-read --allow-write --allow-env --allow-ffi --unstable-ffi src/db/migrate.ts"
+  },
+  "imports": {
+    "@hono/hono": "jsr:@hono/hono@^4",
+    "@std/crypto": "jsr:@std/crypto@^1",
+    "@std/encoding": "jsr:@std/encoding@^1",
+    "@db/sqlite": "jsr:@db/sqlite@^0.12",
+    "@simplewebauthn/server": "npm:@simplewebauthn/server@^11"
+  },
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true
+  }
+}
