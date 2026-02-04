@@ -54,7 +54,7 @@ export async function browserFetch(url: string, timeoutMs: number = config.FETCH
   if (!__IS_WEB__ && isLocalhostUrl(url)) {
     try {
       return await renderPage(url, timeoutMs);
-    } catch (error) {
+    } catch {
       // Fall back to direct fetch if tab rendering fails
       const html = await fetchWithTimeout(url, timeoutMs);
       const title = extractTitleFromHtml(html);

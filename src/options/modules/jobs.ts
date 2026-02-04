@@ -18,8 +18,8 @@ async function loadJobs(): Promise<void> {
 
     const jobs = await getRecentJobs({
       limit: 100,
-      type: typeFilter || undefined,
-      status: statusFilter || undefined,
+      type: typeFilter !== '' ? typeFilter : undefined,
+      status: statusFilter !== '' ? statusFilter : undefined,
     });
 
     if (jobs.length === 0) {

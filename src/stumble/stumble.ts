@@ -95,14 +95,16 @@ async function loadStumble(): Promise<void> {
     const allQAPairs = await db.questionsAnswers.where('bookmarkId').anyOf(bookmarkIds).toArray();
     const qaPairsByBookmark = new Map<string, typeof allQAPairs>();
     for (const qa of allQAPairs) {
-      if (!qaPairsByBookmark.has(qa.bookmarkId)) {
-        qaPairsByBookmark.set(qa.bookmarkId, []);
+      const existing = qaPairsByBookmark.get(qa.bookmarkId);
+      if (existing !== undefined) {
+        existing.push(qa);
+      } else {
+        qaPairsByBookmark.set(qa.bookmarkId, [qa]);
       }
-      qaPairsByBookmark.get(qa.bookmarkId)!.push(qa);
     }
 
     for (const bookmark of selected) {
-      const qaPairs = qaPairsByBookmark.get(bookmark.id) || [];
+      const qaPairs = qaPairsByBookmark.get(bookmark.id) ?? [];
       const randomQA = qaPairs.length > 0 ? qaPairs[Math.floor(Math.random() * qaPairs.length)] : null;
 
       const card = createElement('div', { className: 'stumble-card' });

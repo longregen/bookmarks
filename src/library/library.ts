@@ -1,4 +1,5 @@
 import { db, type BookmarkTag } from '../db/schema';
+import type * as ExportModule from '../lib/export';
 import { createElement, getElement } from '../ui/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { onThemeChange, applyTheme } from '../shared/theme';
@@ -240,8 +241,8 @@ declare global {
 }
 
 // Dynamic import to avoid bundling issues in test mode
-async function getExportModule(): Promise<typeof import('../lib/export')> {
-  return await import('../lib/export');
+async function getExportModule(): Promise<typeof ExportModule> {
+  return import('../lib/export');
 }
 
 window.__testHelpers = {

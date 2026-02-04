@@ -156,7 +156,7 @@ async function executeExtraction(tabId: number, settleTimeMs: number, maxMultipl
   });
 
   const result = results[0]?.result;
-  if (results.length === 0 || result === undefined || result.html === undefined || result.html === '') {
+  if (result?.html === undefined || result.html === '') {
     throw new Error('Failed to extract HTML from page');
   }
 
