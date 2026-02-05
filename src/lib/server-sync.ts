@@ -7,7 +7,6 @@ import {
   ServerApiError,
   type ServerBookmark,
   type ServerBookmarkFull,
-  type FullSyncDownloadResponse,
 } from './server-api';
 
 export type SyncAction = 'full_sync' | 'incremental_sync' | 'no_change';
@@ -36,37 +35,47 @@ export interface OfflineChange {
   timestamp: number;
 }
 
-// Re-export types from server-api for convenience
-export type { ServerBookmark, ServerBookmarkFull, ServerQAPair, FullSyncDownloadResponse } from './server-api';
-
 const OFFLINE_QUEUE_KEY = 'serverSync:offlineQueue';
 
 export class ServerSyncManager {
   private isSyncing = false;
   private isProcessingQueue = false;
   private offlineQueue: OfflineChange[] = [];
+  private queueLoaded = false;
 
-  constructor() {
-    this.loadOfflineQueue();
+  private async ensureQueueLoaded(): Promise<void> {
+    if (this.queueLoaded) return;
+    await this.loadOfflineQueue();
   }
 
-  private loadOfflineQueue(): void {
+  private async loadOfflineQueue(): Promise<void> {
     try {
-      const stored = localStorage.getItem(OFFLINE_QUEUE_KEY);
-      if (stored !== null && stored !== '') {
-        this.offlineQueue = JSON.parse(stored) as OfflineChange[];
+      if (__IS_WEB__) {
+        const stored = localStorage.getItem(OFFLINE_QUEUE_KEY);
+        if (stored !== null && stored !== '') {
+          this.offlineQueue = JSON.parse(stored) as OfflineChange[];
+        }
+      } else {
+        const result = await chrome.storage.local.get(OFFLINE_QUEUE_KEY);
+        const stored = result[OFFLINE_QUEUE_KEY] as string | undefined;
+        if (stored !== undefined && stored !== '') {
+          this.offlineQueue = JSON.parse(stored) as OfflineChange[];
+        }
       }
     } catch {
       this.offlineQueue = [];
     }
+    this.queueLoaded = true;
   }
 
-  private saveOfflineQueue(): void {
+  private async saveOfflineQueue(): Promise<void> {
     try {
-      localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(this.offlineQueue));
-    } catch {
-      // Ignore storage errors
-    }
+      if (__IS_WEB__) {
+        localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(this.offlineQueue));
+      } else {
+        await chrome.storage.local.set({ [OFFLINE_QUEUE_KEY]: JSON.stringify(this.offlineQueue) });
+      }
+    } catch { /* best-effort persist */ }
   }
 
   private async isServerEnabled(): Promise<boolean> {
@@ -88,17 +97,27 @@ export class ServerSyncManager {
 
     try {
       const client = await ServerApiClient.fromSettings();
-      const response = await this.fetchFullSync(client);
+      const allBookmarks: ServerBookmark[] = [];
+      let offset = 0;
+      let syncTimestamp = '';
+
+      for (;;) {
+        const response = await client.downloadFullSync({ offset });
+        allBookmarks.push(...response.bookmarks);
+        syncTimestamp = response.syncTimestamp;
+        if (!response.hasMore) break;
+        offset = allBookmarks.length;
+      }
 
       await this.clearLocalCache();
-      await this.storeBookmarks(response.bookmarks);
+      await this.storeBookmarks(allBookmarks);
 
-      const syncTime = new Date(response.syncTimestamp).getTime();
-      await saveSetting('serverLastSyncTime', response.syncTimestamp);
+      const syncTime = new Date(syncTimestamp).getTime();
+      await saveSetting('serverLastSyncTime', syncTimestamp);
       await saveSetting('serverLastSyncError', '');
-      await events.sync.completed('downloaded', response.bookmarks.length);
+      await events.sync.completed('downloaded', allBookmarks.length);
 
-      return { success: true, action: 'full_sync', message: `Full sync completed: ${response.bookmarks.length} bookmarks`, timestamp: syncTime, bookmarkCount: response.bookmarks.length };
+      return { success: true, action: 'full_sync', message: `Full sync completed: ${allBookmarks.length} bookmarks`, timestamp: syncTime, bookmarkCount: allBookmarks.length };
     } catch (error) {
       const errorMessage = this.formatError(error);
       await saveSetting('serverLastSyncError', errorMessage);
@@ -107,10 +126,6 @@ export class ServerSyncManager {
     } finally {
       this.isSyncing = false;
     }
-  }
-
-  private async fetchFullSync(client: ServerApiClient): Promise<FullSyncDownloadResponse> {
-    return client.downloadFullSync();
   }
 
   async incrementalSync(): Promise<SyncResult> {
@@ -136,7 +151,7 @@ export class ServerSyncManager {
 
       let changesApplied = 0;
       for (const change of response.changes) {
-        if (change.changeType === 'delete' && change.bookmarkId !== '') {
+        if (change.type === 'deleted' && change.bookmarkId !== undefined && change.bookmarkId !== '') {
           await this.deleteLocalBookmark(change.bookmarkId);
           changesApplied++;
         } else if (change.bookmark !== undefined) {
@@ -145,7 +160,7 @@ export class ServerSyncManager {
         }
       }
 
-      await saveSetting('serverLastSyncTime', response.syncToken);
+      await saveSetting('serverLastSyncTime', response.syncTimestamp);
       await saveSetting('serverLastSyncError', '');
 
       const action: SyncAction = changesApplied > 0 ? 'incremental_sync' : 'no_change';
@@ -155,7 +170,7 @@ export class ServerSyncManager {
         success: true,
         action,
         message: changesApplied > 0 ? `Incremental sync: ${changesApplied} changes applied` : 'No changes since last sync',
-        timestamp: new Date(response.syncToken).getTime(),
+        timestamp: new Date(response.syncTimestamp).getTime(),
         bookmarkCount: changesApplied,
       };
     } catch (error) {
@@ -175,13 +190,13 @@ export class ServerSyncManager {
     return getErrorMessage(error);
   }
 
-  queueOfflineChange(change: OfflineChange): void {
+  async queueOfflineChange(change: OfflineChange): Promise<void> {
+    await this.ensureQueueLoaded();
     const existingIndex = this.offlineQueue.findIndex(c => c.bookmarkId === change.bookmarkId);
 
     if (existingIndex < 0) {
-      // No existing change for this bookmark, just add it
       this.offlineQueue.push(change);
-      this.saveOfflineQueue();
+      await this.saveOfflineQueue();
       return;
     }
 
@@ -189,35 +204,29 @@ export class ServerSyncManager {
 
     if (change.type === 'delete') {
       if (existing.type === 'create') {
-        // Create + delete = no sync needed (bookmark never existed on server)
         this.offlineQueue.splice(existingIndex, 1);
       } else {
-        // Update + delete = just delete (replace update with delete)
         this.offlineQueue[existingIndex] = change;
       }
     } else if (change.type === 'update') {
       if (existing.type === 'create') {
-        // Create + update = merge update data into create
         existing.data = { ...existing.data, ...change.data };
         existing.timestamp = change.timestamp;
       } else if (existing.type === 'update') {
-        // Update + update = merge and keep latest timestamp
         existing.data = { ...existing.data, ...change.data };
         existing.timestamp = change.timestamp;
       }
-      // If existing is delete, ignore the update (can't update deleted bookmark)
     } else {
       if (existing.type === 'delete') {
-        // Delete + create = replace with create (re-creating after delete)
         this.offlineQueue[existingIndex] = change;
       }
-      // If existing is create or update, keep existing (shouldn't happen normally)
     }
 
-    this.saveOfflineQueue();
+    await this.saveOfflineQueue();
   }
 
   async processOfflineQueue(): Promise<void> {
+    await this.ensureQueueLoaded();
     if (this.isProcessingQueue || !(await this.isServerEnabled()) || this.offlineQueue.length === 0) {
       return;
     }
@@ -237,7 +246,7 @@ export class ServerSyncManager {
       }
 
       this.offlineQueue = this.offlineQueue.filter((_, i) => !processedIndices.has(i));
-      this.saveOfflineQueue();
+      await this.saveOfflineQueue();
     } finally {
       this.isProcessingQueue = false;
     }
@@ -267,6 +276,7 @@ export class ServerSyncManager {
   }
 
   async getSyncStatus(): Promise<SyncStatus> {
+    await this.ensureQueueLoaded();
     const settings = await getSettings();
     return {
       lastSyncTime: settings.serverLastSyncTime || null,
@@ -335,14 +345,12 @@ export class ServerSyncManager {
   private async cacheBookmarkContent(fullBookmark: ServerBookmarkFull): Promise<void> {
     const now = new Date();
     await db.transaction('rw', [db.bookmarks, db.markdown, db.questionsAnswers], async () => {
-      // Update bookmark with html
       const existing = await db.bookmarks.get(fullBookmark.id);
       if (existing) {
         existing.html = fullBookmark.html ?? '';
         await db.bookmarks.put(existing);
       }
 
-      // Store markdown
       if (fullBookmark.markdown !== null && fullBookmark.markdown !== '') {
         const markdown: Markdown = {
           id: `${fullBookmark.id}-md`,
@@ -354,37 +362,32 @@ export class ServerSyncManager {
         await db.markdown.put(markdown);
       }
 
-      // Store Q&A pairs
       if (fullBookmark.qaPairs.length > 0) {
-        // Clear existing Q&A pairs for this bookmark
         await db.questionsAnswers.where('bookmarkId').equals(fullBookmark.id).delete();
 
-        for (const qa of fullBookmark.qaPairs) {
-          await db.questionsAnswers.put({
-            id: qa.id,
-            bookmarkId: fullBookmark.id,
-            question: qa.question,
-            answer: qa.answer,
-            embeddingQuestion: [], // Not needed for display
-            embeddingAnswer: [],
-            embeddingBoth: [],
-            createdAt: new Date(qa.createdAt),
-            updatedAt: now,
-          });
-        }
+        await db.questionsAnswers.bulkPut(fullBookmark.qaPairs.map(qa => ({
+          id: qa.id,
+          bookmarkId: fullBookmark.id,
+          question: qa.question,
+          answer: qa.answer,
+          embeddingQuestion: [],
+          embeddingAnswer: [],
+          embeddingBoth: [],
+          createdAt: new Date(qa.createdAt),
+          updatedAt: now,
+        })));
       }
     });
   }
 
   private async upsertLocalBookmark(serverBookmark: ServerBookmark): Promise<void> {
     const now = new Date();
-    // Only store minimal data - full content fetched on-demand
     await db.transaction('rw', [db.bookmarks, db.bookmarkTags], async () => {
       const bookmark: Bookmark = {
         id: serverBookmark.id,
         url: serverBookmark.url,
         title: serverBookmark.title,
-        html: '', // Don't store html - fetch on-demand
+        html: '',
         status: serverBookmark.status as Bookmark['status'],
         errorMessage: serverBookmark.errorMessage ?? undefined,
         createdAt: new Date(serverBookmark.createdAt),
@@ -393,10 +396,9 @@ export class ServerSyncManager {
       await db.bookmarks.put(bookmark);
 
       await db.bookmarkTags.where('bookmarkId').equals(serverBookmark.id).delete();
-      for (const tagName of serverBookmark.tags) {
-        const tag: BookmarkTag = { bookmarkId: serverBookmark.id, tagName, addedAt: now };
-        await db.bookmarkTags.put(tag);
-      }
+      await db.bookmarkTags.bulkPut(
+        serverBookmark.tags.map(tagName => ({ bookmarkId: serverBookmark.id, tagName, addedAt: now }))
+      );
     });
   }
 

@@ -25,6 +25,7 @@
     "screenshots": "npx tsx scripts/capture-screenshots.ts"
   },
   "dependencies": {
+    "@esbuild/linux-x64": "^0.27.2",
     "@mozilla/readability": "^0.6.0",
     "@vitest/mocker": "^4.0.18",
     "dexie": "^4.3.0",

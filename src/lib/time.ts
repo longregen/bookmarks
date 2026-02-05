@@ -1,3 +1,8 @@
+export async function sleep(ms: number): Promise<void> {
+  if (ms <= 0) return;
+  return new Promise(resolve => { setTimeout(resolve, ms); });
+}
+
 export function formatTimeAgo(date: Date): string {
   const now = new Date();
   const diff = now.getTime() - date.getTime();

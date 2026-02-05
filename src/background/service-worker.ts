@@ -223,7 +223,7 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
       return { success: true, bookmarkId: serverResult.id };
     } catch (error) {
       console.warn('Server unreachable, queuing bookmark for offline sync:', error);
-      serverSync.queueOfflineChange({
+      await serverSync.queueOfflineChange({
         type: 'create',
         bookmarkId: id,
         data: { url, title, html },

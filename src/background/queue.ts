@@ -9,6 +9,7 @@ import {
   updateJobStatus,
 } from '../lib/jobs';
 import { events } from '../lib/events';
+import { sleep } from '../lib/time';
 
 let isProcessing = false;
 
@@ -19,11 +20,7 @@ function calculateBackoffDelay(retryCount: number): number {
   return delay + Math.random() * delay * 0.25;
 }
 
-async function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => { setTimeout(resolve, ms); });
-}
-
-async function fetchSingleBookmark(bookmark: Bookmark): Promise<{ success: boolean; bookmark: Bookmark }> {
+async function fetchSingleBookmark(bookmark: Bookmark): Promise<boolean> {
   const currentRetryCount = bookmark.retryCount ?? 0;
   const maxRetries = config.QUEUE_MAX_RETRIES;
 
@@ -33,7 +30,7 @@ async function fetchSingleBookmark(bookmark: Bookmark): Promise<{ success: boole
     const fetchedBookmark = await fetchBookmarkHtml(bookmark);
 
     console.log(`[Queue] Downloaded: ${fetchedBookmark.title}`);
-    return { success: true, bookmark: fetchedBookmark };
+    return true;
   } catch (error) {
     const errorMessage = getErrorMessage(error);
     console.error(`[Queue] Fetch error for ${bookmark.url}:`, errorMessage);
@@ -71,7 +68,7 @@ async function fetchSingleBookmark(bookmark: Bookmark): Promise<{ success: boole
       }
     }
 
-    return { success: false, bookmark };
+    return false;
   }
 }
 
@@ -97,11 +94,10 @@ async function processFetchQueue(): Promise<void> {
       bookmarksToFetch.map(bookmark => fetchSingleBookmark(bookmark))
     );
 
-    const successCount = results.filter(r => r.success).length;
+    const successCount = results.filter(r => r).length;
     const failureCount = results.length - successCount;
     console.log(`[Queue] Batch complete: ${successCount} succeeded, ${failureCount} failed/retrying`);
 
-    // Small delay between batches to avoid overwhelming the system
     if (bookmarksToFetch.length === concurrency) {
       await sleep(100);
     }
@@ -223,9 +219,11 @@ export async function startProcessingQueue(): Promise<void> {
     await processFetchQueue();
     await processContentQueue();
 
-    serverSync.incrementalSync().catch((err: unknown) => {
+    try {
+      await serverSync.incrementalSync();
+    } catch (err: unknown) {
       console.error('[Queue] Server sync after queue empty failed:', err);
-    });
+    }
   } finally {
     isProcessing = false;
   }

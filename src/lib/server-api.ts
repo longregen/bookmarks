@@ -8,7 +8,6 @@ export interface AuthResponse {
   created: boolean;
 }
 
-// Bookmark types
 export interface CreateBookmarkRequest {
   url: string;
   title: string;
@@ -21,7 +20,6 @@ export interface UpdateBookmarkRequest {
   tags?: string[];
 }
 
-// Core bookmark data returned from server
 export interface ServerBookmark {
   id: string;
   url: string;
@@ -36,7 +34,6 @@ export interface ServerBookmark {
   tags: string[];
 }
 
-// Q&A pair returned from server
 export interface ServerQAPair {
   id: string;
   question: string;
@@ -44,7 +41,6 @@ export interface ServerQAPair {
   createdAt: string;
 }
 
-// Full bookmark with Q&A pairs (returned by detail endpoint)
 export interface ServerBookmarkFull extends ServerBookmark {
   qaPairs: ServerQAPair[];
 }
@@ -62,7 +58,6 @@ export interface BookmarkListParams {
   pageSize?: number;
 }
 
-// Search types
 export interface SearchParams {
   q: string;
   page?: number;
@@ -91,22 +86,17 @@ export interface SemanticSearchResponse {
   results: SemanticSearchResult[];
 }
 
-// Sync types
 export interface SyncChange {
-  id: string;
-  bookmarkId: string;
-  changeType: 'create' | 'update' | 'delete';
+  type: 'created' | 'updated' | 'deleted';
   bookmark?: ServerBookmark;
-  timestamp: string;
+  bookmarkId?: string;
 }
 
 export interface SyncChangesResponse {
   changes: SyncChange[];
-  syncToken: string;
-  hasMore: boolean;
+  syncTimestamp: string;
 }
 
-// Request for uploading local bookmarks to server
 export interface FullSyncUploadRequest {
   bookmarks: {
     id: string;
@@ -120,7 +110,6 @@ export interface FullSyncUploadRequest {
   }[];
 }
 
-// Response from uploading local bookmarks
 export interface FullSyncUploadResponse {
   created: number;
   updated: number;
@@ -128,13 +117,13 @@ export interface FullSyncUploadResponse {
   syncToken: string;
 }
 
-// Response from downloading all bookmarks from server
 export interface FullSyncDownloadResponse {
   bookmarks: ServerBookmark[];
+  hasMore: boolean;
+  total: number;
   syncTimestamp: string;
 }
 
-// Error class
 export class ServerApiError extends Error {
   constructor(
     message: string,
@@ -201,9 +190,11 @@ export class ServerApiClient {
       }
     }
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+    const headers: Record<string, string> = {};
+
+    if (body !== undefined) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (authenticated && this.sessionToken !== '') {
       headers.Authorization = `Bearer ${this.sessionToken}`;
@@ -312,10 +303,6 @@ export class ServerApiClient {
     });
   }
 
-  async getBookmark(id: string): Promise<ServerBookmark> {
-    return this.request<ServerBookmark>('GET', `/api/v1/bookmarks/${encodeURIComponent(id)}`);
-  }
-
   async getBookmarkFull(id: string): Promise<ServerBookmarkFull> {
     return this.request<ServerBookmarkFull>('GET', `/api/v1/bookmarks/${encodeURIComponent(id)}`);
   }
@@ -367,19 +354,18 @@ export class ServerApiClient {
     });
   }
 
-  /**
-   * Upload local bookmarks to server (initial sync from existing device)
-   */
   async uploadFullSync(request: FullSyncUploadRequest): Promise<FullSyncUploadResponse> {
     return this.request<FullSyncUploadResponse>('POST', '/api/v1/sync/full', {
       body: request,
     });
   }
 
-  /**
-   * Download all bookmarks from server (new device sync)
-   */
-  async downloadFullSync(): Promise<FullSyncDownloadResponse> {
-    return this.request<FullSyncDownloadResponse>('GET', '/api/v1/sync/full');
+  async downloadFullSync(params: { offset?: number; limit?: number } = {}): Promise<FullSyncDownloadResponse> {
+    return this.request<FullSyncDownloadResponse>('GET', '/api/v1/sync/full', {
+      params: {
+        offset: params.offset,
+        limit: params.limit,
+      },
+    });
   }
 }

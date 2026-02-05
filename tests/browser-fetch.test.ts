@@ -10,7 +10,7 @@ const mockRenderPage = vi.mocked(renderPage);
 
 describe('Browser Fetch Library', () => {
   const mockFetch = vi.fn();
-  global.fetch = mockFetch as any;
+  vi.stubGlobal('fetch', mockFetch);
 
   beforeEach(() => {
     mockFetch.mockReset();
@@ -22,6 +22,7 @@ describe('Browser Fetch Library', () => {
       const mockHtml = '<html><body>Test Page</body></html>';
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        headers: new Headers(),
         text: async () => mockHtml,
       });
 
@@ -40,6 +41,7 @@ describe('Browser Fetch Library', () => {
     it('should use AbortController for timeout', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        headers: new Headers(),
         text: async () => 'test',
       });
 
@@ -83,6 +85,7 @@ describe('Browser Fetch Library', () => {
       const largeHtml = 'x'.repeat(11 * 1024 * 1024);
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        headers: new Headers(),
         text: async () => largeHtml,
       });
 
@@ -95,6 +98,7 @@ describe('Browser Fetch Library', () => {
       const html = 'x'.repeat(9 * 1024 * 1024);
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        headers: new Headers(),
         text: async () => html,
       });
 
@@ -147,6 +151,7 @@ describe('Browser Fetch Library', () => {
     it('should handle empty HTML response', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        headers: new Headers(),
         text: async () => '',
       });
 
@@ -158,63 +163,47 @@ describe('Browser Fetch Library', () => {
       const specialHtml = '<html><body>Test & "quotes" < > </body></html>';
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        headers: new Headers(),
         text: async () => specialHtml,
       });
 
       const html = await fetchWithTimeout('https://example.com');
       expect(html).toBe(specialHtml);
     });
+
+    it('should reject early when content-length header exceeds limit', async () => {
+      const textFn = vi.fn();
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-length': String(11 * 1024 * 1024) }),
+        text: textFn,
+      });
+
+      await expect(
+        fetchWithTimeout('https://example.com')
+      ).rejects.toThrow('HTML content too large');
+      expect(textFn).not.toHaveBeenCalled();
+    });
+
+    it('should skip content-length check when header is absent', async () => {
+      const html = '<html>ok</html>';
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers(),
+        text: async () => html,
+      });
+
+      const result = await fetchWithTimeout('https://example.com');
+      expect(result).toBe(html);
+    });
   });
 
   describe('browserFetch', () => {
-    it.skip('should use fetchWithTimeout in Firefox', async () => {
-      const originalNavigator = global.navigator;
-      Object.defineProperty(global, 'navigator', {
-        value: { userAgent: 'Mozilla/5.0 (Firefox)' },
-        configurable: true,
-      });
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        text: async () => 'test',
-      });
-
-      const html = await browserFetch('https://example.com');
-      expect(html).toBe('test');
-      expect(mockFetch).toHaveBeenCalled();
-
-      Object.defineProperty(global, 'navigator', {
-        value: originalNavigator,
-        configurable: true,
-      });
-    });
-
-    it.skip('should detect Firefox correctly', async () => {
-      const originalNavigator = global.navigator;
-      Object.defineProperty(global, 'navigator', {
-        value: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0' },
-        configurable: true,
-      });
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        text: async () => 'firefox test',
-      });
-
-      const html = await browserFetch('https://example.com');
-      expect(html).toBe('firefox test');
-
-      Object.defineProperty(global, 'navigator', {
-        value: originalNavigator,
-        configurable: true,
-      });
-    });
-
     it('should use renderPage for tab-based rendering', async () => {
-      mockRenderPage.mockResolvedValueOnce('<html>rendered content</html>');
+      mockRenderPage.mockResolvedValueOnce({ html: '<html>rendered content</html>', title: 'Test' });
 
-      const html = await browserFetch('https://example.com');
-      expect(html).toBe('<html>rendered content</html>');
+      const result = await browserFetch('https://example.com');
+      expect(result).toEqual({ html: '<html>rendered content</html>', title: 'Test' });
       expect(mockRenderPage).toHaveBeenCalledWith('https://example.com', expect.any(Number));
     });
 
@@ -227,17 +216,53 @@ describe('Browser Fetch Library', () => {
     });
 
     it('should pass timeout to renderPage', async () => {
-      mockRenderPage.mockResolvedValueOnce('<html>test</html>');
+      mockRenderPage.mockResolvedValueOnce({ html: '<html>test</html>', title: 'Test' });
 
       await browserFetch('https://example.com', 5000);
       expect(mockRenderPage).toHaveBeenCalledWith('https://example.com', 5000);
     });
 
     it('should use default timeout when not specified', async () => {
-      mockRenderPage.mockResolvedValueOnce('<html>test</html>');
+      mockRenderPage.mockResolvedValueOnce({ html: '<html>test</html>', title: 'Test' });
 
       await browserFetch('https://example.com');
       expect(mockRenderPage).toHaveBeenCalledWith('https://example.com', 30000);
+    });
+
+    it('should use directFetch in web builds', async () => {
+      (globalThis as any).__IS_WEB__ = true;
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers(),
+        text: async () => '<html><head><title>Web</title></head><body>web content</body></html>',
+      });
+
+      const result = await browserFetch('https://example.com');
+      expect(result.html).toContain('web content');
+      expect(mockRenderPage).not.toHaveBeenCalled();
+      (globalThis as any).__IS_WEB__ = false;
+    });
+
+    it('should fall back to directFetch for localhost when renderPage fails', async () => {
+      mockRenderPage.mockRejectedValueOnce(new Error('Tab creation failed'));
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers(),
+        text: async () => '<html><head><title>Local</title></head><body>localhost content</body></html>',
+      });
+
+      const result = await browserFetch('http://localhost:3000/page');
+      expect(result.html).toContain('localhost content');
+      expect(mockRenderPage).toHaveBeenCalled();
+      expect(mockFetch).toHaveBeenCalled();
+    });
+
+    it('should use renderPage for localhost when it succeeds', async () => {
+      mockRenderPage.mockResolvedValueOnce({ html: '<html>rendered</html>', title: 'Local' });
+
+      const result = await browserFetch('http://localhost:3000/page');
+      expect(result).toEqual({ html: '<html>rendered</html>', title: 'Local' });
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 

@@ -18,6 +18,7 @@ export async function fetchBookmarkHtml(bookmark: Bookmark): Promise<Bookmark> {
     html: captured.html,
     title,
     status: 'downloaded',
+    retryCount: 0,
     updatedAt: new Date(),
   });
 

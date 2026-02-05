@@ -58,7 +58,6 @@ sortSelect.addEventListener('change', () => {
 });
 
 async function loadTags(): Promise<void> {
-  // Use count() instead of loading all bookmarks - more efficient for large libraries
   const [totalBookmarks, allTagRecords] = await Promise.all([
     db.bookmarks.count(),
     db.bookmarkTags.toArray()
@@ -114,7 +113,6 @@ async function loadBookmarks(): Promise<void> {
   if (selectedTag === 'All') {
     bookmarks = await db.bookmarks.toArray();
   } else if (selectedTag === 'Untagged') {
-    // Get only the bookmark IDs and tagged IDs, then load only untagged bookmarks
     const [allBookmarkIds, taggedIds] = await Promise.all([
       db.bookmarks.toCollection().primaryKeys(),
       db.bookmarkTags.orderBy('bookmarkId').uniqueKeys()
@@ -171,9 +169,9 @@ async function loadBookmarks(): Promise<void> {
     } catch {
       hostname = bookmark.url;
     }
-    const url = createElement('a', { className: 'card-url', href: bookmark.url, textContent: hostname });
-    url.onclick = (e) => e.stopPropagation();
-    meta.appendChild(url);
+    const link = createElement('a', { className: 'card-url', href: bookmark.url, textContent: hostname });
+    link.onclick = (e) => e.stopPropagation();
+    meta.appendChild(link);
     meta.appendChild(document.createTextNode(` · ${formatDateByAge(bookmark.createdAt)}`));
     card.appendChild(meta);
 

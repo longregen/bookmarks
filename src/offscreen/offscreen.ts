@@ -4,12 +4,7 @@ import type { ExtractedContent } from '../lib/extract';
 import { getErrorMessage } from '../lib/errors';
 import type { OffscreenReadyResponse } from '../lib/messages';
 
-console.log('[Offscreen] Document loaded');
-
-// Signal that the offscreen document is ready
-chrome.runtime.sendMessage({ type: 'offscreen:ready' }).catch(() => {
-  // Ignore errors - service worker may not be listening yet
-});
+chrome.runtime.sendMessage({ type: 'offscreen:ready' }).catch(() => {});
 
 let turndownInstance: TurndownService | null = null;
 function getTurndown(): TurndownService {
@@ -21,11 +16,6 @@ function getTurndown(): TurndownService {
 }
 
 function extractMarkdownInOffscreen(html: string, url: string): ExtractedContent {
-  console.log('[Offscreen] Extracting markdown', {
-    url,
-    htmlLength: html.length,
-  });
-
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
 
@@ -44,17 +34,8 @@ function extractMarkdownInOffscreen(html: string, url: string): ExtractedContent
     throw new Error('Readability could not parse the page');
   }
 
-  console.log('[Offscreen] Readability result', {
-    title: article.title,
-    contentLength: article.content?.length ?? 0,
-  });
-
   const contentDoc = parser.parseFromString(article.content ?? '', 'text/html');
   const markdown = getTurndown().turndown(contentDoc.body);
-
-  console.log('[Offscreen] Markdown conversion complete', {
-    markdownLength: markdown.length,
-  });
 
   return {
     title: article.title ?? '',

@@ -16,12 +16,13 @@ export async function resumeIncompleteJobs(): Promise<void> {
     console.log(`[JobResumption] Found ${processingBookmarks.length} bookmarks stuck in 'processing' state`);
 
     await db.transaction('rw', db.bookmarks, async () => {
-      for (const bookmark of processingBookmarks) {
-        await db.bookmarks.update(bookmark.id, {
+      await Promise.all(processingBookmarks.map(bookmark =>
+        db.bookmarks.update(bookmark.id, {
           status: 'downloaded',
+          retryCount: 0,
           updatedAt: now,
-        });
-      }
+        })
+      ));
     });
 
     console.log(`[JobResumption] Reset ${processingBookmarks.length} bookmarks to 'downloaded' status`);
@@ -38,12 +39,13 @@ export async function resumeIncompleteJobs(): Promise<void> {
     console.log(`[JobResumption] Found ${inProgressJobItems.length} job items stuck in IN_PROGRESS state`);
 
     await db.transaction('rw', db.jobItems, async () => {
-      for (const item of inProgressJobItems) {
-        await db.jobItems.update(item.id, {
+      await Promise.all(inProgressJobItems.map(item =>
+        db.jobItems.update(item.id, {
           status: JobItemStatus.PENDING,
+          retryCount: 0,
           updatedAt: now,
-        });
-      }
+        })
+      ));
     });
 
     console.log(`[JobResumption] Reset ${inProgressJobItems.length} job items to PENDING status`);

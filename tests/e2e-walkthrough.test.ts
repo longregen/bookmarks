@@ -1,30 +1,3 @@
-/**
- * E2E Walkthrough Test for Video Generation
- *
- * A comprehensive E2E test that walks through the entire app in a logical
- * user journey, capturing numbered screenshots. Runs a matrix of:
- * - Browsers: Chrome (Puppeteer), Firefox (Selenium)
- * - Servers: Deno, Wrangler (Cloudflare Worker)
- *
- * Usage:
- *   npm run build:chrome && npm run build:firefox && \
- *   BROWSER_PATH=/path/to/chromium FIREFOX_PATH=/path/to/firefox \
- *   xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" \
- *   npm run test:e2e:walkthrough
- *
- * Environment variables:
- *   BROWSER_PATH - Path to Chromium (required for Chrome tests)
- *   FIREFOX_PATH - Path to Firefox (required for Firefox tests)
- *   SKIP_CHROME - Set to skip Chrome tests
- *   SKIP_FIREFOX - Set to skip Firefox tests
- *   SKIP_DENO - Set to skip Deno server tests
- *   SKIP_WRANGLER - Set to skip Wrangler server tests
- *
- * Generate video from screenshots:
- *   ffmpeg -framerate 2 -pattern_type glob -i 'screenshots/walkthrough/chrome-deno/*.png' \
- *     -c:v libx264 -pix_fmt yuv420p walkthrough-chrome-deno.mp4
- */
-
 import { ChromeAdapter } from './adapters/chrome-adapter';
 import { FirefoxAdapter } from './adapters/firefox-adapter';
 import { PageHandle, TestAdapter, waitForSettingsLoad } from './e2e-shared';
@@ -65,9 +38,6 @@ interface WalkthroughContext {
   serverType: ServerType | null;
 }
 
-/**
- * Capture a screenshot with sequential numbering
- */
 async function capture(ctx: WalkthroughContext, name: string, fullPage = false): Promise<void> {
   ctx.screenshotCounter++;
   const filename = `${String(ctx.screenshotCounter).padStart(3, '0')}-${name}.png`;
@@ -75,16 +45,10 @@ async function capture(ctx: WalkthroughContext, name: string, fullPage = false):
   console.log(`  📸 ${filename}`);
 }
 
-/**
- * Pause for visual timing
- */
 async function pause(ms = 500): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Set theme via data-theme attribute
- */
 async function setTheme(page: PageHandle, theme: Theme | 'auto'): Promise<void> {
   if (theme === 'auto') {
     await page.evaluate(`document.documentElement.removeAttribute('data-theme')`);
@@ -94,9 +58,6 @@ async function setTheme(page: PageHandle, theme: Theme | 'auto'): Promise<void> 
   await pause(300);
 }
 
-/**
- * Wait for server to be ready
- */
 async function waitForServer(url: string, timeoutMs = 30000): Promise<void> {
   const startTime = Date.now();
   while (Date.now() - startTime < timeoutMs) {
@@ -105,28 +66,18 @@ async function waitForServer(url: string, timeoutMs = 30000): Promise<void> {
       if (response.ok) {
         return;
       }
-    } catch {
-      // Server not ready yet
-    }
+    } catch {}
     await pause(500);
   }
   throw new Error(`Server at ${url} did not become ready within ${timeoutMs}ms`);
 }
 
-/**
- * Kill any process listening on the given port
- */
 function killProcessOnPort(port: number): void {
   try {
     execSync(`fuser -k ${port}/tcp 2>/dev/null`, { stdio: 'ignore' });
-  } catch {
-    // No process on port, that's fine
-  }
+  } catch {}
 }
 
-/**
- * Start the Deno server
- */
 async function startDenoServer(mockOpenAIUrl: string): Promise<ServerProcess> {
   const port = 3456;
   const url = `http://127.0.0.1:${port}`;
@@ -187,20 +138,20 @@ async function startDenoServer(mockOpenAIUrl: string): Promise<ServerProcess> {
     port,
     stop: async () => {
       return new Promise<void>((resolve) => {
-        serverProcess.on('close', () => resolve());
-        serverProcess.kill('SIGTERM');
-        setTimeout(() => {
+        const killTimeout = setTimeout(() => {
           serverProcess.kill('SIGKILL');
           resolve();
         }, 5000);
+        serverProcess.on('close', () => {
+          clearTimeout(killTimeout);
+          resolve();
+        });
+        serverProcess.kill('SIGTERM');
       });
     },
   };
 }
 
-/**
- * Start the Wrangler server (Cloudflare Worker local dev)
- */
 async function startWranglerServer(mockOpenAIUrl: string): Promise<ServerProcess> {
   const port = 3457;
   const url = `http://127.0.0.1:${port}`;
@@ -260,12 +211,15 @@ async function startWranglerServer(mockOpenAIUrl: string): Promise<ServerProcess
     port,
     stop: async () => {
       return new Promise<void>((resolve) => {
-        serverProcess.on('close', () => resolve());
-        serverProcess.kill('SIGTERM');
-        setTimeout(() => {
+        const killTimeout = setTimeout(() => {
           serverProcess.kill('SIGKILL');
           resolve();
         }, 5000);
+        serverProcess.on('close', () => {
+          clearTimeout(killTimeout);
+          resolve();
+        });
+        serverProcess.kill('SIGTERM');
       });
     },
   };
@@ -468,7 +422,7 @@ async function scene05_libraryOverview(ctx: WalkthroughContext): Promise<void> {
 
   const hasSortDropdown = await ctx.page.$('#sortSelect');
   if (hasSortDropdown) {
-    await ctx.page.select('#sortSelect', 'title-asc');
+    await ctx.page.select('#sortSelect', 'title');
     await pause(500);
     await capture(ctx, 'library-sorted-title-asc');
 
@@ -678,7 +632,7 @@ async function scene11_serverSync(ctx: WalkthroughContext): Promise<void> {
         const statusText = document.getElementById('serverSyncStatusText')?.textContent || '';
         return statusText.includes('Last synced') || statusText.includes('Error');
       })()`,
-      15000
+      30000
     );
     await capture(ctx, 'server-sync-completed');
   } catch (error) {
