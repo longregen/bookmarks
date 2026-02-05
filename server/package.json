@@ -13,8 +13,6 @@
     "tail": "wrangler tail"
   },
   "dependencies": {
-    "@simplewebauthn/server": "^11.0.0",
-    "@simplewebauthn/types": "^11.0.0",
     "hono": "^4.0.0"
   },
   "devDependencies": {

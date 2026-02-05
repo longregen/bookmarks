@@ -6,11 +6,7 @@
   },
   "imports": {
     "@hono/hono": "jsr:@hono/hono@^4",
-    "@std/crypto": "jsr:@std/crypto@^1",
-    "@std/encoding": "jsr:@std/encoding@^1",
-    "@db/sqlite": "jsr:@db/sqlite@^0.12",
-    "@simplewebauthn/server": "npm:@simplewebauthn/server@^11",
-    "@simplewebauthn/types": "npm:@simplewebauthn/types@^11"
+    "@db/sqlite": "jsr:@db/sqlite@^0.12"
   },
   "compilerOptions": {
     "strict": true,

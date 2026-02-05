@@ -1,7 +1,7 @@
 // User types
 export interface User {
   id: string;
-  username: string;
+  tokenHash: string;
   createdAt: string;
 }
 
@@ -120,32 +120,12 @@ export interface FullSyncDownloadResponse {
   syncTimestamp: string;
 }
 
-// WebAuthn types
-export interface WebAuthnChallenge {
-  sessionId: string;
-  challenge: string;
-  userId: string | null;
-  username: string | null;
-  type: 'register' | 'login';
-  expiresAt: string;
-  createdAt: string;
-}
-
-export interface PasskeyCredential {
-  id: string;
-  userId: string;
-  publicKey: Uint8Array;
-  counter: number;
-  transports: string[] | null;
-  createdAt: string;
-}
-
 // Auth response types
 export interface AuthResponse {
   sessionToken: string;
   sessionExpiry: string;
   userId: string;
-  username: string;
+  created: boolean;
 }
 
 // Q&A types

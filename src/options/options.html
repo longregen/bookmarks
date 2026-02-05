@@ -259,7 +259,7 @@
             <div class="option-panel__header">
               <h2>Server Sync</h2>
               <p class="section-description">
-                Sync your bookmarks across devices using a Localforge sync server with passkey authentication.
+                Sync your bookmarks across devices using a Localforge sync server.
               </p>
             </div>
             <div class="option-panel__content">
@@ -292,41 +292,29 @@
 
                 <div id="serverAuthSection" class="form-group">
                   <label>Authentication</label>
-                  <p class="help-text">Register a new account or login with an existing passkey.</p>
-
+                  <p class="help-text">Generate a token for a new account, or enter an existing token to connect.</p>
                   <div class="auth-form">
                     <div class="form-group">
-                      <label for="serverUsername">Username</label>
-                      <input
-                        type="text"
-                        id="serverUsername"
-                        name="serverUsername"
-                        placeholder="your-username"
-                        autocomplete="username"
-                      />
+                      <label for="serverToken">Token</label>
+                      <div style="display: flex; gap: var(--space-2);">
+                        <input type="password" id="serverToken" placeholder="Enter or generate a token" style="flex: 1; font-family: monospace;" />
+                        <button type="button" id="serverGenerateTokenBtn" class="btn btn-secondary btn-sm">Generate</button>
+                        <button type="button" id="serverCopyTokenBtn" class="btn btn-secondary btn-sm" style="display: none;">Copy</button>
+                      </div>
                     </div>
-                    <button type="button" id="serverRegisterBtn" class="btn btn-primary">
-                      Register with Passkey
-                    </button>
+                    <button type="button" id="serverConnectBtn" class="btn btn-primary">Connect</button>
                   </div>
-
-                  <div class="auth-divider">
-                    <span>or</span>
-                  </div>
-
-                  <button type="button" id="serverLoginBtn" class="btn btn-secondary">
-                    Login with Passkey
-                  </button>
                 </div>
 
                 <div id="serverLoggedInSection" class="form-group hidden">
-                  <label>Logged In</label>
+                  <label>Connected</label>
                   <p class="logged-in-status">
-                    Logged in as <strong id="serverUsernameDisplay"></strong>
+                    Token: <strong id="serverTokenDisplay"></strong>
                   </p>
-                  <button type="button" id="serverLogoutBtn" class="btn btn-secondary">
-                    Logout
-                  </button>
+                  <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+                    <button type="button" id="serverLogoutBtn" class="btn btn-secondary">Disconnect</button>
+                    <button type="button" id="serverDeleteAccountBtn" class="btn btn-danger">Delete All Server Data</button>
+                  </div>
                 </div>
 
                 <div id="syncStatusSection" class="sync-status-section">

@@ -1,77 +1,11 @@
 import { getSettings, saveSetting } from './settings';
 import { getErrorMessage } from './errors';
 
-// WebAuthn types
-export interface PublicKeyCredentialCreationOptionsJSON {
-  challenge: string;
-  rp: { name: string; id?: string };
-  user: { id: string; name: string; displayName: string };
-  pubKeyCredParams: { type: 'public-key'; alg: number }[];
-  timeout?: number;
-  excludeCredentials?: { type: 'public-key'; id: string; transports?: string[] }[];
-  authenticatorSelection?: {
-    authenticatorAttachment?: 'platform' | 'cross-platform';
-    residentKey?: 'discouraged' | 'preferred' | 'required';
-    requireResidentKey?: boolean;
-    userVerification?: 'discouraged' | 'preferred' | 'required';
-  };
-  attestation?: 'none' | 'indirect' | 'direct' | 'enterprise';
-}
-
-export interface PublicKeyCredentialRequestOptionsJSON {
-  challenge: string;
-  timeout?: number;
-  rpId?: string;
-  allowCredentials?: { type: 'public-key'; id: string; transports?: string[] }[];
-  userVerification?: 'discouraged' | 'preferred' | 'required';
-}
-
-export interface RegistrationCredentialJSON {
-  id: string;
-  rawId: string;
-  type: 'public-key';
-  response: {
-    clientDataJSON: string;
-    attestationObject: string;
-    transports?: string[];
-  };
-}
-
-export interface AuthenticationCredentialJSON {
-  id: string;
-  rawId: string;
-  type: 'public-key';
-  response: {
-    clientDataJSON: string;
-    authenticatorData: string;
-    signature: string;
-    userHandle?: string;
-  };
-}
-
-// Auth response types
-export interface RegisterOptionsResponse {
-  options: PublicKeyCredentialCreationOptionsJSON;
-  sessionId: string;
-}
-
-export interface RegisterVerifyResponse {
+export interface AuthResponse {
   sessionToken: string;
   sessionExpiry: string;
   userId: string;
-  username: string;
-}
-
-export interface LoginOptionsResponse {
-  options: PublicKeyCredentialRequestOptionsJSON;
-  sessionId: string;
-}
-
-export interface LoginVerifyResponse {
-  sessionToken: string;
-  sessionExpiry: string;
-  userId: string;
-  username: string;
+  created: boolean;
 }
 
 // Bookmark types
@@ -328,49 +262,11 @@ export class ServerApiClient {
     return this.sessionToken;
   }
 
-  async getRegisterOptions(username: string): Promise<RegisterOptionsResponse> {
-    return this.request<RegisterOptionsResponse>('POST', '/api/v1/auth/register/options', {
-      body: { username },
+  async authenticate(token: string): Promise<AuthResponse> {
+    const response = await this.request<AuthResponse>('POST', '/api/v1/auth/token', {
+      body: { token },
       authenticated: false,
     });
-  }
-
-  async verifyRegistration(
-    sessionId: string,
-    credential: RegistrationCredentialJSON
-  ): Promise<RegisterVerifyResponse> {
-    const response = await this.request<RegisterVerifyResponse>(
-      'POST',
-      '/api/v1/auth/register/verify',
-      {
-        body: { sessionId, credential },
-        authenticated: false,
-      }
-    );
-
-    await this.saveSession(response);
-    return response;
-  }
-
-  async getLoginOptions(username?: string): Promise<LoginOptionsResponse> {
-    return this.request<LoginOptionsResponse>('POST', '/api/v1/auth/login/options', {
-      body: username !== undefined && username !== '' ? { username } : {},
-      authenticated: false,
-    });
-  }
-
-  async verifyLogin(
-    sessionId: string,
-    credential: AuthenticationCredentialJSON
-  ): Promise<LoginVerifyResponse> {
-    const response = await this.request<LoginVerifyResponse>(
-      'POST',
-      '/api/v1/auth/login/verify',
-      {
-        body: { sessionId, credential },
-        authenticated: false,
-      }
-    );
 
     await this.saveSession(response);
     return response;
@@ -384,20 +280,21 @@ export class ServerApiClient {
     }
   }
 
-  private async saveSession(
-    response: RegisterVerifyResponse | LoginVerifyResponse
-  ): Promise<void> {
+  async deleteAccount(): Promise<void> {
+    await this.request<undefined>('DELETE', '/api/v1/auth/account');
+    await this.clearSession();
+  }
+
+  private async saveSession(response: AuthResponse): Promise<void> {
     this.sessionToken = response.sessionToken;
     await saveSetting('serverSessionToken', response.sessionToken);
     await saveSetting('serverSessionExpiry', response.sessionExpiry);
-    await saveSetting('serverUsername', response.username);
   }
 
   private async clearSession(): Promise<void> {
     this.sessionToken = '';
     await saveSetting('serverSessionToken', '');
     await saveSetting('serverSessionExpiry', '');
-    await saveSetting('serverUsername', '');
   }
 
   async createBookmark(bookmark: CreateBookmarkRequest): Promise<ServerBookmark> {

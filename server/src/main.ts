@@ -55,9 +55,6 @@ Deno.serve({
   onListen: ({ hostname, port }) => {
     console.log(`Server running at http://${hostname}:${port}`);
     console.log('\nConfiguration:');
-    console.log(`  RP_ID: ${env.get('RP_ID') || 'localhost'}`);
-    console.log(`  RP_NAME: ${env.get('RP_NAME') || 'Bookmark RAG'}`);
-    console.log(`  ORIGIN: ${env.get('ORIGIN') || 'http://localhost:3000'}`);
     console.log(`  DATABASE_PATH: ${dbPath}`);
     console.log(`  OPENAI_API_KEY: ${env.get('OPENAI_API_KEY') ? '(set)' : '(not set)'}`);
   },

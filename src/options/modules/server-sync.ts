@@ -3,9 +3,10 @@ import { showStatusMessage, getElement } from '../../ui/dom';
 import { createPoller, type Poller } from '../../lib/polling-manager';
 import { withButtonState } from '../../ui/form-helper';
 import {
-  registerWithPasskey,
-  loginWithPasskey,
+  authenticate,
+  generateToken,
   logout,
+  deleteAccount,
   isSessionValid,
 } from '../../lib/server-auth';
 import { getErrorMessage } from '../../lib/errors';
@@ -15,20 +16,25 @@ const SYNC_POLL_INTERVAL = 2000;
 
 let statusPoller: Poller | null = null;
 
-function updateAuthUI(isLoggedIn: boolean, username: string): void {
+function updateAuthUI(isLoggedIn: boolean, tokenDisplay: string): void {
   const authSection = getElement('serverAuthSection');
   const loggedInSection = getElement('serverLoggedInSection');
-  const usernameDisplay = getElement('serverUsernameDisplay');
+  const tokenDisplayEl = getElement('serverTokenDisplay');
 
   if (isLoggedIn) {
     authSection.classList.add('hidden');
     loggedInSection.classList.remove('hidden');
-    usernameDisplay.textContent = username;
+    tokenDisplayEl.textContent = tokenDisplay;
   } else {
     authSection.classList.remove('hidden');
     loggedInSection.classList.add('hidden');
-    usernameDisplay.textContent = '';
+    tokenDisplayEl.textContent = '';
   }
+}
+
+function truncateToken(token: string): string {
+  if (token.length <= 12) return token;
+  return `${token.slice(0, 8)}...${token.slice(-4)}`;
 }
 
 function updateSyncStatus(lastSyncTime: string, lastError: string): void {
@@ -57,6 +63,16 @@ function updateFieldsVisibility(enabled: boolean): void {
   }
 }
 
+async function notifySyncSettingsChanged(): Promise<void> {
+  if (!__IS_WEB__) {
+    try {
+      await chrome.runtime.sendMessage({ type: 'sync:update_settings' });
+    } catch {
+      // Service worker may not be running
+    }
+  }
+}
+
 async function loadSettings(): Promise<void> {
   const settings = await getSettings();
 
@@ -71,7 +87,7 @@ async function loadSettings(): Promise<void> {
   const isLoggedIn =
     Boolean(settings.serverSessionToken) &&
     isSessionValid(settings.serverSessionExpiry);
-  updateAuthUI(isLoggedIn, settings.serverUsername);
+  updateAuthUI(isLoggedIn, truncateToken(settings.serverAuthToken));
   updateSyncStatus(settings.serverLastSyncTime, settings.serverLastSyncError);
 }
 
@@ -81,6 +97,7 @@ async function handleEnableToggle(event: Event): Promise<void> {
 
   await saveSetting('serverEnabled', enabled);
   updateFieldsVisibility(enabled);
+  await notifySyncSettingsChanged();
 }
 
 async function handleUrlSave(): Promise<void> {
@@ -98,47 +115,33 @@ async function handleUrlSave(): Promise<void> {
   showStatusMessage(statusDiv, 'Server URL saved', 'success');
 }
 
-async function handleRegister(): Promise<void> {
-  const usernameInput = getElement<HTMLInputElement>('serverUsername');
-  const registerBtn = getElement<HTMLButtonElement>('serverRegisterBtn');
+function handleGenerateToken(): void {
+  const tokenInput = getElement<HTMLInputElement>('serverToken');
+  const copyBtn = getElement<HTMLButtonElement>('serverCopyTokenBtn');
+
+  tokenInput.value = generateToken();
+  copyBtn.style.display = '';
+}
+
+async function handleCopyToken(): Promise<void> {
+  const tokenInput = getElement<HTMLInputElement>('serverToken');
   const statusDiv = getElement('status');
-  const urlInput = getElement<HTMLInputElement>('serverUrl');
-
-  const username = usernameInput.value.trim();
-  const serverUrl = urlInput.value.trim();
-
-  if (!serverUrl) {
-    showStatusMessage(statusDiv, 'Please enter a server URL first', 'error');
-    return;
-  }
-
-  if (!username) {
-    showStatusMessage(statusDiv, 'Please enter a username', 'error');
-    return;
-  }
 
   try {
-    const result = await withButtonState(registerBtn, 'Registering...', () =>
-      registerWithPasskey(serverUrl, username)
-    );
-
-    await saveSetting('serverSessionToken', result.sessionToken);
-    await saveSetting('serverSessionExpiry', result.sessionExpiry);
-    await saveSetting('serverUsername', result.username);
-
-    updateAuthUI(true, result.username);
-    usernameInput.value = '';
-    showStatusMessage(statusDiv, 'Registered successfully!', 'success');
-  } catch (error) {
-    showStatusMessage(statusDiv, getErrorMessage(error), 'error', 5000);
+    await navigator.clipboard.writeText(tokenInput.value);
+    showStatusMessage(statusDiv, 'Token copied to clipboard', 'success');
+  } catch {
+    showStatusMessage(statusDiv, 'Failed to copy token', 'error');
   }
 }
 
-async function handleLogin(): Promise<void> {
-  const loginBtn = getElement<HTMLButtonElement>('serverLoginBtn');
+async function handleConnect(): Promise<void> {
+  const tokenInput = getElement<HTMLInputElement>('serverToken');
+  const connectBtn = getElement<HTMLButtonElement>('serverConnectBtn');
   const statusDiv = getElement('status');
   const urlInput = getElement<HTMLInputElement>('serverUrl');
 
+  const token = tokenInput.value.trim();
   const serverUrl = urlInput.value.trim();
 
   if (!serverUrl) {
@@ -146,17 +149,30 @@ async function handleLogin(): Promise<void> {
     return;
   }
 
+  if (!token) {
+    showStatusMessage(statusDiv, 'Please enter or generate a token', 'error');
+    return;
+  }
+
   try {
-    const result = await withButtonState(loginBtn, 'Logging in...', () =>
-      loginWithPasskey(serverUrl)
+    const result = await withButtonState(connectBtn, 'Connecting...', () =>
+      authenticate(serverUrl, token)
     );
 
-    await saveSetting('serverSessionToken', result.sessionToken);
-    await saveSetting('serverSessionExpiry', result.sessionExpiry);
-    await saveSetting('serverUsername', result.username);
+    await saveSetting('serverUrl', serverUrl);
+    await saveSetting('serverAuthToken', token);
+    await saveSetting('serverEnabled', true);
+    await notifySyncSettingsChanged();
 
-    updateAuthUI(true, result.username);
-    showStatusMessage(statusDiv, 'Logged in successfully!', 'success');
+    const enabledCheckbox = getElement<HTMLInputElement>('serverEnabled');
+    enabledCheckbox.checked = true;
+
+    updateAuthUI(true, truncateToken(token));
+    tokenInput.value = '';
+    getElement<HTMLButtonElement>('serverCopyTokenBtn').style.display = 'none';
+
+    const message = result.created ? 'Account created and connected!' : 'Connected successfully!';
+    showStatusMessage(statusDiv, message, 'success');
   } catch (error) {
     showStatusMessage(statusDiv, getErrorMessage(error), 'error', 5000);
   }
@@ -169,16 +185,49 @@ async function handleLogout(): Promise<void> {
   const settings = await getSettings();
 
   try {
-    await withButtonState(logoutBtn, 'Logging out...', async () => {
+    await withButtonState(logoutBtn, 'Disconnecting...', async () => {
       await logout(settings.serverUrl, settings.serverSessionToken);
     });
 
-    await saveSetting('serverSessionToken', '');
-    await saveSetting('serverSessionExpiry', '');
-    await saveSetting('serverUsername', '');
+    await saveSetting('serverAuthToken', '');
+    await saveSetting('serverEnabled', false);
+    await notifySyncSettingsChanged();
+
+    const enabledCheckbox = getElement<HTMLInputElement>('serverEnabled');
+    enabledCheckbox.checked = false;
 
     updateAuthUI(false, '');
-    showStatusMessage(statusDiv, 'Logged out successfully', 'success');
+    showStatusMessage(statusDiv, 'Disconnected successfully', 'success');
+  } catch (error) {
+    showStatusMessage(statusDiv, getErrorMessage(error), 'error', 5000);
+  }
+}
+
+async function handleDeleteAccount(): Promise<void> {
+  const deleteBtn = getElement<HTMLButtonElement>('serverDeleteAccountBtn');
+  const statusDiv = getElement('status');
+
+  // eslint-disable-next-line no-alert
+  if (!confirm('Are you sure you want to delete all server data? This action cannot be undone.')) {
+    return;
+  }
+
+  const settings = await getSettings();
+
+  try {
+    await withButtonState(deleteBtn, 'Deleting...', async () => {
+      await deleteAccount(settings.serverUrl, settings.serverSessionToken);
+    });
+
+    await saveSetting('serverAuthToken', '');
+    await saveSetting('serverEnabled', false);
+    await notifySyncSettingsChanged();
+
+    const enabledCheckbox = getElement<HTMLInputElement>('serverEnabled');
+    enabledCheckbox.checked = false;
+
+    updateAuthUI(false, '');
+    showStatusMessage(statusDiv, 'All server data deleted', 'success');
   } catch (error) {
     showStatusMessage(statusDiv, getErrorMessage(error), 'error', 5000);
   }
@@ -196,18 +245,16 @@ async function handleSyncNow(): Promise<void> {
   }
 
   if (!settings.serverSessionToken || !isSessionValid(settings.serverSessionExpiry)) {
-    showStatusMessage(statusDiv, 'Please log in first', 'error');
+    showStatusMessage(statusDiv, 'Please connect first', 'error');
     return;
   }
 
   try {
     await withButtonState(syncNowBtn, 'Syncing...', async () => {
       if (__IS_WEB__) {
-        // For web, import and call sync directly
         const { syncWithServer } = await import('../../lib/server-sync');
         await syncWithServer();
       } else {
-        // For extension, send message to service worker
         const response: { success?: boolean; error?: string } | undefined = await chrome.runtime.sendMessage({ type: 'sync:trigger' });
         if (response?.success !== true) {
           throw new Error(response?.error ?? 'Sync failed');
@@ -215,7 +262,6 @@ async function handleSyncNow(): Promise<void> {
       }
     });
 
-    // Refresh status after sync
     const updatedSettings = await getSettings();
     updateSyncStatus(updatedSettings.serverLastSyncTime, updatedSettings.serverLastSyncError);
 
@@ -254,16 +300,20 @@ export function initServerSyncModule(): () => void {
 
   const enabledCheckbox = getElement<HTMLInputElement>('serverEnabled');
   const saveUrlBtn = getElement<HTMLButtonElement>('serverSaveUrlBtn');
-  const registerBtn = getElement<HTMLButtonElement>('serverRegisterBtn');
-  const loginBtn = getElement<HTMLButtonElement>('serverLoginBtn');
+  const generateTokenBtn = getElement<HTMLButtonElement>('serverGenerateTokenBtn');
+  const copyTokenBtn = getElement<HTMLButtonElement>('serverCopyTokenBtn');
+  const connectBtn = getElement<HTMLButtonElement>('serverConnectBtn');
   const logoutBtn = getElement<HTMLButtonElement>('serverLogoutBtn');
+  const deleteAccountBtn = getElement<HTMLButtonElement>('serverDeleteAccountBtn');
   const syncNowBtn = getElement<HTMLButtonElement>('serverSyncNowBtn');
 
   enabledCheckbox.addEventListener('change', (e) => void handleEnableToggle(e));
   saveUrlBtn.addEventListener('click', () => void handleUrlSave());
-  registerBtn.addEventListener('click', () => void handleRegister());
-  loginBtn.addEventListener('click', () => void handleLogin());
+  generateTokenBtn.addEventListener('click', () => handleGenerateToken());
+  copyTokenBtn.addEventListener('click', () => void handleCopyToken());
+  connectBtn.addEventListener('click', () => void handleConnect());
   logoutBtn.addEventListener('click', () => void handleLogout());
+  deleteAccountBtn.addEventListener('click', () => void handleDeleteAccount());
   syncNowBtn.addEventListener('click', () => void handleSyncNow());
 
   startStatusPolling();

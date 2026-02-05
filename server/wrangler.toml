@@ -8,14 +8,9 @@ compatibility_flags = ["nodejs_compat"]
 "@hono/hono" = "hono"
 "@hono/hono/cors" = "hono/cors"
 "@hono/hono/logger" = "hono/logger"
-"@simplewebauthn/server" = "@simplewebauthn/server"
-"@simplewebauthn/types" = "@simplewebauthn/types"
 
 # Environment variables (set via wrangler secret or dashboard)
 # OPENAI_API_KEY - required for embeddings and Q&A generation
-# RP_ID - WebAuthn relying party ID
-# RP_NAME - WebAuthn relying party name
-# ORIGIN - allowed origin(s) for WebAuthn (comma-separated for multiple)
 # CORS_ORIGIN - CORS allowed origin
 
 [vars]
@@ -46,9 +41,6 @@ dead_letter_queue = "bookmark-processing-dlq"
 name = "bookmark-rag-server-dev"
 
 [env.dev.vars]
-RP_ID = "localhost"
-RP_NAME = "Bookmark RAG (Dev)"
-ORIGIN = "http://localhost:3000"
 CORS_ORIGIN = "*"
 
 # Production environment
@@ -57,6 +49,3 @@ name = "bookmark-rag-server"
 
 # Set these via wrangler secret:
 # wrangler secret put OPENAI_API_KEY --env production
-# wrangler secret put RP_ID --env production
-# wrangler secret put RP_NAME --env production
-# wrangler secret put ORIGIN --env production

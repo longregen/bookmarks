@@ -4,14 +4,9 @@ import { resumeIncompleteJobs } from './job-resumption';
 import { createBulkImportJob } from '../lib/bulk-import';
 import { setPlatformAdapter } from '../lib/platform';
 import { extensionAdapter } from '../lib/adapters/extension';
-import { getSettings, saveSetting } from '../lib/settings';
+import { getSettings } from '../lib/settings';
 import { getErrorMessage } from '../lib/errors';
 import { serverSync } from '../lib/server-sync';
-import {
-  registerWithPasskey,
-  loginWithPasskey,
-  logout,
-} from '../lib/server-auth';
 import { ServerApiClient } from '../lib/server-api';
 import { ensureOffscreenDocument } from '../lib/offscreen';
 import type {
@@ -171,61 +166,6 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
   if (message.type === 'sync:update_settings') {
     setupSyncAlarm()
       .then(() => sendResponse({ success: true }))
-      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
-    return true;
-  }
-
-  if (message.type === 'server:register') {
-    (async () => {
-      const settings = await getSettings();
-      if (!settings.serverUrl) {
-        return { success: false, error: 'Server URL not configured' };
-      }
-      const result = await registerWithPasskey(settings.serverUrl, message.username);
-      await saveSetting('serverSessionToken', result.sessionToken);
-      await saveSetting('serverSessionExpiry', result.sessionExpiry);
-      await saveSetting('serverUsername', result.username);
-      await saveSetting('serverEnabled', true);
-      await setupSyncAlarm();
-      return { success: true };
-    })()
-      .then(sendResponse)
-      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
-    return true;
-  }
-
-  if (message.type === 'server:login') {
-    (async () => {
-      const settings = await getSettings();
-      if (!settings.serverUrl) {
-        return { success: false, error: 'Server URL not configured' };
-      }
-      const result = await loginWithPasskey(settings.serverUrl, message.username);
-      await saveSetting('serverSessionToken', result.sessionToken);
-      await saveSetting('serverSessionExpiry', result.sessionExpiry);
-      await saveSetting('serverUsername', result.username);
-      await saveSetting('serverEnabled', true);
-      await setupSyncAlarm();
-      return { success: true, username: result.username };
-    })()
-      .then(sendResponse)
-      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
-    return true;
-  }
-
-  if (message.type === 'server:logout') {
-    (async () => {
-      const settings = await getSettings();
-      if (settings.serverUrl && settings.serverSessionToken) {
-        await logout(settings.serverUrl, settings.serverSessionToken);
-      }
-      await saveSetting('serverSessionToken', '');
-      await saveSetting('serverSessionExpiry', '');
-      await saveSetting('serverEnabled', false);
-      await chrome.alarms.clear(SERVER_SYNC_ALARM);
-      return { success: true };
-    })()
-      .then(sendResponse)
       .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
     return true;
   }

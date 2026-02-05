@@ -4,9 +4,6 @@ import type { Env } from './interface.ts';
 const ENV_KEY_MAP: Record<string, string> = {
   OPENAI_API_KEY: 'OPENAI_API_KEY',
   OPENAI_API_BASE: 'OPENAI_API_BASE',
-  RP_ID: 'RP_ID',
-  RP_NAME: 'RP_NAME',
-  ORIGIN: 'ORIGIN',
   CORS_ORIGIN: 'CORS_ORIGIN',
   CHAT_MODEL: 'CHAT_MODEL',
   EMBEDDING_MODEL: 'EMBEDDING_MODEL',
@@ -15,9 +12,6 @@ const ENV_KEY_MAP: Record<string, string> = {
 export interface WorkerEnvBindings {
   OPENAI_API_KEY?: string;
   OPENAI_API_BASE?: string;
-  RP_ID?: string;
-  RP_NAME?: string;
-  ORIGIN?: string;
   CORS_ORIGIN?: string;
   CHAT_MODEL?: string;
   EMBEDDING_MODEL?: string;

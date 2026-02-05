@@ -11,7 +11,7 @@ export const DEFAULTS: ApiSettings = {
   serverEnabled: false,
   serverSessionToken: '',
   serverSessionExpiry: '',
-  serverUsername: '',
+  serverAuthToken: '',
   serverLastSyncTime: '',
   serverLastSyncError: '',
 };
@@ -29,7 +29,7 @@ export async function getSettingsFromDb(): Promise<ApiSettings> {
     serverEnabled: (map.serverEnabled as boolean | undefined) ?? DEFAULTS.serverEnabled,
     serverSessionToken: (map.serverSessionToken as string | undefined) ?? DEFAULTS.serverSessionToken,
     serverSessionExpiry: (map.serverSessionExpiry as string | undefined) ?? DEFAULTS.serverSessionExpiry,
-    serverUsername: (map.serverUsername as string | undefined) ?? DEFAULTS.serverUsername,
+    serverAuthToken: (map.serverAuthToken as string | undefined) ?? DEFAULTS.serverAuthToken,
     serverLastSyncTime: (map.serverLastSyncTime as string | undefined) ?? DEFAULTS.serverLastSyncTime,
     serverLastSyncError: (map.serverLastSyncError as string | undefined) ?? DEFAULTS.serverLastSyncError,
   };

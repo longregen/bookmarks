@@ -16,7 +16,7 @@ describe('Adapters Common', () => {
       expect(DEFAULTS.serverEnabled).toBe(false);
       expect(DEFAULTS.serverSessionToken).toBe('');
       expect(DEFAULTS.serverSessionExpiry).toBe('');
-      expect(DEFAULTS.serverUsername).toBe('');
+      expect(DEFAULTS.serverAuthToken).toBe('');
       expect(DEFAULTS.serverLastSyncTime).toBe('');
       expect(DEFAULTS.serverLastSyncError).toBe('');
     });
@@ -64,7 +64,7 @@ describe('Adapters Common', () => {
       await db.settings.add({ key: 'serverEnabled', value: true, createdAt: now, updatedAt: now });
       await db.settings.add({ key: 'serverSessionToken', value: 'session-token-123', createdAt: now, updatedAt: now });
       await db.settings.add({ key: 'serverSessionExpiry', value: '2024-12-31T23:59:59Z', createdAt: now, updatedAt: now });
-      await db.settings.add({ key: 'serverUsername', value: 'testuser', createdAt: now, updatedAt: now });
+      await db.settings.add({ key: 'serverAuthToken', value: 'test-auth-token', createdAt: now, updatedAt: now });
       await db.settings.add({ key: 'serverLastSyncTime', value: '2024-01-15T12:00:00Z', createdAt: now, updatedAt: now });
       await db.settings.add({ key: 'serverLastSyncError', value: 'Connection failed', createdAt: now, updatedAt: now });
 
@@ -74,7 +74,7 @@ describe('Adapters Common', () => {
       expect(settings.serverEnabled).toBe(true);
       expect(settings.serverSessionToken).toBe('session-token-123');
       expect(settings.serverSessionExpiry).toBe('2024-12-31T23:59:59Z');
-      expect(settings.serverUsername).toBe('testuser');
+      expect(settings.serverAuthToken).toBe('test-auth-token');
       expect(settings.serverLastSyncTime).toBe('2024-01-15T12:00:00Z');
       expect(settings.serverLastSyncError).toBe('Connection failed');
     });

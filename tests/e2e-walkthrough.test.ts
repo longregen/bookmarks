@@ -27,7 +27,7 @@
 
 import { ChromeAdapter } from './adapters/chrome-adapter';
 import { FirefoxAdapter } from './adapters/firefox-adapter';
-import { PageHandle, CDPSession, TestAdapter, waitForSettingsLoad } from './e2e-shared';
+import { PageHandle, TestAdapter, waitForSettingsLoad } from './e2e-shared';
 import { startMockServer, getMockPageUrls, MockServer } from './mock-server';
 import { spawn, execSync, ChildProcess } from 'child_process';
 import path from 'path';
@@ -127,7 +127,7 @@ function killProcessOnPort(port: number): void {
 /**
  * Start the Deno server
  */
-async function startDenoServer(mockOpenAIUrl: string, extensionId: string): Promise<ServerProcess> {
+async function startDenoServer(mockOpenAIUrl: string): Promise<ServerProcess> {
   const port = 3456;
   const url = `http://127.0.0.1:${port}`;
   killProcessOnPort(port);
@@ -138,14 +138,9 @@ async function startDenoServer(mockOpenAIUrl: string, extensionId: string): Prom
   }
   fs.mkdirSync(dataDir, { recursive: true });
 
-  const origins = [`http://127.0.0.1:${port}`, `chrome-extension://${extensionId}`];
-
   const env: Record<string, string> = {
     ...(process.env as Record<string, string>),
     PORT: String(port),
-    RP_ID: 'localhost',
-    RP_NAME: 'Bookmark RAG Test',
-    ORIGIN: origins.join(','),
     CORS_ORIGIN: '*',
     DATABASE_PATH: path.join(dataDir, 'test.db'),
     OPENAI_API_KEY: 'test-key-for-mock',
@@ -206,7 +201,7 @@ async function startDenoServer(mockOpenAIUrl: string, extensionId: string): Prom
 /**
  * Start the Wrangler server (Cloudflare Worker local dev)
  */
-async function startWranglerServer(mockOpenAIUrl: string, extensionId: string): Promise<ServerProcess> {
+async function startWranglerServer(mockOpenAIUrl: string): Promise<ServerProcess> {
   const port = 3457;
   const url = `http://127.0.0.1:${port}`;
   killProcessOnPort(port);
@@ -216,15 +211,10 @@ async function startWranglerServer(mockOpenAIUrl: string, extensionId: string): 
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 
-  const origins = [`http://127.0.0.1:${port}`, `chrome-extension://${extensionId}`];
-
   const env: Record<string, string> = {
     ...(process.env as Record<string, string>),
     OPENAI_API_KEY: 'test-key-for-mock',
     OPENAI_API_BASE: mockOpenAIUrl,
-    RP_ID: 'localhost',
-    RP_NAME: 'Bookmark RAG Test (Wrangler)',
-    ORIGIN: origins.join(','),
     CORS_ORIGIN: '*',
   };
 
@@ -640,7 +630,7 @@ async function scene11_serverSync(ctx: WalkthroughContext): Promise<void> {
     return;
   }
 
-  console.log('\n📽️  Scene 11: Server Sync & WebAuthn\n');
+  console.log('\n📽️  Scene 11: Server Sync & Token Auth\n');
 
   await ctx.page.goto(ctx.adapter.getPageUrl('options'));
   await ctx.page.waitForSelector('.settings-section');
@@ -660,54 +650,15 @@ async function scene11_serverSync(ctx: WalkthroughContext): Promise<void> {
   await pause(500);
   await capture(ctx, 'server-sync-url-configured');
 
-  // WebAuthn requires CDP (Chrome only)
-  if (ctx.browserType !== 'chrome' || typeof ctx.page.createCDPSession !== 'function') {
-    console.log('  (Skipping WebAuthn - requires Chrome CDP)');
-    return;
-  }
-
-  const cdpClient = await ctx.page.createCDPSession!();
-
   try {
-    await cdpClient.send('WebAuthn.enable');
+    // Generate a token
+    await ctx.page.click('#serverGenerateTokenBtn');
+    await pause(300);
+    await capture(ctx, 'server-sync-token-generated');
 
-    const result = (await cdpClient.send('WebAuthn.addVirtualAuthenticator', {
-      options: {
-        protocol: 'ctap2',
-        transport: 'internal',
-        hasResidentKey: true,
-        hasUserVerification: true,
-        isUserVerified: true,
-        automaticPresenceSimulation: true,
-      },
-    })) as { authenticatorId: string };
-
-    const authenticatorId = result.authenticatorId;
-    console.log(`  Virtual authenticator: ${authenticatorId}`);
-
-    let credentialAdded = false;
-    const credentialAddedPromise = new Promise<void>((resolve) => {
-      const handler = () => {
-        credentialAdded = true;
-        cdpClient.off('WebAuthn.credentialAdded', handler);
-        resolve();
-      };
-      cdpClient.on('WebAuthn.credentialAdded', handler);
-    });
-
-    const testUsername = `walkthrough-${ctx.browserType}-${ctx.serverType}-${Date.now()}`;
-    await ctx.page.type('#serverUsername', testUsername);
-    await capture(ctx, 'server-sync-username-entered');
-
-    await ctx.page.click('#serverRegisterBtn');
-    await capture(ctx, 'server-sync-registering');
-
-    await Promise.race([
-      credentialAddedPromise,
-      new Promise<void>((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout waiting for credential')), 15000)
-      ),
-    ]);
+    // Connect with the token
+    await ctx.page.click('#serverConnectBtn');
+    await capture(ctx, 'server-sync-connecting');
 
     await ctx.page.waitForFunction(
       `(() => {
@@ -716,7 +667,7 @@ async function scene11_serverSync(ctx: WalkthroughContext): Promise<void> {
       })()`,
       10000
     );
-    await capture(ctx, 'server-sync-registered');
+    await capture(ctx, 'server-sync-connected');
 
     await ctx.page.click('#serverSyncNowBtn');
     await pause(500);
@@ -730,15 +681,8 @@ async function scene11_serverSync(ctx: WalkthroughContext): Promise<void> {
       15000
     );
     await capture(ctx, 'server-sync-completed');
-
-    await cdpClient.send('WebAuthn.removeVirtualAuthenticator', { authenticatorId });
-    await cdpClient.send('WebAuthn.disable');
-    await cdpClient.detach();
   } catch (error) {
-    console.error('  WebAuthn error:', error);
-    try {
-      await cdpClient.detach();
-    } catch {}
+    console.error('  Token auth error:', error);
   }
 }
 
@@ -811,17 +755,12 @@ async function runWalkthrough(
     await adapter.setup();
 
     // Start sync server if requested
-    let extensionId = '';
-    if (browserType === 'chrome') {
-      extensionId = (adapter as ChromeAdapter).getExtensionIdSync();
-    }
-
     if (serverType && fs.existsSync(SERVER_DIR)) {
       try {
         if (serverType === 'deno') {
-          syncServer = await startDenoServer(mockServer.url, extensionId);
+          syncServer = await startDenoServer(mockServer.url);
         } else {
-          syncServer = await startWranglerServer(mockServer.url, extensionId);
+          syncServer = await startWranglerServer(mockServer.url);
         }
       } catch (error) {
         console.warn(`Could not start ${serverType} server:`, error);
@@ -927,12 +866,6 @@ async function main(): Promise<void> {
     // Run matrix
     for (const browser of browsers) {
       for (const server of servers) {
-        // Skip server sync tests for Firefox (no CDP support for WebAuthn)
-        if (browser === 'firefox' && server !== null) {
-          console.log(`\nSkipping ${browser}-${server} (Firefox lacks WebAuthn CDP support)`);
-          continue;
-        }
-
         const result = await runWalkthrough(browser, server, mockServer);
         results.push({
           label: `${browser}-${server || 'no-server'}`,

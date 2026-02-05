@@ -7,8 +7,8 @@ export interface AuthContext {
   sessionId: string;
 }
 
-const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-const SESSION_REFRESH_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+const SESSION_REFRESH_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function createAuthMiddleware(deps: AppDependencies) {
   return async (c: Context<{ Variables: AppVariables }>, next: Next): Promise<Response | void> => {
@@ -30,11 +30,9 @@ export function createAuthMiddleware(deps: AppDependencies) {
       id: string;
       user_id: string;
       expires_at: string;
-      username: string;
     }>(`
-      SELECT s.id, s.user_id, s.expires_at, u.username
+      SELECT s.id, s.user_id, s.expires_at
       FROM sessions s
-      JOIN users u ON s.user_id = u.id
       WHERE s.id = ? AND s.expires_at > ?
     `).bind(token, currentTime).first();
 

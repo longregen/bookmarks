@@ -21,6 +21,51 @@
           zip
         ];
 
+        version = (builtins.fromJSON (builtins.readFile ./package.json)).version;
+
+        # Use buildNpmPackage which handles npm dependencies properly
+        buildExtension = target: pkgs.buildNpmPackage {
+          pname = "bookmark-rag-${target}";
+          inherit version;
+          
+          src = pkgs.lib.cleanSourceWith {
+            src = ./.;
+            filter = path: type:
+              let baseName = builtins.baseNameOf path; in
+              !(builtins.elem baseName [ "node_modules" "dist-chrome" "dist-firefox" "dist-web" "coverage" ".git" "screenshots" ]);
+          };
+
+          npmDepsHash = "sha256-pJE5ExsA2d2tgPELh0HFAycU8LZ90e8HcETXrmUoFts=";
+
+          nativeBuildInputs = with pkgs; [ nodejs_22 zip ];
+
+          # npm ci is run automatically by buildNpmPackage
+          # Set HOME for vite/postcss which may need cache directories
+          preBuild = ''
+            export HOME=$TMPDIR
+          '';
+
+          buildPhase = ''
+            runHook preBuild
+            npm run build:${target}
+            runHook postBuild
+          '';
+
+          installPhase = ''
+            runHook preInstall
+            mkdir -p $out
+            cp -r dist-${target}/* $out/
+            cd $out && ${pkgs.zip}/bin/zip -r $out/bookmark-rag-${target}.zip .
+            runHook postInstall
+          '';
+
+          # Don't run tests during package build
+          doCheck = false;
+          
+          # buildNpmPackage defaults
+          dontNpmBuild = true;
+        };
+
         # E2E walkthrough test (matrix of browser × server)
         runE2EWalkthrough = pkgs.writeShellScriptBin "run-e2e-walkthrough" ''
           set -e
@@ -235,6 +280,12 @@
             echo "  nix run .#test-e2e-all           - Full matrix"
             echo ""
           '';
+        };
+
+        packages = {
+          chrome = buildExtension "chrome";
+          firefox = buildExtension "firefox";
+          default = buildExtension "firefox";
         };
 
         apps = {

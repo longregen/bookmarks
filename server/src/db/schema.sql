@@ -1,21 +1,9 @@
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
-  username TEXT UNIQUE NOT NULL,
+  token_hash TEXT UNIQUE NOT NULL,
   created_at TEXT NOT NULL
 );
-
--- Passkey credentials for WebAuthn
-CREATE TABLE IF NOT EXISTS passkey_credentials (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  public_key BLOB NOT NULL,
-  counter INTEGER NOT NULL DEFAULT 0,
-  transports TEXT,
-  created_at TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_passkey_credentials_user_id ON passkey_credentials(user_id);
 
 -- Sessions
 CREATE TABLE IF NOT EXISTS sessions (
@@ -84,17 +72,6 @@ CREATE TABLE IF NOT EXISTS sync_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sync_log_user_timestamp ON sync_log(user_id, timestamp);
-
--- WebAuthn challenge storage (temporary)
-CREATE TABLE IF NOT EXISTS webauthn_challenges (
-  session_id TEXT PRIMARY KEY,
-  challenge TEXT NOT NULL,
-  user_id TEXT,
-  username TEXT,
-  type TEXT NOT NULL,
-  expires_at TEXT NOT NULL,
-  created_at TEXT NOT NULL
-);
 
 -- Full-text search virtual table
 CREATE VIRTUAL TABLE IF NOT EXISTS bookmarks_fts USING fts5(

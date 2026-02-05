@@ -7,7 +7,7 @@ export interface ApiSettings {
   serverEnabled: boolean;
   serverSessionToken: string;
   serverSessionExpiry: string;
-  serverUsername: string;
+  serverAuthToken: string;
   serverLastSyncTime: string;
   serverLastSyncError: string;
 }

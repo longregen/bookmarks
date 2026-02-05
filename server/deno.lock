@@ -5,7 +5,6 @@
     "jsr:@denosaurs/plug@1": "1.1.0",
     "jsr:@hono/hono@4": "4.11.7",
     "jsr:@std/assert@0.217": "0.217.0",
-    "jsr:@std/crypto@1": "1.0.5",
     "jsr:@std/encoding@1": "1.0.10",
     "jsr:@std/fmt@1": "1.0.8",
     "jsr:@std/fs@1": "1.0.19",
@@ -14,8 +13,6 @@
     "jsr:@std/path@0.217": "0.217.0",
     "jsr:@std/path@1": "1.1.2",
     "jsr:@std/path@^1.1.1": "1.1.2",
-    "npm:@simplewebauthn/server@11": "11.0.0",
-    "npm:@simplewebauthn/types@11": "11.0.0",
     "npm:@types/node@*": "24.2.0"
   },
   "jsr": {
@@ -40,9 +37,6 @@
     },
     "@std/assert@0.217.0": {
       "integrity": "c98e279362ca6982d5285c3b89517b757c1e3477ee9f14eb2fdf80a45aaa9642"
-    },
-    "@std/crypto@1.0.5": {
-      "integrity": "0dcfbb319fe0bba1bd3af904ceb4f948cde1b92979ec1614528380ed308a3b40"
     },
     "@std/encoding@1.0.10": {
       "integrity": "8783c6384a2d13abd5e9e87a7ae0520a30e9f56aeeaa3bdf910a3eaaf5c811a1"
@@ -809,16 +803,10 @@
   "workspace": {
     "dependencies": [
       "jsr:@db/sqlite@0.12",
-      "jsr:@hono/hono@4",
-      "jsr:@std/crypto@1",
-      "jsr:@std/encoding@1",
-      "npm:@simplewebauthn/server@11",
-      "npm:@simplewebauthn/types@11"
+      "jsr:@hono/hono@4"
     ],
     "packageJson": {
       "dependencies": [
-        "npm:@simplewebauthn/server@11",
-        "npm:@simplewebauthn/types@11",
         "npm:hono@4",
         "npm:wrangler@^3.114.17"
       ]
