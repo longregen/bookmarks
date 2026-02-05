@@ -62,14 +62,9 @@ describe('Embedding Codec', () => {
       expect(decoded.length).toBe(3072);
 
       const maxError = maxQuantizationError();
-      let maxObservedError = 0;
       for (let i = 0; i < original.length; i++) {
-        const error = Math.abs(decoded[i] - original[i]);
-        maxObservedError = Math.max(maxObservedError, error);
-        expect(error).toBeLessThanOrEqual(maxError);
+        expect(Math.abs(decoded[i] - original[i])).toBeLessThanOrEqual(maxError);
       }
-
-      console.log(`Max observed error for 3072-dim embedding: ${maxObservedError.toExponential(3)}`);
     });
 
     it('should clamp values outside [-1, 1]', () => {

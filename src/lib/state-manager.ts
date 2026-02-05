@@ -1,16 +1,6 @@
 import { db } from '../db/schema';
 import { config } from './config-registry';
 
-/**
- * Checks for bookmarks stuck in 'processing' status and resets them to 'pending'.
- * A bookmark is considered stuck if it has been in 'processing' state for longer
- * than QUEUE_PROCESSING_TIMEOUT_MS.
- *
- * This function should be called on service worker startup to recover from
- * interrupted processing (e.g., service worker termination, browser crash).
- *
- * @returns The number of bookmarks that were reset
- */
 export async function resetStuckBookmarks(): Promise<number> {
   const timeout = config.QUEUE_PROCESSING_TIMEOUT_MS;
   const cutoffTime = new Date(Date.now() - timeout);

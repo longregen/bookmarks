@@ -1,24 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-
-function normalizeTagName(input: string): string {
-  return input.trim().toLowerCase().replace(/\s+/g, '-');
-}
-
-function tagExists(tagName: string, existingTags: string[]): boolean {
-  return existingTags.includes(tagName);
-}
-
-function filterTagsForAutocomplete(
-  input: string,
-  allTags: string[],
-  currentTags: string[],
-  limit: number = 5
-): string[] {
-  const normalized = input.toLowerCase();
-  return allTags
-    .filter(tag => tag.includes(normalized) && !currentTags.includes(tag))
-    .slice(0, limit);
-}
+import { describe, it, expect, beforeEach } from 'vitest';
+import { normalizeTagName } from '../src/ui/tag-editor';
 
 describe('Tag Editor Logic', () => {
   describe('normalizeTagName', () => {
@@ -42,54 +23,6 @@ describe('Tag Editor Logic', () => {
 
     it('should return empty string for whitespace only', () => {
       expect(normalizeTagName('   ')).toBe('');
-    });
-  });
-
-  describe('tagExists', () => {
-    it('should return true if tag exists', () => {
-      expect(tagExists('javascript', ['javascript', 'python'])).toBe(true);
-    });
-
-    it('should return false if tag does not exist', () => {
-      expect(tagExists('ruby', ['javascript', 'python'])).toBe(false);
-    });
-
-    it('should handle empty tag list', () => {
-      expect(tagExists('javascript', [])).toBe(false);
-    });
-  });
-
-  describe('filterTagsForAutocomplete', () => {
-    const allTags = ['javascript', 'java', 'python', 'typescript', 'jsx', 'json'];
-
-    it('should filter tags by partial match', () => {
-      const result = filterTagsForAutocomplete('java', allTags, []);
-      expect(result).toContain('javascript');
-      expect(result).toContain('java');
-      expect(result).not.toContain('python');
-    });
-
-    it('should exclude already applied tags', () => {
-      const currentTags = ['javascript'];
-      const result = filterTagsForAutocomplete('java', allTags, currentTags);
-      expect(result).not.toContain('javascript');
-      expect(result).toContain('java');
-    });
-
-    it('should respect limit', () => {
-      const result = filterTagsForAutocomplete('j', allTags, [], 2);
-      expect(result.length).toBeLessThanOrEqual(2);
-    });
-
-    it('should be case insensitive', () => {
-      const result = filterTagsForAutocomplete('JAVA', allTags, []);
-      expect(result).toContain('javascript');
-      expect(result).toContain('java');
-    });
-
-    it('should return empty array when no matches', () => {
-      const result = filterTagsForAutocomplete('xyz', allTags, []);
-      expect(result).toEqual([]);
     });
   });
 
@@ -163,27 +96,6 @@ describe('Tag Editor Logic', () => {
 
       expect(dropdown.style.display).toBe('block');
       expect(dropdown.children.length).toBe(2);
-    });
-  });
-
-  describe('Tag editing callbacks', () => {
-    it('should call onTagsChange when tag is added', async () => {
-      const onTagsChange = vi.fn();
-
-      const newTag = normalizeTagName('New Tag');
-      expect(newTag).toBe('new-tag');
-
-      onTagsChange();
-
-      expect(onTagsChange).toHaveBeenCalled();
-    });
-
-    it('should call onTagsChange when tag is removed', async () => {
-      const onTagsChange = vi.fn();
-
-      onTagsChange();
-
-      expect(onTagsChange).toHaveBeenCalled();
     });
   });
 });

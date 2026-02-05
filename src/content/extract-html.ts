@@ -1,13 +1,17 @@
-function waitForSettle(settleTimeMs = 2000): Promise<void> {
+function waitForSettle(settleTimeMs = 2000, maxWaitMs = 15000): Promise<void> {
   return new Promise((resolve) => {
     let timeout: ReturnType<typeof setTimeout>;
 
+    const done = (): void => {
+      clearTimeout(timeout);
+      clearTimeout(maxTimeout);
+      observer.disconnect();
+      resolve();
+    };
+
     const observer = new MutationObserver(() => {
       clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        observer.disconnect();
-        resolve();
-      }, settleTimeMs);
+      timeout = setTimeout(done, settleTimeMs);
     });
 
     observer.observe(document.body as Node | null ?? document.documentElement, {
@@ -17,10 +21,8 @@ function waitForSettle(settleTimeMs = 2000): Promise<void> {
       characterData: true
     });
 
-    timeout = setTimeout(() => {
-      observer.disconnect();
-      resolve();
-    }, settleTimeMs);
+    timeout = setTimeout(done, settleTimeMs);
+    const maxTimeout = setTimeout(done, maxWaitMs);
   });
 }
 

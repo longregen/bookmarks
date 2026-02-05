@@ -1,15 +1,15 @@
 import { exportAllBookmarks, readImportFile, importBookmarks } from '../../lib/export';
 import { downloadExport } from '../../ui/export-download';
-import { showStatusMessage, createElement } from '../../ui/dom';
+import { showStatusMessage, createElement, getElement } from '../../ui/dom';
 import { withButtonState } from '../../ui/form-helper';
 import { getErrorMessage } from '../../lib/errors';
 
-const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
-const importFile = document.getElementById('importFile') as HTMLInputElement;
-const importBtn = document.getElementById('importBtn') as HTMLButtonElement;
-const importFileName = document.getElementById('importFileName') as HTMLSpanElement;
-const importStatus = document.getElementById('importStatus') as HTMLDivElement;
-const statusDiv = document.getElementById('status') as HTMLDivElement;
+const exportBtn = getElement<HTMLButtonElement>('exportBtn');
+const importFile = getElement<HTMLInputElement>('importFile');
+const importBtn = getElement<HTMLButtonElement>('importBtn');
+const importFileName = getElement<HTMLSpanElement>('importFileName');
+const importStatus = getElement<HTMLDivElement>('importStatus');
+const statusDiv = getElement<HTMLDivElement>('status');
 
 let selectedFile: File | null = null;
 

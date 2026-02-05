@@ -188,16 +188,16 @@ export async function getBatchJobStats(jobIds: string[]): Promise<Map<string, Jo
 }
 
 function computeStatsFromItems(items: JobItem[]): JobStats {
-  const stats = items.reduce<Record<string, number>>((acc, item) => {
-    acc[item.status]++;
+  const stats = items.reduce<Partial<Record<string, number>>>((acc, item) => {
+    acc[item.status] = (acc[item.status] ?? 0) + 1;
     return acc;
-  }, { pending: 0, in_progress: 0, complete: 0, error: 0 });
+  }, {});
   return {
     total: items.length,
-    pending: stats.pending,
-    inProgress: stats.in_progress,
-    complete: stats.complete,
-    error: stats.error,
+    pending: stats.pending ?? 0,
+    inProgress: stats.in_progress ?? 0,
+    complete: stats.complete ?? 0,
+    error: stats.error ?? 0,
   };
 }
 
@@ -230,25 +230,22 @@ export async function retryFailedJobItems(jobId: string): Promise<number> {
   const now = new Date();
   const bookmarkIds = items.map(item => item.bookmarkId);
 
-  // Batch update all job items
-  await Promise.all(
-    items.map(item => db.jobItems.update(item.id, {
-      status: JobItemStatus.PENDING,
-      retryCount: 0,
-      errorMessage: undefined,
-      updatedAt: now,
-    }))
-  );
-
-  // Batch update all bookmarks
-  await Promise.all(
-    bookmarkIds.map(bookmarkId => db.bookmarks.update(bookmarkId, {
-      status: 'fetching',
-      errorMessage: undefined,
-      retryCount: 0,
-      updatedAt: now,
-    }))
-  );
+  await db.transaction('rw', [db.jobItems, db.bookmarks], async () => {
+    await Promise.all([
+      ...items.map(item => db.jobItems.update(item.id, {
+        status: JobItemStatus.PENDING,
+        retryCount: 0,
+        errorMessage: undefined,
+        updatedAt: now,
+      })),
+      ...bookmarkIds.map(bookmarkId => db.bookmarks.update(bookmarkId, {
+        status: 'fetching' as const,
+        errorMessage: undefined,
+        retryCount: 0,
+        updatedAt: now,
+      })),
+    ]);
+  });
 
   // Update job status
   await updateJobStatus(jobId);

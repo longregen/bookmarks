@@ -341,10 +341,11 @@ export async function loadConfigOverrides(): Promise<void> {
 export async function saveConfigOverrides(): Promise<void> {
   try {
     const now = new Date();
+    const existing = await db.settings.get(CONFIG_STORAGE_KEY);
     await db.settings.put({
       key: CONFIG_STORAGE_KEY,
       value: configOverrides,
-      createdAt: now,
+      createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     });
   } catch (error) {
@@ -367,7 +368,8 @@ export async function setConfigValue(key: string, value: number | string | boole
     throw new Error(`Unknown config key: ${key}`);
   }
 
-  if (typeof value !== entry.type) {
+  const expectedJsType = entry.type === 'textarea' ? 'string' : entry.type;
+  if (typeof value !== expectedJsType) {
     throw new Error(`Invalid type for ${key}: expected ${entry.type}, got ${typeof value}`);
   }
 

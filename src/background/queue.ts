@@ -40,6 +40,8 @@ async function fetchSingleBookmark(bookmark: Bookmark): Promise<{ success: boole
 
     if (currentRetryCount < maxRetries) {
       const newRetryCount = currentRetryCount + 1;
+      const backoffDelay = calculateBackoffDelay(currentRetryCount);
+
       await db.bookmarks.update(bookmark.id, {
         status: 'fetching',
         retryCount: newRetryCount,
@@ -51,6 +53,8 @@ async function fetchSingleBookmark(bookmark: Bookmark): Promise<{ success: boole
         retryCount: newRetryCount,
         errorMessage: `Retry ${newRetryCount}/${maxRetries}: ${errorMessage}`,
       });
+
+      await sleep(backoffDelay);
     } else {
       await db.bookmarks.update(bookmark.id, {
         status: 'error',
@@ -94,7 +98,7 @@ async function processFetchQueue(): Promise<void> {
     );
 
     const successCount = results.filter(r => r.success).length;
-    const failureCount = results.filter(r => !r.success).length;
+    const failureCount = results.length - successCount;
     console.log(`[Queue] Batch complete: ${successCount} succeeded, ${failureCount} failed/retrying`);
 
     // Small delay between batches to avoid overwhelming the system
@@ -216,13 +220,9 @@ export async function startProcessingQueue(): Promise<void> {
   console.log('[Queue] Starting processing queue');
 
   try {
-    // Phase 1: Parallel fetch - download HTML for all 'fetching' bookmarks
     await processFetchQueue();
-
-    // Phase 2: Sequential content processing - process 'downloaded' and 'pending' bookmarks
     await processContentQueue();
 
-    // Trigger server sync after queue is empty
     serverSync.incrementalSync().catch((err: unknown) => {
       console.error('[Queue] Server sync after queue empty failed:', err);
     });

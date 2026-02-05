@@ -95,9 +95,10 @@ function setupScrollTracking(): void {
   };
 }
 
+const desktopQuery = window.matchMedia('(min-width: 1024px)');
+
 function handleResponsiveTracking(): void {
-  const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
-  if (isDesktop) {
+  if (desktopQuery.matches) {
     setupScrollTracking();
   } else if (scrollCleanup) {
     scrollCleanup();
@@ -107,7 +108,7 @@ function handleResponsiveTracking(): void {
 
 handleResponsiveTracking();
 
-window.addEventListener('resize', handleResponsiveTracking);
+desktopQuery.addEventListener('change', handleResponsiveTracking);
 
 export function initNavigationModule(): void {
   // Hide bulk import nav item for web platform (CORS prevents fetching external URLs)

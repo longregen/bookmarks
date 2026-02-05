@@ -1,5 +1,6 @@
 import { db } from '../db/schema';
 import { startProcessingQueue } from './queue';
+import { resumeIncompleteJobs } from './job-resumption';
 import { createBulkImportJob } from '../lib/bulk-import';
 import { setPlatformAdapter } from '../lib/platform';
 import { extensionAdapter } from '../lib/adapters/extension';
@@ -62,10 +63,11 @@ async function triggerServerSyncIfEnabled(): Promise<void> {
   }
 }
 
-function initializeExtension(): void {
+async function initializeExtension(): Promise<void> {
   console.log('Initializing extension...');
 
   try {
+    await resumeIncompleteJobs();
     void startProcessingQueue();
 
     void setupSyncAlarm().catch((err: unknown) => {
@@ -83,7 +85,7 @@ function initializeExtension(): void {
 
 chrome.runtime.onInstalled.addListener((details) => {
   console.log('Extension installed/updated');
-  initializeExtension();
+  void initializeExtension();
 
   if (details.reason === 'install') {
     void chrome.tabs.create({
@@ -94,10 +96,10 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 chrome.runtime.onStartup.addListener(() => {
   console.log('Browser started, initializing');
-  initializeExtension();
+  void initializeExtension();
 });
 
-initializeExtension();
+void initializeExtension();
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === SERVER_SYNC_ALARM) {
@@ -272,27 +274,24 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
   const { url, title, html } = data;
   const settings = await getSettings();
 
-  // Server mode: POST to server for processing
+  const id = crypto.randomUUID();
+
   if (settings.serverEnabled && settings.serverSessionToken && settings.serverUrl) {
     try {
       const apiClient = new ServerApiClient(settings.serverUrl, settings.serverSessionToken);
       const serverResult = await apiClient.createBookmark({ url, title, html });
       return { success: true, bookmarkId: serverResult.id };
     } catch (error) {
-      // Queue for offline sync if server unreachable
       console.warn('Server unreachable, queuing bookmark for offline sync:', error);
-      const id = crypto.randomUUID();
       serverSync.queueOfflineChange({
         type: 'create',
         bookmarkId: id,
         data: { url, title, html },
         timestamp: Date.now(),
       });
-      // Fall through to local processing
     }
   }
 
-  // Local mode: process bookmark locally
   const existing = await db.bookmarks.where('url').equals(url).first();
 
   if (existing) {
@@ -308,7 +307,6 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
     return { success: true, bookmarkId: existing.id, updated: true };
   }
 
-  const id = crypto.randomUUID();
   const now = new Date();
 
   await db.bookmarks.add({

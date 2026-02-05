@@ -39,15 +39,6 @@ export interface OfflineChange {
 // Re-export types from server-api for convenience
 export type { ServerBookmark, ServerBookmarkFull, ServerQAPair, FullSyncDownloadResponse } from './server-api';
 
-interface IncrementalSyncResponse {
-  changes: {
-    type: 'created' | 'updated' | 'deleted';
-    bookmark?: ServerBookmark;
-    bookmarkId?: string;
-  }[];
-  syncTimestamp: string;
-}
-
 const OFFLINE_QUEUE_KEY = 'serverSync:offlineQueue';
 
 export class ServerSyncManager {
@@ -141,11 +132,11 @@ export class ServerSyncManager {
       const client = await ServerApiClient.fromSettings();
       const lastSyncTime = settings.serverLastSyncTime || new Date(0).toISOString();
 
-      const response = await client.getChanges(lastSyncTime) as unknown as IncrementalSyncResponse;
+      const response = await client.getChanges(lastSyncTime);
 
       let changesApplied = 0;
       for (const change of response.changes) {
-        if (change.type === 'deleted' && change.bookmarkId !== undefined && change.bookmarkId !== '') {
+        if (change.changeType === 'delete' && change.bookmarkId !== '') {
           await this.deleteLocalBookmark(change.bookmarkId);
           changesApplied++;
         } else if (change.bookmark !== undefined) {
@@ -154,7 +145,7 @@ export class ServerSyncManager {
         }
       }
 
-      await saveSetting('serverLastSyncTime', response.syncTimestamp);
+      await saveSetting('serverLastSyncTime', response.syncToken);
       await saveSetting('serverLastSyncError', '');
 
       const action: SyncAction = changesApplied > 0 ? 'incremental_sync' : 'no_change';
@@ -164,7 +155,7 @@ export class ServerSyncManager {
         success: true,
         action,
         message: changesApplied > 0 ? `Incremental sync: ${changesApplied} changes applied` : 'No changes since last sync',
-        timestamp: new Date(response.syncTimestamp).getTime(),
+        timestamp: new Date(response.syncToken).getTime(),
         bookmarkCount: changesApplied,
       };
     } catch (error) {
@@ -215,7 +206,7 @@ export class ServerSyncManager {
         existing.timestamp = change.timestamp;
       }
       // If existing is delete, ignore the update (can't update deleted bookmark)
-    } else if (change.type === 'create') {
+    } else {
       if (existing.type === 'delete') {
         // Delete + create = replace with create (re-creating after delete)
         this.offlineQueue[existingIndex] = change;
@@ -234,19 +225,18 @@ export class ServerSyncManager {
     this.isProcessingQueue = true;
     try {
       const client = await ServerApiClient.fromSettings();
-      const processedIds = new Set<string>();
+      const processedIndices = new Set<number>();
 
-      for (const change of [...this.offlineQueue]) {
-        const key = `${change.bookmarkId}:${change.type}`;
+      for (let i = 0; i < this.offlineQueue.length; i++) {
         try {
-          await this.sendOfflineChange(client, change);
-          processedIds.add(key);
+          await this.sendOfflineChange(client, this.offlineQueue[i]);
+          processedIndices.add(i);
         } catch {
           // Keep failed changes in queue
         }
       }
 
-      this.offlineQueue = this.offlineQueue.filter(c => !processedIds.has(`${c.bookmarkId}:${c.type}`));
+      this.offlineQueue = this.offlineQueue.filter((_, i) => !processedIndices.has(i));
       this.saveOfflineQueue();
     } finally {
       this.isProcessingQueue = false;
@@ -297,71 +287,51 @@ export class ServerSyncManager {
 
   private async storeBookmarks(bookmarks: ServerBookmark[]): Promise<void> {
     const now = new Date();
-    // Only store minimal data - full content fetched on-demand
-    await db.transaction('rw', [db.bookmarks, db.bookmarkTags], async () => {
-      for (const serverBookmark of bookmarks) {
-        const bookmark: Bookmark = {
-          id: serverBookmark.id,
-          url: serverBookmark.url,
-          title: serverBookmark.title,
-          html: '', // Don't store html - fetch on-demand
-          status: serverBookmark.status as Bookmark['status'],
-          errorMessage: serverBookmark.errorMessage ?? undefined,
-          createdAt: new Date(serverBookmark.createdAt),
-          updatedAt: new Date(serverBookmark.updatedAt),
-        };
-        await db.bookmarks.put(bookmark);
+    const bookmarkRecords: Bookmark[] = [];
+    const tagRecords: BookmarkTag[] = [];
 
-        // Store tags (minimal data)
-        for (const tagName of serverBookmark.tags) {
-          const tag: BookmarkTag = { bookmarkId: serverBookmark.id, tagName, addedAt: now };
-          await db.bookmarkTags.put(tag);
-        }
+    for (const serverBookmark of bookmarks) {
+      bookmarkRecords.push({
+        id: serverBookmark.id,
+        url: serverBookmark.url,
+        title: serverBookmark.title,
+        html: '',
+        status: serverBookmark.status as Bookmark['status'],
+        errorMessage: serverBookmark.errorMessage ?? undefined,
+        createdAt: new Date(serverBookmark.createdAt),
+        updatedAt: new Date(serverBookmark.updatedAt),
+      });
+
+      for (const tagName of serverBookmark.tags) {
+        tagRecords.push({ bookmarkId: serverBookmark.id, tagName, addedAt: now });
       }
+    }
+
+    await db.transaction('rw', [db.bookmarks, db.bookmarkTags], async () => {
+      await db.bookmarks.bulkPut(bookmarkRecords);
+      await db.bookmarkTags.bulkPut(tagRecords);
     });
   }
 
-  /**
-   * Fetch full bookmark content from server (html, markdown, Q&A pairs)
-   * Results are cached locally in IndexedDB
-   */
   async fetchBookmarkContent(bookmarkId: string): Promise<ServerBookmarkFull | null> {
     if (!(await this.isServerEnabled())) {
       return null;
     }
 
     try {
-      const settings = await getSettings();
-      const url = settings.serverUrl.replace(/\/$/, '');
-
-      const response = await fetch(`${url}/api/v1/bookmarks/${bookmarkId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.serverSessionToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) return null;
-        throw new ServerApiError(`Server error: ${response.status}`, response.status);
-      }
-
-      const fullBookmark = await response.json() as ServerBookmarkFull;
-
-      // Cache the content locally
+      const client = await ServerApiClient.fromSettings();
+      const fullBookmark = await client.getBookmarkFull(bookmarkId);
       await this.cacheBookmarkContent(fullBookmark);
-
       return fullBookmark;
     } catch (error) {
+      if (error instanceof ServerApiError && error.isNotFound()) {
+        return null;
+      }
       console.error('Failed to fetch bookmark content:', getErrorMessage(error));
       return null;
     }
   }
 
-  /**
-   * Cache fetched bookmark content in IndexedDB
-   */
   private async cacheBookmarkContent(fullBookmark: ServerBookmarkFull): Promise<void> {
     const now = new Date();
     await db.transaction('rw', [db.bookmarks, db.markdown, db.questionsAnswers], async () => {
@@ -446,10 +416,3 @@ export async function syncWithServer(): Promise<SyncResult> {
   return serverSync.incrementalSync();
 }
 
-/**
- * Fetch full bookmark content from server (on-demand)
- * Returns cached content if available, otherwise fetches from server
- */
-export async function fetchBookmarkContent(bookmarkId: string): Promise<ServerBookmarkFull | null> {
-  return serverSync.fetchBookmarkContent(bookmarkId);
-}

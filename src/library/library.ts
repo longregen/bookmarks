@@ -1,5 +1,4 @@
 import { db, type BookmarkTag } from '../db/schema';
-import type * as ExportModule from '../lib/export';
 import { createElement, getElement } from '../ui/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { onThemeChange, applyTheme } from '../shared/theme';
@@ -17,6 +16,8 @@ function getStatusModifier(status: string): string {
   const statusMap: Record<string, string> = {
     'complete': 'status-dot--success',
     'pending': 'status-dot--warning',
+    'fetching': 'status-dot--info',
+    'downloaded': 'status-dot--warning',
     'processing': 'status-dot--info',
     'error': 'status-dot--error'
   };
@@ -32,6 +33,11 @@ const detailPanel = getElement('detailPanel');
 const detailBackdrop = getElement('detailBackdrop');
 const detailContent = getElement('detailContent');
 
+function refresh(): void {
+  void loadTags();
+  void loadBookmarks();
+}
+
 const detailManager = new BookmarkDetailManager({
   detailPanel,
   detailBackdrop,
@@ -41,18 +47,9 @@ const detailManager = new BookmarkDetailManager({
   exportBtn: getElement<HTMLButtonElement>('exportBtn'),
   debugBtn: getElement<HTMLButtonElement>('debugBtn'),
   retryBtn: getElement<HTMLButtonElement>('retryBtn'),
-  onDelete: () => {
-    void loadTags();
-    void loadBookmarks();
-  },
-  onTagsChange: () => {
-    void loadTags();
-    void loadBookmarks();
-  },
-  onRetry: () => {
-    void loadTags();
-    void loadBookmarks();
-  }
+  onDelete: refresh,
+  onTagsChange: refresh,
+  onRetry: refresh
 });
 
 sortSelect.addEventListener('change', () => {
@@ -103,14 +100,12 @@ async function loadTags(): Promise<void> {
     fragment.appendChild(tagItem);
   }
 
-  tagList.innerHTML = '';
-  tagList.appendChild(fragment);
+  tagList.replaceChildren(fragment);
 }
 
 function selectTag(tag: string): void {
   selectedTag = tag;
-  void loadTags();
-  void loadBookmarks();
+  refresh();
 }
 
 async function loadBookmarks(): Promise<void> {
@@ -140,8 +135,7 @@ async function loadBookmarks(): Promise<void> {
   bookmarkCount.textContent = bookmarks.length.toString();
 
   if (bookmarks.length === 0) {
-    bookmarkList.innerHTML = '';
-    bookmarkList.appendChild(createElement('div', { className: 'empty-state', textContent: 'No bookmarks found' }));
+    bookmarkList.replaceChildren(createElement('div', { className: 'empty-state', textContent: 'No bookmarks found' }));
     return;
   }
 
@@ -171,7 +165,13 @@ async function loadBookmarks(): Promise<void> {
     card.appendChild(header);
 
     const meta = createElement('div', { className: 'card-meta' });
-    const url = createElement('a', { className: 'card-url', href: bookmark.url, textContent: new URL(bookmark.url).hostname });
+    let hostname: string;
+    try {
+      hostname = new URL(bookmark.url).hostname;
+    } catch {
+      hostname = bookmark.url;
+    }
+    const url = createElement('a', { className: 'card-url', href: bookmark.url, textContent: hostname });
     url.onclick = (e) => e.stopPropagation();
     meta.appendChild(url);
     meta.appendChild(document.createTextNode(` · ${formatDateByAge(bookmark.createdAt)}`));
@@ -188,8 +188,7 @@ async function loadBookmarks(): Promise<void> {
     fragment.appendChild(card);
   }
 
-  bookmarkList.innerHTML = '';
-  bookmarkList.appendChild(fragment);
+  bookmarkList.replaceChildren(fragment);
 }
 
 if (__IS_WEB__) {
@@ -214,8 +213,7 @@ void initializeApp();
 
 const removeEventListener = addBookmarkEventListener((event) => {
   if (event.type.startsWith('bookmark:') || event.type.startsWith('tag:')) {
-    void loadTags();
-    void loadBookmarks();
+    refresh();
   }
 });
 
@@ -248,45 +246,47 @@ declare global {
   }
 }
 
-// Dynamic import to avoid bundling issues in test mode
-async function getExportModule(): Promise<typeof ExportModule> {
-  return import('../lib/export');
-}
-
-window.__testHelpers = {
-  async getBookmarkStatus() {
-    const bookmarks = await db.bookmarks.toArray();
-    const markdown = await db.markdown.toArray();
-
-    return {
-      bookmarks: bookmarks.map(b => ({
-        id: b.id,
-        title: b.title,
-        url: b.url,
-        status: b.status,
-        errorMessage: b.errorMessage,
-        createdAt: b.createdAt
-      })),
-      markdown: markdown.map(m => ({
-        bookmarkId: m.bookmarkId,
-        contentLength: m.content ? m.content.length : 0,
-        contentPreview: m.content ? m.content.substring(0, 200) : ''
-      }))
-    };
-  },
-  async exportAllBookmarks() {
-    const { exportAllBookmarks } = await getExportModule();
-    return await exportAllBookmarks();
-  },
-  async setBookmarkStatus(url: string, status: string, errorMessage?: string) {
-    const bookmark = await db.bookmarks.where('url').equals(url).first();
-    if (bookmark) {
-      await db.bookmarks.update(bookmark.id, {
-        status: status as 'pending' | 'processing' | 'complete' | 'error',
-        errorMessage
-      });
-      return true;
-    }
-    return false;
+if (import.meta.env.DEV) {
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  async function getExportModule() {
+    return import('../lib/export');
   }
-};
+
+  window.__testHelpers = {
+    async getBookmarkStatus() {
+      const bookmarks = await db.bookmarks.toArray();
+      const markdown = await db.markdown.toArray();
+
+      return {
+        bookmarks: bookmarks.map(b => ({
+          id: b.id,
+          title: b.title,
+          url: b.url,
+          status: b.status,
+          errorMessage: b.errorMessage,
+          createdAt: b.createdAt
+        })),
+        markdown: markdown.map(m => ({
+          bookmarkId: m.bookmarkId,
+          contentLength: m.content ? m.content.length : 0,
+          contentPreview: m.content ? m.content.substring(0, 200) : ''
+        }))
+      };
+    },
+    async exportAllBookmarks() {
+      const { exportAllBookmarks } = await getExportModule();
+      return await exportAllBookmarks();
+    },
+    async setBookmarkStatus(url: string, status: string, errorMessage?: string) {
+      const bookmark = await db.bookmarks.where('url').equals(url).first();
+      if (bookmark) {
+        await db.bookmarks.update(bookmark.id, {
+          status: status as 'pending' | 'processing' | 'complete' | 'error',
+          errorMessage
+        });
+        return true;
+      }
+      return false;
+    }
+  };
+}

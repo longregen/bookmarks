@@ -250,10 +250,8 @@ function stopStatusPolling(): void {
 }
 
 export function initServerSyncModule(): () => void {
-  // Load initial settings
   void loadSettings();
 
-  // Set up event listeners
   const enabledCheckbox = getElement<HTMLInputElement>('serverEnabled');
   const saveUrlBtn = getElement<HTMLButtonElement>('serverSaveUrlBtn');
   const registerBtn = getElement<HTMLButtonElement>('serverRegisterBtn');
@@ -268,23 +266,9 @@ export function initServerSyncModule(): () => void {
   logoutBtn.addEventListener('click', () => void handleLogout());
   syncNowBtn.addEventListener('click', () => void handleSyncNow());
 
-  // Start polling for sync status updates
   startStatusPolling();
 
-  // Cleanup function
-  const cleanup = (): void => {
-    stopStatusPolling();
-  };
-
-  // Ensure cleanup on page unload to prevent memory leaks
-  const handleUnload = (): void => {
-    cleanup();
-  };
-  window.addEventListener('beforeunload', handleUnload);
-
-  // Return cleanup function that also removes the unload listener
   return () => {
-    window.removeEventListener('beforeunload', handleUnload);
-    cleanup();
+    stopStatusPolling();
   };
 }

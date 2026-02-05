@@ -59,7 +59,6 @@ export const webAdapter: PlatformAdapter = {
         }
       } catch (e) {
         console.log(`CORS proxy ${proxy.name} failed:`, e);
-        continue;
       }
     }
 

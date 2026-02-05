@@ -91,21 +91,14 @@ export interface Job {
   parentJobId?: string;
 
   metadata: {
-    // FILE_IMPORT
     fileName?: string;
     importedCount?: number;
     skippedCount?: number;
-
-    // BULK_URL_IMPORT
     totalUrls?: number;
     successCount?: number;
     failureCount?: number;
-
-    // URL_FETCH
     url?: string;
     bookmarkId?: string;
-
-    // Error info
     errorMessage?: string;
   };
 
@@ -138,8 +131,6 @@ export class BookmarkDatabase extends Dexie {
       questionsAnswers: 'id, bookmarkId, createdAt, updatedAt',
       settings: 'key, createdAt, updatedAt',
       jobs: 'id, bookmarkId, parentJobId, status, type, createdAt, updatedAt, [parentJobId+status], [bookmarkId+type]',
-    }).upgrade(() => {
-      console.log('Upgraded database to version 2 with jobs table');
     });
 
     this.version(3).stores({
@@ -173,7 +164,6 @@ export class BookmarkDatabase extends Dexie {
       searchHistory: 'id, query, createdAt',
     });
 
-    // Add compound index [status+updatedAt] for efficient stuck bookmark queries
     this.version(6).stores({
       bookmarks: 'id, url, status, createdAt, updatedAt, [status+updatedAt]',
       markdown: 'id, bookmarkId, createdAt, updatedAt',

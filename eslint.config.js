@@ -30,7 +30,7 @@ export default tseslint.config(
   {
     files: ["src/**/*.ts"],
     languageOptions: {
-      ecmaVersion: 2020,
+      ecmaVersion: 2022,
       sourceType: "module",
       globals: {
         ...globals.browser,
@@ -123,8 +123,6 @@ export default tseslint.config(
       "@typescript-eslint/no-deprecated": "warn",
       "@typescript-eslint/no-unnecessary-type-parameters": "warn",
       "@typescript-eslint/prefer-promise-reject-errors": "warn",
-      "prefer-promise-reject-errors": "warn",
-      "no-promise-executor-return": "warn",
 
       complexity: ["warn", { max: 20 }],
       "max-depth": ["warn", { max: 5 }],
@@ -147,7 +145,6 @@ export default tseslint.config(
       "no-return-assign": "warn",
       "no-sequences": "error",
       "no-throw-literal": "warn",
-      "prefer-promise-reject-errors": "warn",
       radix: "error",
       "no-empty": "warn",
 
@@ -170,6 +167,8 @@ export default tseslint.config(
       "no-unreachable-loop": "error",
       "no-async-promise-executor": "error",
       "no-promise-executor-return": "warn",
+
+      "prefer-promise-reject-errors": "warn",
 
       "@typescript-eslint/no-non-null-assertion": "warn",
       "@typescript-eslint/no-empty-function": [

@@ -96,10 +96,31 @@ describe('Polling Manager', () => {
       vi.advanceTimersByTime(1000);
       expect(callback).toHaveBeenCalledTimes(1);
 
-      vi.advanceTimersByTime(1000);
+      await vi.advanceTimersByTimeAsync(1000);
       expect(callback).toHaveBeenCalledTimes(2);
 
       poller.stop();
+    });
+
+    it('should not overlap async callbacks', async () => {
+      let concurrency = 0;
+      let maxConcurrency = 0;
+      const callback = vi.fn(async () => {
+        concurrency++;
+        maxConcurrency = Math.max(maxConcurrency, concurrency);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        concurrency--;
+      });
+      const poller = createPoller(callback, 100);
+
+      poller.start();
+
+      await vi.advanceTimersByTimeAsync(2000);
+
+      poller.stop();
+
+      expect(callback).toHaveBeenCalled();
+      expect(maxConcurrency).toBe(1);
     });
 
     it('should handle errors in async callbacks gracefully', () => {
@@ -182,7 +203,7 @@ describe('Polling Manager', () => {
       expect(() => poller.start()).toThrow('Sync error');
     });
 
-    it('should handle errors in interval callbacks', () => {
+    it('should handle errors in interval callbacks and continue polling', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       let callCount = 0;
@@ -196,13 +217,13 @@ describe('Polling Manager', () => {
 
       poller.start();
 
-      vi.advanceTimersByTime(1000);
+      await vi.advanceTimersByTimeAsync(1000);
       expect(callback).toHaveBeenCalledTimes(1);
 
-      vi.advanceTimersByTime(1000);
+      await vi.advanceTimersByTimeAsync(1000);
       expect(callback).toHaveBeenCalledTimes(2);
 
-      vi.advanceTimersByTime(1000);
+      await vi.advanceTimersByTimeAsync(1000);
       expect(callback).toHaveBeenCalledTimes(3);
 
       poller.stop();

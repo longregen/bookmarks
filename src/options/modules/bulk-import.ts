@@ -76,9 +76,9 @@ async function pollProgress(urls: string[]): Promise<void> {
           errors++;
         } else if (b.status === 'complete') {
           completed++;
-        } else if (b.status === 'downloaded' || b.status === 'pending') {
+        } else if (b.status === 'downloaded' || b.status === 'pending' || b.status === 'fetching') {
           downloaded++;
-        } else if (b.status === 'processing') {
+        } else {
           processing++;
         }
       }
@@ -92,7 +92,7 @@ async function pollProgress(urls: string[]): Promise<void> {
       if (finishedCount >= total) {
         statusText = `Completed ${completed} of ${total}`;
       } else if (downloaded > 0 || processing > 0) {
-        statusText = `Downloaded ${downloaded + completed + processing + errors}/${total}, Processing ${completed}/${total}`;
+        statusText = `Downloaded ${downloaded + completed + processing + errors}/${total}, Completed ${completed}/${total}`;
       } else {
         statusText = `Fetching ${total - finishedCount} pages...`;
       }
@@ -116,9 +116,6 @@ async function pollProgress(urls: string[]): Promise<void> {
         setTimeout(() => {
           bulkImportProgress.classList.add('hidden');
         }, 3000);
-
-        const event = new CustomEvent('refresh-jobs');
-        window.dispatchEvent(event);
       }
     } catch (error) {
       console.error('Error polling progress:', error);

@@ -136,8 +136,3 @@ jobsList.addEventListener('click', (e) => {
     jobEl.classList.toggle('expanded');
   }
 });
-
-export function initJobsModule(): () => void {
-  void loadJobs();
-  return () => {};
-}

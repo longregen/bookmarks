@@ -18,12 +18,7 @@ export interface CleanupResult {
 const QUOTA_WARNING_THRESHOLD = 0.8; // 80%
 const CLEANUP_JOBS_OLDER_THAN_DAYS = 30;
 
-/**
- * Estimates current storage usage using the Storage API.
- * Returns undefined if the API is not available.
- */
 export async function estimateStorageUsage(): Promise<StorageEstimate | undefined> {
-  // Check if navigator.storage.estimate is available
   if (typeof navigator === 'undefined') {
     console.warn('[QuotaMonitor] Navigator not available');
     return undefined;
@@ -61,9 +56,6 @@ export async function estimateStorageUsage(): Promise<StorageEstimate | undefine
   }
 }
 
-/**
- * Checks if storage quota is approaching the limit (>80% by default).
- */
 export async function isQuotaApproachingLimit(threshold = QUOTA_WARNING_THRESHOLD): Promise<boolean> {
   const estimate = await estimateStorageUsage();
   if (!estimate) {
@@ -73,11 +65,6 @@ export async function isQuotaApproachingLimit(threshold = QUOTA_WARNING_THRESHOL
   return estimate.percentUsed >= threshold;
 }
 
-/**
- * Cleans up old data to free storage space:
- * - Deletes search history beyond the configured limit
- * - Deletes completed/failed/cancelled jobs older than 30 days and their job items
- */
 export async function cleanupOldData(): Promise<CleanupResult> {
   console.log('[QuotaMonitor] Starting cleanup of old data');
 
@@ -151,10 +138,6 @@ export async function cleanupOldData(): Promise<CleanupResult> {
   return result;
 }
 
-/**
- * Wraps a database operation with QuotaExceededError handling.
- * If quota is exceeded, attempts cleanup and retries once.
- */
 export async function withQuotaHandling<T>(
   operation: () => Promise<T>,
   operationName = 'Database operation'
@@ -188,9 +171,6 @@ export async function withQuotaHandling<T>(
   }
 }
 
-/**
- * Checks if an error is a QuotaExceededError.
- */
 export function isQuotaExceededError(error: unknown): boolean {
   if (error instanceof DOMException) {
     return error.name === 'QuotaExceededError';
@@ -204,9 +184,6 @@ export function isQuotaExceededError(error: unknown): boolean {
   return false;
 }
 
-/**
- * Formats bytes into a human-readable string.
- */
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
   if (bytes < 0) return `-${formatBytes(-bytes)}`;
@@ -218,17 +195,11 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / Math.pow(k, i)).toFixed(2)} ${units[i]}`;
 }
 
-/**
- * Formats storage estimate as a human-readable string.
- */
 export function formatStorageEstimate(estimate: StorageEstimate): string {
   const percentStr = (estimate.percentUsed * 100).toFixed(1);
   return `${formatBytes(estimate.usage)} / ${formatBytes(estimate.quota)} (${percentStr}%)`;
 }
 
-/**
- * Logs current storage status to console.
- */
 export async function logStorageStatus(): Promise<void> {
   const estimate = await estimateStorageUsage();
   if (!estimate) {

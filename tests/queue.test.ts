@@ -316,6 +316,54 @@ describe('Queue Management', () => {
     });
   });
 
+  describe('Fetch Retry Backoff', () => {
+    it('should apply backoff delay on fetch retry', async () => {
+      const { config } = await import('../src/lib/config-registry');
+      (config as Record<string, unknown>).QUEUE_MAX_RETRIES = 1;
+      (config as Record<string, unknown>).QUEUE_RETRY_BASE_DELAY_MS = 100;
+      (config as Record<string, unknown>).QUEUE_RETRY_MAX_DELAY_MS = 1000;
+
+      const bookmark = {
+        id: 'test-backoff',
+        url: 'https://example.com/backoff',
+        title: 'Backoff Test',
+        html: '',
+        status: 'fetching' as const,
+        retryCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await db.bookmarks.add(bookmark);
+
+      let fetchCallCount = 0;
+      vi.spyOn(processor, 'fetchBookmarkHtml').mockImplementation(async (bm) => {
+        fetchCallCount++;
+        if (fetchCallCount === 1) {
+          throw new Error('Temporary fetch failure');
+        }
+        await db.bookmarks.update(bm.id, {
+          status: 'downloaded',
+          updatedAt: new Date(),
+        });
+        return { ...bm, status: 'downloaded' as const };
+      });
+
+      vi.spyOn(processor, 'processBookmarkContent').mockResolvedValue(undefined);
+
+      const start = Date.now();
+      await startProcessingQueue();
+      const elapsed = Date.now() - start;
+
+      expect(fetchCallCount).toBe(2);
+      expect(elapsed).toBeGreaterThanOrEqual(50);
+
+      (config as Record<string, unknown>).QUEUE_MAX_RETRIES = 0;
+      (config as Record<string, unknown>).QUEUE_RETRY_BASE_DELAY_MS = 0;
+      (config as Record<string, unknown>).QUEUE_RETRY_MAX_DELAY_MS = 0;
+    });
+  });
+
   describe('Race Condition Protection', () => {
     it('should prevent concurrent queue processing', async () => {
       const bookmark = {

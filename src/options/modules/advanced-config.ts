@@ -103,10 +103,6 @@ function getFilteredEntries(): (ConfigEntry & { currentValue: number | string | 
   return entries;
 }
 
-function clearChildren(element: HTMLElement): void {
-  element.replaceChildren();
-}
-
 function renderConfigTable(): void {
   const entries = getFilteredEntries();
   const fragment = document.createDocumentFragment();
@@ -128,7 +124,7 @@ function renderConfigTable(): void {
     });
   }
 
-  clearChildren(configTableBody);
+  configTableBody.replaceChildren();
   configTableBody.appendChild(fragment);
 }
 

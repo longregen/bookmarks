@@ -125,7 +125,7 @@ function decodeEmbeddingField(value: unknown): number[] | null {
 async function importSingleBookmark(exportedBookmark: ExportedBookmark): Promise<string> {
   const now = new Date();
   const bookmarkId = crypto.randomUUID();
-  const hasHtml = Boolean(exportedBookmark.html) && exportedBookmark.html.length > 0;
+  const hasHtml = exportedBookmark.html.length > 0;
   let status: Bookmark['status'] = exportedBookmark.status;
   const hasMarkdown = exportedBookmark.markdown !== undefined && exportedBookmark.markdown !== '';
   if (!hasHtml && !hasMarkdown) {
@@ -232,8 +232,9 @@ export async function importBookmarks(data: BookmarkExport, fileName?: string): 
   };
 
   try {
-    const existingBookmarks = await db.bookmarks.toArray();
-    const existingUrls = new Set(existingBookmarks.map(b => b.url));
+    const importUrls = data.bookmarks.map(b => b.url);
+    const matchingBookmarks = await db.bookmarks.where('url').anyOf(importUrls).toArray();
+    const existingUrls = new Set(matchingBookmarks.map(b => b.url));
 
     for (const exportedBookmark of data.bookmarks) {
       try {

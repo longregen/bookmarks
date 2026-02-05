@@ -1,11 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { extractMarkdown } from '../src/lib/extract';
 
 describe('Content Extraction', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('extractMarkdown', () => {
     it('should extract content from simple HTML', () => {
       const html = `
@@ -354,12 +350,9 @@ describe('Content Extraction', () => {
         </html>
       `;
 
-      try {
-        const result = extractMarkdown(html, 'https://example.com');
-        expect(result).toBeDefined();
-      } catch (error) {
-        expect(error).toBeDefined();
-      }
+      const result = extractMarkdown(html, 'https://example.com');
+      expect(result.content).toBe('Just a sentence.');
+      expect(result.title).toBe('');
     });
 
     it('should handle malformed HTML gracefully', () => {

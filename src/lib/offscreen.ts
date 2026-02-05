@@ -152,7 +152,6 @@ export async function ensureOffscreenDocument(): Promise<void> {
   }
 }
 
-// Reset the ready state (useful if the offscreen document is closed)
 export function resetOffscreenState(): void {
   offscreenReady = false;
 }

@@ -1,5 +1,6 @@
 import { config } from './config-registry';
 import { renderPage, type CapturedPage } from './tab-renderer';
+import { extractTitleFromHtml } from './bulk-import';
 
 export async function fetchWithTimeout(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<string> {
   const controller = new AbortController();
@@ -39,11 +40,6 @@ function isLocalhostUrl(url: string): boolean {
   } catch {
     return false;
   }
-}
-
-function extractTitleFromHtml(html: string): string {
-  const match = /<title[^>]*>([^<]*)<\/title>/i.exec(html);
-  return match?.[1]?.trim() ?? '';
 }
 
 export async function browserFetch(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<CapturedPage> {

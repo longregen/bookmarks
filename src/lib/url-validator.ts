@@ -11,7 +11,6 @@ export interface UrlValidationOptions {
   requireTrailingSlash?: boolean;
   trimWhitespace?: boolean;
   autoAddProtocol?: boolean;
-  allowedSchemes?: string[];
   blockedSchemes?: Record<string, string>;
 }
 

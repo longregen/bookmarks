@@ -1,6 +1,6 @@
 import type { SaveBookmarkResponse, CapturePageResponse, GetPageHtmlResponse } from '../lib/messages';
 
-async function capturePage(): Promise<void> {
+async function capturePage(): Promise<boolean> {
   const url = location.href;
   const title = document.title;
   const html = document.documentElement.outerHTML;
@@ -13,17 +13,22 @@ async function capturePage(): Promise<void> {
 
     if (response?.success !== true) {
       console.error('Failed to save bookmark');
+      return false;
     }
+    return true;
   } catch (error) {
     console.error('Error saving bookmark:', error);
+    return false;
   }
 }
 
 chrome.runtime.onMessage.addListener((message: { type?: string }, _sender, sendResponse) => {
   if (message.type === 'user_request:capture_current_tab') {
-    void capturePage();
-    const response: CapturePageResponse = { success: true };
-    sendResponse(response);
+    capturePage().then(
+      (success) => sendResponse({ success } satisfies CapturePageResponse),
+      () => sendResponse({ success: false } satisfies CapturePageResponse)
+    );
+    return true;
   } else if (message.type === 'query:current_page_dom') {
     const response: GetPageHtmlResponse = {
       success: true,
@@ -31,5 +36,4 @@ chrome.runtime.onMessage.addListener((message: { type?: string }, _sender, sendR
     };
     sendResponse(response);
   }
-  return true;
 });

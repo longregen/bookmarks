@@ -134,7 +134,7 @@ export async function registerWithPasskey(
     throw new Error('Username is required');
   }
 
-  if (!window.PublicKeyCredential) {
+  if (typeof window.PublicKeyCredential === 'undefined') {
     throw new Error('WebAuthn is not supported in this browser');
   }
 
@@ -221,7 +221,7 @@ export async function loginWithPasskey(
   serverUrl: string,
   username?: string
 ): Promise<AuthResult> {
-  if (!window.PublicKeyCredential) {
+  if (typeof window.PublicKeyCredential === 'undefined') {
     throw new Error('WebAuthn is not supported in this browser');
   }
 

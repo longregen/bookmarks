@@ -328,8 +328,6 @@ export class ServerApiClient {
     return this.sessionToken;
   }
 
-  // Authentication endpoints
-
   async getRegisterOptions(username: string): Promise<RegisterOptionsResponse> {
     return this.request<RegisterOptionsResponse>('POST', '/api/v1/auth/register/options', {
       body: { username },
@@ -402,8 +400,6 @@ export class ServerApiClient {
     await saveSetting('serverUsername', '');
   }
 
-  // Bookmark endpoints
-
   async createBookmark(bookmark: CreateBookmarkRequest): Promise<ServerBookmark> {
     return this.request<ServerBookmark>('POST', '/api/v1/bookmarks', {
       body: bookmark,
@@ -423,6 +419,10 @@ export class ServerApiClient {
     return this.request<ServerBookmark>('GET', `/api/v1/bookmarks/${encodeURIComponent(id)}`);
   }
 
+  async getBookmarkFull(id: string): Promise<ServerBookmarkFull> {
+    return this.request<ServerBookmarkFull>('GET', `/api/v1/bookmarks/${encodeURIComponent(id)}`);
+  }
+
   async deleteBookmark(id: string): Promise<void> {
     await this.request<undefined>('DELETE', `/api/v1/bookmarks/${encodeURIComponent(id)}`);
   }
@@ -432,8 +432,6 @@ export class ServerApiClient {
       body: data,
     });
   }
-
-  // Tag endpoints
 
   async addTag(bookmarkId: string, tag: string): Promise<ServerBookmark> {
     return this.request<ServerBookmark>(
@@ -450,8 +448,6 @@ export class ServerApiClient {
     );
   }
 
-  // Search endpoints
-
   async search(params: SearchParams): Promise<SearchResponse> {
     return this.request<SearchResponse>('GET', '/api/v1/search', {
       params: {
@@ -467,8 +463,6 @@ export class ServerApiClient {
       body: request,
     });
   }
-
-  // Sync endpoints
 
   async getChanges(since?: string): Promise<SyncChangesResponse> {
     return this.request<SyncChangesResponse>('GET', '/api/v1/sync/changes', {

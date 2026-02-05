@@ -8,7 +8,7 @@ export interface TagEditorOptions {
   onTagsChange?: () => void;
 }
 
-function normalizeTagName(input: string): string {
+export function normalizeTagName(input: string): string {
   return input.trim().toLowerCase().replace(/\s+/g, '-');
 }
 

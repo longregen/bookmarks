@@ -1,4 +1,3 @@
-import type { UserConfig } from 'vite';
 import type { OutputOptions, InputOption } from 'rollup';
 
 /**
@@ -6,8 +5,6 @@ import type { OutputOptions, InputOption } from 'rollup';
  *
  * Build-time flags:
  * - __DEBUG_EMBEDDINGS__: Enable verbose logging for embedding generation and search.
- *   Set to `true` by default (beta mode). Set to `false` for production releases
- *   when you want to reduce console noise.
  * - __IS_CHROME__: true when building for Chrome, false otherwise
  * - __IS_FIREFOX__: true when building for Firefox, false otherwise
  * - __IS_WEB__: true when building for web, false otherwise
@@ -107,12 +104,5 @@ export const sharedOutput: OutputOptions = {
     if (id.includes('/src/options/modules/')) {
       return 'options-modules';
     }
-  },
-};
-
-export const sharedConfig: Partial<UserConfig> = {
-  define: sharedDefine,
-  build: {
-    sourcemap: false,
   },
 };

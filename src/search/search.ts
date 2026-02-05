@@ -158,7 +158,13 @@ function buildResultCard(
   card.appendChild(createElement('div', { className: 'card-title', textContent: bookmark.title }));
 
   const meta = createElement('div', { className: 'card-meta' });
-  const url = createElement('a', { className: 'card-url', href: bookmark.url, textContent: new URL(bookmark.url).hostname });
+  let hostname: string;
+  try {
+    hostname = new URL(bookmark.url).hostname;
+  } catch {
+    hostname = bookmark.url;
+  }
+  const url = createElement('a', { className: 'card-url', href: bookmark.url, textContent: hostname });
   url.onclick = (e) => e.stopPropagation();
   meta.appendChild(url);
   meta.appendChild(document.createTextNode(` · ${formatDateByAge(bookmark.createdAt)}`));
@@ -262,10 +268,8 @@ async function renderServerResults(results: ServerSearchResult[], query: string)
   resultStatus.textContent = count === 0
     ? 'No results found'
     : `${count} result${count === 1 ? '' : 's'} (server)`;
-  resultsList.innerHTML = '';
-
   if (!filteredResults.length) {
-    resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'Try a different search term or check your filters' }));
+    resultsList.replaceChildren(createElement('div', { className: 'empty-state', textContent: 'Try a different search term or check your filters' }));
     await saveSearchHistory(query, 0);
     return;
   }
@@ -277,7 +281,7 @@ async function renderServerResults(results: ServerSearchResult[], query: string)
     const card = buildResultCard(bookmark, score, qa, () => detailManager.showDetail(bookmark.id));
     fragment.appendChild(card);
   }
-  resultsList.appendChild(fragment);
+  resultsList.replaceChildren(fragment);
 }
 
 // eslint-disable-next-line complexity
@@ -285,7 +289,7 @@ async function performSearch(): Promise<void> {
   const query = searchInput.value.trim();
   if (!query) {
     showCenteredMode();
-    resultsList.innerHTML = '';
+    resultsList.replaceChildren();
     return;
   }
 
@@ -323,8 +327,7 @@ async function performSearch(): Promise<void> {
     if (!items.length) {
       resultStatus.classList.remove('loading');
       resultStatus.textContent = 'No bookmarks indexed yet';
-      resultsList.innerHTML = '';
-      resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'Save some bookmarks first to enable search' }));
+      resultsList.replaceChildren(createElement('div', { className: 'empty-state', textContent: 'Save some bookmarks first to enable search' }));
       return;
     }
 
@@ -381,10 +384,8 @@ async function performSearch(): Promise<void> {
     resultStatus.textContent = count === 0
       ? 'No results found'
       : `${count} result${count === 1 ? '' : 's'}`;
-    resultsList.innerHTML = '';
-
     if (!filteredResults.length) {
-      resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'Try a different search term or check your filters' }));
+      resultsList.replaceChildren(createElement('div', { className: 'empty-state', textContent: 'Try a different search term or check your filters' }));
       await saveSearchHistory(query, 0);
       return;
     }
@@ -393,18 +394,16 @@ async function performSearch(): Promise<void> {
 
     const fragment = document.createDocumentFragment();
     for (const { bookmark, qaResults, maxScore } of filteredResults) {
-      const bestQA = qaResults[0].qa;
+      const bestQA = qaResults.reduce((best, curr) => curr.score > best.score ? curr : best).qa;
 
       const card = buildResultCard(bookmark, maxScore, bestQA, () => detailManager.showDetail(bookmark.id));
       fragment.appendChild(card);
     }
-    resultsList.appendChild(fragment);
+    resultsList.replaceChildren(fragment);
   } catch (error) {
     console.error('Search error:', error);
     resultStatus.classList.remove('loading');
     resultStatus.textContent = 'Search failed';
-    resultsList.innerHTML = '';
-
     const errorMessage = getErrorMessage(error);
     const isApiKeyError = errorMessage.toLowerCase().includes('api key') ||
                           errorMessage.toLowerCase().includes('not configured') ||
@@ -431,7 +430,7 @@ async function performSearch(): Promise<void> {
       errorDiv.appendChild(settingsLink);
     }
 
-    resultsList.appendChild(errorDiv);
+    resultsList.replaceChildren(errorDiv);
   } finally {
     searchBtn.disabled = false;
   }
