@@ -7,6 +7,7 @@ import {
   ServerApiError,
   type ServerBookmark,
   type ServerBookmarkFull,
+  type SyncChange,
 } from './server-api';
 
 export type SyncAction = 'full_sync' | 'incremental_sync' | 'no_change';
@@ -149,16 +150,7 @@ export class ServerSyncManager {
 
       const response = await client.getChanges(lastSyncTime);
 
-      let changesApplied = 0;
-      for (const change of response.changes) {
-        if (change.type === 'deleted' && change.bookmarkId !== undefined && change.bookmarkId !== '') {
-          await this.deleteLocalBookmark(change.bookmarkId);
-          changesApplied++;
-        } else if (change.bookmark !== undefined) {
-          await this.upsertLocalBookmark(change.bookmark);
-          changesApplied++;
-        }
-      }
+      const changesApplied = await this.applyChanges(response.changes);
 
       await saveSetting('serverLastSyncTime', response.syncTimestamp);
       await saveSetting('serverLastSyncError', '');
@@ -190,6 +182,53 @@ export class ServerSyncManager {
     return getErrorMessage(error);
   }
 
+  private async applyChanges(changes: SyncChange[]): Promise<number> {
+    if (changes.length === 0) return 0;
+
+    const deletions: string[] = [];
+    const upserts: ServerBookmark[] = [];
+
+    for (const change of changes) {
+      if (change.type === 'deleted' && change.bookmarkId !== undefined && change.bookmarkId !== '') {
+        deletions.push(change.bookmarkId);
+      } else if (change.bookmark !== undefined) {
+        upserts.push(change.bookmark);
+      }
+    }
+
+    const now = new Date();
+
+    await db.transaction('rw', [db.bookmarks, db.markdown, db.questionsAnswers, db.bookmarkTags], async () => {
+      for (const bookmarkId of deletions) {
+        await db.bookmarks.delete(bookmarkId);
+        await db.markdown.where('bookmarkId').equals(bookmarkId).delete();
+        await db.questionsAnswers.where('bookmarkId').equals(bookmarkId).delete();
+        await db.bookmarkTags.where('bookmarkId').equals(bookmarkId).delete();
+      }
+
+      for (const serverBookmark of upserts) {
+        const bookmark: Bookmark = {
+          id: serverBookmark.id,
+          url: serverBookmark.url,
+          title: serverBookmark.title,
+          html: '',
+          status: serverBookmark.status as Bookmark['status'],
+          errorMessage: serverBookmark.errorMessage ?? undefined,
+          createdAt: new Date(serverBookmark.createdAt),
+          updatedAt: new Date(serverBookmark.updatedAt),
+        };
+        await db.bookmarks.put(bookmark);
+
+        await db.bookmarkTags.where('bookmarkId').equals(serverBookmark.id).delete();
+        await db.bookmarkTags.bulkPut(
+          serverBookmark.tags.map(tagName => ({ bookmarkId: serverBookmark.id, tagName, addedAt: now }))
+        );
+      }
+    });
+
+    return deletions.length + upserts.length;
+  }
+
   async queueOfflineChange(change: OfflineChange): Promise<void> {
     await this.ensureQueueLoaded();
     const existingIndex = this.offlineQueue.findIndex(c => c.bookmarkId === change.bookmarkId);
@@ -203,26 +242,46 @@ export class ServerSyncManager {
     const existing = this.offlineQueue[existingIndex];
 
     if (change.type === 'delete') {
-      if (existing.type === 'create') {
-        this.offlineQueue.splice(existingIndex, 1);
-      } else {
-        this.offlineQueue[existingIndex] = change;
-      }
+      this.handleDeleteChange(existingIndex, existing);
     } else if (change.type === 'update') {
-      if (existing.type === 'create') {
-        existing.data = { ...existing.data, ...change.data };
-        existing.timestamp = change.timestamp;
-      } else if (existing.type === 'update') {
-        existing.data = { ...existing.data, ...change.data };
-        existing.timestamp = change.timestamp;
-      }
+      this.handleUpdateChange(existing, change);
     } else {
-      if (existing.type === 'delete') {
-        this.offlineQueue[existingIndex] = change;
-      }
+      this.handleCreateChange(existingIndex, existing, change);
     }
 
     await this.saveOfflineQueue();
+  }
+
+  private handleDeleteChange(existingIndex: number, existing: OfflineChange): void {
+    if (existing.type === 'create') {
+      // Item was created offline and now deleted - remove from queue entirely
+      // No need to sync since it never existed on server
+      this.offlineQueue.splice(existingIndex, 1);
+    } else {
+      // Replace update with delete, or keep delete as-is
+      this.offlineQueue[existingIndex] = { type: 'delete', bookmarkId: existing.bookmarkId, timestamp: Date.now() };
+    }
+  }
+
+  private handleUpdateChange(existing: OfflineChange, change: OfflineChange): void {
+    if (existing.type === 'create') {
+      // Merge update into create - keep as create with merged data
+      existing.data = { ...existing.data, ...change.data };
+      existing.timestamp = change.timestamp;
+    } else if (existing.type === 'update') {
+      // Merge updates together
+      existing.data = { ...existing.data, ...change.data };
+      existing.timestamp = change.timestamp;
+    }
+    // If existing is delete, ignore the update (deleted items can't be updated)
+  }
+
+  private handleCreateChange(existingIndex: number, existing: OfflineChange, change: OfflineChange): void {
+    if (existing.type === 'delete') {
+      // Re-creating after delete - replace delete with create
+      this.offlineQueue[existingIndex] = change;
+    }
+    // If existing is create or update, ignore (can't create twice)
   }
 
   async processOfflineQueue(): Promise<void> {

@@ -119,6 +119,10 @@ async function startDenoServer(mockOpenAIUrl: string): Promise<ServerProcess> {
     }
   );
 
+  const spawnError = new Promise<never>((_, reject) => {
+    serverProcess.on('error', (err) => reject(err));
+  });
+
   serverProcess.stdout?.on('data', (data) => {
     console.log(`[Deno] ${data.toString().trim()}`);
   });
@@ -128,7 +132,7 @@ async function startDenoServer(mockOpenAIUrl: string): Promise<ServerProcess> {
   });
 
   console.log(`Waiting for Deno server at ${url}...`);
-  await waitForServer(url);
+  await Promise.race([waitForServer(url), spawnError]);
   console.log(`Deno server ready at ${url}`);
 
   return {
@@ -188,6 +192,10 @@ async function startWranglerServer(mockOpenAIUrl: string): Promise<ServerProcess
     }
   );
 
+  const spawnError = new Promise<never>((_, reject) => {
+    serverProcess.on('error', (err) => reject(err));
+  });
+
   serverProcess.stdout?.on('data', (data) => {
     console.log(`[Wrangler] ${data.toString().trim()}`);
   });
@@ -201,7 +209,7 @@ async function startWranglerServer(mockOpenAIUrl: string): Promise<ServerProcess
   });
 
   console.log(`Waiting for Wrangler server at ${url}...`);
-  await waitForServer(url, 60000); // Wrangler can take longer to start
+  await Promise.race([waitForServer(url, 60000), spawnError]); // Wrangler can take longer to start
   console.log(`Wrangler server ready at ${url}`);
 
   return {

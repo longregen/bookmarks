@@ -102,11 +102,14 @@ jobs:
         with:
           deno-version: v2.x
 
+      - name: Install Deno dependencies
+        run: cd server && deno install
+
       - name: Type check Deno server
-        run: deno check server/src/main.ts
+        run: cd server && deno check src/main.ts
 
       - name: Type check Worker entry point
-        run: deno check server/src/worker.ts
+        run: cd server && deno check src/worker.ts
 
   lint-firefox:
     needs: build
@@ -161,6 +164,14 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Setup Deno
+        uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
+        with:
+          deno-version: v2.x
+
+      - name: Install Deno dependencies
+        run: cd server && deno install
+
       - name: Install dependencies
         run: npm ci
 
@@ -187,6 +198,7 @@ jobs:
           BROWSER_TYPE: chrome
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EXTENSION_PATH: dist-chrome
+          SKIP_WRANGLER: '1'
         run: |
           CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
           BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npm run test:e2e:chrome
@@ -202,6 +214,14 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
+        with:
+          deno-version: v2.x
+
+      - name: Install Deno dependencies
+        run: cd server && deno install
 
       - name: Install dependencies
         run: npm ci
@@ -239,9 +259,10 @@ jobs:
           BROWSER_PATH: ${{ steps.setup-firefox.outputs.firefox-path }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EXTENSION_PATH: dist-firefox
+          SKIP_WRANGLER: '1'
         run: |
           echo "Running Firefox E2E tests with Selenium/GeckoDriver..."
-          xvfb-run --auto-servernum npx tsx tests/e2e-firefox.test.ts
+          xvfb-run --auto-servernum npm run test:e2e:firefox
 
   test-e2e-web:
     needs: build
@@ -254,6 +275,14 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
+        with:
+          deno-version: v2.x
+
+      - name: Install Deno dependencies
+        run: cd server && deno install
 
       - name: Install dependencies
         run: npm ci
@@ -297,6 +326,9 @@ jobs:
         with:
           deno-version: v2.x
 
+      - name: Install Deno dependencies
+        run: cd server && deno install
+
       - name: Install dependencies
         run: npm ci
 
@@ -320,18 +352,19 @@ jobs:
 
       - name: Run Server Sync E2E tests (Deno)
         env:
-          SERVER_TYPE: deno
           OPENAI_API_KEY: test-key-for-mock
+          SKIP_WRANGLER: '1'
+          SKIP_FIREFOX: '1'
         run: |
           CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
-          BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npx tsx tests/e2e-server-sync.test.ts
+          BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npx tsx tests/e2e-walkthrough.test.ts
 
       - name: Upload screenshots
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         with:
           name: screenshots-server-sync-deno
-          path: screenshots-server-sync-deno/
+          path: screenshots/walkthrough/chrome-deno/
           retention-days: 7
           if-no-files-found: ignore
 
@@ -346,6 +379,14 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
+        with:
+          deno-version: v2.x
+
+      - name: Install Deno dependencies
+        run: cd server && deno install
 
       - name: Install dependencies
         run: npm ci
@@ -373,19 +414,21 @@ jobs:
 
       - name: Run Server Sync E2E tests (Worker)
         env:
-          SERVER_TYPE: worker
           OPENAI_API_KEY: test-key-for-mock
+          SKIP_DENO: '1'
+          SKIP_FIREFOX: '1'
           WRANGLER_SEND_METRICS: 'false'
         run: |
+          export PATH="$PWD/server/node_modules/.bin:$PATH"
           CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
-          BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npx tsx tests/e2e-server-sync.test.ts
+          BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npx tsx tests/e2e-walkthrough.test.ts
 
       - name: Upload screenshots
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         with:
           name: screenshots-server-sync-worker
-          path: screenshots-server-sync-worker/
+          path: screenshots/walkthrough/chrome-wrangler/
           retention-days: 7
           if-no-files-found: ignore
 
@@ -398,6 +441,9 @@ jobs:
         uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
         with:
           deno-version: v2.x
+
+      - name: Install Deno dependencies
+        run: cd server && deno install
 
       - name: Run server tests
         run: cd server && deno task test

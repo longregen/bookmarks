@@ -7,3 +7,15 @@ export function getErrorMessage(error: unknown): string {
   }
   return String(error);
 }
+
+const API_CONFIG_ERROR_PATTERNS = [
+  'api key',
+  'not configured',
+  '401',
+  'unauthorized',
+] as const;
+
+export function isApiConfigError(error: unknown): boolean {
+  const message = getErrorMessage(error).toLowerCase();
+  return API_CONFIG_ERROR_PATTERNS.some(pattern => message.includes(pattern));
+}

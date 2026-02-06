@@ -62,9 +62,12 @@ export async function exportAllBookmarks(): Promise<BookmarkExport> {
   const markdownByBookmarkId = new Map(allMarkdown.map(m => [m.bookmarkId, m]));
   const qaPairsByBookmarkId = new Map<string, QuestionAnswer[]>();
   for (const qa of allQAPairs) {
-    const existing = qaPairsByBookmarkId.get(qa.bookmarkId) ?? [];
-    existing.push(qa);
-    qaPairsByBookmarkId.set(qa.bookmarkId, existing);
+    let list = qaPairsByBookmarkId.get(qa.bookmarkId);
+    if (!list) {
+      list = [];
+      qaPairsByBookmarkId.set(qa.bookmarkId, list);
+    }
+    list.push(qa);
   }
 
   const exportedBookmarks: ExportedBookmark[] = bookmarks.map(bookmark => {
@@ -95,15 +98,13 @@ function formatBookmarkForExport(
     createdAt: bookmark.createdAt.toISOString(),
     updatedAt: bookmark.updatedAt.toISOString(),
     markdown: markdown?.content,
-    /* eslint-disable @typescript-eslint/no-unnecessary-condition */
     questionsAnswers: qaPairs.map(qa => ({
       question: qa.question,
       answer: qa.answer,
-      embeddingQuestion: qa.embeddingQuestion !== undefined ? encodeEmbedding(qa.embeddingQuestion) : undefined,
-      embeddingAnswer: qa.embeddingAnswer !== undefined ? encodeEmbedding(qa.embeddingAnswer) : undefined,
-      embeddingBoth: qa.embeddingBoth !== undefined ? encodeEmbedding(qa.embeddingBoth) : undefined,
+      embeddingQuestion: qa.embeddingQuestion.length > 0 ? encodeEmbedding(qa.embeddingQuestion) : undefined,
+      embeddingAnswer: qa.embeddingAnswer.length > 0 ? encodeEmbedding(qa.embeddingAnswer) : undefined,
+      embeddingBoth: qa.embeddingBoth.length > 0 ? encodeEmbedding(qa.embeddingBoth) : undefined,
     })),
-    /* eslint-enable @typescript-eslint/no-unnecessary-condition */
   };
 }
 
@@ -306,8 +307,8 @@ export function readImportFile(file: File): Promise<BookmarkExport> {
         }
 
         resolve(data);
-      } catch (_error) {
-        reject(new Error('Failed to parse JSON file'));
+      } catch (error) {
+        reject(new Error(`Failed to parse JSON: ${getErrorMessage(error)}`));
       }
     };
 

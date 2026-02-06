@@ -19,7 +19,8 @@ export async function fetchWithTimeout(url: string, timeoutMs: number = config.F
     }
 
     const contentLength = response.headers.get('content-length');
-    if (contentLength !== null && contentLength !== '') {
+    const contentLengthValid = contentLength !== null && contentLength !== '';
+    if (contentLengthValid) {
       const bytes = parseInt(contentLength, 10);
       if (bytes > config.FETCH_MAX_HTML_SIZE) {
         throw new Error(`HTML content too large: ${(bytes / 1024 / 1024).toFixed(2)} MB`);
@@ -28,7 +29,7 @@ export async function fetchWithTimeout(url: string, timeoutMs: number = config.F
 
     const html = await response.text();
 
-    if (html.length > config.FETCH_MAX_HTML_SIZE) {
+    if (!contentLengthValid && html.length > config.FETCH_MAX_HTML_SIZE) {
       throw new Error(`HTML content too large: ${(html.length / 1024 / 1024).toFixed(2)} MB`);
     }
 

@@ -125,6 +125,8 @@ export async function createBulkImportJob(urls: string[]): Promise<string> {
   return job.id;
 }
 
+// Decodes HTML entities. Handles numeric (&#123;), hex (&#x7B;), and common named entities.
+// Named entities beyond the common ones below will be left as-is.
 function decodeHtmlEntities(text: string): string {
   const entities: Record<string, string> = {
     '&lt;': '<',

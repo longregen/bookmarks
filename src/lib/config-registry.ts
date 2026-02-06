@@ -328,11 +328,10 @@ export async function loadConfigOverrides(): Promise<void> {
     if (stored?.value !== undefined) {
       configOverrides = stored.value as Record<string, string | number | boolean>;
     }
-    overridesLoaded = true;
-    rebuildConfigCache();
   } catch (error) {
     console.error('Failed to load config overrides:', error);
     configOverrides = {};
+  } finally {
     overridesLoaded = true;
     rebuildConfigCache();
   }
@@ -469,6 +468,8 @@ export interface ConfigValues {
 }
 
 
+// Typed config proxy: provides direct property access (e.g., config.FETCH_TIMEOUT_MS)
+// that delegates to getConfigValue() for each key, enabling reactive config reads.
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const config: ConfigValues = Object.create(null);
 

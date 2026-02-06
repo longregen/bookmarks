@@ -34,7 +34,7 @@ export class BookmarkDetailManager {
     this.config.closeBtn.addEventListener('click', () => this.closeDetail());
     this.config.detailBackdrop.addEventListener('click', () => this.closeDetail());
     this.config.deleteBtn.addEventListener('click', () => this.deleteCurrentBookmark());
-    this.config.exportBtn.addEventListener('click', () => this.exportCurrentBookmark());
+    this.config.exportBtn.addEventListener('click', () => this.showExportFormatMenu());
     this.config.debugBtn.addEventListener('click', () => this.debugCurrentBookmark());
     if (this.config.retryBtn) {
       this.config.retryBtn.addEventListener('click', () => this.retryCurrentBookmark());
@@ -50,7 +50,7 @@ export class BookmarkDetailManager {
 
     // Show/hide retry button based on status
     if (this.config.retryBtn) {
-      this.config.retryBtn.style.display = bookmark.status === 'error' ? '' : 'none';
+      this.config.retryBtn.classList.toggle('hidden', bookmark.status !== 'error');
     }
 
     // Build all content in a document fragment to minimize DOM reflows
@@ -156,14 +156,8 @@ export class BookmarkDetailManager {
     this.config.onDelete?.();
   }
 
-  exportCurrentBookmark(): void {
-    if (this.currentBookmarkId === null) return;
-
-    // Show format selection dropdown
-    this.showExportFormatMenu();
-  }
-
   private showExportFormatMenu(): void {
+    if (this.currentBookmarkId === null) return;
     // Remove any existing menu
     const existingMenu = document.querySelector('.export-format-menu');
     if (existingMenu) {

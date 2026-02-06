@@ -21,6 +21,8 @@
     "test:unit:watch": "vitest",
     "test:unit:coverage": "vitest run --coverage",
     "test:e2e:walkthrough": "npx tsx tests/e2e-walkthrough.test.ts",
+    "test:e2e:chrome": "SKIP_FIREFOX=1 npx tsx tests/e2e-walkthrough.test.ts",
+    "test:e2e:firefox": "SKIP_CHROME=1 npx tsx tests/e2e-walkthrough.test.ts",
     "test:all": "npm run test:unit && npm run test:e2e:walkthrough",
     "screenshots": "npx tsx scripts/capture-screenshots.ts"
   },
@@ -41,6 +43,8 @@
     "@types/istanbul-lib-report": "^3.0.3",
     "@types/istanbul-reports": "^3.0.4",
     "@types/turndown": "^5.0.6",
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
+    "@typescript-eslint/parser": "^8.54.0",
     "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.39.2",
     "fake-indexeddb": "^6.2.5",

@@ -65,10 +65,10 @@ async function createOffscreenSafely(offscreenApi: typeof chrome.offscreen): Pro
     await waitForOffscreenReady();
   } catch (error: unknown) {
     const errorMessage = getErrorMessage(error);
-    if (!errorMessage.includes('single offscreen')) {
-      console.error('[Offscreen] Error creating document:', error);
-    } else {
+    if (errorMessage.includes('single offscreen')) {
       await waitForOffscreenReady();
+    } else {
+      console.error('[Offscreen] Error creating document:', error);
     }
   } finally {
     creatingOffscreen = null;

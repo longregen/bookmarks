@@ -21,6 +21,7 @@ export interface PlatformAdapter {
   getTheme(): Promise<Theme>;
   setTheme(theme: Theme): Promise<void>;
 
+  // Available in extension context only. Web adapter does not implement this.
   fetchContent?(url: string): Promise<{ html: string; finalUrl: string }>;
 }
 

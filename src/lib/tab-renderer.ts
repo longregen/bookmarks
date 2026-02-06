@@ -101,6 +101,7 @@ async function executeExtraction(tabId: number, settleTimeMs: number, maxMultipl
     return executeExtractionViaMessage(tabId, settleTimeMs);
   }
 
+  // Function must be inline: executeScript serializes it to run in the target tab's isolated context
   const results = await chrome.scripting.executeScript({
     target: { tabId },
     func: (settleMs: number, multiplier: number) => new Promise<{ html: string; title: string }>((resolve) => {

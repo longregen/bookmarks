@@ -14,7 +14,8 @@ function waitForSettle(settleTimeMs = 2000, maxWaitMs = 15000): Promise<void> {
       timeout = setTimeout(done, settleTimeMs);
     });
 
-    observer.observe(document.body as Node | null ?? document.documentElement, {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- body can be null during early load
+    observer.observe(document.body ?? document.documentElement, {
       childList: true,
       subtree: true,
       attributes: true,

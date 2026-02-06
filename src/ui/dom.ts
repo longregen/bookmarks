@@ -83,11 +83,6 @@ export function setSpinnerContent(element: HTMLElement, text: string): void {
   element.appendChild(document.createTextNode(` ${text}`));
 }
 
-/**
- * Sets sanitized HTML content on an element using DOMParser.
- * This avoids direct innerHTML assignment warnings in Firefox addon reviews
- * while still allowing sanitized HTML from trusted sources like DOMPurify.
- */
 export function setSanitizedHTML(element: HTMLElement, sanitizedHTML: string): void {
   element.textContent = '';
   const parser = new DOMParser();

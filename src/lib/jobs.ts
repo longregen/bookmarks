@@ -92,10 +92,6 @@ export async function getJobItems(jobId: string): Promise<JobItem[]> {
   return db.jobItems.where('jobId').equals(jobId).toArray();
 }
 
-/**
- * Batch load job items for multiple jobs at once to avoid N+1 queries.
- * Returns a Map keyed by jobId.
- */
 export async function getBatchJobItems(jobIds: string[]): Promise<Map<string, JobItem[]>> {
   if (jobIds.length === 0) {
     return new Map();
@@ -154,10 +150,6 @@ export async function getJobStats(jobId: string): Promise<JobStats> {
   return computeStatsFromItems(items);
 }
 
-/**
- * Batch load stats for multiple jobs at once to avoid N+1 queries.
- * Returns a Map keyed by jobId.
- */
 export async function getBatchJobStats(jobIds: string[]): Promise<Map<string, JobStats>> {
   if (jobIds.length === 0) {
     return new Map();
@@ -188,16 +180,16 @@ export async function getBatchJobStats(jobIds: string[]): Promise<Map<string, Jo
 }
 
 function computeStatsFromItems(items: JobItem[]): JobStats {
-  const stats = items.reduce<Partial<Record<string, number>>>((acc, item) => {
+  const stats = items.reduce<Partial<Record<JobItemStatus, number>>>((acc, item) => {
     acc[item.status] = (acc[item.status] ?? 0) + 1;
     return acc;
   }, {});
   return {
     total: items.length,
-    pending: stats.pending ?? 0,
-    inProgress: stats.in_progress ?? 0,
-    complete: stats.complete ?? 0,
-    error: stats.error ?? 0,
+    pending: stats[JobItemStatus.PENDING] ?? 0,
+    inProgress: stats[JobItemStatus.IN_PROGRESS] ?? 0,
+    complete: stats[JobItemStatus.COMPLETE] ?? 0,
+    error: stats[JobItemStatus.ERROR] ?? 0,
   };
 }
 

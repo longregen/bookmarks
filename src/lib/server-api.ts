@@ -1,6 +1,34 @@
 import { getSettings, saveSetting } from './settings';
 import { getErrorMessage } from './errors';
 
+function buildUrlWithParams(baseUrl: string, params?: Record<string, string | number | undefined>): string {
+  if (!params) return baseUrl;
+
+  const searchParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) {
+      searchParams.set(key, String(value));
+    }
+  }
+  const queryString = searchParams.toString();
+  return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+}
+
+function parseErrorResponse(body: string, status: number): { message: string; code?: string } {
+  let message = `Server error: ${status}`;
+  let code: string | undefined;
+
+  try {
+    const errorJson = JSON.parse(body) as { error?: string; code?: string };
+    if (errorJson.error !== undefined && errorJson.error !== '') message = errorJson.error;
+    if (errorJson.code !== undefined && errorJson.code !== '') code = errorJson.code;
+  } catch {
+    if (body !== '') message = body;
+  }
+
+  return { message, code };
+}
+
 export interface AuthResponse {
   sessionToken: string;
   sessionExpiry: string;
@@ -175,28 +203,13 @@ export class ServerApiClient {
     } = {}
   ): Promise<T> {
     const { body, params, authenticated = true } = options;
-
-    let url = `${this.serverUrl}${path}`;
-    if (params) {
-      const searchParams = new URLSearchParams();
-      for (const [key, value] of Object.entries(params)) {
-        if (value !== undefined) {
-          searchParams.set(key, String(value));
-        }
-      }
-      const queryString = searchParams.toString();
-      if (queryString) {
-        url += `?${queryString}`;
-      }
-    }
+    const url = buildUrlWithParams(`${this.serverUrl}${path}`, params);
 
     const headers: Record<string, string> = {};
-
     if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
     }
-
-    if (authenticated && this.sessionToken !== '') {
+    if (authenticated && this.sessionToken) {
       headers.Authorization = `Bearer ${this.sessionToken}`;
     }
 
@@ -212,24 +225,11 @@ export class ServerApiClient {
     }
 
     if (!response.ok) {
-      const errorBody = await response.text();
-      let message = `Server error: ${response.status}`;
-      let code: string | undefined;
-
-      try {
-        const errorJson = JSON.parse(errorBody) as { error?: string; code?: string };
-        if (errorJson.error !== undefined && errorJson.error !== '') message = errorJson.error;
-        if (errorJson.code !== undefined && errorJson.code !== '') code = errorJson.code;
-      } catch {
-        if (errorBody !== '') message = errorBody;
-      }
-
+      const { message, code } = parseErrorResponse(await response.text(), response.status);
       const error = new ServerApiError(message, response.status, code);
-
       if (error.isUnauthorized()) {
         await this.handleUnauthorized();
       }
-
       throw error;
     }
 

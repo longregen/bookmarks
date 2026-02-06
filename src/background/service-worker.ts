@@ -69,9 +69,7 @@ async function initializeExtension(): Promise<void> {
       console.error('Error setting up sync alarm:', err);
     });
 
-    triggerServerSyncIfEnabled().catch((err: unknown) => {
-      console.error('Initial server sync failed:', err);
-    });
+    void triggerServerSyncIfEnabled();
   } catch (error) {
     console.error('Error during initialization:', error);
     void startProcessingQueue();
@@ -170,11 +168,8 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
     return true;
   }
 
-  // IMPORTANT: Don't return false for offscreen document messages.
-  // These are handled by the offscreen document. Returning false closes the
-  // message port before the offscreen document can respond.
   if (message.type === 'extract:markdown_from_html' || message.type === 'offscreen:ping') {
-    return;  // Return undefined to keep port open for offscreen document
+    return;
   }
 
   // offscreen:ready is sent by the offscreen document when it loads - just acknowledge
