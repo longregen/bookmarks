@@ -135,7 +135,11 @@ function htmlToMarkdown(html: string): string {
   text = text.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/gi, '```\n$1\n```\n');
   text = text.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, '> $1\n');
 
-  text = text.replace(/<[^>]+>/g, '');
+  let previous: string;
+  do {
+    previous = text;
+    text = text.replace(/<[^>]+>/g, '');
+  } while (text !== previous);
 
   text = text.replace(/&nbsp;/g, ' ');
   text = text.replace(/&amp;/g, '&');
