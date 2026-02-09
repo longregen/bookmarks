@@ -1,3 +1,4 @@
+import '../shared/app.css';
 import { initThemeModule } from './modules/theme';
 import { initAdvancedConfigModule } from './modules/advanced-config';
 

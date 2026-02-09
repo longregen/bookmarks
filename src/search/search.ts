@@ -1,3 +1,4 @@
+import '../shared/app.css';
 import { db, type QuestionAnswer } from '../db/schema';
 import { createElement, getElement, setSpinnerContent } from '../ui/dom';
 import { formatDateByAge } from '../lib/date-format';

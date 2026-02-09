@@ -1,8 +1,7 @@
 import { getPlatformAdapter } from '../lib/platform';
+import { THEME_STORAGE_KEY } from '../lib/constants';
 
 export type Theme = 'auto' | 'light' | 'dark' | 'terminal' | 'tufte';
-
-export const THEME_STORAGE_KEY = 'bookmark-rag-theme';
 
 export async function getTheme(): Promise<Theme> {
   return getPlatformAdapter().getTheme();

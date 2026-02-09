@@ -1,3 +1,4 @@
+import '../shared/app.css';
 import { initSettingsModule } from './modules/settings';
 import { initBulkImportModule } from './modules/bulk-import';
 import { initServerSyncModule } from './modules/server-sync';

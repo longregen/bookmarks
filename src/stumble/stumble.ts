@@ -1,3 +1,4 @@
+import '../shared/app.css';
 import { db, type BookmarkTag } from '../db/schema';
 import { createElement, getElement } from '../ui/dom';
 import { formatDateByAge } from '../lib/date-format';

@@ -1,6 +1,6 @@
 import type { PlatformAdapter, ApiSettings, Theme } from '../platform';
 import { getSettingsFromDb, saveSettingToDb } from './common';
-import { THEME_STORAGE_KEY } from '../../shared/theme';
+import { THEME_STORAGE_KEY } from '../constants';
 
 export const webAdapter: PlatformAdapter = {
   async getSettings(): Promise<ApiSettings> {

@@ -1,3 +1,4 @@
+import '../shared/app.css';
 import { db } from '../db/schema';
 import { createElement, getElement } from '../ui/dom';
 import { onThemeChange, applyTheme } from '../shared/theme';

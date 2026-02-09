@@ -71,7 +71,11 @@ export const sharedOutput: OutputOptions = {
       // Other vendor code (should be minimal)
       return 'vendor';
     }
-    // UI components must be separate from shared to keep DOM code out of service worker
+    // Lightweight UI utilities used by ALL pages (including popup/welcome)
+    if (id.includes('/src/ui/dom') || id.includes('/src/ui/init-extension') || id.includes('/src/ui/form-helper')) {
+      return 'ui-base';
+    }
+    // Heavy UI components used only by full-layout pages (library, search, etc.)
     if (id.includes('/src/ui/')) {
       return 'ui';
     }
@@ -81,9 +85,10 @@ export const sharedOutput: OutputOptions = {
     if (id.includes('/src/lib/')) {
       return 'lib';
     }
-    // Theme utilities have DOM manipulation, keep with UI
-    if (id.includes('/src/shared/')) {
-      return 'ui';
+    // Theme utilities go with ui-base (lightweight, DOM manipulation only)
+    // CSS files are NOT routed here — they stay with their importing entry points
+    if (id.includes('/src/shared/') && !id.endsWith('.css')) {
+      return 'ui-base';
     }
     // Database schema in its own chunk to avoid bundling with service worker side effects
     if (id.includes('/src/db/')) {
