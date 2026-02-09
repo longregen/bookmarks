@@ -12,12 +12,13 @@ describe('Adapters Common', () => {
       expect(DEFAULTS.apiKey).toBe('');
       expect(DEFAULTS.chatModel).toBe('gpt-4o-mini');
       expect(DEFAULTS.embeddingModel).toBe('text-embedding-3-small');
-      expect(DEFAULTS.webdavPath).toBe('/bookmarks');
-      expect(DEFAULTS.webdavEnabled).toBe(false);
-      expect(DEFAULTS.webdavAllowInsecure).toBe(false);
-      expect(DEFAULTS.webdavSyncInterval).toBe(15);
-      expect(DEFAULTS.webdavLastSyncTime).toBe('');
-      expect(DEFAULTS.webdavLastSyncError).toBe('');
+      expect(DEFAULTS.serverUrl).toBe('');
+      expect(DEFAULTS.serverEnabled).toBe(false);
+      expect(DEFAULTS.serverSessionToken).toBe('');
+      expect(DEFAULTS.serverSessionExpiry).toBe('');
+      expect(DEFAULTS.serverAuthToken).toBe('');
+      expect(DEFAULTS.serverLastSyncTime).toBe('');
+      expect(DEFAULTS.serverLastSyncError).toBe('');
     });
 
     it('should have default API base URL', () => {
@@ -33,7 +34,7 @@ describe('Adapters Common', () => {
       expect(settings.apiKey).toBe(DEFAULTS.apiKey);
       expect(settings.chatModel).toBe(DEFAULTS.chatModel);
       expect(settings.embeddingModel).toBe(DEFAULTS.embeddingModel);
-      expect(settings.webdavEnabled).toBe(DEFAULTS.webdavEnabled);
+      expect(settings.serverEnabled).toBe(DEFAULTS.serverEnabled);
     });
 
     it('should return stored settings when they exist', async () => {
@@ -50,41 +51,32 @@ describe('Adapters Common', () => {
 
     it('should handle boolean settings', async () => {
       const now = new Date();
-      await db.settings.add({ key: 'webdavEnabled', value: true, createdAt: now, updatedAt: now });
-      await db.settings.add({ key: 'webdavAllowInsecure', value: true, createdAt: now, updatedAt: now });
+      await db.settings.add({ key: 'serverEnabled', value: true, createdAt: now, updatedAt: now });
 
       const settings = await getSettingsFromDb();
 
-      expect(settings.webdavEnabled).toBe(true);
-      expect(settings.webdavAllowInsecure).toBe(true);
+      expect(settings.serverEnabled).toBe(true);
     });
 
-    it('should handle number settings', async () => {
+    it('should handle all server settings', async () => {
       const now = new Date();
-      await db.settings.add({ key: 'webdavSyncInterval', value: 30, createdAt: now, updatedAt: now });
+      await db.settings.add({ key: 'serverUrl', value: 'https://bookmarks.example.com', createdAt: now, updatedAt: now });
+      await db.settings.add({ key: 'serverEnabled', value: true, createdAt: now, updatedAt: now });
+      await db.settings.add({ key: 'serverSessionToken', value: 'session-token-123', createdAt: now, updatedAt: now });
+      await db.settings.add({ key: 'serverSessionExpiry', value: '2024-12-31T23:59:59Z', createdAt: now, updatedAt: now });
+      await db.settings.add({ key: 'serverAuthToken', value: 'test-auth-token', createdAt: now, updatedAt: now });
+      await db.settings.add({ key: 'serverLastSyncTime', value: '2024-01-15T12:00:00Z', createdAt: now, updatedAt: now });
+      await db.settings.add({ key: 'serverLastSyncError', value: 'Connection failed', createdAt: now, updatedAt: now });
 
       const settings = await getSettingsFromDb();
 
-      expect(settings.webdavSyncInterval).toBe(30);
-    });
-
-    it('should handle all WebDAV settings', async () => {
-      const now = new Date();
-      await db.settings.add({ key: 'webdavUrl', value: 'https://webdav.example.com', createdAt: now, updatedAt: now });
-      await db.settings.add({ key: 'webdavUsername', value: 'user123', createdAt: now, updatedAt: now });
-      await db.settings.add({ key: 'webdavPassword', value: 'secret', createdAt: now, updatedAt: now });
-      await db.settings.add({ key: 'webdavPath', value: '/my/bookmarks', createdAt: now, updatedAt: now });
-      await db.settings.add({ key: 'webdavLastSyncTime', value: '2024-01-15T12:00:00Z', createdAt: now, updatedAt: now });
-      await db.settings.add({ key: 'webdavLastSyncError', value: 'Connection failed', createdAt: now, updatedAt: now });
-
-      const settings = await getSettingsFromDb();
-
-      expect(settings.webdavUrl).toBe('https://webdav.example.com');
-      expect(settings.webdavUsername).toBe('user123');
-      expect(settings.webdavPassword).toBe('secret');
-      expect(settings.webdavPath).toBe('/my/bookmarks');
-      expect(settings.webdavLastSyncTime).toBe('2024-01-15T12:00:00Z');
-      expect(settings.webdavLastSyncError).toBe('Connection failed');
+      expect(settings.serverUrl).toBe('https://bookmarks.example.com');
+      expect(settings.serverEnabled).toBe(true);
+      expect(settings.serverSessionToken).toBe('session-token-123');
+      expect(settings.serverSessionExpiry).toBe('2024-12-31T23:59:59Z');
+      expect(settings.serverAuthToken).toBe('test-auth-token');
+      expect(settings.serverLastSyncTime).toBe('2024-01-15T12:00:00Z');
+      expect(settings.serverLastSyncError).toBe('Connection failed');
     });
   });
 
@@ -100,23 +92,13 @@ describe('Adapters Common', () => {
     });
 
     it('should save a new boolean setting', async () => {
-      await saveSettingToDb('webdavEnabled', true);
+      await saveSettingToDb('serverEnabled', true);
 
       const rows = await db.settings.toArray();
-      const setting = rows.find(r => r.key === 'webdavEnabled');
+      const setting = rows.find(r => r.key === 'serverEnabled');
 
       expect(setting).toBeDefined();
       expect(setting?.value).toBe(true);
-    });
-
-    it('should save a new number setting', async () => {
-      await saveSettingToDb('webdavSyncInterval', 60);
-
-      const rows = await db.settings.toArray();
-      const setting = rows.find(r => r.key === 'webdavSyncInterval');
-
-      expect(setting).toBeDefined();
-      expect(setting?.value).toBe(60);
     });
 
     it('should update an existing setting', async () => {
@@ -160,15 +142,15 @@ describe('Adapters Common', () => {
     it('should handle saving multiple settings', async () => {
       await saveSettingToDb('apiKey', 'key-1');
       await saveSettingToDb('chatModel', 'gpt-4');
-      await saveSettingToDb('webdavEnabled', true);
-      await saveSettingToDb('webdavSyncInterval', 30);
+      await saveSettingToDb('serverEnabled', true);
+      await saveSettingToDb('serverUrl', 'https://example.com');
 
       const settings = await getSettingsFromDb();
 
       expect(settings.apiKey).toBe('key-1');
       expect(settings.chatModel).toBe('gpt-4');
-      expect(settings.webdavEnabled).toBe(true);
-      expect(settings.webdavSyncInterval).toBe(30);
+      expect(settings.serverEnabled).toBe(true);
+      expect(settings.serverUrl).toBe('https://example.com');
     });
 
     it('should handle empty string values', async () => {
@@ -179,18 +161,11 @@ describe('Adapters Common', () => {
     });
 
     it('should handle false boolean values', async () => {
-      await saveSettingToDb('webdavEnabled', true);
-      expect((await db.settings.get('webdavEnabled'))?.value).toBe(true);
+      await saveSettingToDb('serverEnabled', true);
+      expect((await db.settings.get('serverEnabled'))?.value).toBe(true);
 
-      await saveSettingToDb('webdavEnabled', false);
-      expect((await db.settings.get('webdavEnabled'))?.value).toBe(false);
-    });
-
-    it('should handle zero numeric values', async () => {
-      await saveSettingToDb('webdavSyncInterval', 0);
-
-      const setting = await db.settings.get('webdavSyncInterval');
-      expect(setting?.value).toBe(0);
+      await saveSettingToDb('serverEnabled', false);
+      expect((await db.settings.get('serverEnabled'))?.value).toBe(false);
     });
   });
 
@@ -200,8 +175,8 @@ describe('Adapters Common', () => {
       await saveSettingToDb('apiBaseUrl', 'https://api.custom.com');
       await saveSettingToDb('chatModel', 'gpt-4-turbo');
       await saveSettingToDb('embeddingModel', 'text-embedding-ada-002');
-      await saveSettingToDb('webdavEnabled', true);
-      await saveSettingToDb('webdavSyncInterval', 45);
+      await saveSettingToDb('serverEnabled', true);
+      await saveSettingToDb('serverUrl', 'https://bookmarks.example.com');
 
       const settings = await getSettingsFromDb();
 
@@ -209,8 +184,8 @@ describe('Adapters Common', () => {
       expect(settings.apiBaseUrl).toBe('https://api.custom.com');
       expect(settings.chatModel).toBe('gpt-4-turbo');
       expect(settings.embeddingModel).toBe('text-embedding-ada-002');
-      expect(settings.webdavEnabled).toBe(true);
-      expect(settings.webdavSyncInterval).toBe(45);
+      expect(settings.serverEnabled).toBe(true);
+      expect(settings.serverUrl).toBe('https://bookmarks.example.com');
     });
   });
 });

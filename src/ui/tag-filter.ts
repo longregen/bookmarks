@@ -44,6 +44,6 @@ export async function loadTagFilters(config: TagFilterConfig): Promise<void> {
     fragment.appendChild(label);
   }
 
-  config.container.innerHTML = '';
+  config.container.replaceChildren();
   config.container.appendChild(fragment);
 }

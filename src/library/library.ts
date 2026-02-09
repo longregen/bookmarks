@@ -1,12 +1,17 @@
 import { db, type BookmarkTag } from '../db/schema';
 import { createElement, getElement } from '../ui/dom';
 import { formatDateByAge } from '../lib/date-format';
+import { getHostname } from '../lib/url-validator';
 import { onThemeChange, applyTheme } from '../shared/theme';
 import { initExtension } from '../ui/init-extension';
-import { initWeb } from '../web/init-web';
+import { initWebWithAuth } from '../web/init-web';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
 import { createHealthIndicator } from '../ui/health-indicator';
+import { createSyncStatusIndicator } from '../ui/sync-status-indicator';
 import { BookmarkDetailManager } from '../ui/bookmark-detail';
+import { ServerApiClient } from '../lib/server-api';
+import { serverSync } from '../lib/server-sync';
+import { getErrorMessage } from '../lib/errors';
 
 let selectedTag = 'All';
 let sortBy = 'newest';
@@ -15,6 +20,8 @@ function getStatusModifier(status: string): string {
   const statusMap: Record<string, string> = {
     'complete': 'status-dot--success',
     'pending': 'status-dot--warning',
+    'fetching': 'status-dot--info',
+    'downloaded': 'status-dot--warning',
     'processing': 'status-dot--info',
     'error': 'status-dot--error'
   };
@@ -30,6 +37,11 @@ const detailPanel = getElement('detailPanel');
 const detailBackdrop = getElement('detailBackdrop');
 const detailContent = getElement('detailContent');
 
+function refresh(): void {
+  void loadTags();
+  void loadBookmarks();
+}
+
 const detailManager = new BookmarkDetailManager({
   detailPanel,
   detailBackdrop,
@@ -39,18 +51,9 @@ const detailManager = new BookmarkDetailManager({
   exportBtn: getElement<HTMLButtonElement>('exportBtn'),
   debugBtn: getElement<HTMLButtonElement>('debugBtn'),
   retryBtn: getElement<HTMLButtonElement>('retryBtn'),
-  onDelete: () => {
-    void loadTags();
-    void loadBookmarks();
-  },
-  onTagsChange: () => {
-    void loadTags();
-    void loadBookmarks();
-  },
-  onRetry: () => {
-    void loadTags();
-    void loadBookmarks();
-  }
+  onDelete: refresh,
+  onTagsChange: refresh,
+  onRetry: refresh
 });
 
 sortSelect.addEventListener('change', () => {
@@ -59,7 +62,6 @@ sortSelect.addEventListener('change', () => {
 });
 
 async function loadTags(): Promise<void> {
-  // Use count() instead of loading all bookmarks - more efficient for large libraries
   const [totalBookmarks, allTagRecords] = await Promise.all([
     db.bookmarks.count(),
     db.bookmarkTags.toArray()
@@ -101,14 +103,12 @@ async function loadTags(): Promise<void> {
     fragment.appendChild(tagItem);
   }
 
-  tagList.innerHTML = '';
-  tagList.appendChild(fragment);
+  tagList.replaceChildren(fragment);
 }
 
 function selectTag(tag: string): void {
   selectedTag = tag;
-  void loadTags();
-  void loadBookmarks();
+  refresh();
 }
 
 async function loadBookmarks(): Promise<void> {
@@ -117,7 +117,6 @@ async function loadBookmarks(): Promise<void> {
   if (selectedTag === 'All') {
     bookmarks = await db.bookmarks.toArray();
   } else if (selectedTag === 'Untagged') {
-    // Get only the bookmark IDs and tagged IDs, then load only untagged bookmarks
     const [allBookmarkIds, taggedIds] = await Promise.all([
       db.bookmarks.toCollection().primaryKeys(),
       db.bookmarkTags.orderBy('bookmarkId').uniqueKeys()
@@ -138,8 +137,7 @@ async function loadBookmarks(): Promise<void> {
   bookmarkCount.textContent = bookmarks.length.toString();
 
   if (bookmarks.length === 0) {
-    bookmarkList.innerHTML = '';
-    bookmarkList.appendChild(createElement('div', { className: 'empty-state', textContent: 'No bookmarks found' }));
+    bookmarkList.replaceChildren(createElement('div', { className: 'empty-state', textContent: 'No bookmarks found' }));
     return;
   }
 
@@ -169,9 +167,9 @@ async function loadBookmarks(): Promise<void> {
     card.appendChild(header);
 
     const meta = createElement('div', { className: 'card-meta' });
-    const url = createElement('a', { className: 'card-url', href: bookmark.url, textContent: new URL(bookmark.url).hostname });
-    url.onclick = (e) => e.stopPropagation();
-    meta.appendChild(url);
+    const link = createElement('a', { className: 'card-url', href: bookmark.url, textContent: getHostname(bookmark.url) });
+    link.onclick = (e) => e.stopPropagation();
+    meta.appendChild(link);
     meta.appendChild(document.createTextNode(` · ${formatDateByAge(bookmark.createdAt)}`));
     card.appendChild(meta);
 
@@ -186,12 +184,54 @@ async function loadBookmarks(): Promise<void> {
     fragment.appendChild(card);
   }
 
-  bookmarkList.innerHTML = '';
-  bookmarkList.appendChild(fragment);
+  bookmarkList.replaceChildren(fragment);
 }
 
 if (__IS_WEB__) {
-  void initWeb();
+  void initWebWithAuth();
+
+  const addUrlSection = document.getElementById('addUrlSection');
+  const addUrlInput = document.getElementById('addUrlInput') as HTMLInputElement | null;
+  const addUrlBtn = document.getElementById('addUrlBtn') as HTMLButtonElement | null;
+  const addUrlStatus = document.getElementById('addUrlStatus');
+
+  if (addUrlSection && addUrlInput && addUrlBtn && addUrlStatus) {
+    addUrlSection.classList.remove('hidden');
+
+    const handleAddUrl = async (): Promise<void> => {
+      const url = addUrlInput.value.trim();
+      if (!url) return;
+
+      try {
+        new URL(url);
+      } catch {
+        addUrlStatus.textContent = 'Please enter a valid URL';
+        addUrlStatus.classList.remove('hidden');
+        return;
+      }
+
+      addUrlBtn.disabled = true;
+      addUrlBtn.textContent = 'Adding...';
+      addUrlStatus.classList.add('hidden');
+
+      try {
+        const client = await ServerApiClient.fromSettings();
+        await client.createBookmark({ url, title: url });
+        void serverSync.incrementalSync();
+        addUrlInput.value = '';
+        refresh();
+      } catch (error) {
+        addUrlStatus.textContent = getErrorMessage(error);
+        addUrlStatus.classList.remove('hidden');
+      } finally {
+        addUrlBtn.disabled = false;
+        addUrlBtn.textContent = 'Add';
+      }
+    };
+
+    addUrlBtn.addEventListener('click', () => void handleAddUrl());
+    addUrlInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') void handleAddUrl(); });
+  }
 } else {
   void initExtension();
 }
@@ -212,21 +252,27 @@ void initializeApp();
 
 const removeEventListener = addBookmarkEventListener((event) => {
   if (event.type.startsWith('bookmark:') || event.type.startsWith('tag:')) {
-    void loadTags();
-    void loadBookmarks();
+    refresh();
   }
 });
 
 let healthCleanup: (() => void) | null = null;
+let syncCleanup: (() => void) | null = null;
 
 window.addEventListener('beforeunload', () => {
   removeEventListener();
   healthCleanup?.();
+  syncCleanup?.();
 });
 
 const healthIndicatorContainer = document.getElementById('healthIndicator');
 if (healthIndicatorContainer) {
   healthCleanup = createHealthIndicator(healthIndicatorContainer);
+}
+
+const syncIndicatorContainer = document.getElementById('syncIndicator');
+if (syncIndicatorContainer) {
+  syncCleanup = createSyncStatusIndicator(syncIndicatorContainer, 'compact');
 }
 
 declare global {
@@ -239,45 +285,47 @@ declare global {
   }
 }
 
-// Dynamic import to avoid bundling issues in test mode
-async function getExportModule(): Promise<typeof import('../lib/export')> {
-  return await import('../lib/export');
-}
-
-window.__testHelpers = {
-  async getBookmarkStatus() {
-    const bookmarks = await db.bookmarks.toArray();
-    const markdown = await db.markdown.toArray();
-
-    return {
-      bookmarks: bookmarks.map(b => ({
-        id: b.id,
-        title: b.title,
-        url: b.url,
-        status: b.status,
-        errorMessage: b.errorMessage,
-        createdAt: b.createdAt
-      })),
-      markdown: markdown.map(m => ({
-        bookmarkId: m.bookmarkId,
-        contentLength: m.content ? m.content.length : 0,
-        contentPreview: m.content ? m.content.substring(0, 200) : ''
-      }))
-    };
-  },
-  async exportAllBookmarks() {
-    const { exportAllBookmarks } = await getExportModule();
-    return await exportAllBookmarks();
-  },
-  async setBookmarkStatus(url: string, status: string, errorMessage?: string) {
-    const bookmark = await db.bookmarks.where('url').equals(url).first();
-    if (bookmark) {
-      await db.bookmarks.update(bookmark.id, {
-        status: status as 'pending' | 'processing' | 'complete' | 'error',
-        errorMessage
-      });
-      return true;
-    }
-    return false;
+if (import.meta.env.DEV) {
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  async function getExportModule() {
+    return import('../lib/export');
   }
-};
+
+  window.__testHelpers = {
+    async getBookmarkStatus() {
+      const bookmarks = await db.bookmarks.toArray();
+      const markdown = await db.markdown.toArray();
+
+      return {
+        bookmarks: bookmarks.map(b => ({
+          id: b.id,
+          title: b.title,
+          url: b.url,
+          status: b.status,
+          errorMessage: b.errorMessage,
+          createdAt: b.createdAt
+        })),
+        markdown: markdown.map(m => ({
+          bookmarkId: m.bookmarkId,
+          contentLength: m.content ? m.content.length : 0,
+          contentPreview: m.content ? m.content.substring(0, 200) : ''
+        }))
+      };
+    },
+    async exportAllBookmarks() {
+      const { exportAllBookmarks } = await getExportModule();
+      return await exportAllBookmarks();
+    },
+    async setBookmarkStatus(url: string, status: string, errorMessage?: string) {
+      const bookmark = await db.bookmarks.where('url').equals(url).first();
+      if (bookmark) {
+        await db.bookmarks.update(bookmark.id, {
+          status: status as 'pending' | 'processing' | 'complete' | 'error',
+          errorMessage
+        });
+        return true;
+      }
+      return false;
+    }
+  };
+}

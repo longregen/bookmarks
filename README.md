@@ -22,7 +22,7 @@ Download for **[Firefox](https://addons.mozilla.org/en-US/firefox/addon/bookmark
 - **Jobs dashboard** — Monitor processing jobs with status and progress
 - **Bulk URL import** — Import multiple bookmarks at once with validation
 - **Import/Export** — Backup and restore bookmarks as JSON files
-- **WebDAV sync** — Sync bookmarks across devices using your own WebDAV server
+- **Server sync** — Optional self-hosted server for multi-device sync
 - **Configurable API** — Use OpenAI or any compatible endpoint (local models included)
 
 ## Installation
@@ -42,23 +42,23 @@ Download for **[Firefox](https://addons.mozilla.org/en-US/firefox/addon/bookmark
 
 2. **Build the extension**:
    ```bash
-   npm run build
+   npm run build:chrome   # outputs to dist-chrome/
+   npm run build:firefox  # outputs to dist-firefox/
+   npm run build:web      # outputs to dist-web/
    ```
-
-   This creates a `dist/` folder with the built extension.
 
 ### Load in Chrome
 
 1. Open Chrome and go to `chrome://extensions/`
 2. Enable "Developer mode" in the top right
 3. Click "Load unpacked"
-4. Select the `dist` folder
+4. Select the `dist-chrome` folder
 
 ### Load in Firefox
 
 1. Open Firefox and go to `about:debugging#/runtime/this-firefox`
 2. Click "Load Temporary Add-on"
-3. Navigate to the `dist` folder and select `manifest.json`
+3. Navigate to the `dist-firefox` folder and select `manifest.json`
 
 ### Web Version
 
@@ -138,13 +138,20 @@ The extension works with any OpenAI-compatible API server (vLLM, llama.cpp, etc.
 4. Click "Import URLs"
 5. Monitor progress in the Jobs dashboard
 
-### WebDAV Sync
+### Server Sync (Optional)
 
-1. Open Settings
-2. Enable WebDAV sync
-3. Enter your WebDAV server URL, username, and password
-4. Set a sync path (default: `/bookmarks`)
-5. Sync happens automatically when bookmarks change
+The extension works fully standalone with local storage. For multi-device sync, you can optionally run the self-hosted server:
+
+1. Deploy the server from `server/` (supports Deno or Cloudflare Workers via Wrangler)
+2. Open Settings in the extension
+3. Enter your server URL
+4. Register or log in with a generated token
+5. Bookmarks sync automatically across devices
+
+When server sync is enabled:
+- Server stores and processes bookmarks (RAG, embeddings)
+- Client caches minimal data locally for offline access
+- Full content (HTML, markdown, Q&A) fetched on-demand
 
 ### Import/Export Bookmarks
 
@@ -185,26 +192,29 @@ When you search:
 - All bookmarks are stored locally in your browser's IndexedDB
 - Only the extracted Markdown content is sent to your configured API for processing
 - No data is sent to any third-party servers (except your configured LLM API)
-- WebDAV sync sends bookmark data to your own server
+- Optional server sync sends bookmark data to your own self-hosted server
 - Export your data anytime as JSON files
 
 ## Development
 
 ```bash
-# Development mode (Chrome)
+# Development mode
 npm run dev:chrome
-
-# Development mode (Firefox)
 npm run dev:firefox
-
-# Development mode (Web)
 npm run dev:web
 
-# Run unit tests
+# Type checking and linting
+npm run check          # typecheck + lint in parallel
+
+# Unit tests
 npm run test:unit
 
-# Run all tests
-npm run test:all
+# E2E tests (NixOS — requires nix-shell)
+npm run build:chrome
+nix-shell -p xvfb-run chromium patchelf --run \
+  "BROWSER_PATH=\$(which chromium) OPENAI_API_KEY=not-needed-for-tests \
+  xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
+  npm run test:e2e:chrome"
 ```
 
 ## Security
@@ -217,7 +227,7 @@ Here are some attack vectors we considered from web content pages:
 - XSS via bookmark content: use lib DOMPurify to sanitize
 - URL injection: only allow http/https protocols
 - Content script injection: captured HTML goes through Readability + DOMPurify
-- Stored XSS via IndexedDB: unlikely, but avoid innerHTML at all cost and always try to use DOM libs, even for already stored contend, and never display captured HTML
+- Stored XSS via IndexedDB: avoid innerHTML; use `replaceChildren()` and DOM APIs for dynamic content, never display captured HTML
 
 ## License
 

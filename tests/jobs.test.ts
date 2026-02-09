@@ -329,6 +329,35 @@ describe('Jobs Library', () => {
         expect(stats.inProgress).toBe(1);
         expect(stats.pending).toBe(1);
       });
+
+      it('should return zeros for missing statuses without NaN', async () => {
+        const job = await createJob({ type: JobType.BULK_URL_IMPORT, status: JobStatus.IN_PROGRESS });
+        await createJobItems(job.id, ['b1']);
+
+        const item = await getJobItemByBookmark('b1');
+        await updateJobItem(item!.id, { status: JobItemStatus.COMPLETE });
+
+        const stats = await getJobStats(job.id);
+        expect(stats.total).toBe(1);
+        expect(stats.complete).toBe(1);
+        expect(stats.pending).toBe(0);
+        expect(stats.inProgress).toBe(0);
+        expect(stats.error).toBe(0);
+        expect(Number.isNaN(stats.pending)).toBe(false);
+        expect(Number.isNaN(stats.inProgress)).toBe(false);
+        expect(Number.isNaN(stats.error)).toBe(false);
+      });
+
+      it('should return all zeros for empty job', async () => {
+        const job = await createJob({ type: JobType.BULK_URL_IMPORT, status: JobStatus.IN_PROGRESS });
+
+        const stats = await getJobStats(job.id);
+        expect(stats.total).toBe(0);
+        expect(stats.pending).toBe(0);
+        expect(stats.inProgress).toBe(0);
+        expect(stats.complete).toBe(0);
+        expect(stats.error).toBe(0);
+      });
     });
 
     describe('updateJobStatus', () => {

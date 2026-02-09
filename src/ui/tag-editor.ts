@@ -8,7 +8,7 @@ export interface TagEditorOptions {
   onTagsChange?: () => void;
 }
 
-function normalizeTagName(input: string): string {
+export function normalizeTagName(input: string): string {
   return input.trim().toLowerCase().replace(/\s+/g, '-');
 }
 
@@ -23,7 +23,7 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
   const tags = await db.bookmarkTags.where('bookmarkId').equals(bookmarkId).toArray();
   const allTags = await getAllTags();
 
-  container.innerHTML = '';
+  container.replaceChildren();
 
   const section = createElement('div', { className: 'tag-editor' });
   section.appendChild(createElement('h3', {
@@ -59,7 +59,7 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
 
     if (!value) {
       dropdown.style.display = 'none';
-      dropdown.innerHTML = '';
+      dropdown.replaceChildren();
       return;
     }
 
@@ -92,7 +92,7 @@ export async function createTagEditor(options: TagEditorOptions): Promise<void> 
       fragment.appendChild(createItem);
     }
 
-    dropdown.innerHTML = '';
+    dropdown.replaceChildren();
     dropdown.appendChild(fragment);
     dropdown.style.display = fragment.childElementCount > 0 ? 'block' : 'none';
   });

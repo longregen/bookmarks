@@ -1,0 +1,21 @@
+{
+  "name": "bookmark-rag-server",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:worker": "wrangler dev --local --persist-to=.wrangler/state",
+    "dev:worker:remote": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:prod": "wrangler deploy --env production",
+    "d1:create": "wrangler d1 create bookmark-rag",
+    "d1:migrate:local": "wrangler d1 execute bookmark-rag --local --file=./migrations/0001_initial.sql",
+    "d1:migrate": "wrangler d1 execute bookmark-rag --file=./migrations/0001_initial.sql",
+    "tail": "wrangler tail"
+  },
+  "dependencies": {
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

@@ -40,10 +40,17 @@ export function createHealthIndicator(container: HTMLElement): () => void {
   let currentHealthState: HealthState = 'idle';
 
   indicator.addEventListener('click', () => {
-    const path = currentHealthState === 'error'
-      ? 'src/jobs/jobs.html?status=failed'
-      : 'src/jobs/jobs.html';
-    location.href = chrome.runtime.getURL(path);
+    if (__IS_WEB__) {
+      const path = currentHealthState === 'error'
+        ? '../jobs/jobs.html?status=failed'
+        : '../jobs/jobs.html';
+      location.href = path;
+    } else {
+      const path = currentHealthState === 'error'
+        ? 'src/jobs/jobs.html?status=failed'
+        : 'src/jobs/jobs.html';
+      location.href = chrome.runtime.getURL(path);
+    }
   });
 
   async function updateIndicator(): Promise<void> {
@@ -64,7 +71,9 @@ export function createHealthIndicator(container: HTMLElement): () => void {
 
   void updateIndicator();
 
-  const intervalId = setInterval(updateIndicator, config.HEALTH_REFRESH_INTERVAL_MS);
+  const intervalId = setInterval(() => {
+    updateIndicator().catch((e: unknown) => console.error('Health indicator update failed:', e));
+  }, config.HEALTH_REFRESH_INTERVAL_MS);
 
   return () => {
     clearInterval(intervalId);

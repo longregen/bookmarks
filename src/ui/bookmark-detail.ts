@@ -6,6 +6,8 @@ import { downloadExport, downloadMarkdown, downloadHtml, copyMarkdown, type Expo
 import { createTagEditor } from './tag-editor';
 import { parseMarkdown } from '../lib/markdown';
 import { retryBookmark, deleteBookmarkWithData } from '../lib/jobs';
+import { ServerApiClient } from '../lib/server-api';
+import { serverSync } from '../lib/server-sync';
 
 export interface BookmarkDetailConfig {
   detailPanel: HTMLElement;
@@ -34,7 +36,7 @@ export class BookmarkDetailManager {
     this.config.closeBtn.addEventListener('click', () => this.closeDetail());
     this.config.detailBackdrop.addEventListener('click', () => this.closeDetail());
     this.config.deleteBtn.addEventListener('click', () => this.deleteCurrentBookmark());
-    this.config.exportBtn.addEventListener('click', () => this.exportCurrentBookmark());
+    this.config.exportBtn.addEventListener('click', () => this.showExportFormatMenu());
     this.config.debugBtn.addEventListener('click', () => this.debugCurrentBookmark());
     if (this.config.retryBtn) {
       this.config.retryBtn.addEventListener('click', () => this.retryCurrentBookmark());
@@ -46,11 +48,20 @@ export class BookmarkDetailManager {
     const bookmark = await db.bookmarks.get(bookmarkId);
     if (!bookmark) return;
 
-    const { markdown, qaPairs } = await getBookmarkContent(bookmarkId);
+    let { markdown, qaPairs } = await getBookmarkContent(bookmarkId);
+
+    if (!markdown && __IS_WEB__) {
+      try {
+        await serverSync.fetchBookmarkContent(bookmarkId);
+        ({ markdown, qaPairs } = await getBookmarkContent(bookmarkId));
+      } catch {
+        // Server content not available yet
+      }
+    }
 
     // Show/hide retry button based on status
     if (this.config.retryBtn) {
-      this.config.retryBtn.style.display = bookmark.status === 'error' ? '' : 'none';
+      this.config.retryBtn.classList.toggle('hidden', bookmark.status !== 'error');
     }
 
     // Build all content in a document fragment to minimize DOM reflows
@@ -125,8 +136,7 @@ export class BookmarkDetailManager {
       fragment.appendChild(qaSection);
     }
 
-    // Single DOM operation to update content
-    this.config.detailContent.innerHTML = '';
+    this.config.detailContent.replaceChildren();
     this.config.detailContent.appendChild(fragment);
 
     // Create tag editor after content is in DOM
@@ -150,20 +160,24 @@ export class BookmarkDetailManager {
     // eslint-disable-next-line no-alert
     if (this.currentBookmarkId === null || !confirm('Delete this bookmark?')) return;
 
-    await deleteBookmarkWithData(this.currentBookmarkId);
+    const bookmarkId = this.currentBookmarkId;
+    await deleteBookmarkWithData(bookmarkId);
+
+    if (__IS_WEB__) {
+      try {
+        const client = await ServerApiClient.fromSettings();
+        await client.deleteBookmark(bookmarkId);
+      } catch {
+        // Best-effort server delete
+      }
+    }
 
     this.closeDetail();
     this.config.onDelete?.();
   }
 
-  exportCurrentBookmark(): void {
-    if (this.currentBookmarkId === null) return;
-
-    // Show format selection dropdown
-    this.showExportFormatMenu();
-  }
-
   private showExportFormatMenu(): void {
+    if (this.currentBookmarkId === null) return;
     // Remove any existing menu
     const existingMenu = document.querySelector('.export-format-menu');
     if (existingMenu) {
@@ -261,13 +275,17 @@ export class BookmarkDetailManager {
     }
 
     try {
-      await retryBookmark(this.currentBookmarkId);
-
-      // Trigger the processing queue
-      await chrome.runtime.sendMessage({
-        type: 'bookmark:retry',
-        data: { trigger: 'user_manual' }
-      });
+      if (__IS_WEB__) {
+        const client = await ServerApiClient.fromSettings();
+        await client.updateBookmark(this.currentBookmarkId, { html: '' });
+        await serverSync.incrementalSync();
+      } else {
+        await retryBookmark(this.currentBookmarkId);
+        await chrome.runtime.sendMessage({
+          type: 'bookmark:retry',
+          data: { trigger: 'user_manual' }
+        });
+      }
 
       this.closeDetail();
       this.config.onRetry?.();

@@ -28,11 +28,11 @@ export class FirefoxAdapter implements TestAdapter {
     this.extensionPath = process.env.EXTENSION_PATH
       ? path.resolve(process.cwd(), process.env.EXTENSION_PATH)
       : path.resolve(__dirname, '../../dist-firefox');
-    this.browserPath = process.env.BROWSER_PATH || '';
+    this.browserPath = process.env.FIREFOX_PATH || process.env.BROWSER_PATH || '';
     this.apiKey = process.env.OPENAI_API_KEY || '';
 
     if (!this.browserPath) {
-      throw new Error('BROWSER_PATH environment variable is required');
+      throw new Error('FIREFOX_PATH or BROWSER_PATH environment variable is required');
     }
     if (!this.apiKey) {
       console.warn('OPENAI_API_KEY not set - real API tests will be skipped');
@@ -92,13 +92,14 @@ export class FirefoxAdapter implements TestAdapter {
     return new SeleniumPageHandle(this.driver!);
   }
 
-  getPageUrl(pageName: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs'): string {
+  getPageUrl(pageName: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs' | 'status'): string {
     const paths: Record<string, string> = {
       library: '/src/library/library.html',
       search: '/src/search/search.html',
       options: '/src/options/options.html',
       stumble: '/src/stumble/stumble.html',
       jobs: '/src/jobs/jobs.html',
+      status: '/src/status/status.html',
       popup: '/src/popup/popup.html',
       index: '/src/popup/popup.html', // Firefox extension uses popup as main entry
     };

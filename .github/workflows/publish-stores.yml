@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code (for source submission)
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Download Firefox extension from release
         uses: robinraju/release-downloader@daf26c55d821e836577a15f77d86ddc078948b05 # v1.12
@@ -54,7 +54,7 @@ jobs:
             -x ".github/*"
 
       - name: Upload to Firefox Add-ons
-        uses: kewisch/action-web-ext@fe10addf5d5e5ba6b78ffde720dd488a27d10e8c # v1
+        uses: kewisch/action-web-ext@fe10addf5d5e5ba6b78ffde720dd488a27d10e8c # v1.3
         with:
           cmd: sign
           source: bookmark-rag-firefox.zip

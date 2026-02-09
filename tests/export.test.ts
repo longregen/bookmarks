@@ -1,5 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { db } from '../src/db/schema';
+import { describe, it, expect } from 'vitest';
 import { validateImportData, type BookmarkExport } from '../src/lib/export';
 
 describe('Export utilities', () => {
@@ -218,52 +217,6 @@ describe('Export utilities', () => {
   });
 
   describe('Export format', () => {
-    it('should have correct structure for BookmarkExport type', () => {
-      const exportData: BookmarkExport = {
-        version: 2,
-        exportedAt: new Date().toISOString(),
-        bookmarkCount: 0,
-        bookmarks: [],
-      };
-
-      expect(exportData.version).toBe(2);
-      expect(typeof exportData.exportedAt).toBe('string');
-      expect(exportData.bookmarkCount).toBe(0);
-      expect(Array.isArray(exportData.bookmarks)).toBe(true);
-    });
-
-    it('should support all bookmark fields in export', () => {
-      const exportData: BookmarkExport = {
-        version: 2,
-        exportedAt: new Date().toISOString(),
-        bookmarkCount: 1,
-        bookmarks: [
-          {
-            id: 'test-id',
-            url: 'https://example.com',
-            title: 'Test Bookmark',
-            html: '<html><body>Content</body></html>',
-            status: 'complete',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            markdown: '# Test Content',
-            questionsAnswers: [
-              {
-                question: 'What is this?',
-                answer: 'A test.',
-                embeddingQuestion: 'base64encoded...',
-                embeddingAnswer: 'base64encoded...',
-                embeddingBoth: 'base64encoded...',
-              },
-            ],
-          },
-        ],
-      };
-
-      expect(exportData.bookmarks[0].markdown).toBe('# Test Content');
-      expect(exportData.bookmarks[0].questionsAnswers.length).toBe(1);
-    });
-
     it('should support all bookmark status values', () => {
       const statuses: Array<'pending' | 'processing' | 'complete' | 'error'> = [
         'pending',

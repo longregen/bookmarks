@@ -1,9 +1,9 @@
-import puppeteer, { Browser, Page, CoverageEntry } from 'puppeteer-core';
+import puppeteer, { Browser, Page, CoverageEntry, CDPSession as PuppeteerCDPSession } from 'puppeteer-core';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { fileURLToPath } from 'url';
-import { TestAdapter, PageHandle } from '../e2e-shared';
+import { TestAdapter, PageHandle, CDPSession } from '../e2e-shared';
 import { startMockServer, getMockPageUrls, MockServer } from '../mock-server';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -65,6 +65,9 @@ export class ChromeAdapter implements TestAdapter {
         '--disable-background-timer-throttling',
         '--disable-backgrounding-occluded-windows',
         '--disable-renderer-backgrounding',
+        // Xvfb compatibility flags
+        '--ozone-platform=x11',
+        '--disable-software-rasterizer',
       ],
     });
 
@@ -113,6 +116,35 @@ export class ChromeAdapter implements TestAdapter {
 
   async newPage(): Promise<PageHandle> {
     const page = await this.browser!.newPage();
+
+    // Forward browser console to test output
+    page.on('console', async (msg) => {
+      const type = msg.type();
+      const args = msg.args();
+      const textParts: string[] = [];
+      for (const arg of args) {
+        try {
+          const val = await arg.jsonValue();
+          textParts.push(typeof val === 'object' ? JSON.stringify(val) : String(val));
+        } catch {
+          textParts.push(msg.text());
+          break;
+        }
+      }
+      const text = textParts.join(' ');
+      if (type === 'error') {
+        console.error(`[Browser] ${text}`);
+      } else if (type === 'warning') {
+        console.warn(`[Browser] ${text}`);
+      } else {
+        console.log(`[Browser] ${text}`);
+      }
+    });
+
+    // Forward page errors (uncaught exceptions)
+    page.on('pageerror', (error) => {
+      console.error(`[Browser Error] ${error.message}\n${error.stack}`);
+    });
 
     // Set viewport to match xvfb screen size for consistent screenshots
     await page.setViewport({ width: 1280, height: 800 });
@@ -246,13 +278,14 @@ export class ChromeAdapter implements TestAdapter {
     console.log(`[Coverage] Istanbul coverage written to: ${coveragePath}`);
   }
 
-  getPageUrl(pageName: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs'): string {
+  getPageUrl(pageName: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs' | 'status'): string {
     const paths: Record<string, string> = {
       library: '/src/library/library.html',
       search: '/src/search/search.html',
       options: '/src/options/options.html',
       stumble: '/src/stumble/stumble.html',
       jobs: '/src/jobs/jobs.html',
+      status: '/src/status/status.html',
       popup: '/src/popup/popup.html',
       index: '/src/popup/popup.html', // Chrome extension uses popup as main entry
     };
@@ -273,6 +306,10 @@ export class ChromeAdapter implements TestAdapter {
 
   hasRealApiKey(): boolean {
     return this.apiKey.length > 0;
+  }
+
+  getExtensionIdSync(): string {
+    return this.extensionId;
   }
 
   private async getExtensionId(): Promise<string> {
@@ -391,5 +428,30 @@ class PuppeteerPageHandle implements PageHandle {
   async close(): Promise<void> {
     await this.adapter.collectPageCoverage(this.page);
     await this.page.close();
+  }
+
+  async createCDPSession(): Promise<CDPSession> {
+    const cdpSession = await this.page.createCDPSession();
+    return new PuppeteerCDPSessionWrapper(cdpSession);
+  }
+}
+
+class PuppeteerCDPSessionWrapper implements CDPSession {
+  constructor(private session: PuppeteerCDPSession) {}
+
+  async send(method: string, params?: Record<string, unknown>): Promise<unknown> {
+    return this.session.send(method as Parameters<PuppeteerCDPSession['send']>[0], params);
+  }
+
+  on(event: string, callback: (params: unknown) => void): void {
+    this.session.on(event as Parameters<PuppeteerCDPSession['on']>[0], callback);
+  }
+
+  off(event: string, callback: (params: unknown) => void): void {
+    this.session.off(event as Parameters<PuppeteerCDPSession['off']>[0], callback);
+  }
+
+  async detach(): Promise<void> {
+    await this.session.detach();
   }
 }

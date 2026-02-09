@@ -56,22 +56,4 @@ describe('Platform Adapter', () => {
     expect(mockAdapter.setTheme).toHaveBeenCalledWith('light');
   });
 
-  it('should support optional fetchContent method', async () => {
-    const mockAdapter: PlatformAdapter = {
-      getSettings: vi.fn(),
-      saveSetting: vi.fn(),
-      getTheme: vi.fn(),
-      setTheme: vi.fn(),
-      fetchContent: vi.fn().mockResolvedValue({ html: '<html></html>', finalUrl: 'https://example.com' }),
-    };
-
-    setPlatformAdapter(mockAdapter);
-    const adapter = getPlatformAdapter();
-
-    if (adapter.fetchContent) {
-      const result = await adapter.fetchContent('https://example.com');
-      expect(result).toEqual({ html: '<html></html>', finalUrl: 'https://example.com' });
-      expect(mockAdapter.fetchContent).toHaveBeenCalledWith('https://example.com');
-    }
-  });
 });

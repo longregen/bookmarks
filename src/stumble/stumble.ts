@@ -4,12 +4,13 @@ import { formatDateByAge } from '../lib/date-format';
 import { getErrorMessage } from '../lib/errors';
 import { onThemeChange, applyTheme } from '../shared/theme';
 import { initExtension } from '../ui/init-extension';
-import { initWeb } from '../web/init-web';
+import { initWebWithAuth } from '../web/init-web';
 import { createHealthIndicator } from '../ui/health-indicator';
 import { BookmarkDetailManager } from '../ui/bookmark-detail';
 import { loadTagFilters } from '../ui/tag-filter';
 import { config } from '../lib/config-registry';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
+import { getHostname } from '../lib/url-validator';
 
 const selectedTags = new Set<string>();
 
@@ -84,7 +85,7 @@ async function loadStumble(): Promise<void> {
     const selected = bookmarks.slice(0, config.STUMBLE_COUNT);
     resultCount.textContent = selected.length.toString();
 
-    stumbleList.innerHTML = '';
+    stumbleList.replaceChildren();
 
     if (selected.length === 0) {
       stumbleList.appendChild(createElement('div', { className: 'empty-state', textContent: 'No complete bookmarks to stumble through' }));
@@ -92,18 +93,14 @@ async function loadStumble(): Promise<void> {
     }
 
     const bookmarkIds = selected.map(b => b.id);
-    const allQAPairs = await db.questionsAnswers.where('bookmarkId').anyOf(bookmarkIds).toArray();
-    const qaPairsByBookmark = new Map<string, typeof allQAPairs>();
-    for (const qa of allQAPairs) {
-      if (!qaPairsByBookmark.has(qa.bookmarkId)) {
-        qaPairsByBookmark.set(qa.bookmarkId, []);
-      }
-      qaPairsByBookmark.get(qa.bookmarkId)!.push(qa);
+    const allMarkdown = await db.markdown.where('bookmarkId').anyOf(bookmarkIds).toArray();
+    const markdownByBookmark = new Map<string, string>();
+    for (const md of allMarkdown) {
+      markdownByBookmark.set(md.bookmarkId, md.content);
     }
 
     for (const bookmark of selected) {
-      const qaPairs = qaPairsByBookmark.get(bookmark.id) || [];
-      const randomQA = qaPairs.length > 0 ? qaPairs[Math.floor(Math.random() * qaPairs.length)] : null;
+      const markdownContent = markdownByBookmark.get(bookmark.id);
 
       const card = createElement('div', { className: 'stumble-card' });
       card.onclick = () => detailManager.showDetail(bookmark.id);
@@ -114,7 +111,7 @@ async function loadStumble(): Promise<void> {
       card.appendChild(header);
 
       const meta = createElement('div', { className: 'card-meta' });
-      const url = createElement('a', { className: 'card-url', href: bookmark.url, textContent: new URL(bookmark.url).hostname });
+      const url = createElement('a', { className: 'card-url', href: bookmark.url, textContent: getHostname(bookmark.url) });
       url.onclick = (e) => e.stopPropagation();
       meta.appendChild(url);
       card.appendChild(meta);
@@ -122,18 +119,18 @@ async function loadStumble(): Promise<void> {
       const savedAgo = createElement('div', { className: 'saved-ago', textContent: `Saved ${formatDateByAge(bookmark.createdAt)}` });
       card.appendChild(savedAgo);
 
-      if (randomQA) {
-        const qaPreview = createElement('div', { className: 'qa-preview', style: { marginTop: 'var(--space-3)' } });
-        qaPreview.appendChild(createElement('div', { className: 'qa-q', textContent: `Q: ${randomQA.question}` }));
-        qaPreview.appendChild(createElement('div', { className: 'qa-a', textContent: `A: ${randomQA.answer}` }));
-        card.appendChild(qaPreview);
+      if (markdownContent !== undefined && markdownContent.length > 0) {
+        const summary = markdownContent.slice(0, 200).trim() + (markdownContent.length > 200 ? '...' : '');
+        const preview = createElement('div', { className: 'qa-preview', style: { marginTop: 'var(--space-3)' } });
+        preview.appendChild(createElement('div', { className: 'qa-a', textContent: summary }));
+        card.appendChild(preview);
       }
 
       stumbleList.appendChild(card);
     }
   } catch (error) {
     console.error('Stumble error:', error);
-    stumbleList.innerHTML = '';
+    stumbleList.replaceChildren();
     stumbleList.appendChild(createElement('div', { className: 'error-message', textContent: `Failed to load: ${getErrorMessage(error)}` }));
   } finally {
     shuffleBtn.disabled = false;
@@ -142,7 +139,7 @@ async function loadStumble(): Promise<void> {
 }
 
 if (__IS_WEB__) {
-  void initWeb();
+  void initWebWithAuth();
 } else {
   void initExtension();
 }
@@ -150,9 +147,10 @@ onThemeChange((theme) => applyTheme(theme));
 void loadFilters();
 void loadStumble();
 
+let healthCleanup: (() => void) | null = null;
 const healthIndicatorContainer = document.getElementById('healthIndicator');
 if (healthIndicatorContainer) {
-  createHealthIndicator(healthIndicatorContainer);
+  healthCleanup = createHealthIndicator(healthIndicatorContainer);
 }
 
 const removeEventListener = addBookmarkEventListener((event) => {
@@ -163,4 +161,5 @@ const removeEventListener = addBookmarkEventListener((event) => {
 
 window.addEventListener('beforeunload', () => {
   removeEventListener();
+  healthCleanup?.();
 });

@@ -1,16 +1,16 @@
 import { db } from '../../db/schema';
-import { validateUrls, createBulkImportJob } from '../../lib/bulk-import';
-import { showStatusMessage } from '../../ui/dom';
+import { validateUrls } from '../../lib/bulk-import';
+import { getElement, showStatusMessage } from '../../ui/dom';
 import { getErrorMessage } from '../../lib/errors';
-import { startProcessingQueue } from '../../background/queue';
+import { ServerApiClient } from '../../lib/server-api';
 
-const bulkUrlsInput = document.getElementById('bulkUrlsInput') as HTMLTextAreaElement;
-const urlValidationFeedback = document.getElementById('urlValidationFeedback') as HTMLDivElement;
-const startBulkImportBtn = document.getElementById('startBulkImport') as HTMLButtonElement;
-const statusDiv = document.getElementById('status') as HTMLDivElement;
-const bulkImportProgress = document.getElementById('bulkImportProgress') as HTMLDivElement;
-const bulkImportProgressBar = document.getElementById('bulkImportProgressBar') as HTMLDivElement;
-const bulkImportStatus = document.getElementById('bulkImportStatus') as HTMLSpanElement;
+const bulkUrlsInput = getElement<HTMLTextAreaElement>('bulkUrlsInput');
+const urlValidationFeedback = getElement<HTMLDivElement>('urlValidationFeedback');
+const startBulkImportBtn = getElement<HTMLButtonElement>('startBulkImport');
+const statusDiv = getElement<HTMLDivElement>('status');
+const bulkImportProgress = getElement<HTMLDivElement>('bulkImportProgress');
+const bulkImportProgressBar = getElement<HTMLDivElement>('bulkImportProgressBar');
+const bulkImportStatus = getElement<HTMLSpanElement>('bulkImportStatus');
 
 let validationTimeout: number | null = null;
 let progressPollInterval: number | null = null;
@@ -76,9 +76,9 @@ async function pollProgress(urls: string[]): Promise<void> {
           errors++;
         } else if (b.status === 'complete') {
           completed++;
-        } else if (b.status === 'downloaded' || b.status === 'pending') {
+        } else if (b.status === 'downloaded' || b.status === 'pending' || b.status === 'fetching') {
           downloaded++;
-        } else if (b.status === 'processing') {
+        } else {
           processing++;
         }
       }
@@ -92,7 +92,7 @@ async function pollProgress(urls: string[]): Promise<void> {
       if (finishedCount >= total) {
         statusText = `Completed ${completed} of ${total}`;
       } else if (downloaded > 0 || processing > 0) {
-        statusText = `Downloaded ${downloaded + completed + processing + errors}/${total}, Processing ${completed}/${total}`;
+        statusText = `Downloaded ${downloaded + completed + processing + errors}/${total}, Completed ${completed}/${total}`;
       } else {
         statusText = `Fetching ${total - finishedCount} pages...`;
       }
@@ -103,8 +103,8 @@ async function pollProgress(urls: string[]): Promise<void> {
       }
 
       if (finishedCount >= total) {
-        // All done
         stopProgressPolling();
+        startBulkImportBtn.disabled = false;
 
         if (errors > 0) {
           showStatusMessage(statusDiv, `Bulk import completed with ${errors} error(s)`, 'warning', 5000);
@@ -112,13 +112,9 @@ async function pollProgress(urls: string[]): Promise<void> {
           showStatusMessage(statusDiv, 'Bulk import completed successfully', 'success', 5000);
         }
 
-        // Keep showing final status for a moment, then hide
         setTimeout(() => {
           bulkImportProgress.classList.add('hidden');
         }, 3000);
-
-        const event = new CustomEvent('refresh-jobs');
-        window.dispatchEvent(event);
       }
     } catch (error) {
       console.error('Error polling progress:', error);
@@ -160,8 +156,12 @@ startBulkImportBtn.addEventListener('click', async () => {
     bulkImportStatus.textContent = `Imported 0 of ${validation.validUrls.length}`;
 
     if (__IS_WEB__) {
-      await createBulkImportJob(validation.validUrls);
-      void startProcessingQueue();
+      const client = await ServerApiClient.fromSettings();
+      for (const url of validation.validUrls) {
+        await client.createBookmark({ url, title: url });
+      }
+      const { serverSync } = await import('../../lib/server-sync');
+      void serverSync.incrementalSync();
     } else {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const response = await chrome.runtime.sendMessage({
@@ -187,20 +187,11 @@ startBulkImportBtn.addEventListener('click', async () => {
     showStatusMessage(statusDiv, `Failed to start bulk import: ${getErrorMessage(error)}`, 'error', 5000);
     bulkImportProgress.classList.add('hidden');
     stopProgressPolling();
-  } finally {
     startBulkImportBtn.disabled = false;
   }
 });
 
 export function initBulkImportModule(): () => void {
-  // Hide bulk import section for web platform (CORS prevents fetching external URLs)
-  if (__IS_WEB__) {
-    const bulkImportSection = document.getElementById('bulk-import');
-    if (bulkImportSection) {
-      bulkImportSection.style.display = 'none';
-    }
-  }
-
   return () => {
     stopProgressPolling();
   };

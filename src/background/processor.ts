@@ -6,7 +6,7 @@ import { extractTitleFromHtml } from '../lib/bulk-import';
 import { config } from '../lib/config-registry';
 
 export async function fetchBookmarkHtml(bookmark: Bookmark): Promise<Bookmark> {
-  if (bookmark.html && bookmark.html.length > 0) {
+  if (bookmark.html) {
     return bookmark;
   }
 
@@ -18,6 +18,7 @@ export async function fetchBookmarkHtml(bookmark: Bookmark): Promise<Bookmark> {
     html: captured.html,
     title,
     status: 'downloaded',
+    retryCount: 0,
     updatedAt: new Date(),
   });
 
@@ -90,19 +91,11 @@ async function generateQAIfNeeded(bookmark: Bookmark, markdownContent: string): 
 }
 
 export async function processBookmarkContent(bookmark: Bookmark): Promise<void> {
-  // Ensure we have HTML (for bookmarks that may have been fetched previously)
   let bookmarkWithHtml = bookmark;
-  if (!bookmark.html || bookmark.html.length === 0) {
+  if (!bookmark.html) {
     bookmarkWithHtml = await fetchBookmarkHtml(bookmark);
   }
 
-  // Generate markdown if needed
   const markdownContent = await generateMarkdownIfNeeded(bookmarkWithHtml);
-
-  // Generate Q&A with embeddings if needed
   await generateQAIfNeeded(bookmarkWithHtml, markdownContent);
-}
-
-export async function processBookmark(bookmark: Bookmark): Promise<void> {
-  await processBookmarkContent(bookmark);
 }

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Status - Bookmarks by Localforge</title>
+  <link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+  <link rel="icon" type="image/png" href="../../favicon.png">
+  <link rel="stylesheet" href="../shared/app.css">
+</head>
+<body class="layout">
+  <header class="app-header">
+    <nav class="app-header__nav">
+      <a href="../library/library.html" class="app-header__nav-link">Library</a>
+      <a href="../search/search.html" class="app-header__nav-link">Search</a>
+      <a href="../stumble/stumble.html" class="app-header__nav-link">Stumble</a>
+      <a href="../options/options.html" class="app-header__nav-link">Settings</a>
+    </nav>
+    <div class="app-header__brand">
+      <div id="healthIndicator"></div>
+      <h1 class="app-header__title">Bookmarks by Localforge</h1>
+    </div>
+  </header>
+
+  <div class="main-content">
+    <main class="middle">
+      <div class="status-page-content">
+        <a href="../options/options.html#about" class="btn btn-secondary btn-back">
+          &larr; Back to Settings
+        </a>
+        <div class="option-panel">
+          <div class="option-panel__header">
+            <h2>Status</h2>
+            <p class="section-description">Database statistics for your bookmarks.</p>
+          </div>
+          <div class="option-panel__content">
+            <div id="statsGrid" class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-card__value">...</div>
+                <div class="stat-card__label">Loading</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="status.ts" type="module"></script>
+</body>
+</html>

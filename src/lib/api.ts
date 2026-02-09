@@ -1,4 +1,4 @@
-import { getPlatformAdapter } from './platform';
+import { getPlatformAdapter, type ApiSettings as FullApiSettings } from './platform';
 import { config } from './config-registry';
 import { getErrorMessage } from './errors';
 import { createDebugLog, debugOnly } from './debug';
@@ -29,10 +29,7 @@ interface EmbeddingsResponse {
   };
 }
 
-interface ApiSettings {
-  apiKey: string;
-  apiBaseUrl: string;
-}
+type ApiSettings = Pick<FullApiSettings, 'apiKey' | 'apiBaseUrl'>;
 
 export async function makeApiRequest<T>(
   endpoint: string,

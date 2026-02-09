@@ -23,7 +23,7 @@ src/
 
 ## Background (`src/background/`)
 
-The background module serves as the extension's processing engine, managing asynchronous tasks for bookmark capture, bulk import, and content processing. It coordinates between user-facing UI interactions and background processing while handling service worker interruptions and ensuring reliable job completion through persistence and recovery mechanisms.
+The background module serves as the extension's processing engine, managing asynchronous tasks for bookmark capture, bulk import, and content processing. It coordinates between user-facing UI interactions and background processing while handling service worker interruptions (with initialization guards) and ensuring reliable job completion through persistence and recovery mechanisms.
 
 Key components: `service-worker.ts` acts as the main orchestrator handling Chrome runtime events. `queue.ts` manages pending bookmark processing with timeout detection and retries. `processor.ts` implements the core content processing pipeline (markdown extraction, Q&A generation, embeddings). `fetcher.ts` handles batch URL downloading for bulk imports. `job-resumption.ts` ensures incomplete jobs resume when the service worker restarts.
 
@@ -37,13 +37,13 @@ Data retrieval emphasizes efficient batch operations to prevent N+1 query patter
 
 The lib directory contains shared utilities that serve as core infrastructure. The architecture centers on an **adapter pattern** allowing the same business logic to work across browser extensions and web environments. Platform-specific adapters (`extension.ts`, `web.ts`) conform to the `PlatformAdapter` interface, handling storage and API differences transparently.
 
-Key modules: `api.ts` integrates LLM capabilities for semantic enrichment. `events.ts` provides unified broadcasting across tabs. `jobs.ts` tracks long-running async operations. `state-manager.ts` handles operation state with timeout detection. `webdav-sync.ts` implements cloud backup with conflict resolution. `settings.ts` acts as a facade delegating to the appropriate platform adapter.
+Key modules: `api.ts` integrates LLM capabilities for semantic enrichment. `events.ts` provides unified broadcasting across tabs. `jobs.ts` tracks long-running async operations. `server-sync.ts` implements cloud backup with the Localforge sync server. `settings.ts` acts as a facade delegating to the appropriate platform adapter. `url-validator.ts` provides URL validation and hostname extraction.
 
 ## Jobs (`src/jobs/`)
 
 The job system is a background processing framework tracking long-running operations with hierarchical parent-child relationships. Six job types exist: MANUAL_ADD, MARKDOWN_GENERATION, QA_GENERATION, FILE_IMPORT, BULK_URL_IMPORT, and URL_FETCH. Jobs progress through five statuses: PENDING, IN_PROGRESS, COMPLETED, FAILED, and CANCELLED.
 
-The background queue processor continuously polls for pending jobs and processes them sequentially. Failed jobs can be retried with exponential backoff, and interrupted jobs resume by resetting their status to PENDING. Completed jobs are automatically cleaned up after 30 days.
+The background queue processor continuously polls for pending jobs and processes them sequentially. Failed jobs can be retried, and interrupted jobs resume by resetting their status to PENDING. Completed jobs are automatically cleaned up after 30 days.
 
 ## Search (`src/search/`)
 
@@ -53,7 +53,7 @@ Query performance is optimized through bulk database operations. Tag-based post-
 
 ## Options (`src/options/`)
 
-The options page is structured as seven modular feature areas: **Theme** (five appearance options with real-time application), **Navigation** (sidebar and scroll synchronization via Intersection Observer), **Settings** (OpenAI-compatible API configuration with connection testing), **Import-Export** (JSON backup/restore with duplicate detection), **WebDAV** (cloud sync configuration and status polling), **Bulk-Import** (multi-URL processing with progress tracking), and **Jobs** (async operation history with filtering).
+The options page is structured as seven modular feature areas: **Theme** (five appearance options with real-time application), **Navigation** (sidebar and scroll synchronization via Intersection Observer), **Settings** (OpenAI-compatible API configuration with connection testing), **Import-Export** (JSON backup/restore with duplicate detection), **Server-Sync** (Localforge sync server with token-based authentication), **Bulk-Import** (multi-URL processing with progress tracking), and **Jobs** (async operation history with filtering).
 
 **Advanced-Config** exposes internal settings similar to Firefox's about:config, allowing developers to modify behavior without code changes.
 
@@ -70,7 +70,7 @@ A content discovery feature displaying randomly shuffled bookmarks using Fisher-
 
 ## Content Scripts (`src/content/`)
 
-Two key modules: `capture.ts` runs on web pages to collect URL, title, and HTML, communicating with the background service worker via message passing with theme-aware toast notifications. `extract-html.ts` handles async page content extraction by monitoring DOM mutations and waiting for page settling before returning fully rendered HTML.
+`capture.ts` runs on web pages to collect URL, title, and HTML, communicating with the background service worker via typed message passing with theme-aware toast notifications.
 
 ## Web & Offscreen
 

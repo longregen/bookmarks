@@ -21,7 +21,7 @@ export function formatDateByAge(date: Date, now = new Date()): string {
   if (diffDays < config.DATE_RELATIVE_TIME_THRESHOLD_DAYS) {
     return formatRelativeTime(date, now);
   } else if (diffDays < config.DATE_FULL_DATE_THRESHOLD_DAYS) {
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
   } else {
     return date.toISOString().split('T')[0];
   }

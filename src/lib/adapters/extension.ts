@@ -1,7 +1,6 @@
 import type { PlatformAdapter, ApiSettings, Theme } from '../platform';
 import { getSettingsFromDb, saveSettingToDb } from './common';
-
-const THEME_STORAGE_KEY = 'bookmark-rag-theme';
+import { THEME_STORAGE_KEY } from '../../shared/theme';
 
 export const extensionAdapter: PlatformAdapter = {
   async getSettings(): Promise<ApiSettings> {

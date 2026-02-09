@@ -1,0 +1,16 @@
+{
+  "tasks": {
+    "dev": "deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi --unstable-ffi --watch src/main.ts",
+    "start": "deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi --unstable-ffi src/main.ts",
+    "migrate": "deno run --allow-read --allow-write --allow-env --allow-ffi --unstable-ffi src/db/migrate.ts",
+    "test": "deno test --allow-env --allow-read src/tests/"
+  },
+  "imports": {
+    "@hono/hono": "jsr:@hono/hono@^4",
+    "@db/sqlite": "jsr:@db/sqlite@^0.12"
+  },
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true
+  }
+}

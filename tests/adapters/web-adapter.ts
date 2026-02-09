@@ -1,12 +1,23 @@
 import puppeteer, { Browser, Page } from 'puppeteer-core';
-import path from 'path';
-import fs from 'fs';
 import http from 'http';
+import fs from 'fs';
+import path from 'path';
 import { fileURLToPath } from 'url';
 import { TestAdapter, PageHandle } from '../e2e-shared';
 import { startMockServer, getMockPageUrls, MockServer } from '../mock-server';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const MIME_TYPES: Record<string, string> = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.css': 'text/css',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.json': 'application/json',
+  '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
+};
 
 export class WebAdapter implements TestAdapter {
   platformName = 'Web App';
@@ -14,32 +25,70 @@ export class WebAdapter implements TestAdapter {
 
   private browser: Browser | null = null;
   private mockServer: MockServer | null = null;
-  private webServer: http.Server | null = null;
-  private webServerPort: number = 0;
-
-  private webDistPath: string;
+  private staticServer: http.Server | null = null;
+  private staticPort = 0;
+  private distPath: string;
   private browserPath: string;
-  private apiKey: string;
 
   constructor() {
-    this.webDistPath = path.resolve(__dirname, '../../dist-web');
+    this.distPath = path.resolve(__dirname, '../../dist-web');
     this.browserPath = process.env.BROWSER_PATH || '';
-    this.apiKey = process.env.OPENAI_API_KEY || '';
 
     if (!this.browserPath) {
       throw new Error('BROWSER_PATH environment variable is required');
     }
-    if (!this.apiKey) {
-      console.warn('OPENAI_API_KEY not set - real API tests will be skipped');
-    }
-    if (!fs.existsSync(this.webDistPath)) {
-      throw new Error(`Web dist path does not exist: ${this.webDistPath}. Run "npm run build:web" first.`);
+    if (!fs.existsSync(this.distPath)) {
+      throw new Error(`dist-web does not exist: ${this.distPath}. Run npm run build:web first.`);
     }
   }
 
   async setup(): Promise<void> {
     this.mockServer = await startMockServer();
-    await this.startWebServer();
+
+    await new Promise<void>((resolve, reject) => {
+      this.staticServer = http.createServer((req, res) => {
+        const urlPath = (req.url || '/').split('?')[0];
+
+        // Strip the /webapp/ prefix to get the file path within dist-web
+        const prefix = '/webapp/';
+        let filePath: string;
+        if (urlPath.startsWith(prefix)) {
+          filePath = path.join(this.distPath, urlPath.slice(prefix.length));
+        } else {
+          filePath = path.join(this.distPath, urlPath);
+        }
+
+        // Default to index.html for directory requests
+        if (filePath.endsWith('/') || !path.extname(filePath)) {
+          filePath = path.join(filePath, 'index.html');
+        }
+
+        if (!fs.existsSync(filePath)) {
+          res.statusCode = 404;
+          res.end('Not found');
+          return;
+        }
+
+        const ext = path.extname(filePath);
+        const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+        res.setHeader('Content-Type', contentType);
+        res.statusCode = 200;
+        fs.createReadStream(filePath).pipe(res);
+      });
+
+      this.staticServer.listen(0, '127.0.0.1', () => {
+        const addr = this.staticServer!.address();
+        if (addr && typeof addr === 'object') {
+          this.staticPort = addr.port;
+          console.log(`Static server serving dist-web at http://127.0.0.1:${this.staticPort}/webapp/`);
+          resolve();
+        } else {
+          reject(new Error('Failed to get static server address'));
+        }
+      });
+
+      this.staticServer.on('error', reject);
+    });
 
     this.browser = await puppeteer.launch({
       executablePath: this.browserPath,
@@ -57,32 +106,62 @@ export class WebAdapter implements TestAdapter {
     if (this.browser) {
       await this.browser.close();
     }
-
-    await Promise.all([
-      this.mockServer ? this.mockServer.close() : Promise.resolve(),
-      new Promise<void>(resolve => {
-        if (this.webServer) this.webServer.close(() => resolve());
-        else resolve();
-      }),
-    ]);
+    if (this.mockServer) {
+      await this.mockServer.close();
+    }
+    if (this.staticServer) {
+      await new Promise<void>(resolve => this.staticServer!.close(() => resolve()));
+    }
   }
 
   async newPage(): Promise<PageHandle> {
     const page = await this.browser!.newPage();
-    return new PuppeteerPageHandle(page);
+
+    page.on('console', async (msg) => {
+      const type = msg.type();
+      const args = msg.args();
+      const textParts: string[] = [];
+      for (const arg of args) {
+        try {
+          const val = await arg.jsonValue();
+          textParts.push(typeof val === 'object' ? JSON.stringify(val) : String(val));
+        } catch {
+          textParts.push(msg.text());
+          break;
+        }
+      }
+      const text = textParts.join(' ');
+      if (type === 'error') {
+        console.error(`[Browser] ${text}`);
+      } else if (type === 'warning') {
+        console.warn(`[Browser] ${text}`);
+      } else {
+        console.log(`[Browser] ${text}`);
+      }
+    });
+
+    page.on('pageerror', (error) => {
+      console.error(`[Browser Error] ${error.message}\n${error.stack}`);
+    });
+
+    await page.setViewport({ width: 1280, height: 800 });
+
+    return new WebPuppeteerPageHandle(page);
   }
 
-  getPageUrl(pageName: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs'): string {
+  getPageUrl(pageName: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs' | 'status'): string {
+    const base = `http://127.0.0.1:${this.staticPort}/webapp`;
     const paths: Record<string, string> = {
       library: '/src/library/library.html',
       search: '/src/search/search.html',
       options: '/src/options/options.html',
       stumble: '/src/stumble/stumble.html',
       jobs: '/src/jobs/jobs.html',
-      popup: '/src/web/index.html', // Web app doesn't have popup
-      index: '/src/web/index.html',
+      status: '/src/status/status.html',
+      popup: '/src/options/options.html', // Web has no popup
+      index: '/src/web/index.html',       // Connect page
     };
-    return `http://127.0.0.1:${this.webServerPort}${paths[pageName]}`;
+    return `${base}${paths[pageName]}`;
   }
 
   getMockApiUrl(): string {
@@ -94,78 +173,15 @@ export class WebAdapter implements TestAdapter {
   }
 
   getRealApiKey(): string {
-    return this.apiKey;
+    return '';
   }
 
   hasRealApiKey(): boolean {
-    return this.apiKey.length > 0;
-  }
-
-  private async startWebServer(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.webServer = http.createServer((req, res) => {
-        let url = req.url || '/';
-
-        if (url.startsWith('/webapp')) {
-          url = url.slice('/webapp'.length) || '/';
-        }
-
-        if (url === '/' || url === '') {
-          url = '/src/web/index.html';
-        }
-
-        const filePath = path.join(this.webDistPath, url);
-
-        // Security check - prevent path traversal
-        if (!filePath.startsWith(this.webDistPath)) {
-          res.statusCode = 403;
-          res.end('Forbidden');
-          return;
-        }
-
-        fs.readFile(filePath, (err, data) => {
-          if (err) {
-            if (err.code === 'ENOENT') {
-              res.statusCode = 404;
-              res.end('Not found');
-            } else {
-              res.statusCode = 500;
-              res.end('Server error');
-            }
-            return;
-          }
-
-          const ext = path.extname(filePath).toLowerCase();
-          const contentTypes: Record<string, string> = {
-            '.html': 'text/html',
-            '.css': 'text/css',
-            '.js': 'application/javascript',
-            '.json': 'application/json',
-            '.png': 'image/png',
-            '.svg': 'image/svg+xml',
-          };
-          res.setHeader('Content-Type', contentTypes[ext] || 'application/octet-stream');
-          res.end(data);
-        });
-      });
-
-      this.webServer.listen(0, '127.0.0.1', () => {
-        const addr = this.webServer!.address();
-        if (addr && typeof addr === 'object') {
-          this.webServerPort = addr.port;
-          console.log(`Web server running at http://127.0.0.1:${this.webServerPort}`);
-          resolve();
-        } else {
-          reject(new Error('Failed to get server address'));
-        }
-      });
-
-      this.webServer.on('error', reject);
-    });
+    return false;
   }
 }
 
-class PuppeteerPageHandle implements PageHandle {
+class WebPuppeteerPageHandle implements PageHandle {
   constructor(private page: Page) {}
 
   async goto(url: string): Promise<void> {
@@ -205,8 +221,8 @@ class PuppeteerPageHandle implements PageHandle {
     await this.page.waitForFunction(fn, { timeout });
   }
 
-  async screenshot(path: string, options?: { fullPage?: boolean }): Promise<void> {
-    await this.page.screenshot({ path, fullPage: options?.fullPage });
+  async screenshot(filePath: string, options?: { fullPage?: boolean }): Promise<void> {
+    await this.page.screenshot({ path: filePath, fullPage: options?.fullPage });
   }
 
   async uploadFile(selector: string, filePath: string): Promise<void> {

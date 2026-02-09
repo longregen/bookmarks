@@ -10,18 +10,16 @@ import {
   JobItemStatus,
 } from '../lib/jobs';
 import { db, JobType, JobStatus, type Bookmark } from '../db/schema';
-import { createElement } from '../ui/dom';
-import { formatTimeAgo } from '../lib/time';
+import { createElement, getElement } from '../ui/dom';
+import { formatDateByAge } from '../lib/date-format';
+import { getHostname } from '../lib/url-validator';
 
-const jobTypeFilter = document.getElementById('jobTypeFilter') as HTMLSelectElement;
-const jobStatusFilter = document.getElementById('jobStatusFilter') as HTMLSelectElement;
-const refreshJobsBtn = document.getElementById('refreshJobsBtn') as HTMLButtonElement;
-const jobsList = document.getElementById('jobsList') as HTMLDivElement;
+const jobTypeFilter = getElement<HTMLSelectElement>('jobTypeFilter');
+const jobStatusFilter = getElement<HTMLSelectElement>('jobStatusFilter');
+const refreshJobsBtn = getElement<HTMLButtonElement>('refreshJobsBtn');
+const jobsList = getElement<HTMLDivElement>('jobsList');
 
-// Cache for expanded jobs
 const expandedJobs = new Set<string>();
-
-// Store interval ID for cleanup
 let refreshIntervalId: number | undefined;
 
 interface PreloadedJobData {
@@ -106,7 +104,7 @@ function renderJobItemElement(job: Job, data: PreloadedJobData): HTMLElement {
   const typeLabel = formatJobType(job.type);
   const statusClass = job.status.toLowerCase();
   const statusLabel = job.status.replace('_', ' ').toUpperCase();
-  const timestamp = formatTimeAgo(job.createdAt);
+  const timestamp = formatDateByAge(job.createdAt);
 
   const jobItem = createElement('div', {
     className: `job-item ${expandedJobs.has(job.id) ? 'expanded' : ''}`,
@@ -217,11 +215,12 @@ function renderJobItemElement(job: Job, data: PreloadedJobData): HTMLElement {
       retryBtn.textContent = 'Retrying...';
       try {
         await retryFailedJobItems(job.id);
-        // Trigger processing queue
-        await chrome.runtime.sendMessage({
-          type: 'bookmark:retry',
-          data: { trigger: 'user_manual' }
-        });
+        if (!__IS_WEB__) {
+          await chrome.runtime.sendMessage({
+            type: 'bookmark:retry',
+            data: { trigger: 'user_manual' }
+          });
+        }
         void loadJobs();
       } catch (error) {
         console.error('Failed to retry:', error);
@@ -314,7 +313,7 @@ function renderJobItemRow(item: JobItem, bookmark: Bookmark | undefined): HTMLEl
 
     const urlSpan = createElement('span', {
       className: 'job-item-url',
-      textContent: new URL(bookmark.url).hostname,
+      textContent: getHostname(bookmark.url),
     });
     infoDiv.appendChild(urlSpan);
   } else {
@@ -430,9 +429,9 @@ function formatJobType(type: JobType): string {
   return labels[type] || type;
 }
 
-jobTypeFilter.addEventListener('change', loadJobs);
-jobStatusFilter.addEventListener('change', loadJobs);
-refreshJobsBtn.addEventListener('click', loadJobs);
+jobTypeFilter.addEventListener('change', () => void loadJobs());
+jobStatusFilter.addEventListener('change', () => void loadJobs());
+refreshJobsBtn.addEventListener('click', () => void loadJobs());
 
 function init(): void {
   const urlParams = new URLSearchParams(window.location.search);

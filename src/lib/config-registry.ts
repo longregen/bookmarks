@@ -18,7 +18,6 @@ export const CONFIG_CATEGORIES = {
   SEARCH: 'Search',
   QUEUE: 'Queue',
   PROCESSOR: 'Processor',
-  WEBDAV: 'WebDAV',
   STUMBLE: 'Stumble',
   DATE: 'Date Formatting',
   HEALTH: 'Health Indicator',
@@ -228,24 +227,6 @@ Respond with JSON only, no other text. Format:
     max: 90,
   },
   {
-    key: 'WEBDAV_SYNC_TIMEOUT_MS',
-    defaultValue: 2 * 60 * 1000,
-    type: 'number',
-    description: 'Timeout for the WebDAV sync state manager (in milliseconds)',
-    category: CONFIG_CATEGORIES.WEBDAV,
-    min: 30000,
-    max: 1800000,
-  },
-  {
-    key: 'WEBDAV_SYNC_DEBOUNCE_MS',
-    defaultValue: 5000,
-    type: 'number',
-    description: 'Minimum time between sync attempts (in milliseconds)',
-    category: CONFIG_CATEGORIES.WEBDAV,
-    min: 1000,
-    max: 300000,
-  },
-  {
     key: 'STUMBLE_COUNT',
     defaultValue: 10,
     type: 'number',
@@ -347,11 +328,10 @@ export async function loadConfigOverrides(): Promise<void> {
     if (stored?.value !== undefined) {
       configOverrides = stored.value as Record<string, string | number | boolean>;
     }
-    overridesLoaded = true;
-    rebuildConfigCache();
   } catch (error) {
     console.error('Failed to load config overrides:', error);
     configOverrides = {};
+  } finally {
     overridesLoaded = true;
     rebuildConfigCache();
   }
@@ -360,10 +340,11 @@ export async function loadConfigOverrides(): Promise<void> {
 export async function saveConfigOverrides(): Promise<void> {
   try {
     const now = new Date();
+    const existing = await db.settings.get(CONFIG_STORAGE_KEY);
     await db.settings.put({
       key: CONFIG_STORAGE_KEY,
       value: configOverrides,
-      createdAt: now,
+      createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     });
   } catch (error) {
@@ -386,7 +367,8 @@ export async function setConfigValue(key: string, value: number | string | boole
     throw new Error(`Unknown config key: ${key}`);
   }
 
-  if (typeof value !== entry.type) {
+  const expectedJsType = entry.type === 'textarea' ? 'string' : entry.type;
+  if (typeof value !== expectedJsType) {
     throw new Error(`Invalid type for ${key}: expected ${entry.type}, got ${typeof value}`);
   }
 
@@ -475,8 +457,6 @@ export interface ConfigValues {
   QUEUE_RETRY_MAX_DELAY_MS: number;
   PROCESSOR_QA_GENERATION_PROGRESS: number;
   PROCESSOR_QA_SAVING_PROGRESS: number;
-  WEBDAV_SYNC_TIMEOUT_MS: number;
-  WEBDAV_SYNC_DEBOUNCE_MS: number;
   STUMBLE_COUNT: number;
   DATE_RELATIVE_TIME_THRESHOLD_DAYS: number;
   DATE_FULL_DATE_THRESHOLD_DAYS: number;
@@ -488,6 +468,8 @@ export interface ConfigValues {
 }
 
 
+// Typed config proxy: provides direct property access (e.g., config.FETCH_TIMEOUT_MS)
+// that delegates to getConfigValue() for each key, enabling reactive config reads.
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const config: ConfigValues = Object.create(null);
 

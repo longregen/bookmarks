@@ -56,6 +56,8 @@ Before modifying code:
 3. **Implement** - Make changes incrementally
 4. **Test** - Run `npm run check` and add tests in `tests/`
 
+Always set npm environment to development so that all dependencies get installed.
+
 ## When Making Changes
 
 - **Use lib helpers** - Check `src/lib/` for existing utilities before writing new ones
@@ -63,16 +65,29 @@ Before modifying code:
 - **Remove dead code** - Delete unused functions, variables, imports
 - **Verify assumptions** - Research external APIs and browser behaviors
 
-## Running E2E Tests
+## Running E2E Tests (NixOS)
+
+Requires `nix-shell` with `xvfb-run`, `chromium`, and `patchelf` (for wrangler's workerd binary).
 
 ```bash
-# Download Chromium
-mkdir -p /tmp/chromium && cd /tmp/chromium && \
-  wget -q "https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/$(wget -qO- https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/LAST_CHANGE)/chrome-linux.zip" && \
-  unzip -q chrome-linux.zip
+# Build first
+npm run build:chrome
 
-# Run tests (requires xvfb)
-npm run build:chrome && \
-  BROWSER_PATH=/tmp/chromium/chrome-linux/chrome OPENAI_API_KEY=not-needed-for-tests \
-  xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm run test:e2e:chrome
+# Run all E2E tests (deno + wrangler + no-server)
+nix-shell -p xvfb-run chromium patchelf --run \
+  "BROWSER_PATH=\$(which chromium) OPENAI_API_KEY=not-needed-for-tests \
+  xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
+  npm run test:e2e:chrome"
+
+# Skip specific servers
+SKIP_WRANGLER=1  # skip wrangler tests
+SKIP_DENO=1      # skip deno tests
+
+# Screenshots only
+nix-shell -p xvfb-run chromium --run \
+  "BROWSER_PATH=\$(which chromium) \
+  xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
+  npm run screenshots"
 ```
+
+The test script auto-installs `server/` dependencies and patches the workerd binary for NixOS when needed.

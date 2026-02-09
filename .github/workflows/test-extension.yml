@@ -20,10 +20,10 @@ jobs:
       matrix:
         browser: [chrome, firefox, web]
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -35,7 +35,7 @@ jobs:
         run: npm run build:${{ matrix.browser }}
 
       - name: Upload ${{ matrix.browser }} build artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ${{ matrix.browser == 'web' && 'webapp' || format('extension-{0}', matrix.browser) }}
           path: dist-${{ matrix.browser }}/
@@ -44,10 +44,10 @@ jobs:
   test-unit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -61,10 +61,10 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -78,10 +78,10 @@ jobs:
   typecheck:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -92,14 +92,33 @@ jobs:
       - name: Run TypeScript type check
         run: npm run typecheck
 
+  typecheck-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
+        with:
+          deno-version: v2.x
+
+      - name: Install Deno dependencies
+        run: cd server && deno install
+
+      - name: Type check Deno server
+        run: cd server && deno check src/main.ts
+
+      - name: Type check Worker entry point
+        run: cd server && deno check src/worker.ts
+
   lint-firefox:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -108,7 +127,7 @@ jobs:
         run: npm ci
 
       - name: Download Firefox build artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: extension-firefox
           path: dist-firefox/
@@ -126,7 +145,7 @@ jobs:
           ls -la web-ext-artifacts/ || echo "No artifacts created"
 
       - name: Upload Firefox package
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: firefox-extension-xpi
           path: dist-firefox/web-ext-artifacts/
@@ -137,25 +156,33 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: '20'
           cache: 'npm'
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
+        with:
+          deno-version: v2.x
+
+      - name: Install Deno dependencies
+        run: cd server && deno install
 
       - name: Install dependencies
         run: npm ci
 
       - name: Download Chrome build artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: extension-chrome
           path: dist-chrome/
 
       - name: Cache Chromium
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/puppeteer
           key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -171,6 +198,7 @@ jobs:
           BROWSER_TYPE: chrome
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EXTENSION_PATH: dist-chrome
+          SKIP_WRANGLER: '1'
         run: |
           CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
           BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npm run test:e2e:chrome
@@ -179,32 +207,40 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: '20'
           cache: 'npm'
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
+        with:
+          deno-version: v2.x
+
+      - name: Install Deno dependencies
+        run: cd server && deno install
 
       - name: Install dependencies
         run: npm ci
 
       - name: Download Firefox build artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: extension-firefox
           path: dist-firefox/
 
       - name: Cache Firefox
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         id: cache-firefox
         with:
           path: ${{ runner.tool_cache }}/firefox
           key: firefox-${{ runner.os }}-${{ env.FIREFOX_VERSION }}
 
       - name: Install Firefox
-        uses: browser-actions/setup-firefox@157fcc923ae034d53d4d5b9c7584005fd97e7275 # v1.7.0
+        uses: browser-actions/setup-firefox@5914774dda97099441f02628f8d46411fcfbd208 # v1.7.0
         with:
           firefox-version: ${{ env.FIREFOX_VERSION }}
         id: setup-firefox
@@ -223,33 +259,42 @@ jobs:
           BROWSER_PATH: ${{ steps.setup-firefox.outputs.firefox-path }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EXTENSION_PATH: dist-firefox
+          SKIP_WRANGLER: '1'
         run: |
           echo "Running Firefox E2E tests with Selenium/GeckoDriver..."
-          xvfb-run --auto-servernum npx tsx tests/e2e-firefox.test.ts
+          xvfb-run --auto-servernum npm run test:e2e:firefox
 
   test-e2e-web:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: '20'
           cache: 'npm'
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
+        with:
+          deno-version: v2.x
+
+      - name: Install Deno dependencies
+        run: cd server && deno install
 
       - name: Install dependencies
         run: npm ci
 
       - name: Download Web build artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: webapp
           path: dist-web/
 
       - name: Cache Chromium
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/puppeteer
           key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -263,3 +308,142 @@ jobs:
         run: |
           CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
           BROWSER_PATH="$CHROME_PATH" npx tsx tests/e2e-web.test.ts
+
+  test-e2e-server-sync-deno:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
+        with:
+          deno-version: v2.x
+
+      - name: Install Deno dependencies
+        run: cd server && deno install
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download Chrome build artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: extension-chrome
+          path: dist-chrome/
+
+      - name: Cache Chromium
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: ~/.cache/puppeteer
+          key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium via Puppeteer
+        run: npx @puppeteer/browsers install chromium@latest
+
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Run Server Sync E2E tests (Deno)
+        env:
+          OPENAI_API_KEY: test-key-for-mock
+          SKIP_WRANGLER: '1'
+          SKIP_FIREFOX: '1'
+        run: |
+          CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
+          BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npx tsx tests/e2e-walkthrough.test.ts
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: screenshots-server-sync-deno
+          path: screenshots/walkthrough/chrome-deno/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  test-e2e-server-sync-worker:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
+        with:
+          deno-version: v2.x
+
+      - name: Install Deno dependencies
+        run: cd server && deno install
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install server dependencies
+        run: cd server && npm ci
+
+      - name: Download Chrome build artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: extension-chrome
+          path: dist-chrome/
+
+      - name: Cache Chromium
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: ~/.cache/puppeteer
+          key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium via Puppeteer
+        run: npx @puppeteer/browsers install chromium@latest
+
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Run Server Sync E2E tests (Worker)
+        env:
+          OPENAI_API_KEY: test-key-for-mock
+          SKIP_DENO: '1'
+          SKIP_FIREFOX: '1'
+          WRANGLER_SEND_METRICS: 'false'
+        run: |
+          export PATH="$PWD/server/node_modules/.bin:$PATH"
+          CHROME_PATH=$(find chromium -name 'chrome' -type f | head -1)
+          BROWSER_PATH="$CHROME_PATH" xvfb-run --auto-servernum npx tsx tests/e2e-walkthrough.test.ts
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: screenshots-server-sync-worker
+          path: screenshots/walkthrough/chrome-wrangler/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  test-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
+        with:
+          deno-version: v2.x
+
+      - name: Install Deno dependencies
+        run: cd server && deno install
+
+      - name: Run server tests
+        run: cd server && deno task test

@@ -2,14 +2,15 @@ import { getSettings, saveSetting } from '../../lib/settings';
 import { initSettingsForm, withButtonState } from '../../ui/form-helper';
 import { makeApiRequest } from '../../lib/api';
 import { getErrorMessage } from '../../lib/errors';
+import { getElement } from '../../ui/dom';
 
-const testBtn = document.getElementById('testBtn') as HTMLButtonElement;
-const testConnectionStatus = document.getElementById('testConnectionStatus') as HTMLDivElement;
+const testBtn = getElement<HTMLButtonElement>('testBtn');
+const testConnectionStatus = getElement<HTMLDivElement>('testConnectionStatus');
 
-const apiBaseUrlInput = document.getElementById('apiBaseUrl') as HTMLInputElement;
-const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
-const chatModelInput = document.getElementById('chatModel') as HTMLInputElement;
-const embeddingModelInput = document.getElementById('embeddingModel') as HTMLInputElement;
+const apiBaseUrlInput = getElement<HTMLInputElement>('apiBaseUrl');
+const apiKeyInput = getElement<HTMLInputElement>('apiKey');
+const chatModelInput = getElement<HTMLInputElement>('chatModel');
+const embeddingModelInput = getElement<HTMLInputElement>('embeddingModel');
 
 const TEST_BTN_DEFAULT = 'Test Connection';
 const TEST_BTN_VERIFIED = 'Access verified';
@@ -72,6 +73,14 @@ testBtn.addEventListener('click', async () => {
 });
 
 export function initSettingsModule(): void {
+  if (__IS_WEB__) {
+    const apiConfig = document.getElementById('api-config');
+    if (apiConfig) {
+      apiConfig.style.display = 'none';
+    }
+    return;
+  }
+
   initSettingsForm({
     formId: 'settingsForm',
     statusId: 'status',

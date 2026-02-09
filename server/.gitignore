@@ -1,0 +1,8 @@
+# Data directory (SQLite database)
+data/
+
+# Environment file with secrets
+.env
+
+# Deno cache
+.deno/

@@ -3,15 +3,13 @@ export interface ApiSettings {
   apiKey: string;
   chatModel: string;
   embeddingModel: string;
-  webdavUrl: string;
-  webdavUsername: string;
-  webdavPassword: string;
-  webdavPath: string;
-  webdavEnabled: boolean;
-  webdavAllowInsecure: boolean;
-  webdavSyncInterval: number;
-  webdavLastSyncTime: string;
-  webdavLastSyncError: string;
+  serverUrl: string;
+  serverEnabled: boolean;
+  serverSessionToken: string;
+  serverSessionExpiry: string;
+  serverAuthToken: string;
+  serverLastSyncTime: string;
+  serverLastSyncError: string;
 }
 
 export type Theme = 'auto' | 'light' | 'dark' | 'terminal' | 'tufte';
@@ -23,7 +21,6 @@ export interface PlatformAdapter {
   getTheme(): Promise<Theme>;
   setTheme(theme: Theme): Promise<void>;
 
-  fetchContent?(url: string): Promise<{ html: string; finalUrl: string }>;
 }
 
 let adapter: PlatformAdapter | null = null;

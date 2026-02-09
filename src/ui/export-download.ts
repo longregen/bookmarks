@@ -2,29 +2,8 @@ import type { BookmarkExport } from '../lib/export';
 
 export type ExportFormat = 'json' | 'markdown' | 'html' | 'copy-markdown';
 
-export function downloadExport(data: BookmarkExport, filename?: string): void {
-  const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
+function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
-
-  const defaultFilename = data.bookmarkCount === 1
-    ? `bookmark-${sanitizeFilename(data.bookmarks[0].title)}-${formatDateForFilename(new Date())}.json`
-    : `bookmarks-export-${formatDateForFilename(new Date())}.json`;
-
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename ?? defaultFilename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-export function downloadMarkdown(content: string, title: string): void {
-  const blob = new Blob([content], { type: 'text/markdown' });
-  const url = URL.createObjectURL(blob);
-  const filename = `bookmark-${sanitizeFilename(title)}-${formatDateForFilename(new Date())}.md`;
-
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
@@ -32,6 +11,23 @@ export function downloadMarkdown(content: string, title: string): void {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+export function downloadExport(data: BookmarkExport, filename?: string): void {
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+
+  const defaultFilename = data.bookmarkCount === 1
+    ? `bookmark-${sanitizeFilename(data.bookmarks[0].title)}-${formatDateForFilename(new Date())}.json`
+    : `bookmarks-export-${formatDateForFilename(new Date())}.json`;
+
+  downloadBlob(blob, filename ?? defaultFilename);
+}
+
+export function downloadMarkdown(content: string, title: string): void {
+  const blob = new Blob([content], { type: 'text/markdown' });
+  const filename = `bookmark-${sanitizeFilename(title)}-${formatDateForFilename(new Date())}.md`;
+  downloadBlob(blob, filename);
 }
 
 export async function copyMarkdown(content: string): Promise<void> {
@@ -40,16 +36,8 @@ export async function copyMarkdown(content: string): Promise<void> {
 
 export function downloadHtml(content: string, title: string): void {
   const blob = new Blob([content], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
   const filename = `bookmark-${sanitizeFilename(title)}-${formatDateForFilename(new Date())}.html`;
-
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, filename);
 }
 
 function sanitizeFilename(name: string): string {

@@ -95,9 +95,10 @@ function setupScrollTracking(): void {
   };
 }
 
+const desktopQuery = window.matchMedia('(min-width: 1024px)');
+
 function handleResponsiveTracking(): void {
-  const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
-  if (isDesktop) {
+  if (desktopQuery.matches) {
     setupScrollTracking();
   } else if (scrollCleanup) {
     scrollCleanup();
@@ -107,14 +108,13 @@ function handleResponsiveTracking(): void {
 
 handleResponsiveTracking();
 
-window.addEventListener('resize', handleResponsiveTracking);
+desktopQuery.addEventListener('change', handleResponsiveTracking);
 
 export function initNavigationModule(): void {
-  // Hide bulk import nav item for web platform (CORS prevents fetching external URLs)
   if (__IS_WEB__) {
-    const bulkImportNavItem = document.querySelector<HTMLAnchorElement>('.nav-item[data-section="bulk-import"]');
-    if (bulkImportNavItem) {
-      bulkImportNavItem.style.display = 'none';
+    const apiConfigNavItem = document.querySelector<HTMLAnchorElement>('.nav-item[data-section="api-config"]');
+    if (apiConfigNavItem) {
+      apiConfigNavItem.style.display = 'none';
     }
   }
 }

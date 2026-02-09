@@ -1,7 +1,6 @@
 import { getErrorMessage } from './errors';
 import type { Message } from './messages';
 
-// Template literal types for domain:action enforcement
 type BookmarkEvent = `bookmark:${'created' | 'content_fetched' | 'processing_started' | 'status_changed' | 'ready' | 'processing_failed' | 'deleted'}`;
 type TagEvent = `tag:${'added' | 'removed'}`;
 type JobEvent = `job:${'created' | 'progress_changed' | 'completed' | 'failed'}`;
@@ -99,7 +98,6 @@ export function addEventListener(listener: EventListener): () => void {
   };
 }
 
-// Type-safe event builder functions
 export const events = {
   bookmark: {
     created: (bookmarkId: string, url: string) =>

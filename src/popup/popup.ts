@@ -60,6 +60,9 @@ saveBtn.addEventListener('click', async () => {
       showSuccessWithCTA(response.bookmarkId);
       showSaveSuccess();
       saveSucceeded = true;
+    } else if (response?.success === false) {
+      const errorMsg = (response as { error?: string }).error ?? 'Failed to save bookmark';
+      showStatusMessage(statusDiv, errorMsg, 'error');
     } else {
       showStatusMessage(statusDiv, 'Bookmark saved!', 'success', 3000);
       showSaveSuccess();

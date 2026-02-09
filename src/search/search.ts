@@ -1,17 +1,88 @@
-import { db, type BookmarkTag, type QuestionAnswer } from '../db/schema';
+import { db, type QuestionAnswer } from '../db/schema';
 import { createElement, getElement, setSpinnerContent } from '../ui/dom';
 import { formatDateByAge } from '../lib/date-format';
+import { getHostname } from '../lib/url-validator';
 import { generateEmbeddings } from '../lib/api';
 import { findTopK } from '../lib/similarity';
 import { onThemeChange, applyTheme } from '../shared/theme';
 import { initExtension } from '../ui/init-extension';
-import { initWeb } from '../web/init-web';
+import { initWebWithAuth } from '../web/init-web';
 import { createHealthIndicator } from '../ui/health-indicator';
+import { createSyncStatusIndicator } from '../ui/sync-status-indicator';
 import { BookmarkDetailManager } from '../ui/bookmark-detail';
 import { loadTagFilters } from '../ui/tag-filter';
 import { config } from '../lib/config-registry';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
-import { getErrorMessage } from '../lib/errors';
+import { getErrorMessage, isApiConfigError } from '../lib/errors';
+import { getSettings } from '../lib/settings';
+import { ServerApiClient } from '../lib/server-api';
+
+interface EmbeddingItem {
+  item: QuestionAnswer;
+  embedding: number[];
+  type: string;
+}
+
+async function loadEmbeddingItems(expectedDimension: number): Promise<EmbeddingItem[]> {
+  const items: EmbeddingItem[] = [];
+  const BATCH_SIZE = 500;
+  let offset = 0;
+
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- pagination loop
+  while (true) {
+    const batch = await db.questionsAnswers
+      .orderBy('id')
+      .offset(offset)
+      .limit(BATCH_SIZE)
+      .toArray();
+
+    if (batch.length === 0) break;
+
+    for (const qa of batch) {
+      if (Array.isArray(qa.embeddingQuestion) && qa.embeddingQuestion.length === expectedDimension) {
+        items.push({ item: qa, embedding: qa.embeddingQuestion, type: 'question' });
+      }
+      if (Array.isArray(qa.embeddingBoth) && qa.embeddingBoth.length === expectedDimension) {
+        items.push({ item: qa, embedding: qa.embeddingBoth, type: 'both' });
+      }
+    }
+
+    offset += BATCH_SIZE;
+  }
+
+  return items;
+}
+
+async function getTagsByBookmarkIds(bookmarkIds: string[]): Promise<Map<string, string[]>> {
+  if (bookmarkIds.length === 0) return new Map();
+
+  const allTags = await db.bookmarkTags.where('bookmarkId').anyOf(bookmarkIds).toArray();
+  const tagsByBookmarkId = new Map<string, string[]>();
+
+  for (const tag of allTags) {
+    const existing = tagsByBookmarkId.get(tag.bookmarkId);
+    if (existing) {
+      existing.push(tag.tagName);
+    } else {
+      tagsByBookmarkId.set(tag.bookmarkId, [tag.tagName]);
+    }
+  }
+
+  return tagsByBookmarkId;
+}
+
+function filterBySelectedTags<T extends { bookmarkId: string }>(
+  items: T[],
+  tagsByBookmarkId: Map<string, string[]>,
+  selectedTags: Set<string>
+): T[] {
+  if (selectedTags.size === 0) return items;
+
+  return items.filter(item => {
+    const tags = tagsByBookmarkId.get(item.bookmarkId) ?? [];
+    return tags.some(t => selectedTags.has(t));
+  });
+}
 
 const selectedTags = new Set<string>();
 
@@ -71,7 +142,7 @@ async function saveSearchHistory(query: string, resultCount: number): Promise<vo
     const allHistory = await db.searchHistory.orderBy('createdAt').toArray();
     if (allHistory.length > config.SEARCH_HISTORY_LIMIT) {
       const toDelete = allHistory.slice(0, allHistory.length - config.SEARCH_HISTORY_LIMIT);
-      await Promise.all(toDelete.map(h => db.searchHistory.delete(h.id)));
+      await db.searchHistory.bulkDelete(toDelete.map(h => h.id));
     }
   } catch (error) {
     console.error('Failed to save search history:', error);
@@ -106,7 +177,7 @@ async function showAutocomplete(): Promise<void> {
     return;
   }
 
-  autocompleteDropdown.innerHTML = '';
+  autocompleteDropdown.replaceChildren();
 
   const fragment = document.createDocumentFragment();
   for (const history of matchingHistory) {
@@ -155,7 +226,7 @@ function buildResultCard(
   card.appendChild(createElement('div', { className: 'card-title', textContent: bookmark.title }));
 
   const meta = createElement('div', { className: 'card-meta' });
-  const url = createElement('a', { className: 'card-url', href: bookmark.url, textContent: new URL(bookmark.url).hostname });
+  const url = createElement('a', { className: 'card-url', href: bookmark.url, textContent: getHostname(bookmark.url) });
   url.onclick = (e) => e.stopPropagation();
   meta.appendChild(url);
   meta.appendChild(document.createTextNode(` · ${formatDateByAge(bookmark.createdAt)}`));
@@ -196,12 +267,80 @@ function showCenteredMode(): void {
   resultHeader.classList.add('hidden');
 }
 
+async function isServerSearchEnabled(): Promise<{ enabled: boolean; client?: ServerApiClient }> {
+  try {
+    const settings = await getSettings();
+    if (settings.serverEnabled && settings.serverSessionToken && settings.serverUrl) {
+      const client = new ServerApiClient(settings.serverUrl, settings.serverSessionToken);
+      return { enabled: true, client };
+    }
+  } catch {
+    // Settings unavailable
+  }
+  return { enabled: false };
+}
+
+interface ServerSearchResult {
+  bookmark: { id: string; title: string; url: string; createdAt: Date };
+  score: number;
+  qa: { question: string; answer: string };
+}
+
+async function performServerSearch(client: ServerApiClient, query: string): Promise<ServerSearchResult[]> {
+  const response = await client.semanticSearch({ query, limit: config.SEARCH_TOP_K_RESULTS });
+
+  return response.results.map(result => ({
+    bookmark: {
+      id: result.bookmark.id,
+      title: result.bookmark.title,
+      url: result.bookmark.url,
+      createdAt: new Date(result.bookmark.createdAt),
+    },
+    score: result.score,
+    qa: {
+      question: 'No preview available',
+      answer: 'Open bookmark details to view content',
+    },
+  }));
+}
+
+async function renderServerResults(results: ServerSearchResult[], query: string): Promise<void> {
+  let filteredResults = results;
+  if (selectedTags.size > 0) {
+    const bookmarkIds = results.map(r => r.bookmark.id);
+    const tagsByBookmarkId = await getTagsByBookmarkIds(bookmarkIds);
+    const resultsWithBookmarkId = results.map(r => ({ ...r, bookmarkId: r.bookmark.id }));
+    const filtered = filterBySelectedTags(resultsWithBookmarkId, tagsByBookmarkId, selectedTags);
+    filteredResults = filtered.map(({ bookmarkId: _, ...rest }) => rest);
+  }
+
+  const count = filteredResults.length;
+  resultStatus.classList.remove('loading');
+  resultStatus.textContent = count === 0
+    ? 'No results found'
+    : `${count} result${count === 1 ? '' : 's'} (server)`;
+  if (!filteredResults.length) {
+    resultsList.replaceChildren(createElement('div', { className: 'empty-state', textContent: 'Try a different search term or check your filters' }));
+    await saveSearchHistory(query, 0);
+    return;
+  }
+
+  await saveSearchHistory(query, filteredResults.length);
+
+  const fragment = document.createDocumentFragment();
+  for (const { bookmark, score, qa } of filteredResults) {
+    const card = buildResultCard(bookmark, score, qa, () => detailManager.showDetail(bookmark.id));
+    fragment.appendChild(card);
+  }
+  resultsList.replaceChildren(fragment);
+}
+
 // eslint-disable-next-line complexity
 async function performSearch(): Promise<void> {
   const query = searchInput.value.trim();
   if (!query) {
     showCenteredMode();
-    resultsList.innerHTML = '';
+    resultsList.replaceChildren();
     return;
   }
 
@@ -209,20 +348,47 @@ async function performSearch(): Promise<void> {
   searchBtn.disabled = true;
 
   try {
-    const [queryEmbedding] = await generateEmbeddings([query]);
-    if (queryEmbedding.length === 0) throw new Error('Failed to generate embedding');
+    const { enabled: serverEnabled, client } = await isServerSearchEnabled();
 
-    const allQAs = await db.questionsAnswers.toArray();
-    const items = allQAs.flatMap(qa => [
-      { item: qa, embedding: qa.embeddingQuestion, type: 'question' },
-      { item: qa, embedding: qa.embeddingBoth, type: 'both' }
-    ]).filter(({ embedding }) => Array.isArray(embedding) && embedding.length === queryEmbedding.length);
+    if (serverEnabled && client) {
+      try {
+        const serverResults = await performServerSearch(client, query);
+
+        if (__IS_WEB__ || serverResults.length > 0) {
+          await renderServerResults(serverResults, query);
+          return;
+        }
+      } catch (serverError) {
+        if (__IS_WEB__) {
+          throw serverError;
+        }
+        console.warn('Server search failed, falling back to local:', getErrorMessage(serverError));
+      }
+    }
+
+    if (__IS_WEB__) {
+      resultStatus.classList.remove('loading');
+      resultStatus.textContent = 'Not connected to server';
+      const errorDiv = createElement('div', { className: 'error-message' });
+      const settingsLink = createElement('a', {
+        href: '../web/index.html',
+        textContent: 'Connect to Server',
+        className: 'error-link'
+      });
+      errorDiv.appendChild(settingsLink);
+      resultsList.replaceChildren(errorDiv);
+      return;
+    }
+
+    const [queryEmbedding] = await generateEmbeddings([query]);
+    if (!queryEmbedding) throw new Error('Failed to generate embedding');
+
+    const items = await loadEmbeddingItems(queryEmbedding.length);
 
     if (!items.length) {
       resultStatus.classList.remove('loading');
       resultStatus.textContent = 'No bookmarks indexed yet';
-      resultsList.innerHTML = '';
-      resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'Save some bookmarks first to enable search' }));
+      resultsList.replaceChildren(createElement('div', { className: 'empty-state', textContent: 'Save some bookmarks first to enable search' }));
       return;
     }
 
@@ -248,18 +414,10 @@ async function performSearch(): Promise<void> {
 
     const bookmarkIds = resultsWithMax.map(r => r.bookmarkId);
     const bookmarks = await db.bookmarks.bulkGet(bookmarkIds);
+    // bulkGet returns undefined for missing IDs; filter them out
     const bookmarksById = new Map(bookmarks.filter((b): b is NonNullable<typeof b> => b !== undefined).map(b => [b.id, b]));
 
-    const allTags = await db.bookmarkTags.where('bookmarkId').anyOf(bookmarkIds).toArray();
-    const tagsByBookmarkId = new Map<string, BookmarkTag[]>();
-    for (const tag of allTags) {
-      const existing = tagsByBookmarkId.get(tag.bookmarkId);
-      if (existing) {
-        existing.push(tag);
-      } else {
-        tagsByBookmarkId.set(tag.bookmarkId, [tag]);
-      }
-    }
+    const tagsByBookmarkId = await getTagsByBookmarkIds(bookmarkIds);
 
     const filteredResults = [];
     for (const result of resultsWithMax) {
@@ -268,7 +426,7 @@ async function performSearch(): Promise<void> {
 
       if (selectedTags.size > 0) {
         const tags = tagsByBookmarkId.get(result.bookmarkId) ?? [];
-        if (!tags.some(t => selectedTags.has(t.tagName))) continue;
+        if (!tags.some(t => selectedTags.has(t))) continue;
       }
 
       filteredResults.push({ bookmark, qaResults: result.qaResults, maxScore: result.maxScore });
@@ -279,10 +437,8 @@ async function performSearch(): Promise<void> {
     resultStatus.textContent = count === 0
       ? 'No results found'
       : `${count} result${count === 1 ? '' : 's'}`;
-    resultsList.innerHTML = '';
-
     if (!filteredResults.length) {
-      resultsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'Try a different search term or check your filters' }));
+      resultsList.replaceChildren(createElement('div', { className: 'empty-state', textContent: 'Try a different search term or check your filters' }));
       await saveSearchHistory(query, 0);
       return;
     }
@@ -291,27 +447,20 @@ async function performSearch(): Promise<void> {
 
     const fragment = document.createDocumentFragment();
     for (const { bookmark, qaResults, maxScore } of filteredResults) {
-      const bestQA = qaResults[0].qa;
+      const bestQA = qaResults.reduce((best, curr) => curr.score > best.score ? curr : best).qa;
 
       const card = buildResultCard(bookmark, maxScore, bestQA, () => detailManager.showDetail(bookmark.id));
       fragment.appendChild(card);
     }
-    resultsList.appendChild(fragment);
+    resultsList.replaceChildren(fragment);
   } catch (error) {
     console.error('Search error:', error);
     resultStatus.classList.remove('loading');
     resultStatus.textContent = 'Search failed';
-    resultsList.innerHTML = '';
-
-    const errorMessage = getErrorMessage(error);
-    const isApiKeyError = errorMessage.toLowerCase().includes('api key') ||
-                          errorMessage.toLowerCase().includes('not configured') ||
-                          errorMessage.toLowerCase().includes('401') ||
-                          errorMessage.toLowerCase().includes('unauthorized');
 
     const errorDiv = createElement('div', { className: 'error-message' });
 
-    if (isApiKeyError) {
+    if (isApiConfigError(error)) {
       errorDiv.appendChild(document.createTextNode('API endpoint not configured. '));
       const settingsLink = createElement('a', {
         href: '../options/options.html',
@@ -320,7 +469,7 @@ async function performSearch(): Promise<void> {
       });
       errorDiv.appendChild(settingsLink);
     } else {
-      errorDiv.appendChild(document.createTextNode(`${errorMessage} `));
+      errorDiv.appendChild(document.createTextNode(`${getErrorMessage(error)} `));
       const settingsLink = createElement('a', {
         href: '../options/options.html',
         textContent: 'Check Settings',
@@ -329,14 +478,14 @@ async function performSearch(): Promise<void> {
       errorDiv.appendChild(settingsLink);
     }
 
-    resultsList.appendChild(errorDiv);
+    resultsList.replaceChildren(errorDiv);
   } finally {
     searchBtn.disabled = false;
   }
 }
 
 if (__IS_WEB__) {
-  void initWeb();
+  void initWebWithAuth();
 } else {
   void initExtension();
 }
@@ -360,9 +509,17 @@ const keydownHandler = (e: KeyboardEvent): void => {
 };
 document.addEventListener('keydown', keydownHandler);
 
+let healthCleanup: (() => void) | null = null;
+let syncCleanup: (() => void) | null = null;
+
 const healthIndicatorContainer = document.getElementById('healthIndicator');
 if (healthIndicatorContainer) {
-  createHealthIndicator(healthIndicatorContainer);
+  healthCleanup = createHealthIndicator(healthIndicatorContainer);
+}
+
+const syncIndicatorContainer = document.getElementById('syncIndicator');
+if (syncIndicatorContainer) {
+  syncCleanup = createSyncStatusIndicator(syncIndicatorContainer, 'compact');
 }
 
 const removeEventListener = addBookmarkEventListener((event) => {
@@ -374,6 +531,8 @@ const removeEventListener = addBookmarkEventListener((event) => {
 window.addEventListener('beforeunload', () => {
   document.removeEventListener('keydown', keydownHandler);
   removeEventListener();
+  healthCleanup?.();
+  syncCleanup?.();
 });
 
 // Test helpers for E2E tests (type declaration in library.ts)

@@ -12,3 +12,5 @@ coverage/
 coverage-e2e/
 coverage-merged/
 screenshots/
+screenshots-server-sync-deno/
+

@@ -32,6 +32,15 @@ export interface QuestionAnswer {
   updatedAt: Date;
 }
 
+export interface Summary {
+  id: string;
+  bookmarkId: string;
+  content: string;
+  embedding: number[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Settings {
   key: string;
   value: unknown;
@@ -91,21 +100,14 @@ export interface Job {
   parentJobId?: string;
 
   metadata: {
-    // FILE_IMPORT
     fileName?: string;
     importedCount?: number;
     skippedCount?: number;
-
-    // BULK_URL_IMPORT
     totalUrls?: number;
     successCount?: number;
     failureCount?: number;
-
-    // URL_FETCH
     url?: string;
     bookmarkId?: string;
-
-    // Error info
     errorMessage?: string;
   };
 
@@ -116,6 +118,7 @@ export class BookmarkDatabase extends Dexie {
   bookmarks!: Table<Bookmark>;
   markdown!: Table<Markdown>;
   questionsAnswers!: Table<QuestionAnswer>;
+  summaries!: Table<Summary>;
   settings!: Table<Settings>;
   jobs!: Table<Job>;
   jobItems!: Table<JobItem>;
@@ -138,8 +141,6 @@ export class BookmarkDatabase extends Dexie {
       questionsAnswers: 'id, bookmarkId, createdAt, updatedAt',
       settings: 'key, createdAt, updatedAt',
       jobs: 'id, bookmarkId, parentJobId, status, type, createdAt, updatedAt, [parentJobId+status], [bookmarkId+type]',
-    }).upgrade(() => {
-      console.log('Upgraded database to version 2 with jobs table');
     });
 
     this.version(3).stores({
@@ -173,11 +174,22 @@ export class BookmarkDatabase extends Dexie {
       searchHistory: 'id, query, createdAt',
     });
 
-    // Add compound index [status+updatedAt] for efficient stuck bookmark queries
     this.version(6).stores({
       bookmarks: 'id, url, status, createdAt, updatedAt, [status+updatedAt]',
       markdown: 'id, bookmarkId, createdAt, updatedAt',
       questionsAnswers: 'id, bookmarkId, createdAt, updatedAt',
+      settings: 'key, createdAt, updatedAt',
+      jobs: 'id, parentJobId, status, type, createdAt',
+      jobItems: 'id, jobId, bookmarkId, status, createdAt, updatedAt, [jobId+status]',
+      bookmarkTags: '[bookmarkId+tagName], bookmarkId, tagName, addedAt',
+      searchHistory: 'id, query, createdAt',
+    });
+
+    this.version(7).stores({
+      bookmarks: 'id, url, status, createdAt, updatedAt, [status+updatedAt]',
+      markdown: 'id, bookmarkId, createdAt, updatedAt',
+      questionsAnswers: 'id, bookmarkId, createdAt, updatedAt',
+      summaries: 'id, bookmarkId, createdAt, updatedAt',
       settings: 'key, createdAt, updatedAt',
       jobs: 'id, parentJobId, status, type, createdAt',
       jobItems: 'id, jobId, bookmarkId, status, createdAt, updatedAt, [jobId+status]',
@@ -192,13 +204,11 @@ export const db = new BookmarkDatabase();
 export async function getBookmarkContent(bookmarkId: string): Promise<{
   markdown: Markdown | undefined;
   qaPairs: QuestionAnswer[];
-  tags: BookmarkTag[];
 }> {
-  const [markdown, qaPairs, tags] = await Promise.all([
+  const [markdown, qaPairs] = await Promise.all([
     db.markdown.where('bookmarkId').equals(bookmarkId).first(),
     db.questionsAnswers.where('bookmarkId').equals(bookmarkId).toArray(),
-    db.bookmarkTags.where('bookmarkId').equals(bookmarkId).toArray(),
   ]);
-  return { markdown, qaPairs, tags };
+  return { markdown, qaPairs };
 }
 

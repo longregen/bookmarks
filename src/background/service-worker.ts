@@ -1,11 +1,14 @@
 import { db } from '../db/schema';
 import { startProcessingQueue } from './queue';
+import { resumeIncompleteJobs } from './job-resumption';
 import { createBulkImportJob } from '../lib/bulk-import';
 import { setPlatformAdapter } from '../lib/platform';
 import { extensionAdapter } from '../lib/adapters/extension';
 import { getSettings } from '../lib/settings';
 import { getErrorMessage } from '../lib/errors';
-import { performSync, getSyncStatus, triggerSyncIfEnabled } from '../lib/webdav-sync';
+import { serverSync } from '../lib/server-sync';
+import { ServerApiClient } from '../lib/server-api';
+import { ensureOffscreenDocument } from '../lib/offscreen';
 import type {
   Message,
   SaveBookmarkResponse,
@@ -16,41 +19,60 @@ setPlatformAdapter(extensionAdapter);
 
 console.log('Bookmark RAG service worker loaded');
 
-const WEBDAV_SYNC_ALARM = 'webdav-sync';
+const SERVER_SYNC_ALARM = 'server-sync';
+const DEFAULT_SYNC_INTERVAL_MINUTES = 15;
 
 async function setupSyncAlarm(): Promise<void> {
   try {
     const settings = await getSettings();
 
-    await chrome.alarms.clear(WEBDAV_SYNC_ALARM);
+    await chrome.alarms.clear(SERVER_SYNC_ALARM);
 
-    if (settings.webdavEnabled && settings.webdavSyncInterval > 0) {
-      await chrome.alarms.create(WEBDAV_SYNC_ALARM, {
-        periodInMinutes: settings.webdavSyncInterval,
+    if (settings.serverEnabled && settings.serverSessionToken) {
+      await chrome.alarms.create(SERVER_SYNC_ALARM, {
+        periodInMinutes: DEFAULT_SYNC_INTERVAL_MINUTES,
         delayInMinutes: 1,
       });
-      console.log(`WebDAV sync alarm set for every ${settings.webdavSyncInterval} minutes`);
+      console.log(`Server sync alarm set for every ${DEFAULT_SYNC_INTERVAL_MINUTES} minutes`);
     } else {
-      console.log('WebDAV sync alarm disabled');
+      console.log('Server sync alarm disabled');
     }
   } catch (error) {
     console.error('Error setting up sync alarm:', error);
   }
 }
 
-function initializeExtension(): void {
+async function triggerServerSyncIfEnabled(): Promise<void> {
+  try {
+    const settings = await getSettings();
+    if (!settings.serverEnabled || !settings.serverSessionToken) {
+      return;
+    }
+
+    const result = await serverSync.incrementalSync();
+    if (!result.success) {
+      console.error('Server sync failed:', result.message);
+    }
+  } catch (error) {
+    console.error('Server sync error:', error);
+  }
+}
+
+let initialized = false;
+
+async function initializeExtension(): Promise<void> {
+  if (initialized) return;
+  initialized = true;
+
   console.log('Initializing extension...');
 
   try {
+    await resumeIncompleteJobs();
     void startProcessingQueue();
 
-    void setupSyncAlarm().catch((err: unknown) => {
-      console.error('Error setting up sync alarm:', err);
-    });
+    void setupSyncAlarm();
 
-    triggerSyncIfEnabled().catch((err: unknown) => {
-      console.error('Initial WebDAV sync failed:', err);
-    });
+    void triggerServerSyncIfEnabled();
   } catch (error) {
     console.error('Error during initialization:', error);
     void startProcessingQueue();
@@ -59,7 +81,7 @@ function initializeExtension(): void {
 
 chrome.runtime.onInstalled.addListener((details) => {
   console.log('Extension installed/updated');
-  initializeExtension();
+  void initializeExtension();
 
   if (details.reason === 'install') {
     void chrome.tabs.create({
@@ -70,18 +92,18 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 chrome.runtime.onStartup.addListener(() => {
   console.log('Browser started, initializing');
-  initializeExtension();
+  void initializeExtension();
 });
 
-initializeExtension();
+void initializeExtension();
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === WEBDAV_SYNC_ALARM) {
-    console.log('WebDAV sync alarm triggered');
+  if (alarm.name === SERVER_SYNC_ALARM) {
+    console.log('Server sync alarm triggered');
     try {
-      await triggerSyncIfEnabled();
+      await triggerServerSyncIfEnabled();
     } catch (err) {
-      console.error('WebDAV sync alarm failed:', err);
+      console.error('Server sync alarm failed:', err);
     }
   }
 });
@@ -97,27 +119,6 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
   if (message.type === 'import:create_from_url_list') {
     handleBulkImport(message.urls)
       .then(sendResponse)
-      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
-    return true;
-  }
-
-  if (message.type === 'sync:trigger') {
-    performSync(true)
-      .then(sendResponse)
-      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
-    return true;
-  }
-
-  if (message.type === 'query:sync_status') {
-    getSyncStatus()
-      .then(sendResponse)
-      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
-    return true;
-  }
-
-  if (message.type === 'sync:update_settings') {
-    setupSyncAlarm()
-      .then(() => sendResponse({ success: true }))
       .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
     return true;
   }
@@ -149,11 +150,29 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
     return true;
   }
 
-  // IMPORTANT: Don't return false for offscreen document messages.
-  // These are handled by the offscreen document. Returning false closes the
-  // message port before the offscreen document can respond.
+  if (message.type === 'sync:trigger') {
+    serverSync.incrementalSync()
+      .then(sendResponse)
+      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
+    return true;
+  }
+
+  if (message.type === 'query:sync_status') {
+    serverSync.getSyncStatus()
+      .then(sendResponse)
+      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
+    return true;
+  }
+
+  if (message.type === 'sync:update_settings') {
+    setupSyncAlarm()
+      .then(() => sendResponse({ success: true }))
+      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
+    return true;
+  }
+
   if (message.type === 'extract:markdown_from_html' || message.type === 'offscreen:ping') {
-    return;  // Return undefined to keep port open for offscreen document
+    return;
   }
 
   // offscreen:ready is sent by the offscreen document when it loads - just acknowledge
@@ -191,6 +210,25 @@ chrome.commands.onCommand.addListener((command) => {
 
 async function handleSaveBookmark(data: { url: string; title: string; html: string }): Promise<SaveBookmarkResponse> {
   const { url, title, html } = data;
+  const settings = await getSettings();
+
+  const id = crypto.randomUUID();
+
+  if (settings.serverEnabled && settings.serverSessionToken && settings.serverUrl) {
+    try {
+      const apiClient = new ServerApiClient(settings.serverUrl, settings.serverSessionToken);
+      const serverResult = await apiClient.createBookmark({ url, title, html });
+      return { success: true, bookmarkId: serverResult.id };
+    } catch (error) {
+      console.warn('Server unreachable, queuing bookmark for offline sync:', error);
+      await serverSync.queueOfflineChange({
+        type: 'create',
+        bookmarkId: id,
+        data: { url, title, html },
+        timestamp: Date.now(),
+      });
+    }
+  }
 
   const existing = await db.bookmarks.where('url').equals(url).first();
 
@@ -207,7 +245,6 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
     return { success: true, bookmarkId: existing.id, updated: true };
   }
 
-  const id = crypto.randomUUID();
   const now = new Date();
 
   await db.bookmarks.add({
@@ -226,8 +263,6 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
 
 async function handleBulkImport(urls: string[]): Promise<StartBulkImportResponse> {
   if (__IS_CHROME__) {
-    // Dynamic import to enable tree-shaking of offscreen module in Firefox builds
-    const { ensureOffscreenDocument } = await import('../lib/offscreen');
     await ensureOffscreenDocument();
   }
 

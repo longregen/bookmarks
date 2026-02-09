@@ -1,17 +1,20 @@
-export interface UrlValidationResult {
+export function getHostname(url: string): string {
+  try { return new URL(url).hostname; } catch { return url; }
+}
+
+interface UrlValidationResult {
   valid: boolean;
   error?: string;
   warning?: string;
   normalizedUrl?: string;
 }
 
-export interface UrlValidationOptions {
+interface UrlValidationOptions {
   requireHttps?: boolean;
   allowedProtocols?: string[];
   requireTrailingSlash?: boolean;
   trimWhitespace?: boolean;
   autoAddProtocol?: boolean;
-  allowedSchemes?: string[];
   blockedSchemes?: Record<string, string>;
 }
 
@@ -23,7 +26,7 @@ const DEFAULT_BLOCKED_SCHEMES: Record<string, string> = {
 };
 
 // eslint-disable-next-line complexity
-export function validateUrl(url: string, options: UrlValidationOptions = {}): UrlValidationResult {
+function validateUrl(url: string, options: UrlValidationOptions = {}): UrlValidationResult {
   const {
     requireHttps = false,
     allowedProtocols = ['http:', 'https:'],
@@ -55,7 +58,7 @@ export function validateUrl(url: string, options: UrlValidationOptions = {}): Ur
   let urlObj: URL;
   try {
     urlObj = new URL(processedUrl);
-  } catch (_error) {
+  } catch {
     return { valid: false, error: 'Invalid URL format' };
   }
 
@@ -92,19 +95,6 @@ export function validateUrl(url: string, options: UrlValidationOptions = {}): Ur
     normalizedUrl,
     warning,
   };
-}
-
-export function validateWebDAVUrl(url: string, allowInsecure = false): UrlValidationResult {
-  if (!url) {
-    return { valid: false, error: 'WebDAV URL is not configured' };
-  }
-
-  return validateUrl(url, {
-    requireHttps: !allowInsecure,
-    allowedProtocols: ['http:', 'https:'],
-    trimWhitespace: true,
-    autoAddProtocol: false,
-  });
 }
 
 export function validateWebUrl(url: string): UrlValidationResult {

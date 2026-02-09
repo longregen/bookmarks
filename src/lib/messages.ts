@@ -1,6 +1,6 @@
 import type { EventData } from './events';
-
-// Retry payload with trigger information
+import type { ExtractedContent } from './extract';
+import type { SyncStatus } from './server-sync';
 export interface BookmarkRetryPayload {
   bookmarkId?: string;           // specific bookmark, or undefined for all failed
   trigger:
@@ -12,35 +12,19 @@ export interface BookmarkRetryPayload {
   attemptNumber?: number;
 }
 
-// Commands - requests for action
 export type Command =
-  // User-initiated
   | { type: 'user_request:capture_current_tab' }
-
-  // Bookmark operations
   | { type: 'bookmark:save_from_page'; data: { url: string; title: string; html: string } }
   | { type: 'bookmark:retry'; data: BookmarkRetryPayload }
-
-  // Import operations
   | { type: 'import:create_from_url_list'; urls: string[] }
-
-  // Browser operations (internal)
   | { type: 'extract:markdown_from_html'; html: string; url: string }
-
-  // Sync operations
   | { type: 'sync:trigger' }
   | { type: 'sync:update_settings' }
-
-  // Queries
   | { type: 'query:current_tab_info' }
   | { type: 'query:sync_status' }
   | { type: 'query:current_page_dom' }
-
-  // Offscreen document lifecycle (internal)
   | { type: 'offscreen:ready' }
   | { type: 'offscreen:ping' }
-
-  // Event broadcasting transport
   | { type: 'event:broadcast'; event: EventData };
 
 export type Message = Command;
@@ -69,12 +53,6 @@ export interface StartProcessingResponse {
   success: boolean;
 }
 
-export interface SyncStatus {
-  lastSyncTime: string | null;
-  lastSyncError: string | null;
-  isSyncing: boolean;
-}
-
 export interface TriggerSyncResponse {
   success: boolean;
   action?: 'uploaded' | 'downloaded' | 'no-change' | 'skipped' | 'error';
@@ -92,13 +70,6 @@ export interface FetchUrlResponse {
   success: boolean;
   html?: string;
   error?: string;
-}
-
-export interface ExtractedContent {
-  title: string;
-  content: string;
-  excerpt: string;
-  byline: string | null;
 }
 
 export interface ExtractContentResponse {
@@ -140,10 +111,6 @@ export type MessageResponse<T extends MessageType> =
   : T extends 'offscreen:ping' ? OffscreenReadyResponse
   : T extends 'event:broadcast' ? undefined
   : never;
-
-export type MessageHandler<T extends MessageType> = (
-  message: MessageOfType<T>
-) => Promise<MessageResponse<T>>;
 
 export async function sendMessage<T extends MessageType>(
   message: MessageOfType<T>

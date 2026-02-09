@@ -1,5 +1,6 @@
 import { config } from './config-registry';
 import type { GetPageHtmlResponse } from './messages';
+import { sleep } from './time';
 
 export interface CapturedPage {
   html: string;
@@ -14,11 +15,6 @@ async function startKeepalive(): Promise<void> {
 
 async function stopKeepalive(): Promise<void> {
   await chrome.alarms.clear(KEEPALIVE_ALARM_NAME);
-}
-
-async function sleep(ms: number): Promise<void> {
-  if (ms <= 0) return;
-  return new Promise(resolve => { setTimeout(resolve, ms); });
 }
 
 export async function renderPage(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<CapturedPage> {
@@ -40,8 +36,8 @@ export async function renderPage(url: string, timeoutMs: number = config.FETCH_T
 
     await waitForTabLoad(tabId, timeoutMs);
 
-    const settleTimeMs = config.PAGE_SETTLE_TIME_MS || 2000;
-    const maxMultiplier = config.PAGE_SETTLE_MAX_MULTIPLIER || 3;
+    const settleTimeMs = config.PAGE_SETTLE_TIME_MS;
+    const maxMultiplier = config.PAGE_SETTLE_MAX_MULTIPLIER;
     const { html, title } = await executeExtraction(tabId, settleTimeMs, maxMultiplier);
 
     if (html.length > config.FETCH_MAX_HTML_SIZE) {
@@ -60,7 +56,6 @@ export async function renderPage(url: string, timeoutMs: number = config.FETCH_T
       }
     }
 
-    // Add delay between tab operations to prevent browser overload during bulk imports
     const delayMs = config.TAB_CREATION_DELAY_MS;
     if (delayMs > 0) {
       await sleep(delayMs);
@@ -102,19 +97,17 @@ async function waitForTabLoad(tabId: number, timeoutMs: number): Promise<void> {
 }
 
 async function executeExtraction(tabId: number, settleTimeMs: number, maxMultiplier: number): Promise<CapturedPage> {
-  // Firefox doesn't allow chrome.scripting.executeScript() on programmatically created tabs
-  // Use message passing to content script instead
   if (__IS_FIREFOX__) {
     return executeExtractionViaMessage(tabId, settleTimeMs);
   }
 
+  // Function must be inline: executeScript serializes it to run in the target tab's isolated context
   const results = await chrome.scripting.executeScript({
     target: { tabId },
     func: (settleMs: number, multiplier: number) => new Promise<{ html: string; title: string }>((resolve) => {
         let settleTimeout: ReturnType<typeof setTimeout>;
         const maxWaitMs = settleMs * multiplier;
 
-        // Hard timeout to prevent hanging on pages with continuous DOM mutations
         const maxTimeout = setTimeout(() => {
           observer.disconnect();
           resolve({
@@ -156,7 +149,7 @@ async function executeExtraction(tabId: number, settleTimeMs: number, maxMultipl
   });
 
   const result = results[0]?.result;
-  if (results.length === 0 || result === undefined || result.html === undefined || result.html === '') {
+  if (result?.html === undefined || result.html === '') {
     throw new Error('Failed to extract HTML from page');
   }
 
@@ -164,7 +157,6 @@ async function executeExtraction(tabId: number, settleTimeMs: number, maxMultipl
 }
 
 async function executeExtractionViaMessage(tabId: number, settleTimeMs: number): Promise<CapturedPage> {
-  // Wait for page to settle before extracting
   await sleep(settleTimeMs);
 
   const response: GetPageHtmlResponse | undefined = await chrome.tabs.sendMessage(tabId, { type: 'query:current_page_dom' });
@@ -173,7 +165,6 @@ async function executeExtractionViaMessage(tabId: number, settleTimeMs: number):
     throw new Error(response?.error ?? 'Failed to extract HTML from page via message');
   }
 
-  // Get title from the tab
   const tab = await chrome.tabs.get(tabId);
   const title = tab.title ?? '';
 

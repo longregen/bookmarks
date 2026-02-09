@@ -1,7 +1,7 @@
 import { db, JobItemStatus, type Bookmark } from '../db/schema';
 import { fetchBookmarkHtml, processBookmarkContent } from './processor';
 import { getErrorMessage } from '../lib/errors';
-import { triggerSyncIfEnabled } from '../lib/webdav-sync';
+import { serverSync } from '../lib/server-sync';
 import { config } from '../lib/config-registry';
 import {
   updateJobItemByBookmark,
@@ -9,21 +9,11 @@ import {
   updateJobStatus,
 } from '../lib/jobs';
 import { events } from '../lib/events';
+import { sleep } from '../lib/time';
 
 let isProcessing = false;
 
-function calculateBackoffDelay(retryCount: number): number {
-  const baseDelay = config.QUEUE_RETRY_BASE_DELAY_MS;
-  const maxDelay = config.QUEUE_RETRY_MAX_DELAY_MS;
-  const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay);
-  return delay + Math.random() * delay * 0.25;
-}
-
-async function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => { setTimeout(resolve, ms); });
-}
-
-async function fetchSingleBookmark(bookmark: Bookmark): Promise<{ success: boolean; bookmark: Bookmark }> {
+async function fetchSingleBookmark(bookmark: Bookmark): Promise<boolean> {
   const currentRetryCount = bookmark.retryCount ?? 0;
   const maxRetries = config.QUEUE_MAX_RETRIES;
 
@@ -33,13 +23,14 @@ async function fetchSingleBookmark(bookmark: Bookmark): Promise<{ success: boole
     const fetchedBookmark = await fetchBookmarkHtml(bookmark);
 
     console.log(`[Queue] Downloaded: ${fetchedBookmark.title}`);
-    return { success: true, bookmark: fetchedBookmark };
+    return true;
   } catch (error) {
     const errorMessage = getErrorMessage(error);
     console.error(`[Queue] Fetch error for ${bookmark.url}:`, errorMessage);
 
     if (currentRetryCount < maxRetries) {
       const newRetryCount = currentRetryCount + 1;
+
       await db.bookmarks.update(bookmark.id, {
         status: 'fetching',
         retryCount: newRetryCount,
@@ -67,7 +58,7 @@ async function fetchSingleBookmark(bookmark: Bookmark): Promise<{ success: boole
       }
     }
 
-    return { success: false, bookmark };
+    return false;
   }
 }
 
@@ -93,11 +84,10 @@ async function processFetchQueue(): Promise<void> {
       bookmarksToFetch.map(bookmark => fetchSingleBookmark(bookmark))
     );
 
-    const successCount = results.filter(r => r.success).length;
-    const failureCount = results.filter(r => !r.success).length;
+    const successCount = results.filter(r => r).length;
+    const failureCount = results.length - successCount;
     console.log(`[Queue] Batch complete: ${successCount} succeeded, ${failureCount} failed/retrying`);
 
-    // Small delay between batches to avoid overwhelming the system
     if (bookmarksToFetch.length === concurrency) {
       await sleep(100);
     }
@@ -161,7 +151,10 @@ async function processContentQueue(): Promise<void> {
 
       if (currentRetryCount < maxRetries) {
         const newRetryCount = currentRetryCount + 1;
-        const backoffDelay = calculateBackoffDelay(currentRetryCount);
+        const baseDelay = config.QUEUE_RETRY_BASE_DELAY_MS;
+        const maxDelay = config.QUEUE_RETRY_MAX_DELAY_MS;
+        const delay = Math.min(baseDelay * Math.pow(2, currentRetryCount), maxDelay);
+        const backoffDelay = delay + Math.random() * delay * 0.25;
 
         console.log(`[Queue] Retrying ${bookmark.id} in ${Math.round(backoffDelay)}ms (attempt ${newRetryCount + 1}/${maxRetries + 1})`);
 
@@ -206,26 +199,28 @@ async function processContentQueue(): Promise<void> {
   }
 }
 
+let pendingRestart = false;
+
 export async function startProcessingQueue(): Promise<void> {
   if (isProcessing) {
-    console.log('[Queue] Already processing, skipping');
+    pendingRestart = true;
     return;
   }
 
   isProcessing = true;
-  console.log('[Queue] Starting processing queue');
 
   try {
-    // Phase 1: Parallel fetch - download HTML for all 'fetching' bookmarks
-    await processFetchQueue();
+    do {
+      pendingRestart = false;
+      await processFetchQueue();
+      await processContentQueue();
+    } while (pendingRestart);
 
-    // Phase 2: Sequential content processing - process 'downloaded' and 'pending' bookmarks
-    await processContentQueue();
-
-    // Trigger WebDAV sync after queue is empty
-    triggerSyncIfEnabled().catch((err: unknown) => {
-      console.error('[Queue] WebDAV sync after queue empty failed:', err);
-    });
+    try {
+      await serverSync.incrementalSync();
+    } catch (err: unknown) {
+      console.error('[Queue] Server sync after queue empty failed:', err);
+    }
   } finally {
     isProcessing = false;
   }
