@@ -286,7 +286,10 @@
         packages = {
           chrome = buildExtension "chrome";
           firefox = buildExtension "firefox";
-          server = pkgs.callPackage ./nix/server-package.nix { };
+          server-vendor = pkgs.callPackage ./nix/server-vendor.nix { };
+          server = pkgs.callPackage ./nix/server-package.nix {
+            serverVendor = self.packages.${system}.server-vendor;
+          };
           default = buildExtension "firefox";
         };
 

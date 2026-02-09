@@ -1,16 +1,17 @@
-{ runCommand, lib }:
+{ runCommand, lib, serverVendor }:
 
 runCommand "bookmark-rag-server-src"
 {
   src = lib.cleanSourceWith {
     src = ../server;
-    filter = path: type:
+    filter = path: _type:
       let baseName = builtins.baseNameOf path; in
       !(builtins.elem baseName [
         "node_modules"
         ".wrangler"
         "data"
         ".env"
+        "vendor"
       ]);
   };
   meta = {
@@ -20,4 +21,6 @@ runCommand "bookmark-rag-server-src"
 }
 ''
   cp -r $src $out
+  chmod -R u+w $out
+  cp -r ${serverVendor} $out/vendor
 ''
