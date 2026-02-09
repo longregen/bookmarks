@@ -19,6 +19,5 @@ runCommand "bookmark-rag-server-src"
   };
 }
 ''
-  mkdir -p $out/src
-  cp -r $src/* $out/src/
+  cp -r $src $out
 ''

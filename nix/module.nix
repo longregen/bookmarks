@@ -106,10 +106,12 @@ in
 
         DynamicUser = true;
         StateDirectory = "bookmark-rag";
-        WorkingDirectory = "${cfg.package}/src";
+        WorkingDirectory = "${cfg.package}";
       } // lib.optionalAttrs (cfg.environmentFile != null) {
         EnvironmentFile = cfg.environmentFile;
       } // {
+        ReadWritePaths = [ cfg.dataDir ];
+
         # Hardening
         NoNewPrivileges = true;
         ProtectSystem = "strict";
