@@ -210,25 +210,6 @@ chrome.commands.onCommand.addListener((command) => {
 
 async function handleSaveBookmark(data: { url: string; title: string; html: string }): Promise<SaveBookmarkResponse> {
   const { url, title, html } = data;
-  const settings = await getSettings();
-
-  const id = crypto.randomUUID();
-
-  if (settings.serverEnabled && settings.serverSessionToken && settings.serverUrl) {
-    try {
-      const apiClient = new ServerApiClient(settings.serverUrl, settings.serverSessionToken);
-      const serverResult = await apiClient.createBookmark({ url, title, html });
-      return { success: true, bookmarkId: serverResult.id };
-    } catch (error) {
-      console.warn('Server unreachable, queuing bookmark for offline sync:', error);
-      await serverSync.queueOfflineChange({
-        type: 'create',
-        bookmarkId: id,
-        data: { url, title, html },
-        timestamp: Date.now(),
-      });
-    }
-  }
 
   const existing = await db.bookmarks.where('url').equals(url).first();
 
@@ -242,9 +223,11 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
     });
 
     void startProcessingQueue();
+    void syncBookmarkToServer({ url, title, html }, existing.id);
     return { success: true, bookmarkId: existing.id, updated: true };
   }
 
+  const id = crypto.randomUUID();
   const now = new Date();
 
   await db.bookmarks.add({
@@ -258,7 +241,28 @@ async function handleSaveBookmark(data: { url: string; title: string; html: stri
   });
 
   void startProcessingQueue();
+  void syncBookmarkToServer({ url, title, html }, id);
   return { success: true, bookmarkId: id };
+}
+
+async function syncBookmarkToServer(data: { url: string; title: string; html: string }, bookmarkId: string): Promise<void> {
+  try {
+    const settings = await getSettings();
+    if (!settings.serverEnabled || !settings.serverSessionToken || !settings.serverUrl) {
+      return;
+    }
+
+    const apiClient = new ServerApiClient(settings.serverUrl, settings.serverSessionToken);
+    await apiClient.createBookmark(data);
+  } catch (error) {
+    console.warn('Server unreachable, queuing bookmark for offline sync:', error);
+    await serverSync.queueOfflineChange({
+      type: 'create',
+      bookmarkId,
+      data,
+      timestamp: Date.now(),
+    });
+  }
 }
 
 async function handleBulkImport(urls: string[]): Promise<StartBulkImportResponse> {
