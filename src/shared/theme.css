@@ -1,36 +1,44 @@
 :root {
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-7: 32px;
-  --space-8: 40px;
-  --space-9: 48px;
-  --space-10: 64px;
+  /* Golden Ratio Design System
+   * φ (phi) = 1.618033988749895
+   * √φ = 1.272019649514069
+   * Spacing: Fibonacci sequence (each value ≈ previous × φ)
+   * Typography: √φ modular scale from 14px base
+   * Line heights: φ-derived proportions */
+
+  --space-1: 3px;
+  --space-2: 5px;
+  --space-3: 8px;
+  --space-4: 13px;
+  --space-5: 21px;
+  --space-6: 26px;
+  --space-7: 34px;
+  --space-8: 44px;
+  --space-9: 55px;
+  --space-10: 72px;
 
   --text-xs: 11px;
   --text-sm: 13px;
   --text-base: 14px;
-  --text-md: 16px;
-  --text-lg: 20px;
-  --text-xl: 24px;
-  --text-2xl: 28px;
+  --text-md: 18px;
+  --text-lg: 23px;
+  --text-xl: 29px;
+  --text-2xl: 37px;
+  --text-3xl: 47px;
 
   --font-normal: 400;
   --font-medium: 500;
   --font-semibold: 600;
   --font-bold: 700;
 
-  --leading-tight: 1.25;
-  --leading-normal: 1.5;
-  --leading-relaxed: 1.65;
+  --leading-tight: 1.272;
+  --leading-normal: 1.414;
+  --leading-relaxed: 1.618;
 
-  --radius-sm: 4px;
-  --radius-md: 6px;
+  --radius-sm: 3px;
+  --radius-md: 5px;
   --radius-lg: 8px;
-  --radius-xl: 12px;
+  --radius-xl: 13px;
 
   --transition-fast: 150ms ease;
   --transition-base: 200ms ease;
@@ -443,7 +451,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-5);
+  padding: var(--space-3) var(--space-4);
   border: none;
   border-radius: var(--radius-md);
   font-size: var(--text-base);
@@ -482,7 +490,7 @@
 }
 
 .btn--lg {
-  padding: var(--space-4) var(--space-7);
+  padding: var(--space-4) var(--space-5);
   font-size: var(--text-md);
   border-radius: var(--radius-lg);
 }
