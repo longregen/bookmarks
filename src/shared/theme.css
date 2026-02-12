@@ -2,20 +2,23 @@
   /* Golden Ratio Design System
    * φ (phi) = 1.618033988749895
    * √φ = 1.272019649514069
-   * Spacing: Fibonacci sequence (each value ≈ previous × φ)
+   * Spacing: dual-stranded golden scale — Fibonacci (3,5,8,13,21,34,55)
+   *   with √φ half-steps (27,43,70) between non-adjacent pairs
    * Typography: √φ modular scale from 14px base
-   * Line heights: φ-derived proportions */
+   * Line heights: φ-derived (√φ, √2, φ)
+   * Border radius: Fibonacci (3,5,8,13) — ratios converge to φ
+   * Button padding: H/V ≈ φ (Fibonacci pairs: 8/13, 5/8, 13/21) */
 
   --space-1: 3px;
   --space-2: 5px;
   --space-3: 8px;
   --space-4: 13px;
   --space-5: 21px;
-  --space-6: 26px;
+  --space-6: 27px;
   --space-7: 34px;
-  --space-8: 44px;
+  --space-8: 43px;
   --space-9: 55px;
-  --space-10: 72px;
+  --space-10: 70px;
 
   --text-xs: 11px;
   --text-sm: 13px;
