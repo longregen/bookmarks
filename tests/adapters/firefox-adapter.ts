@@ -92,7 +92,7 @@ export class FirefoxAdapter implements TestAdapter {
     return new SeleniumPageHandle(this.driver!);
   }
 
-  getPageUrl(pageName: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs' | 'status'): string {
+  getPageUrl(pageName: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs' | 'status' | 'view'): string {
     const paths: Record<string, string> = {
       library: '/src/library/library.html',
       search: '/src/search/search.html',
@@ -100,6 +100,7 @@ export class FirefoxAdapter implements TestAdapter {
       stumble: '/src/stumble/stumble.html',
       jobs: '/src/jobs/jobs.html',
       status: '/src/status/status.html',
+      view: '/src/view/view.html',
       popup: '/src/popup/popup.html',
       index: '/src/popup/popup.html', // Firefox extension uses popup as main entry
     };

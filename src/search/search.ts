@@ -10,7 +10,6 @@ import { initExtension } from '../ui/init-extension';
 import { initWebWithAuth } from '../web/init-web';
 import { createHealthIndicator } from '../ui/health-indicator';
 import { createSyncStatusIndicator } from '../ui/sync-status-indicator';
-import { BookmarkDetailManager } from '../ui/bookmark-detail';
 import { loadTagFilters } from '../ui/tag-filter';
 import { config } from '../lib/config-registry';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
@@ -99,23 +98,9 @@ const resultHeader = getElement('resultHeader');
 
 searchPage.classList.add('search-page--centered');
 
-const detailPanel = getElement('detailPanel');
-const detailBackdrop = getElement('detailBackdrop');
-const detailContent = getElement('detailContent');
-
-const detailManager = new BookmarkDetailManager({
-  detailPanel,
-  detailBackdrop,
-  detailContent,
-  closeBtn: getElement<HTMLButtonElement>('closeDetailBtn'),
-  deleteBtn: getElement<HTMLButtonElement>('deleteBtn'),
-  exportBtn: getElement<HTMLButtonElement>('exportBtn'),
-  debugBtn: getElement<HTMLButtonElement>('debugBtn'),
-  retryBtn: getElement<HTMLButtonElement>('retryBtn'),
-  onDelete: () => void performSearch(),
-  onTagsChange: () => void loadFilters(),
-  onRetry: () => void performSearch()
-});
+function navigateToView(bookmarkId: string): void {
+  window.location.href = `../view/view.html?id=${encodeURIComponent(bookmarkId)}`;
+}
 
 searchBtn.addEventListener('click', () => void performSearch());
 searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') void performSearch(); });
@@ -330,7 +315,7 @@ async function renderServerResults(results: ServerSearchResult[], query: string)
 
   const fragment = document.createDocumentFragment();
   for (const { bookmark, score, qa } of filteredResults) {
-    const card = buildResultCard(bookmark, score, qa, () => detailManager.showDetail(bookmark.id));
+    const card = buildResultCard(bookmark, score, qa, () => navigateToView(bookmark.id));
     fragment.appendChild(card);
   }
   resultsList.replaceChildren(fragment);
@@ -450,7 +435,7 @@ async function performSearch(): Promise<void> {
     for (const { bookmark, qaResults, maxScore } of filteredResults) {
       const bestQA = qaResults.reduce((best, curr) => curr.score > best.score ? curr : best).qa;
 
-      const card = buildResultCard(bookmark, maxScore, bestQA, () => detailManager.showDetail(bookmark.id));
+      const card = buildResultCard(bookmark, maxScore, bestQA, () => navigateToView(bookmark.id));
       fragment.appendChild(card);
     }
     resultsList.replaceChildren(fragment);

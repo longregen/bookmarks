@@ -26,20 +26,27 @@
       <div id="viewLoading" class="view-loading">Loading...</div>
       <div id="viewError" class="view-error hidden"></div>
       <div id="viewContent" class="view-content hidden">
-        <div class="view-header">
-          <a id="backLink" href="../library/library.html" class="btn btn-secondary btn-back">← Back</a>
-          <div class="view-meta">
-            <h1 id="viewTitle" class="view-title"></h1>
-            <div id="viewUrl" class="view-url-line"></div>
+        <div class="view-toolbar">
+          <button id="backBtn" class="btn btn-secondary">← Back</button>
+          <div class="view-actions">
+            <button id="retryBtn" class="btn btn-primary hidden">Retry</button>
+            <button id="debugBtn" class="btn btn-secondary">Debug</button>
+            <button id="exportBtn" class="btn btn-secondary">Export</button>
+            <button id="deleteBtn" class="btn btn-danger">Delete</button>
           </div>
         </div>
+        <h1 id="viewTitle" class="view-title"></h1>
+        <div id="viewMeta" class="view-url-line"></div>
+        <div id="tagEditorContainer"></div>
         <div id="summarySection" class="view-summary hidden">
           <h2 class="view-summary-heading">Summary</h2>
           <div id="summaryContent" class="view-summary-content"></div>
         </div>
-        <div class="view-screenshot-container">
+        <div id="screenshotSection" class="view-screenshot-container hidden">
           <iframe id="screenshotFrame" class="view-screenshot-frame" sandbox="allow-same-origin" title="Page screenshot"></iframe>
         </div>
+        <div id="markdownSection"></div>
+        <div id="qaSection"></div>
       </div>
     </main>
   </div>

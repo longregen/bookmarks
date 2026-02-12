@@ -81,14 +81,7 @@ export class BookmarkDetailManager {
       style: { color: 'var(--accent-link)' }
     });
     meta.appendChild(url);
-    meta.appendChild(document.createTextNode(` · ${formatDateByAge(bookmark.createdAt)} · ${bookmark.status} · `));
-
-    const viewLink = createElement('a', {
-      href: `../view/view.html?id=${encodeURIComponent(bookmarkId)}`,
-      textContent: 'View Page',
-      style: { color: 'var(--accent-link)' }
-    });
-    meta.appendChild(viewLink);
+    meta.appendChild(document.createTextNode(` · ${formatDateByAge(bookmark.createdAt)} · ${bookmark.status}`));
 
     // Show error message if present
     if (bookmark.status === 'error' && bookmark.errorMessage !== undefined && bookmark.errorMessage !== '') {

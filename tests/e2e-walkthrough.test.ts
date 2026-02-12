@@ -509,23 +509,25 @@ async function scene05_libraryOverview(ctx: WalkthroughContext): Promise<void> {
   }
 }
 
-async function scene06_detailPanel(ctx: WalkthroughContext): Promise<void> {
-  console.log('\n📽️  Scene 6: Detail Panel\n');
+async function scene06_viewPage(ctx: WalkthroughContext): Promise<void> {
+  console.log('\n📽️  Scene 6: View Page\n');
 
   await ctx.page.goto(ctx.adapter.getPageUrl('library'));
   await ctx.page.waitForSelector('#bookmarkList');
   await ctx.page.waitForFunction(`document.querySelectorAll('.bookmark-card').length > 0`, 30000);
   await pause(300);
 
+  // Click a bookmark card — navigates to the view page
   await ctx.page.evaluate(`document.querySelector('.bookmark-card').click()`);
 
+  await ctx.page.waitForSelector('#viewContent', 10000);
   await ctx.page.waitForFunction(
-    `document.getElementById('detailPanel')?.classList.contains('active')`,
+    `!document.getElementById('viewContent')?.classList.contains('hidden')`,
     10000
   );
   await pause(500);
-  await capture(ctx, 'detail-panel-open');
-  await capture(ctx, 'detail-panel-content', true);
+  await capture(ctx, 'view-page-open');
+  await capture(ctx, 'view-page-content', true);
 
   // Add a tag via the tag editor
   await ctx.page.waitForSelector('.tag-editor input[placeholder="Type to add tag..."]', 10000);
@@ -544,7 +546,7 @@ async function scene06_detailPanel(ctx: WalkthroughContext): Promise<void> {
     `document.querySelector('.tag-editor .tag-pill') !== null`,
     10000
   );
-  await capture(ctx, 'detail-panel-tag-added');
+  await capture(ctx, 'view-page-tag-added');
 
   const hasExportBtn = await ctx.page.$('#exportBtn');
   if (hasExportBtn) {
@@ -561,7 +563,7 @@ async function scene06_detailPanel(ctx: WalkthroughContext): Promise<void> {
 
     const hasExportMenu = await ctx.page.$('.export-format-menu');
     if (hasExportMenu) {
-      await capture(ctx, 'detail-panel-export-menu');
+      await capture(ctx, 'view-page-export-menu');
       await ctx.page.evaluate(`
         (() => {
           const menu = document.querySelector('.export-format-menu');
@@ -571,18 +573,11 @@ async function scene06_detailPanel(ctx: WalkthroughContext): Promise<void> {
     }
   }
 
-  await ctx.page.evaluate(`
-    (() => {
-      const backdrop = document.getElementById('detailBackdrop');
-      if (backdrop) backdrop.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    })()
-  `);
-  await ctx.page.waitForFunction(
-    `!document.getElementById('detailPanel')?.classList.contains('active')`,
-    10000
-  );
+  // Navigate back to library
+  await ctx.page.click('#backBtn');
+  await ctx.page.waitForSelector('#bookmarkList', 10000);
   await pause(300);
-  await capture(ctx, 'detail-panel-closed');
+  await capture(ctx, 'view-page-back-to-library');
 }
 
 async function scene07_search(ctx: WalkthroughContext): Promise<void> {
@@ -773,12 +768,14 @@ async function scene13_deleteCleanup(ctx: WalkthroughContext): Promise<void> {
   await ctx.page.waitForFunction(`document.querySelectorAll('.bookmark-card').length > 0`, 30000);
   await capture(ctx, 'delete-initial-state');
 
+  // Click a bookmark card — navigates to view page
   await ctx.page.evaluate(`document.querySelector('.bookmark-card').click()`);
+  await ctx.page.waitForSelector('#viewContent', 10000);
   await ctx.page.waitForFunction(
-    `document.getElementById('detailPanel')?.classList.contains('active')`,
+    `!document.getElementById('viewContent')?.classList.contains('hidden')`,
     10000
   );
-  await capture(ctx, 'delete-detail-open');
+  await capture(ctx, 'delete-view-open');
 
   await ctx.page.evaluate(`window.confirm = () => true`);
 
@@ -792,10 +789,8 @@ async function scene13_deleteCleanup(ctx: WalkthroughContext): Promise<void> {
     })()
   `);
 
-  await ctx.page.waitForFunction(
-    `!document.getElementById('detailPanel')?.classList.contains('active')`,
-    10000
-  );
+  // Delete navigates back to library
+  await ctx.page.waitForSelector('#bookmarkList', 10000);
   await pause(500);
   await capture(ctx, 'delete-completed');
 }
@@ -865,7 +860,7 @@ async function runWalkthrough(
     await scene03_popupFlow(ctx);
     await scene04_bulkImport(ctx);
     await scene05_libraryOverview(ctx);
-    await scene06_detailPanel(ctx);
+    await scene06_viewPage(ctx);
     await scene07_search(ctx);
     await scene08_stumble(ctx);
     await scene09_jobs(ctx);

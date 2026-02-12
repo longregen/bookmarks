@@ -2680,41 +2680,32 @@ input[type="number"]:focus {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-  flex: 1;
-  min-height: 0;
 }
 
-.view-header {
+.view-toolbar {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
-.view-meta {
+.view-actions {
   display: flex;
-  flex-direction: column;
   gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .view-title {
   font-size: var(--text-xl);
   font-weight: var(--font-bold);
   color: var(--text-primary);
-  margin-bottom: 0;
+  margin: 0;
 }
 
 .view-url-line {
   font-size: var(--text-sm);
   color: var(--text-tertiary);
-}
-
-.view-url-link {
-  color: var(--accent-link);
-  text-decoration: none;
-}
-
-.view-url-link:hover {
-  text-decoration: underline;
 }
 
 .view-summary {
@@ -2739,7 +2730,6 @@ input[type="number"]:focus {
 }
 
 .view-screenshot-container {
-  flex: 1;
   min-height: 500px;
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-lg);

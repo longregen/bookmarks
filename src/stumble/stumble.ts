@@ -7,7 +7,6 @@ import { onThemeChange, applyTheme } from '../shared/theme';
 import { initExtension } from '../ui/init-extension';
 import { initWebWithAuth } from '../web/init-web';
 import { createHealthIndicator } from '../ui/health-indicator';
-import { BookmarkDetailManager } from '../ui/bookmark-detail';
 import { loadTagFilters } from '../ui/tag-filter';
 import { config } from '../lib/config-registry';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
@@ -30,23 +29,9 @@ const stumbleList = getElement('stumbleList');
 const shuffleBtn = getElement<HTMLButtonElement>('shuffleBtn');
 const resultCount = getElement('resultCount');
 
-const detailPanel = getElement('detailPanel');
-const detailBackdrop = getElement('detailBackdrop');
-const detailContent = getElement('detailContent');
-
-const detailManager = new BookmarkDetailManager({
-  detailPanel,
-  detailBackdrop,
-  detailContent,
-  closeBtn: getElement<HTMLButtonElement>('closeDetailBtn'),
-  deleteBtn: getElement<HTMLButtonElement>('deleteBtn'),
-  exportBtn: getElement<HTMLButtonElement>('exportBtn'),
-  debugBtn: getElement<HTMLButtonElement>('debugBtn'),
-  retryBtn: getElement<HTMLButtonElement>('retryBtn'),
-  onDelete: () => void loadStumble(),
-  onTagsChange: () => void loadFilters(),
-  onRetry: () => void loadStumble()
-});
+function navigateToView(bookmarkId: string): void {
+  window.location.href = `../view/view.html?id=${encodeURIComponent(bookmarkId)}`;
+}
 
 shuffleBtn.addEventListener('click', () => void loadStumble());
 
@@ -104,7 +89,7 @@ async function loadStumble(): Promise<void> {
       const markdownContent = markdownByBookmark.get(bookmark.id);
 
       const card = createElement('div', { className: 'stumble-card' });
-      card.onclick = () => detailManager.showDetail(bookmark.id);
+      card.onclick = () => navigateToView(bookmark.id);
 
       const header = createElement('div', { className: 'card-header' });
       header.appendChild(createElement('div', { className: 'card-title', textContent: bookmark.title }));
