@@ -36,7 +36,7 @@
               !(builtins.elem baseName [ "node_modules" "dist-chrome" "dist-firefox" "dist-web" "coverage" ".git" "screenshots" ]);
           };
 
-          npmDepsHash = "sha256-pJE5ExsA2d2tgPELh0HFAycU8LZ90e8HcETXrmUoFts=";
+          npmDepsHash = lib.fakeHash; # needs recompute after package-lock.json version sync
 
           nativeBuildInputs = with pkgs; [ nodejs_22 zip ];
 
