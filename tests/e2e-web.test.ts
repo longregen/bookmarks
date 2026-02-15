@@ -390,6 +390,25 @@ async function scene07_settings(
   }
   console.log('  Server sync section visible');
 
+  // Sync Up: upload all local bookmarks to server
+  const syncUpBtnExists = await page.$('#serverSyncUpBtn');
+  if (syncUpBtnExists) {
+    await page.click('#serverSyncUpBtn');
+    await pause(50);
+    await capture(page, counter, 'settings-sync-uploading');
+
+    await page.waitForFunction(
+      `(() => {
+        const btn = document.getElementById('serverSyncUpBtn');
+        return btn && !btn.disabled && btn.textContent?.trim() === 'Sync Up';
+      })()`,
+      30000
+    );
+    await pause(300);
+    await capture(page, counter, 'settings-sync-uploaded');
+    console.log('  Sync Up completed');
+  }
+
   await page.click('a[data-section="bulk-import"]');
   await pause(500);
   await capture(page, counter, 'settings-bulk-import');

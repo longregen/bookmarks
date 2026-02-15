@@ -150,8 +150,22 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
     return true;
   }
 
+  if (message.type === 'bookmark:reprocess_all') {
+    handleReprocessAll()
+      .then(sendResponse)
+      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
+    return true;
+  }
+
   if (message.type === 'sync:trigger') {
     serverSync.incrementalSync()
+      .then(sendResponse)
+      .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
+    return true;
+  }
+
+  if (message.type === 'sync:upload_all') {
+    serverSync.uploadAllBookmarks()
       .then(sendResponse)
       .catch((error: unknown) => sendResponse({ success: false, error: getErrorMessage(error) }));
     return true;
@@ -263,6 +277,30 @@ async function syncBookmarkToServer(data: { url: string; title: string; html: st
       timestamp: Date.now(),
     });
   }
+}
+
+async function handleReprocessAll(): Promise<{ success: boolean; count: number }> {
+  let count = 0;
+
+  await db.transaction('rw', db.bookmarks, async () => {
+    const bookmarks = await db.bookmarks
+      .where('status')
+      .anyOf(['complete', 'error'])
+      .toArray();
+
+    count = bookmarks.length;
+    for (const b of bookmarks) {
+      await db.bookmarks.update(b.id, {
+        status: 'pending',
+        retryCount: 0,
+        errorMessage: undefined,
+        updatedAt: new Date(),
+      });
+    }
+  });
+
+  void startProcessingQueue();
+  return { success: true, count };
 }
 
 async function handleBulkImport(urls: string[]): Promise<StartBulkImportResponse> {

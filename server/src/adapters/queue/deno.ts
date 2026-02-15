@@ -18,6 +18,12 @@ export class DenoQueue implements Queue {
     this.consumer = consumer;
   }
 
+  async sendBatch(messages: QueueMessage[]): Promise<void> {
+    for (const message of messages) {
+      await this.send(message);
+    }
+  }
+
   async send(message: QueueMessage): Promise<void> {
     const exists = this.queue.some(
       (item) => item.message.bookmarkId === message.bookmarkId && item.message.action === message.action

@@ -99,6 +99,18 @@ export function createBookmarkRoutes(deps: AppDependencies): Hono<{ Variables: A
     return c.json(response);
   });
 
+  // POST /api/v1/bookmarks/reprocess - Queue all bookmarks for reprocessing
+  bookmarks.post('/reprocess', async (c) => {
+    const auth = getAuth(c);
+
+    const rows = await deps.db.prepare<{ id: string }>('SELECT id FROM bookmarks WHERE user_id = ? AND deleted_at IS NULL').bind(auth.userId).all();
+
+    const messages = rows.map(row => ({ bookmarkId: row.id, userId: auth.userId, action: 'reprocess' as const }));
+    await deps.queue.sendBatch(messages);
+
+    return c.json({ queued: rows.length });
+  });
+
   // GET /api/v1/bookmarks/:id - Get single bookmark with full content
   bookmarks.get('/:id', async (c) => {
     const auth = getAuth(c);

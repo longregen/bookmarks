@@ -1,4 +1,4 @@
-import { db, type Bookmark, type Markdown, type BookmarkTag } from '../db/schema';
+import { db, type Bookmark, type Markdown, type BookmarkTag, JobType, JobStatus } from '../db/schema';
 import { getSettings, saveSetting } from './settings';
 import { events } from './events';
 import { getErrorMessage } from './errors';
@@ -8,7 +8,9 @@ import {
   type ServerBookmark,
   type ServerBookmarkFull,
   type SyncChange,
+  type FullSyncUploadRequest,
 } from './server-api';
+import { createJob } from './jobs';
 
 type SyncAction = 'full_sync' | 'incremental_sync' | 'no_change';
 
@@ -398,6 +400,68 @@ export class ServerSyncManager {
       }
       console.error('Failed to fetch bookmark content:', getErrorMessage(error));
       return null;
+    }
+  }
+
+  async uploadAllBookmarks(): Promise<{ success: boolean; jobId: string; message: string }> {
+    if (!(await this.isServerEnabled())) {
+      return { success: false, jobId: '', message: 'Server sync not enabled' };
+    }
+
+    const job = await createJob({
+      type: JobType.SYNC_UPLOAD,
+      status: JobStatus.IN_PROGRESS,
+    });
+
+    try {
+      const allBookmarks = await db.bookmarks.toArray();
+      if (allBookmarks.length === 0) {
+        await db.jobs.update(job.id, { status: JobStatus.COMPLETED });
+        return { success: true, jobId: job.id, message: 'No bookmarks to upload' };
+      }
+
+      const allTags = await db.bookmarkTags.toArray();
+      const tagsByBookmark = new Map<string, string[]>();
+      for (const tag of allTags) {
+        const tags = tagsByBookmark.get(tag.bookmarkId) ?? [];
+        tags.push(tag.tagName);
+        tagsByBookmark.set(tag.bookmarkId, tags);
+      }
+
+      const allMarkdown = await db.markdown.toArray();
+      const markdownByBookmark = new Map<string, string>();
+      for (const md of allMarkdown) {
+        markdownByBookmark.set(md.bookmarkId, md.content);
+      }
+
+      const uploadBookmarks: FullSyncUploadRequest['bookmarks'] = allBookmarks.map(b => ({
+        id: b.id,
+        url: b.url,
+        title: b.title,
+        html: b.html,
+        markdown: markdownByBookmark.get(b.id),
+        createdAt: b.createdAt.toISOString(),
+        updatedAt: b.updatedAt.toISOString(),
+        tags: tagsByBookmark.get(b.id) ?? [],
+      }));
+
+      const client = await ServerApiClient.fromSettings();
+      const result = await client.uploadFullSync({ bookmarks: uploadBookmarks });
+
+      await saveSetting('serverLastSyncTime', result.syncToken);
+      await saveSetting('serverLastSyncError', '');
+      await db.jobs.update(job.id, { status: JobStatus.COMPLETED });
+
+      return {
+        success: true,
+        jobId: job.id,
+        message: `Uploaded ${allBookmarks.length} bookmarks (${result.created} created, ${result.updated} updated)`,
+      };
+    } catch (error) {
+      const errorMessage = this.formatError(error);
+      await saveSetting('serverLastSyncError', errorMessage);
+      await db.jobs.update(job.id, { status: JobStatus.FAILED });
+      return { success: false, jobId: job.id, message: errorMessage };
     }
   }
 

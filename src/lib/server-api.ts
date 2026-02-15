@@ -332,6 +332,10 @@ export class ServerApiClient {
     );
   }
 
+  async reprocessAllBookmarks(): Promise<{ queued: number }> {
+    return this.request<{ queued: number }>('POST', '/api/v1/bookmarks/reprocess');
+  }
+
   async search(params: SearchParams): Promise<SearchResponse> {
     return this.request<SearchResponse>('GET', '/api/v1/search', {
       params: {

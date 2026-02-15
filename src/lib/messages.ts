@@ -19,10 +19,12 @@ export type Command =
   | { type: 'import:create_from_url_list'; urls: string[] }
   | { type: 'extract:markdown_from_html'; html: string; url: string }
   | { type: 'sync:trigger' }
+  | { type: 'sync:upload_all' }
   | { type: 'sync:update_settings' }
   | { type: 'query:current_tab_info' }
   | { type: 'query:sync_status' }
   | { type: 'query:current_page_dom' }
+  | { type: 'bookmark:reprocess_all' }
   | { type: 'offscreen:ready' }
   | { type: 'offscreen:ping' }
   | { type: 'event:broadcast'; event: EventData };
@@ -62,6 +64,13 @@ export interface TriggerSyncResponse {
   error?: string;
 }
 
+export interface SyncUploadAllResponse {
+  success: boolean;
+  jobId?: string;
+  message?: string;
+  error?: string;
+}
+
 export interface UpdateSyncSettingsResponse {
   success: boolean;
 }
@@ -88,6 +97,12 @@ export interface GetPageHtmlResponse {
   error?: string;
 }
 
+export interface ReprocessAllResponse {
+  success: boolean;
+  count?: number;
+  error?: string;
+}
+
 export interface OffscreenReadyResponse {
   ready: true;
 }
@@ -101,7 +116,9 @@ export type MessageResponse<T extends MessageType> =
   : T extends 'import:create_from_url_list' ? StartBulkImportResponse
   : T extends 'query:current_tab_info' ? TabInfo
   : T extends 'bookmark:retry' ? StartProcessingResponse
+  : T extends 'bookmark:reprocess_all' ? ReprocessAllResponse
   : T extends 'sync:trigger' ? TriggerSyncResponse
+  : T extends 'sync:upload_all' ? SyncUploadAllResponse
   : T extends 'query:sync_status' ? SyncStatus
   : T extends 'sync:update_settings' ? UpdateSyncSettingsResponse
   : T extends 'extract:markdown_from_html' ? ExtractContentResponse

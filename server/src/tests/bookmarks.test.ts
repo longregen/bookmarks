@@ -289,3 +289,62 @@ Deno.test('POST /api/v1/bookmarks/:id/tags - rejects empty tag', async () => {
 
   assertEquals(res.status, 400);
 });
+
+Deno.test('POST /api/v1/bookmarks/reprocess - requires authentication', async () => {
+  const { deps } = createMockDeps();
+
+  const app = createApp(deps);
+  const res = await app.request('/api/v1/bookmarks/reprocess', {
+    method: 'POST',
+  });
+
+  assertEquals(res.status, 401);
+});
+
+Deno.test('POST /api/v1/bookmarks/reprocess - queues all bookmarks for reprocessing', async () => {
+  const { deps, db, queue } = createMockDeps();
+  const { userId, sessionId } = setupAuthenticatedMock(db);
+
+  db.setQueryHandler('SELECT id FROM bookmarks WHERE user_id', () => [
+    { id: 'bookmark-1' },
+    { id: 'bookmark-2' },
+    { id: 'bookmark-3' },
+  ]);
+
+  const app = createApp(deps);
+  const res = await app.request('/api/v1/bookmarks/reprocess', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${sessionId}` },
+  });
+
+  assertEquals(res.status, 200);
+
+  const body = await res.json();
+  assertEquals(body.queued, 3);
+
+  assertEquals(queue.sentMessages.length, 3);
+  assertEquals(queue.sentMessages[0].bookmarkId, 'bookmark-1');
+  assertEquals(queue.sentMessages[0].userId, userId);
+  assertEquals(queue.sentMessages[0].action, 'reprocess');
+  assertEquals(queue.sentMessages[1].bookmarkId, 'bookmark-2');
+  assertEquals(queue.sentMessages[2].bookmarkId, 'bookmark-3');
+});
+
+Deno.test('POST /api/v1/bookmarks/reprocess - returns zero when no bookmarks', async () => {
+  const { deps, db, queue } = createMockDeps();
+  const { sessionId } = setupAuthenticatedMock(db);
+
+  db.setQueryHandler('SELECT id FROM bookmarks WHERE user_id', () => []);
+
+  const app = createApp(deps);
+  const res = await app.request('/api/v1/bookmarks/reprocess', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${sessionId}` },
+  });
+
+  assertEquals(res.status, 200);
+
+  const body = await res.json();
+  assertEquals(body.queued, 0);
+  assertEquals(queue.sentMessages.length, 0);
+});

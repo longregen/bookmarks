@@ -6,6 +6,7 @@ export interface QueueMessage {
 
 export interface Queue {
   send(message: QueueMessage): Promise<void>;
+  sendBatch(messages: QueueMessage[]): Promise<void>;
 }
 
 export interface QueueConsumer {

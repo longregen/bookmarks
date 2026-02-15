@@ -64,7 +64,8 @@ export interface SearchHistory {
 export enum JobType {
   FILE_IMPORT = 'file_import',
   BULK_URL_IMPORT = 'bulk_url_import',
-  URL_FETCH = 'url_fetch'
+  URL_FETCH = 'url_fetch',
+  SYNC_UPLOAD = 'sync_upload'
 }
 
 export enum JobStatus {

@@ -11,6 +11,7 @@ import {
 } from '../../lib/server-auth';
 import { getErrorMessage } from '../../lib/errors';
 import { formatDateByAge } from '../../lib/date-format';
+import { ServerApiClient } from '../../lib/server-api';
 
 const SYNC_POLL_INTERVAL = 2000;
 
@@ -241,6 +242,43 @@ async function handleDeleteAccount(): Promise<void> {
   }
 }
 
+async function handleSyncUp(): Promise<void> {
+  const syncUpBtn = getElement<HTMLButtonElement>('serverSyncUpBtn');
+  const statusDiv = getElement('status');
+
+  const settings = await getSettings();
+
+  if (!settings.serverSessionToken || !isSessionValid(settings.serverSessionExpiry)) {
+    showStatusMessage(statusDiv, 'Please connect first', 'error');
+    return;
+  }
+
+  try {
+    await withButtonState(syncUpBtn, 'Uploading...', async () => {
+      if (__IS_WEB__) {
+        const { serverSync } = await import('../../lib/server-sync');
+        const result = await serverSync.uploadAllBookmarks();
+        if (!result.success) {
+          throw new Error(result.message);
+        }
+      } else {
+        const response: { success?: boolean; message?: string; error?: string } | undefined =
+          await chrome.runtime.sendMessage({ type: 'sync:upload_all' });
+        if (response?.success !== true) {
+          throw new Error(response?.message ?? response?.error ?? 'Upload failed');
+        }
+      }
+    });
+
+    showStatusMessage(statusDiv, 'All bookmarks uploaded to server!', 'success');
+
+    const updatedSettings = await getSettings();
+    updateSyncStatus(updatedSettings.serverLastSyncTime, updatedSettings.serverLastSyncError);
+  } catch (error) {
+    showStatusMessage(statusDiv, `Upload failed: ${getErrorMessage(error)}`, 'error', 5000);
+  }
+}
+
 async function handleSyncNow(): Promise<void> {
   const syncNowBtn = getElement<HTMLButtonElement>('serverSyncNowBtn');
   const statusDiv = getElement('status');
@@ -283,6 +321,57 @@ async function handleSyncNow(): Promise<void> {
   }
 }
 
+function isServerConnected(settings: { serverUrl: string; serverSessionToken: string; serverSessionExpiry: string }): boolean {
+  return Boolean(settings.serverUrl) &&
+    Boolean(settings.serverSessionToken) &&
+    isSessionValid(settings.serverSessionExpiry);
+}
+
+async function handleReprocessAll(): Promise<void> {
+  const reembedBtn = getElement<HTMLButtonElement>('serverReembedAllBtn');
+  const statusDiv = getElement('status');
+
+  const settings = await getSettings();
+  const useServer = isServerConnected(settings);
+
+  try {
+    if (useServer) {
+      const result = await withButtonState(reembedBtn, 'Queuing...', async () => {
+        const client = new ServerApiClient(settings.serverUrl, settings.serverSessionToken);
+        return client.reprocessAllBookmarks();
+      });
+      showStatusMessage(statusDiv, `Queued ${result.queued} bookmarks for re-embedding`, 'success');
+    } else {
+      const result = await withButtonState(reembedBtn, 'Queuing...', async () => {
+        if (__IS_WEB__) {
+          const { db } = await import('../../db/schema');
+          const { startProcessingQueue } = await import('../../background/queue');
+          let count = 0;
+          await db.transaction('rw', db.bookmarks, async () => {
+            const bookmarks = await db.bookmarks.where('status').anyOf(['complete', 'error']).toArray();
+            count = bookmarks.length;
+            for (const b of bookmarks) {
+              await db.bookmarks.update(b.id, { status: 'pending' as const, retryCount: 0, errorMessage: undefined, updatedAt: new Date() });
+            }
+          });
+          void startProcessingQueue();
+          return { count };
+        } else {
+          const response: { success?: boolean; count?: number; error?: string } | undefined =
+            await chrome.runtime.sendMessage({ type: 'bookmark:reprocess_all' });
+          if (response?.success !== true) {
+            throw new Error(response?.error ?? 'Reprocessing failed');
+          }
+          return { count: response.count ?? 0 };
+        }
+      });
+      showStatusMessage(statusDiv, `Queued ${result.count} bookmarks for re-embedding`, 'success');
+    }
+  } catch (error) {
+    showStatusMessage(statusDiv, `Re-embed failed: ${getErrorMessage(error)}`, 'error', 5000);
+  }
+}
+
 async function pollSyncStatus(): Promise<void> {
   const settings = await getSettings();
   updateSyncStatus(settings.serverLastSyncTime, settings.serverLastSyncError);
@@ -314,6 +403,8 @@ export function initServerSyncModule(): () => void {
   const logoutBtn = getElement<HTMLButtonElement>('serverLogoutBtn');
   const deleteAccountBtn = getElement<HTMLButtonElement>('serverDeleteAccountBtn');
   const syncNowBtn = getElement<HTMLButtonElement>('serverSyncNowBtn');
+  const syncUpBtn = getElement<HTMLButtonElement>('serverSyncUpBtn');
+  const reembedAllBtn = getElement<HTMLButtonElement>('serverReembedAllBtn');
 
   enabledCheckbox.addEventListener('change', (e) => void handleEnableToggle(e));
   saveUrlBtn.addEventListener('click', () => void handleUrlSave());
@@ -323,6 +414,8 @@ export function initServerSyncModule(): () => void {
   logoutBtn.addEventListener('click', () => void handleLogout());
   deleteAccountBtn.addEventListener('click', () => void handleDeleteAccount());
   syncNowBtn.addEventListener('click', () => void handleSyncNow());
+  syncUpBtn.addEventListener('click', () => void handleSyncUp());
+  reembedAllBtn.addEventListener('click', () => void handleReprocessAll());
 
   startStatusPolling();
 

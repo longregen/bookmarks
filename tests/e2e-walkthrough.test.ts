@@ -760,6 +760,21 @@ async function scene12_serverSync(ctx: WalkthroughContext): Promise<void> {
     );
     await pause(300);
     await capture(ctx, 'server-sync-completed');
+
+    // Sync Up: upload all local bookmarks to server
+    await ctx.page.click('#serverSyncUpBtn');
+    await pause(50);
+    await capture(ctx, 'server-sync-uploading');
+
+    await ctx.page.waitForFunction(
+      `(() => {
+        const btn = document.getElementById('serverSyncUpBtn');
+        return btn && !btn.disabled && btn.textContent?.trim() === 'Sync Up';
+      })()`,
+      30000
+    );
+    await pause(300);
+    await capture(ctx, 'server-sync-uploaded');
   } catch (error) {
     console.error('  Token auth error:', error);
   }

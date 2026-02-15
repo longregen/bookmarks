@@ -103,6 +103,12 @@ export class MockQueue implements Queue {
     this.sentMessages.push(message);
   }
 
+  async sendBatch(messages: QueueMessage[]): Promise<void> {
+    for (const message of messages) {
+      this.sentMessages.push(message);
+    }
+  }
+
   reset(): void {
     this.sentMessages = [];
   }

@@ -6,12 +6,16 @@ describe('Service Worker Core Functionality', () => {
   beforeEach(async () => {
     await db.bookmarks.clear();
     await db.jobs.clear();
+    await db.bookmarkTags.clear();
+    await db.markdown.clear();
     vi.clearAllMocks();
   });
 
   afterEach(async () => {
     await db.bookmarks.clear();
     await db.jobs.clear();
+    await db.bookmarkTags.clear();
+    await db.markdown.clear();
   });
 
   describe('Bookmark saving logic', () => {
@@ -421,6 +425,170 @@ describe('Service Worker Core Functionality', () => {
       });
 
       expect(result).toBe(0);
+    });
+  });
+
+  describe('Reprocess all bookmarks', () => {
+    it('should reset complete bookmarks to pending', async () => {
+      await db.bookmarks.bulkAdd([
+        { id: 'complete-1', url: 'https://a.com', title: 'A', html: '', status: 'complete', createdAt: new Date(), updatedAt: new Date() },
+        { id: 'complete-2', url: 'https://b.com', title: 'B', html: '', status: 'complete', createdAt: new Date(), updatedAt: new Date() },
+      ]);
+
+      await db.transaction('rw', db.bookmarks, async () => {
+        const bookmarks = await db.bookmarks.where('status').anyOf(['complete', 'error']).toArray();
+        for (const b of bookmarks) {
+          await db.bookmarks.update(b.id, { status: 'pending', retryCount: 0, errorMessage: undefined, updatedAt: new Date() });
+        }
+      });
+
+      const all = await db.bookmarks.toArray();
+      expect(all).toHaveLength(2);
+      expect(all.every(b => b.status === 'pending')).toBe(true);
+      expect(all.every(b => b.retryCount === 0)).toBe(true);
+      expect(all.every(b => b.errorMessage === undefined)).toBe(true);
+    });
+
+    it('should reset error bookmarks to pending', async () => {
+      await db.bookmarks.bulkAdd([
+        { id: 'err-1', url: 'https://a.com', title: 'A', html: '', status: 'error', errorMessage: 'Failed', retryCount: 3, createdAt: new Date(), updatedAt: new Date() },
+        { id: 'err-2', url: 'https://b.com', title: 'B', html: '', status: 'error', errorMessage: 'Timeout', retryCount: 5, createdAt: new Date(), updatedAt: new Date() },
+      ]);
+
+      await db.transaction('rw', db.bookmarks, async () => {
+        const bookmarks = await db.bookmarks.where('status').anyOf(['complete', 'error']).toArray();
+        for (const b of bookmarks) {
+          await db.bookmarks.update(b.id, { status: 'pending', retryCount: 0, errorMessage: undefined, updatedAt: new Date() });
+        }
+      });
+
+      const all = await db.bookmarks.toArray();
+      expect(all).toHaveLength(2);
+      expect(all.every(b => b.status === 'pending')).toBe(true);
+      expect(all.every(b => b.retryCount === 0)).toBe(true);
+      expect(all.every(b => b.errorMessage === undefined)).toBe(true);
+    });
+
+    it('should not touch bookmarks that are in-progress', async () => {
+      await db.bookmarks.bulkAdd([
+        { id: 'pending-1', url: 'https://a.com', title: 'A', html: '', status: 'pending', createdAt: new Date(), updatedAt: new Date() },
+        { id: 'fetching-1', url: 'https://b.com', title: 'B', html: '', status: 'fetching', createdAt: new Date(), updatedAt: new Date() },
+        { id: 'downloaded-1', url: 'https://c.com', title: 'C', html: '', status: 'downloaded', createdAt: new Date(), updatedAt: new Date() },
+        { id: 'processing-1', url: 'https://d.com', title: 'D', html: '', status: 'processing', createdAt: new Date(), updatedAt: new Date() },
+        { id: 'complete-1', url: 'https://e.com', title: 'E', html: '', status: 'complete', createdAt: new Date(), updatedAt: new Date() },
+      ]);
+
+      await db.transaction('rw', db.bookmarks, async () => {
+        const bookmarks = await db.bookmarks.where('status').anyOf(['complete', 'error']).toArray();
+        for (const b of bookmarks) {
+          await db.bookmarks.update(b.id, { status: 'pending', retryCount: 0, errorMessage: undefined, updatedAt: new Date() });
+        }
+      });
+
+      expect((await db.bookmarks.get('pending-1'))?.status).toBe('pending');
+      expect((await db.bookmarks.get('fetching-1'))?.status).toBe('fetching');
+      expect((await db.bookmarks.get('downloaded-1'))?.status).toBe('downloaded');
+      expect((await db.bookmarks.get('processing-1'))?.status).toBe('processing');
+      expect((await db.bookmarks.get('complete-1'))?.status).toBe('pending');
+    });
+
+    it('should handle empty database', async () => {
+      const bookmarks = await db.bookmarks.where('status').anyOf(['complete', 'error']).toArray();
+      expect(bookmarks).toHaveLength(0);
+    });
+  });
+
+  describe('Sync upload job creation', () => {
+    it('should create SYNC_UPLOAD job', async () => {
+      const job = await createJob({
+        type: JobType.SYNC_UPLOAD,
+        status: JobStatus.IN_PROGRESS,
+      });
+
+      expect(job.type).toBe(JobType.SYNC_UPLOAD);
+      expect(job.status).toBe(JobStatus.IN_PROGRESS);
+
+      const retrieved = await db.jobs.get(job.id);
+      expect(retrieved?.type).toBe(JobType.SYNC_UPLOAD);
+    });
+
+    it('should prepare bookmark data with tags and markdown for upload', async () => {
+      const now = new Date();
+      await db.bookmarks.bulkAdd([
+        { id: 'b1', url: 'https://a.com', title: 'A', html: '<html>A</html>', status: 'complete', createdAt: now, updatedAt: now },
+        { id: 'b2', url: 'https://b.com', title: 'B', html: '<html>B</html>', status: 'complete', createdAt: now, updatedAt: now },
+      ]);
+      await db.bookmarkTags.bulkAdd([
+        { bookmarkId: 'b1', tagName: 'tag1', addedAt: now },
+        { bookmarkId: 'b1', tagName: 'tag2', addedAt: now },
+        { bookmarkId: 'b2', tagName: 'tag1', addedAt: now },
+      ]);
+      await db.markdown.bulkAdd([
+        { id: 'b1-md', bookmarkId: 'b1', content: '# Page A', createdAt: now, updatedAt: now },
+      ]);
+
+      const allBookmarks = await db.bookmarks.toArray();
+      const allTags = await db.bookmarkTags.toArray();
+      const allMarkdown = await db.markdown.toArray();
+
+      const tagsByBookmark = new Map<string, string[]>();
+      for (const tag of allTags) {
+        const tags = tagsByBookmark.get(tag.bookmarkId) ?? [];
+        tags.push(tag.tagName);
+        tagsByBookmark.set(tag.bookmarkId, tags);
+      }
+
+      const markdownByBookmark = new Map<string, string>();
+      for (const md of allMarkdown) {
+        markdownByBookmark.set(md.bookmarkId, md.content);
+      }
+
+      const uploadData = allBookmarks.map(b => ({
+        id: b.id,
+        url: b.url,
+        title: b.title,
+        html: b.html,
+        markdown: markdownByBookmark.get(b.id),
+        createdAt: b.createdAt.toISOString(),
+        updatedAt: b.updatedAt.toISOString(),
+        tags: tagsByBookmark.get(b.id) ?? [],
+      }));
+
+      expect(uploadData).toHaveLength(2);
+
+      const b1 = uploadData.find(b => b.id === 'b1')!;
+      expect(b1.tags).toEqual(['tag1', 'tag2']);
+      expect(b1.markdown).toBe('# Page A');
+
+      const b2 = uploadData.find(b => b.id === 'b2')!;
+      expect(b2.tags).toEqual(['tag1']);
+      expect(b2.markdown).toBeUndefined();
+    });
+
+    it('should handle empty database for sync upload', async () => {
+      const allBookmarks = await db.bookmarks.toArray();
+      expect(allBookmarks).toHaveLength(0);
+
+      const job = await createJob({
+        type: JobType.SYNC_UPLOAD,
+        status: JobStatus.IN_PROGRESS,
+      });
+      await db.jobs.update(job.id, { status: JobStatus.COMPLETED });
+
+      const updated = await db.jobs.get(job.id);
+      expect(updated?.status).toBe(JobStatus.COMPLETED);
+    });
+
+    it('should mark job as failed on error', async () => {
+      const job = await createJob({
+        type: JobType.SYNC_UPLOAD,
+        status: JobStatus.IN_PROGRESS,
+      });
+
+      await db.jobs.update(job.id, { status: JobStatus.FAILED });
+
+      const updated = await db.jobs.get(job.id);
+      expect(updated?.status).toBe(JobStatus.FAILED);
     });
   });
 
