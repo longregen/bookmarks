@@ -214,6 +214,7 @@ export async function startProcessingQueue(): Promise<void> {
       pendingRestart = false;
       await processFetchQueue();
       await processContentQueue();
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- pendingRestart is set by concurrent calls during awaits
     } while (pendingRestart);
 
     try {

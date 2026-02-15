@@ -11,7 +11,7 @@ async function capturePage(): Promise<boolean> {
       data: { url, title, html }
     });
 
-    if (!response?.success) {
+    if (!response.success) {
       console.error('Failed to save bookmark');
       return false;
     }

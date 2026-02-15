@@ -382,7 +382,6 @@ async function performSearch(): Promise<void> {
     }
 
     const [queryEmbedding] = await generateEmbeddings([query]);
-    if (!queryEmbedding) throw new Error('Failed to generate embedding');
 
     const items = await loadEmbeddingItems(queryEmbedding.length);
 
