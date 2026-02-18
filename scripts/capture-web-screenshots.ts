@@ -17,26 +17,26 @@ const CHROME_DIR = path.resolve(PROJECT_ROOT, 'dist-chrome');
 const OUTPUT_DIR = path.resolve(PROJECT_ROOT, 'golden-ratio-screenshots');
 const BROWSER_PATH = process.env.BROWSER_PATH || '/root/.cache/ms-playwright/chromium-1194/chrome-linux/chrome';
 
+function resolveSafePath(baseDir: string, urlPath: string): string | null {
+  // Reject traversal and null bytes at the string level before any path ops
+  if (urlPath.includes('..') || urlPath.includes('\0')) return null;
+  const resolved = path.resolve(baseDir, '.' + urlPath);
+  if (!resolved.startsWith(baseDir + path.sep) && resolved !== baseDir) return null;
+  return resolved;
+}
+
 function startServer(dir: string, port: number): Promise<ReturnType<typeof createServer>> {
-  const resolvedDir = path.resolve(dir);
+  const baseDir = path.resolve(dir);
   return new Promise((resolve) => {
     const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const urlPath = req.url?.split('?')[0] || '/';
-      let filePath = path.resolve(dir, '.' + urlPath);
-      // Prevent path traversal — resolved path must stay within served dir
-      if (!filePath.startsWith(resolvedDir + path.sep) && filePath !== resolvedDir) {
-        res.writeHead(403);
-        res.end('Forbidden');
-        return;
-      }
+      let filePath = resolveSafePath(baseDir, urlPath);
+      if (!filePath) { res.writeHead(403); res.end('Forbidden'); return; }
       if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
-        filePath = path.join(filePath, 'index.html');
+        filePath = resolveSafePath(baseDir, urlPath + '/index.html');
+        if (!filePath) { res.writeHead(403); res.end('Forbidden'); return; }
       }
-      if (!fs.existsSync(filePath)) {
-        res.writeHead(404);
-        res.end('Not found');
-        return;
-      }
+      if (!fs.existsSync(filePath)) { res.writeHead(404); res.end('Not found'); return; }
       const ext = path.extname(filePath);
       const types: Record<string, string> = {
         '.html': 'text/html', '.css': 'text/css',
