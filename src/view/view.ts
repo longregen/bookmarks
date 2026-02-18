@@ -33,6 +33,13 @@ const deleteBtn = getElement<HTMLButtonElement>('deleteBtn');
 
 const urlParams = new URLSearchParams(window.location.search);
 const bookmarkId = urlParams.get('id');
+const fromPage = urlParams.get('from') ?? 'library';
+
+const backUrls: Record<string, string> = {
+  library: '../library/library.html',
+  search: '../search/search.html',
+  stumble: '../stumble/stumble.html',
+};
 
 function showError(message: string): void {
   viewLoading.classList.add('hidden');
@@ -41,11 +48,7 @@ function showError(message: string): void {
 }
 
 backBtn.addEventListener('click', () => {
-  if (window.history.length > 1) {
-    window.history.back();
-  } else {
-    window.location.href = '../library/library.html';
-  }
+  window.location.href = backUrls[fromPage] || backUrls.library;
 });
 
 function showExportMenu(): void {

@@ -39,7 +39,7 @@ function refresh(): void {
 }
 
 function navigateToView(bookmarkId: string): void {
-  window.location.href = `../view/view.html?id=${encodeURIComponent(bookmarkId)}`;
+  window.location.href = `../view/view.html?id=${encodeURIComponent(bookmarkId)}&from=library`;
 }
 
 sortSelect.addEventListener('change', () => {

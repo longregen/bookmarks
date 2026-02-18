@@ -99,7 +99,7 @@ const resultHeader = getElement('resultHeader');
 searchPage.classList.add('search-page--centered');
 
 function navigateToView(bookmarkId: string): void {
-  window.location.href = `../view/view.html?id=${encodeURIComponent(bookmarkId)}`;
+  window.location.href = `../view/view.html?id=${encodeURIComponent(bookmarkId)}&from=search`;
 }
 
 searchBtn.addEventListener('click', () => void performSearch());

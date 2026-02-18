@@ -30,7 +30,7 @@ const shuffleBtn = getElement<HTMLButtonElement>('shuffleBtn');
 const resultCount = getElement('resultCount');
 
 function navigateToView(bookmarkId: string): void {
-  window.location.href = `../view/view.html?id=${encodeURIComponent(bookmarkId)}`;
+  window.location.href = `../view/view.html?id=${encodeURIComponent(bookmarkId)}&from=stumble`;
 }
 
 shuffleBtn.addEventListener('click', () => void loadStumble());
