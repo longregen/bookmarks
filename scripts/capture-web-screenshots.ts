@@ -18,16 +18,23 @@ const OUTPUT_DIR = path.resolve(PROJECT_ROOT, 'golden-ratio-screenshots');
 const BROWSER_PATH = process.env.BROWSER_PATH || '/root/.cache/ms-playwright/chromium-1194/chrome-linux/chrome';
 
 function startServer(dir: string, port: number): Promise<ReturnType<typeof createServer>> {
+  const resolvedDir = path.resolve(dir);
   return new Promise((resolve) => {
     const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const urlPath = req.url?.split('?')[0] || '/';
-      let filePath = path.join(dir, urlPath);
+      let filePath = path.resolve(dir, '.' + urlPath);
+      // Prevent path traversal — resolved path must stay within served dir
+      if (!filePath.startsWith(resolvedDir + path.sep) && filePath !== resolvedDir) {
+        res.writeHead(403);
+        res.end('Forbidden');
+        return;
+      }
       if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
         filePath = path.join(filePath, 'index.html');
       }
       if (!fs.existsSync(filePath)) {
         res.writeHead(404);
-        res.end('Not found: ' + urlPath);
+        res.end('Not found');
         return;
       }
       const ext = path.extname(filePath);
