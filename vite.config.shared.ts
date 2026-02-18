@@ -38,6 +38,7 @@ export const sharedInput: InputOption = {
   jobs: 'src/jobs/jobs.html',
   status: 'src/status/status.html',
   welcome: 'src/welcome/welcome.html',
+  view: 'src/view/view.html',
 };
 
 /** Extension-specific input (Chrome & Firefox) */

@@ -278,7 +278,7 @@ export class ChromeAdapter implements TestAdapter {
     console.log(`[Coverage] Istanbul coverage written to: ${coveragePath}`);
   }
 
-  getPageUrl(pageName: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs' | 'status'): string {
+  getPageUrl(pageName: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs' | 'status' | 'view'): string {
     const paths: Record<string, string> = {
       library: '/src/library/library.html',
       search: '/src/search/search.html',
@@ -286,6 +286,7 @@ export class ChromeAdapter implements TestAdapter {
       stumble: '/src/stumble/stumble.html',
       jobs: '/src/jobs/jobs.html',
       status: '/src/status/status.html',
+      view: '/src/view/view.html',
       popup: '/src/popup/popup.html',
       index: '/src/popup/popup.html', // Chrome extension uses popup as main entry
     };

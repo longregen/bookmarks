@@ -29,7 +29,7 @@ export interface TestAdapter {
   setup(): Promise<void>;
   teardown(): Promise<void>;
   newPage(): Promise<PageHandle>;
-  getPageUrl(page: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs' | 'status'): string;
+  getPageUrl(page: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs' | 'status' | 'view'): string;
   getMockApiUrl(): string;
   getMockPageUrls(): string[];
   getRealApiKey(): string;

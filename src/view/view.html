@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>View - Bookmarks by Localforge</title>
+  <link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+  <link rel="icon" type="image/png" href="../../favicon.png">
+
+</head>
+<body class="layout">
+  <header class="app-header">
+    <nav class="app-header__nav">
+      <a href="../library/library.html" class="app-header__nav-link">Library</a>
+      <a href="../search/search.html" class="app-header__nav-link">Search</a>
+      <a href="../stumble/stumble.html" class="app-header__nav-link">Stumble</a>
+      <a href="../options/options.html" class="app-header__nav-link">Settings</a>
+    </nav>
+    <div class="app-header__brand">
+      <h1 class="app-header__title">Bookmarks by Localforge</h1>
+    </div>
+  </header>
+
+  <div class="main-content">
+    <main class="middle view-page">
+      <div id="viewLoading" class="view-loading">Loading...</div>
+      <div id="viewError" class="view-error hidden"></div>
+      <div id="viewContent" class="view-content hidden">
+        <div class="view-toolbar">
+          <button id="backBtn" class="btn btn-secondary">← Back</button>
+          <div class="view-actions">
+            <button id="retryBtn" class="btn btn-primary hidden">Retry</button>
+            <button id="debugBtn" class="btn btn-secondary">Debug</button>
+            <button id="exportBtn" class="btn btn-secondary">Export</button>
+            <button id="deleteBtn" class="btn btn-danger">Delete</button>
+          </div>
+        </div>
+        <h1 id="viewTitle" class="view-title"></h1>
+        <div id="viewMeta" class="view-url-line"></div>
+        <div id="tagEditorContainer"></div>
+        <div id="summarySection" class="view-summary hidden">
+          <h2 class="view-summary-heading">Summary</h2>
+          <div id="summaryContent" class="view-summary-content"></div>
+        </div>
+        <div id="screenshotSection" class="view-screenshot-container hidden">
+          <iframe id="screenshotFrame" class="view-screenshot-frame" sandbox="allow-same-origin" title="Page screenshot"></iframe>
+        </div>
+        <div id="markdownSection"></div>
+        <div id="qaSection"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="view.ts" type="module"></script>
+</body>
+</html>

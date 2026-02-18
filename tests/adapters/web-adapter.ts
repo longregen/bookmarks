@@ -149,7 +149,7 @@ export class WebAdapter implements TestAdapter {
     return new WebPuppeteerPageHandle(page);
   }
 
-  getPageUrl(pageName: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs' | 'status'): string {
+  getPageUrl(pageName: 'library' | 'search' | 'options' | 'stumble' | 'popup' | 'index' | 'jobs' | 'status' | 'view'): string {
     const base = `http://127.0.0.1:${this.staticPort}/webapp`;
     const paths: Record<string, string> = {
       library: '/src/library/library.html',
@@ -158,6 +158,7 @@ export class WebAdapter implements TestAdapter {
       stumble: '/src/stumble/stumble.html',
       jobs: '/src/jobs/jobs.html',
       status: '/src/status/status.html',
+      view: '/src/view/view.html',
       popup: '/src/options/options.html', // Web has no popup
       index: '/src/web/index.html',       // Connect page
     };

@@ -321,16 +321,17 @@ async function scene06_detailAndDelete(
   await pause(500);
   await capture(page, counter, 'detail-library-loaded');
 
-  // Click the first bookmark card
+  // Click the first bookmark card — navigates to view page
   await page.evaluate(`document.querySelector('.bookmark-card').click()`);
 
-  // Wait for detail panel to open
+  // Wait for view page to load
+  await page.waitForSelector('#viewContent', 10000);
   await page.waitForFunction(
-    `document.getElementById('detailPanel')?.classList.contains('active')`,
+    `!document.getElementById('viewContent')?.classList.contains('hidden')`,
     10000
   );
   await pause(500);
-  await capture(page, counter, 'detail-panel-open');
+  await capture(page, counter, 'view-page-open');
 
   // Override confirm dialog
   await page.evaluate(`window.confirm = () => true`);
@@ -346,11 +347,8 @@ async function scene06_detailAndDelete(
     })()
   `);
 
-  // Wait for detail panel to close
-  await page.waitForFunction(
-    `!document.getElementById('detailPanel')?.classList.contains('active')`,
-    10000
-  );
+  // Delete navigates back to library
+  await page.waitForSelector('#bookmarkList', 10000);
   await pause(500);
   await capture(page, counter, 'detail-deleted');
 

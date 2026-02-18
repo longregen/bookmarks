@@ -9,7 +9,6 @@ import { initWebWithAuth } from '../web/init-web';
 import { addEventListener as addBookmarkEventListener } from '../lib/events';
 import { createHealthIndicator } from '../ui/health-indicator';
 import { createSyncStatusIndicator } from '../ui/sync-status-indicator';
-import { BookmarkDetailManager } from '../ui/bookmark-detail';
 import { ServerApiClient } from '../lib/server-api';
 import { serverSync } from '../lib/server-sync';
 import { getErrorMessage } from '../lib/errors';
@@ -34,28 +33,14 @@ const bookmarkList = getElement('bookmarkList');
 const bookmarkCount = getElement('bookmarkCount');
 const sortSelect = getElement<HTMLSelectElement>('sortSelect');
 
-const detailPanel = getElement('detailPanel');
-const detailBackdrop = getElement('detailBackdrop');
-const detailContent = getElement('detailContent');
-
 function refresh(): void {
   void loadTags();
   void loadBookmarks();
 }
 
-const detailManager = new BookmarkDetailManager({
-  detailPanel,
-  detailBackdrop,
-  detailContent,
-  closeBtn: getElement<HTMLButtonElement>('closeDetailBtn'),
-  deleteBtn: getElement<HTMLButtonElement>('deleteBtn'),
-  exportBtn: getElement<HTMLButtonElement>('exportBtn'),
-  debugBtn: getElement<HTMLButtonElement>('debugBtn'),
-  retryBtn: getElement<HTMLButtonElement>('retryBtn'),
-  onDelete: refresh,
-  onTagsChange: refresh,
-  onRetry: refresh
-});
+function navigateToView(bookmarkId: string): void {
+  window.location.href = `../view/view.html?id=${encodeURIComponent(bookmarkId)}&from=library`;
+}
 
 sortSelect.addEventListener('change', () => {
   sortBy = sortSelect.value;
@@ -160,7 +145,7 @@ async function loadBookmarks(): Promise<void> {
   for (const bookmark of bookmarks) {
     const tags = tagsByBookmarkId.get(bookmark.id) ?? [];
     const card = createElement('div', { className: 'bookmark-card' });
-    card.onclick = () => detailManager.showDetail(bookmark.id);
+    card.onclick = () => navigateToView(bookmark.id);
 
     const header = createElement('div', { className: 'card-header' });
     header.appendChild(createElement('div', { className: 'card-title', textContent: bookmark.title }));
@@ -241,15 +226,11 @@ onThemeChange((theme) => applyTheme(theme));
 const urlParams = new URLSearchParams(window.location.search);
 const bookmarkIdParam = urlParams.get('bookmarkId');
 
-async function initializeApp(): Promise<void> {
-  await Promise.all([loadTags(), loadBookmarks()]);
-
-  if (bookmarkIdParam !== null && bookmarkIdParam !== '') {
-    await detailManager.showDetail(bookmarkIdParam);
-  }
+if (bookmarkIdParam !== null && bookmarkIdParam !== '') {
+  navigateToView(bookmarkIdParam);
+} else {
+  void Promise.all([loadTags(), loadBookmarks()]);
 }
-
-void initializeApp();
 
 const removeEventListener = addBookmarkEventListener((event) => {
   if (event.type.startsWith('bookmark:') || event.type.startsWith('tag:')) {
