@@ -12,7 +12,7 @@
     "build:web": "npx vite build --config vite.config.web.ts",
     "build:chrome": "npx vite build --config vite.config.chrome.ts",
     "build:firefox": "npx vite build --config vite.config.firefox.ts",
-    "preview": "npx vite preview",
+    "preview": "npx vite preview --config vite.config.web.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
