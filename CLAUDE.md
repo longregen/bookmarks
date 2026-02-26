@@ -10,7 +10,7 @@ npm run build:firefox # Firefox extension
 npm run build:web # standalone webapp
 npm run typecheck
 npm run lint
-npm run check # Typecheck + lint in parallel
+npm run check # npm ci + typecheck + lint in parallel
 npm run test:unit # unit tests
 npm run test:e2e:chrome # E2E tests (Puppeteer)
 npm run test:e2e:firefox # E2E tests (Selenium)
@@ -21,12 +21,22 @@ npm run test:e2e:firefox # E2E tests (Selenium)
 ```
 src/
 ├── background/ # Service worker, job queue, content processor
-├── db/ # Dexie/IndexedDB schema and queries
-├── lib/ # Shared utilities, adapters, API client
-├── search/ # Semantic vector search
-├── options/ # Settings page modules
-├── library/ # Bookmark management UI
-└── content/ # Content scripts for page capture
+├── content/    # Content scripts for page capture
+├── db/         # Dexie/IndexedDB schema and queries
+├── jobs/       # Standalone jobs dashboard page
+├── lib/        # Shared utilities, adapters, API client
+├── library/    # Bookmark management UI
+├── offscreen/  # Offscreen document for DOM parsing (Chrome MV3)
+├── options/    # Settings page modules
+├── popup/      # Browser extension popup
+├── search/     # Semantic vector search
+├── shared/     # Theme management
+├── status/     # Health status page
+├── stumble/    # Random bookmark discovery
+├── ui/         # Shared UI helpers (DOM, tags, health indicator)
+├── view/       # Single bookmark detail view
+├── web/        # Web standalone initialization
+└── welcome/    # First-run welcome page
 ```
 
 See [AGENTS.md](./AGENTS.md) for detailed module documentation.
@@ -46,7 +56,7 @@ Do not read or modify: `node_modules/`, `dist/`, `dist-*/`, `coverage/`
 
 - Keep comments minimal - code should be self-documenting
 - Prefer concise, readable implementations
-- Use existing helpers from `src/lib/` (e.g., `getElement`, `createElement`, `getErrorMessage`)
+- Use existing helpers from `src/ui/dom.ts` (e.g., `getElement`, `createElement`) and `src/lib/` (e.g., `getErrorMessage`)
 
 ## Workflow
 
@@ -60,7 +70,7 @@ Always set npm environment to development so that all dependencies get installed
 
 ## When Making Changes
 
-- **Use lib helpers** - Check `src/lib/` for existing utilities before writing new ones
+- **Use lib helpers** - Check `src/lib/` and `src/ui/` for existing utilities before writing new ones
 - **Optimize queries** - Use batch operations from `src/db/`, avoid N+1 patterns
 - **Remove dead code** - Delete unused functions, variables, imports
 - **Verify assumptions** - Research external APIs and browser behaviors

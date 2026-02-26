@@ -126,7 +126,7 @@ The extension works with any OpenAI-compatible API server (vLLM, llama.cpp, etc.
 ### Stumble Mode
 
 1. Open the Stumble view
-2. See 10 random bookmarks with a Q&A preview
+2. See 10 random bookmarks with a content preview
 3. Click "Shuffle" for a new random selection
 4. Filter by tags to stumble within a topic
 
@@ -174,8 +174,8 @@ When you save a bookmark:
 
 1. **Capture**: Full page HTML is captured and saved locally
 2. **Extract**: Readability extracts the main content and converts to Markdown
-3. **Generate Q&A**: LLM generates 5-10 question-answer pairs about the content
-4. **Embed**: Each Q&A pair is converted to embeddings (question, answer, and combined)
+3. **Generate Summary & Q&A**: LLM generates a summary and 5-10 question-answer pairs (in parallel)
+4. **Embed**: The summary and each Q&A pair are converted to embeddings
 5. **Index**: Everything is stored in IndexedDB
 
 ### Search Algorithm
@@ -190,7 +190,7 @@ When you search:
 ## Data Storage
 
 - All bookmarks are stored locally in your browser's IndexedDB
-- Only the extracted Markdown content is sent to your configured API for processing
+- Only the extracted Markdown content is sent to your configured API for Q&A generation, summarization, and embedding
 - No data is sent to any third-party servers (except your configured LLM API)
 - Optional server sync sends bookmark data to your own self-hosted server
 - Export your data anytime as JSON files
@@ -204,7 +204,7 @@ npm run dev:firefox
 npm run dev:web
 
 # Type checking and linting
-npm run check          # typecheck + lint in parallel
+npm run check          # npm ci + typecheck + lint in parallel
 
 # Unit tests
 npm run test:unit
