@@ -398,7 +398,7 @@ async function scene07_settings(
     await page.waitForFunction(
       `(() => {
         const btn = document.getElementById('serverSyncUpBtn');
-        return btn && !btn.disabled && btn.textContent?.trim() === 'Sync Up';
+        return btn && !btn.disabled && btn.textContent?.trim() === 'Upload All';
       })()`,
       30000
     );
