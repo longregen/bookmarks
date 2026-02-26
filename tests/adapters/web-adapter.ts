@@ -63,17 +63,25 @@ export class WebAdapter implements TestAdapter {
           filePath = path.join(filePath, 'index.html');
         }
 
-        if (!fs.existsSync(filePath)) {
+        // Prevent path traversal: resolved path must stay within distPath
+        const resolvedPath = path.resolve(filePath);
+        if (!resolvedPath.startsWith(path.resolve(this.distPath) + path.sep) && resolvedPath !== path.resolve(this.distPath)) {
+          res.statusCode = 403;
+          res.end('Forbidden');
+          return;
+        }
+
+        if (!fs.existsSync(resolvedPath)) {
           res.statusCode = 404;
           res.end('Not found');
           return;
         }
 
-        const ext = path.extname(filePath);
+        const ext = path.extname(resolvedPath);
         const contentType = MIME_TYPES[ext] || 'application/octet-stream';
         res.setHeader('Content-Type', contentType);
         res.statusCode = 200;
-        fs.createReadStream(filePath).pipe(res);
+        fs.createReadStream(resolvedPath).pipe(res);
       });
 
       this.staticServer.listen(0, '127.0.0.1', () => {

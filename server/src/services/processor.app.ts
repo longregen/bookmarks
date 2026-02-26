@@ -138,11 +138,30 @@ async function processBookmark(deps: AppDependencies, bookmarkId: string): Promi
   }
 }
 
+function stripElementsByTag(html: string, tag: string): string {
+  let text = html;
+  const openTag = `<${tag}`;
+  const closeTag = `</${tag}>`;
+  const tagLen = closeTag.length;
+  let lower = text.toLowerCase();
+  let idx: number;
+  while ((idx = lower.indexOf(openTag.toLowerCase())) !== -1) {
+    const closeIdx = lower.indexOf(closeTag.toLowerCase(), idx);
+    if (closeIdx === -1) {
+      text = text.substring(0, idx);
+      break;
+    }
+    text = text.substring(0, idx) + text.substring(closeIdx + tagLen);
+    lower = text.toLowerCase();
+  }
+  return text;
+}
+
 function htmlToMarkdown(html: string): string {
   let text = html;
 
-  text = text.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-  text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+  text = stripElementsByTag(text, 'script');
+  text = stripElementsByTag(text, 'style');
 
   text = text.replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, '# $1\n\n');
   text = text.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, '## $1\n\n');
@@ -160,14 +179,20 @@ function htmlToMarkdown(html: string): string {
   text = text.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/gi, '```\n$1\n```\n');
   text = text.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, '> $1\n');
 
-  text = text.replace(/<[^>]+>/g, '');
+  // Strip remaining HTML tags, looping to handle nested artifacts
+  let prev;
+  do {
+    prev = text;
+    text = text.replace(/<[^>]+>/g, '');
+  } while (text !== prev);
 
+  // Decode HTML entities — decode &amp; last to prevent double-unescaping
   text = text.replace(/&nbsp;/g, ' ');
-  text = text.replace(/&amp;/g, '&');
   text = text.replace(/&lt;/g, '<');
   text = text.replace(/&gt;/g, '>');
   text = text.replace(/&quot;/g, '"');
   text = text.replace(/&#39;/g, "'");
+  text = text.replace(/&amp;/g, '&');
 
   text = text.replace(/\n{3,}/g, '\n\n');
   text = text.trim();
