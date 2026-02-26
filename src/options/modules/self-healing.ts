@@ -7,6 +7,7 @@ import {
   type DiagnosticResult,
 } from '../../lib/self-healing';
 import { createJob, JobStatus, JobType } from '../../lib/jobs';
+import { db } from '../../db/schema';
 
 let activeAbortController: AbortController | null = null;
 let isOperationRunning = false;
@@ -80,7 +81,6 @@ async function runHealOperation(
 
     if (jobId !== undefined) {
       try {
-        const { db } = await import('../../db/schema');
         await db.jobs.update(jobId, {
           status: activeAbortController.signal.aborted ? JobStatus.CANCELLED : JobStatus.COMPLETED,
           metadata: { totalUrls: bookmarkIds.length, successCount: bookmarkIds.length },
@@ -91,7 +91,6 @@ async function runHealOperation(
     console.error(`[SelfHeal] Operation failed:`, getErrorMessage(error));
     if (jobId !== undefined) {
       try {
-        const { db } = await import('../../db/schema');
         await db.jobs.update(jobId, {
           status: JobStatus.FAILED,
           metadata: { errorMessage: getErrorMessage(error) },
@@ -105,7 +104,44 @@ async function runHealOperation(
   }
 }
 
-function renderResults(results: DiagnosticResult[]): void {
+const PREVIEW_LIMIT = 5;
+
+async function buildBookmarkPreview(bookmarkIds: string[]): Promise<HTMLElement> {
+  const previewIds = bookmarkIds.slice(0, PREVIEW_LIMIT);
+  const bookmarks = await db.bookmarks.where('id').anyOf(previewIds).toArray();
+  const bookmarkMap = new Map(bookmarks.map(b => [b.id, b]));
+
+  const list = createElement('ul', { className: 'self-heal-preview-list' });
+  for (const id of previewIds) {
+    const bookmark = bookmarkMap.get(id);
+    const li = createElement('li', { className: 'self-heal-preview-item' });
+
+    const displayText = bookmark?.title !== undefined && bookmark.title !== ''
+      ? bookmark.title
+      : bookmark?.url ?? id;
+    const link = createElement('a', {
+      className: 'self-heal-preview-link',
+      textContent: displayText,
+    });
+    link.href = `../view/view.html?id=${encodeURIComponent(id)}&from=options`;
+    link.title = bookmark?.url ?? '';
+    li.appendChild(link);
+
+    list.appendChild(li);
+  }
+
+  if (bookmarkIds.length > PREVIEW_LIMIT) {
+    const li = createElement('li', {
+      className: 'self-heal-preview-item self-heal-preview-more',
+      textContent: `\u2026and ${bookmarkIds.length - PREVIEW_LIMIT} more`,
+    });
+    list.appendChild(li);
+  }
+
+  return list;
+}
+
+async function renderResults(results: DiagnosticResult[]): Promise<void> {
   const container = getElement('selfHealResults');
   container.textContent = '';
 
@@ -123,6 +159,9 @@ function renderResults(results: DiagnosticResult[]): void {
     header.appendChild(createElement('strong', { textContent: `${result.label} (${result.count})` }));
     header.appendChild(createElement('p', { textContent: result.description }));
     card.appendChild(header);
+
+    const preview = await buildBookmarkPreview(result.bookmarkIds);
+    card.appendChild(preview);
 
     const actions = createElement('div', { className: 'self-heal-card__actions' });
 
@@ -185,7 +224,7 @@ async function handleScan(): Promise<void> {
 
   try {
     const results = await runDiagnostics();
-    renderResults(results);
+    await renderResults(results);
   } catch (error) {
     container.textContent = '';
     container.appendChild(

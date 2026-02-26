@@ -1408,6 +1408,34 @@ input:focus {
   font-size: var(--text-sm);
 }
 
+.self-heal-preview-list {
+  list-style: none;
+  margin: 0 0 var(--space-3) 0;
+  padding: 0;
+}
+
+.self-heal-preview-item {
+  padding: var(--space-1) 0;
+  font-size: var(--text-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.self-heal-preview-link {
+  color: var(--accent-link);
+  text-decoration: none;
+}
+
+.self-heal-preview-link:hover {
+  text-decoration: underline;
+}
+
+.self-heal-preview-more {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
 .jobs-controls {
   display: flex;
   align-items: center;
