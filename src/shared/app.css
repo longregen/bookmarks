@@ -1348,6 +1348,62 @@ input:focus {
   color: var(--text-tertiary);
 }
 
+.self-heal-progress {
+  padding: var(--space-4);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+}
+
+.self-heal-progress.hidden {
+  display: none;
+}
+
+.self-heal-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.self-heal-card__header {
+  margin-bottom: var(--space-3);
+}
+
+.self-heal-card__header strong {
+  display: block;
+  margin-bottom: var(--space-1);
+}
+
+.self-heal-card__header p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.self-heal-card__actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.self-heal-regen-container {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.self-heal-regen-select {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
 .jobs-controls {
   display: flex;
   align-items: center;

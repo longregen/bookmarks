@@ -40,6 +40,9 @@
         <a href="#server-sync" class="nav-item" data-section="server-sync">
           <span class="nav-label">Server Sync</span>
         </a>
+        <a href="#self-healing" class="nav-item" data-section="self-healing">
+          <span class="nav-label">Self-Healing</span>
+        </a>
         <a href="#about" class="nav-item" data-section="about">
           <span class="nav-label">About</span>
         </a>
@@ -337,6 +340,36 @@
                 </small>
                 <button type="button" id="serverReembedAllBtn" class="btn btn-secondary">
                   Re-embed All
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="self-healing" class="settings-section">
+          <div class="option-panel">
+            <div class="option-panel__header">
+              <h2>Self-Healing</h2>
+              <p class="section-description">
+                Scan your bookmarks for missing or incomplete data and repair issues automatically.
+              </p>
+            </div>
+            <div class="option-panel__content">
+              <div class="button-group">
+                <button type="button" id="selfHealScanBtn" class="btn btn-primary">
+                  Scan Bookmarks
+                </button>
+              </div>
+
+              <div id="selfHealResults" class="self-heal-results"></div>
+
+              <div id="selfHealProgress" class="self-heal-progress hidden">
+                <div class="progress-bar-container">
+                  <div id="selfHealProgressBar" class="progress-bar"></div>
+                </div>
+                <span id="selfHealProgressStatus" class="progress-status">Processing...</span>
+                <button type="button" id="selfHealCancelBtn" class="btn btn-secondary btn-sm">
+                  Cancel
                 </button>
               </div>
             </div>

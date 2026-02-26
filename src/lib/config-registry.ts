@@ -137,6 +137,13 @@ Respond with JSON only, no other text. Format:
     category: CONFIG_CATEGORIES.API,
   },
   {
+    key: 'SUMMARY_SYSTEM_PROMPT',
+    defaultValue: 'Generate a concise 2-3 sentence summary of the following content. Focus on the main topic and key points.',
+    type: 'textarea',
+    description: 'System prompt for summary generation. Controls how the AI generates bookmark summaries.',
+    category: CONFIG_CATEGORIES.API,
+  },
+  {
     key: 'SEARCH_HISTORY_LIMIT',
     defaultValue: 50,
     type: 'number',
@@ -447,6 +454,7 @@ export interface ConfigValues {
   API_CHAT_TEMPERATURE: number;
   API_CHAT_USE_TEMPERATURE: boolean;
   QA_SYSTEM_PROMPT: string;
+  SUMMARY_SYSTEM_PROMPT: string;
   SEARCH_HISTORY_LIMIT: number;
   SEARCH_AUTOCOMPLETE_LIMIT: number;
   SEARCH_TOP_K_RESULTS: number;

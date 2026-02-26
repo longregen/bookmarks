@@ -66,9 +66,10 @@ export async function deleteJob(jobId: string): Promise<void> {
 }
 
 export async function deleteBookmarkWithData(bookmarkId: string): Promise<void> {
-  await db.transaction('rw', [db.bookmarks, db.markdown, db.questionsAnswers, db.bookmarkTags, db.jobItems], async () => {
+  await db.transaction('rw', [db.bookmarks, db.markdown, db.questionsAnswers, db.summaries, db.bookmarkTags, db.jobItems], async () => {
     await db.markdown.where('bookmarkId').equals(bookmarkId).delete();
     await db.questionsAnswers.where('bookmarkId').equals(bookmarkId).delete();
+    await db.summaries.where('bookmarkId').equals(bookmarkId).delete();
     await db.bookmarkTags.where('bookmarkId').equals(bookmarkId).delete();
     await db.jobItems.where('bookmarkId').equals(bookmarkId).delete();
     await db.bookmarks.delete(bookmarkId);

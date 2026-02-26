@@ -2,6 +2,7 @@ import '../shared/app.css';
 import { initSettingsModule } from './modules/settings';
 import { initBulkImportModule } from './modules/bulk-import';
 import { initServerSyncModule } from './modules/server-sync';
+import { initSelfHealingModule } from './modules/self-healing';
 import { initThemeModule } from './modules/theme';
 import { initNavigationModule } from './modules/navigation';
 import './modules/import-export';
@@ -18,6 +19,9 @@ function initializeModules(): void {
 
   const serverSyncCleanup = initServerSyncModule();
   cleanupFunctions.push(serverSyncCleanup);
+
+  const selfHealingCleanup = initSelfHealingModule();
+  cleanupFunctions.push(selfHealingCleanup);
 }
 
 window.addEventListener('beforeunload', () => {

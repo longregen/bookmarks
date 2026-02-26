@@ -427,6 +427,7 @@ function formatJobType(type: JobType): string {
     [JobType.BULK_URL_IMPORT]: 'Bulk URL Import',
     [JobType.URL_FETCH]: 'URL Fetch',
     [JobType.SYNC_UPLOAD]: 'Sync Upload',
+    [JobType.SELF_HEAL]: 'Self-Heal',
   };
   return labels[type] || type;
 }

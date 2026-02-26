@@ -1,6 +1,6 @@
 import { db, type Bookmark } from '../db/schema';
 import { extractMarkdownAsync } from '../lib/extract';
-import { generateQAPairs, generateEmbeddings } from '../lib/api';
+import { generateQAPairs, generateSummary, generateEmbeddings } from '../lib/api';
 import { getPlatformAdapter } from '../lib/platform';
 import { browserFetch } from '../lib/browser-fetch';
 import { extractTitleFromHtml } from '../lib/bulk-import';
@@ -46,6 +46,32 @@ async function generateMarkdownIfNeeded(bookmark: Bookmark): Promise<string> {
 
   console.log(`[Processor] Saved markdown (${extracted.content.length} chars)`);
   return extracted.content;
+}
+
+async function generateSummaryIfNeeded(bookmark: Bookmark, markdownContent: string): Promise<void> {
+  const existing = await db.summaries.where('bookmarkId').equals(bookmark.id).first();
+  if (existing) {
+    console.log(`[Processor] Summary already exists for: ${bookmark.title}`);
+    return;
+  }
+
+  console.log(`[Processor] Generating summary for: ${bookmark.title}`);
+  const summary = await generateSummary(markdownContent);
+
+  const settings = await getPlatformAdapter().getSettings();
+  const [embedding] = await generateEmbeddings([summary]);
+
+  await db.summaries.add({
+    id: crypto.randomUUID(),
+    bookmarkId: bookmark.id,
+    content: summary,
+    embedding,
+    embeddingModel: settings.embeddingModel,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  console.log(`[Processor] Saved summary for: ${bookmark.title}`);
 }
 
 async function generateQAIfNeeded(bookmark: Bookmark, markdownContent: string): Promise<void> {
@@ -100,5 +126,8 @@ export async function processBookmarkContent(bookmark: Bookmark): Promise<void> 
   }
 
   const markdownContent = await generateMarkdownIfNeeded(bookmarkWithHtml);
-  await generateQAIfNeeded(bookmarkWithHtml, markdownContent);
+  await Promise.all([
+    generateSummaryIfNeeded(bookmarkWithHtml, markdownContent),
+    generateQAIfNeeded(bookmarkWithHtml, markdownContent),
+  ]);
 }
