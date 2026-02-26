@@ -93,6 +93,7 @@ in
         ExecStart = lib.concatStringsSep " " [
           "${pkgs.deno}/bin/deno"
           "run"
+          "--no-lock"
           "--allow-net"
           "--allow-read"
           "--allow-write"
