@@ -4,6 +4,9 @@ import { generateSummary, generateEmbeddings, generateQAPairs } from './api';
 import { extractMarkdownAsync } from './extract';
 import { getPlatformAdapter } from './platform';
 import { getErrorMessage } from './errors';
+import { ServerApiClient, ServerApiError } from './server-api';
+import { getSettings } from './settings';
+import { serverSync } from './server-sync';
 
 export type IssueType =
   | 'duplicate_bookmarks'
@@ -160,6 +163,35 @@ export async function runDiagnostics(): Promise<DiagnosticResult[]> {
 
 // Heal functions: fill in ONLY what's missing
 
+async function deleteBookmarkFromServer(loserIds: string[]): Promise<void> {
+  const settings = await getSettings();
+  if (!settings.serverEnabled || !settings.serverUrl || !settings.serverSessionToken) return;
+
+  let client: ServerApiClient | undefined;
+  try {
+    client = new ServerApiClient(settings.serverUrl, settings.serverSessionToken);
+  } catch {
+    return;
+  }
+
+  for (const loserId of loserIds) {
+    try {
+      await client.deleteBookmark(loserId);
+    } catch (error) {
+      if (error instanceof ServerApiError && error.isNotFound()) {
+        // Bookmark never existed on server — nothing to do
+        continue;
+      }
+      // Network or other error — queue for later
+      await serverSync.queueOfflineChange({
+        type: 'delete',
+        bookmarkId: loserId,
+        timestamp: Date.now(),
+      });
+    }
+  }
+}
+
 export async function healDuplicateBookmarks(
   bookmarkIds: string[],
   onProgress?: (done: number, total: number) => void,
@@ -201,6 +233,9 @@ export async function healDuplicateBookmarks(
           await db.bookmarks.delete(loserId);
         }
       });
+
+      // Best-effort server cleanup: delete losers, queue on failure
+      await deleteBookmarkFromServer(loserIds);
     } catch (error) {
       console.error(`[SelfHeal] Failed to deduplicate group:`, getErrorMessage(error));
     }

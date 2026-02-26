@@ -49,6 +49,47 @@ vi.mock('../src/background/processor', async (importOriginal) => {
   };
 });
 
+const { mockDeleteBookmark, MockServerApiClient, MockServerApiError, mockQueueOfflineChange, mockGetSettings } = vi.hoisted(() => {
+  const mockDeleteBookmark = vi.fn();
+  const MockServerApiClient = vi.fn().mockImplementation(function (this: { deleteBookmark: typeof mockDeleteBookmark }) {
+    this.deleteBookmark = mockDeleteBookmark;
+  });
+
+  class MockServerApiError extends Error {
+    status: number;
+    code?: string;
+    constructor(message: string, status: number, code?: string) {
+      super(message);
+      this.status = status;
+      this.code = code;
+    }
+    isNotFound() { return this.status === 404; }
+    isUnauthorized() { return this.status === 401; }
+    isConflict() { return this.status === 409; }
+    isRateLimited() { return this.status === 429; }
+  }
+
+  const mockQueueOfflineChange = vi.fn();
+  const mockGetSettings = vi.fn();
+
+  return { mockDeleteBookmark, MockServerApiClient, MockServerApiError, mockQueueOfflineChange, mockGetSettings };
+});
+
+vi.mock('../src/lib/server-api', () => ({
+  ServerApiClient: MockServerApiClient,
+  ServerApiError: MockServerApiError,
+}));
+
+vi.mock('../src/lib/server-sync', () => ({
+  serverSync: {
+    queueOfflineChange: (...args: unknown[]) => mockQueueOfflineChange(...args),
+  },
+}));
+
+vi.mock('../src/lib/settings', () => ({
+  getSettings: mockGetSettings,
+  saveSetting: vi.fn(),
+}));
 const TEST_SETTINGS: ApiSettings = {
   apiBaseUrl: 'https://api.openai.com/v1',
   apiKey: 'test-key',
@@ -253,6 +294,11 @@ describe('Duplicate Bookmark Detection', () => {
   beforeEach(async () => {
     await clearAllTables();
     vi.clearAllMocks();
+    vi.mocked(mockAdapter.getSettings).mockResolvedValue(TEST_SETTINGS);
+    mockGetSettings.mockResolvedValue(TEST_SETTINGS);
+    MockServerApiClient.mockImplementation(function (this: { deleteBookmark: typeof mockDeleteBookmark }) {
+      this.deleteBookmark = mockDeleteBookmark;
+    });
   });
 
   afterEach(async () => {
@@ -454,6 +500,63 @@ describe('Duplicate Bookmark Detection', () => {
       // Nothing should have been deleted since signal was pre-aborted
       const remaining = await db.bookmarks.toArray();
       expect(remaining).toHaveLength(4);
+    });
+
+    it('should not call server when sync is disabled', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1', url: 'https://example.com', html: '' }));
+      await db.bookmarks.add(createBookmark({ id: 'b2', url: 'https://example.com' }));
+
+      await healDuplicateBookmarks(['b1', 'b2']);
+
+      expect(mockDeleteBookmark).not.toHaveBeenCalled();
+      expect(mockQueueOfflineChange).not.toHaveBeenCalled();
+    });
+
+    it('should delete losers from server when sync is enabled', async () => {
+      const serverSettings = { ...TEST_SETTINGS, serverEnabled: true, serverUrl: 'https://server.test', serverSessionToken: 'tok' };
+      mockGetSettings.mockResolvedValue(serverSettings);
+      mockDeleteBookmark.mockResolvedValue(undefined);
+
+      await db.bookmarks.add(createBookmark({ id: 'b1', url: 'https://example.com', html: '' }));
+      await db.bookmarks.add(createBookmark({ id: 'b2', url: 'https://example.com' }));
+
+      await healDuplicateBookmarks(['b1', 'b2']);
+
+      // b1 is the loser (no html), should be deleted from server
+      expect(mockDeleteBookmark).toHaveBeenCalledWith('b1');
+      expect(mockDeleteBookmark).toHaveBeenCalledTimes(1);
+    });
+
+    it('should ignore 404 when loser does not exist on server', async () => {
+      const serverSettings = { ...TEST_SETTINGS, serverEnabled: true, serverUrl: 'https://server.test', serverSessionToken: 'tok' };
+      mockGetSettings.mockResolvedValue(serverSettings);
+      mockDeleteBookmark.mockRejectedValue(new MockServerApiError('Not found', 404));
+
+      await db.bookmarks.add(createBookmark({ id: 'b1', url: 'https://example.com', html: '' }));
+      await db.bookmarks.add(createBookmark({ id: 'b2', url: 'https://example.com' }));
+
+      await healDuplicateBookmarks(['b1', 'b2']);
+
+      expect(mockDeleteBookmark).toHaveBeenCalledWith('b1');
+      // Should NOT queue offline change for 404
+      expect(mockQueueOfflineChange).not.toHaveBeenCalled();
+    });
+
+    it('should queue offline change when server delete fails with network error', async () => {
+      const serverSettings = { ...TEST_SETTINGS, serverEnabled: true, serverUrl: 'https://server.test', serverSessionToken: 'tok' };
+      mockGetSettings.mockResolvedValue(serverSettings);
+      mockDeleteBookmark.mockRejectedValue(new MockServerApiError('Network error', 0, 'NETWORK_ERROR'));
+
+      await db.bookmarks.add(createBookmark({ id: 'b1', url: 'https://example.com', html: '' }));
+      await db.bookmarks.add(createBookmark({ id: 'b2', url: 'https://example.com' }));
+
+      await healDuplicateBookmarks(['b1', 'b2']);
+
+      expect(mockQueueOfflineChange).toHaveBeenCalledWith({
+        type: 'delete',
+        bookmarkId: 'b1',
+        timestamp: expect.any(Number),
+      });
     });
   });
 });
