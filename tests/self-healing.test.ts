@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { db } from '../src/db/schema';
 import {
   runDiagnostics,
-  getDiagnosticCounts,
   healNoContent,
   healNoMarkdown,
   healShortMarkdown,
@@ -18,6 +17,7 @@ import {
 import { setPlatformAdapter, type PlatformAdapter, type ApiSettings } from '../src/lib/platform';
 import * as api from '../src/lib/api';
 import * as extract from '../src/lib/extract';
+import * as processor from '../src/background/processor';
 
 vi.mock('../src/lib/api', () => ({
   generateQAPairs: vi.fn(),
@@ -32,6 +32,19 @@ vi.mock('../src/lib/extract', () => ({
 vi.mock('../src/lib/browser-fetch', () => ({
   browserFetch: vi.fn().mockResolvedValue({ html: '<html>fetched</html>', title: 'Fetched' }),
 }));
+
+vi.mock('../src/background/processor', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/background/processor')>();
+  return {
+    ...actual,
+    fetchBookmarkHtml: vi.fn().mockImplementation(async (bookmark: { id: string; url: string; html: string; title: string }) => ({
+      ...bookmark,
+      html: '<html>fetched</html>',
+      title: bookmark.title || 'Fetched',
+      status: 'downloaded',
+    })),
+  };
+});
 
 const TEST_SETTINGS: ApiSettings = {
   apiBaseUrl: 'https://api.openai.com/v1',
@@ -230,26 +243,6 @@ describe('Self-Healing Diagnostics', () => {
     });
   });
 
-  describe('getDiagnosticCounts', () => {
-    it('should return zero counts for healthy bookmarks', async () => {
-      const counts = await getDiagnosticCounts();
-      expect(counts.no_content).toBe(0);
-      expect(counts.no_markdown).toBe(0);
-      expect(counts.short_markdown).toBe(0);
-      expect(counts.no_summary).toBe(0);
-      expect(counts.no_questions).toBe(0);
-      expect(counts.stale_embeddings).toBe(0);
-    });
-
-    it('should return correct counts', async () => {
-      await db.bookmarks.add(createBookmark({ id: 'b1', html: '' }));
-      await db.bookmarks.add(createBookmark({ id: 'b2' }));
-
-      const counts = await getDiagnosticCounts();
-      expect(counts.no_content).toBe(1);
-      expect(counts.no_markdown).toBe(1);
-    });
-  });
 });
 
 describe('Self-Healing Heal Operations', () => {
@@ -266,10 +259,67 @@ describe('Self-Healing Heal Operations', () => {
       title: 'Test', content: 'Extracted markdown content that is long enough',
       excerpt: 'Test', byline: null,
     });
+    vi.spyOn(processor, 'processBookmarkContent');
   });
 
   afterEach(async () => {
     await clearAllTables();
+  });
+
+  describe('healNoContent', () => {
+    it('should fetch HTML and process bookmark', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1', html: '' }));
+
+      await healNoContent(['b1']);
+
+      expect(processor.fetchBookmarkHtml).toHaveBeenCalled();
+      expect(processor.processBookmarkContent).toHaveBeenCalled();
+    });
+
+    it('should skip nonexistent bookmarks', async () => {
+      await healNoContent(['nonexistent-id']);
+
+      expect(processor.fetchBookmarkHtml).not.toHaveBeenCalled();
+      expect(processor.processBookmarkContent).not.toHaveBeenCalled();
+    });
+
+    it('should continue on error', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1', html: '' }));
+      await db.bookmarks.add(createBookmark({ id: 'b2', html: '', url: 'https://example2.com' }));
+
+      vi.mocked(processor.fetchBookmarkHtml)
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockResolvedValueOnce({
+          id: 'b2', url: 'https://example2.com', html: '<html>ok</html>',
+          title: 'OK', status: 'downloaded', createdAt: new Date(), updatedAt: new Date(),
+        });
+
+      await healNoContent(['b1', 'b2']);
+
+      expect(processor.processBookmarkContent).toHaveBeenCalledTimes(1);
+    });
+
+    it('should report progress', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1', html: '' }));
+      await db.bookmarks.add(createBookmark({ id: 'b2', html: '', url: 'https://example2.com' }));
+
+      const progressCalls: [number, number][] = [];
+      await healNoContent(['b1', 'b2'], (done, total) => progressCalls.push([done, total]));
+
+      expect(progressCalls).toEqual([[1, 2], [2, 2]]);
+    });
+
+    it('should respect abort signal', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1', html: '' }));
+      await db.bookmarks.add(createBookmark({ id: 'b2', html: '', url: 'https://example2.com' }));
+
+      const controller = new AbortController();
+      controller.abort();
+
+      await healNoContent(['b1', 'b2'], undefined, controller.signal);
+
+      expect(processor.fetchBookmarkHtml).not.toHaveBeenCalled();
+    });
   });
 
   describe('healNoSummary', () => {
@@ -369,6 +419,98 @@ describe('Self-Healing Heal Operations', () => {
     });
   });
 
+  describe('healShortMarkdown', () => {
+    it('should re-fetch and regenerate markdown', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1' }));
+      await db.markdown.add({
+        id: 'md1', bookmarkId: 'b1', content: 'Short',
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+
+      vi.spyOn(api, 'generateEmbeddings')
+        .mockResolvedValueOnce([[0.1]])
+        .mockResolvedValueOnce([[0.1]])
+        .mockResolvedValueOnce([[0.2]])
+        .mockResolvedValueOnce([[0.3]]);
+
+      await healShortMarkdown(['b1']);
+
+      const md = await db.markdown.where('bookmarkId').equals('b1').first();
+      expect(md).toBeDefined();
+      expect(md!.content).toBe('Extracted markdown content that is long enough');
+    });
+
+    it('should delete old summary and QA before regenerating', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1' }));
+      await db.markdown.add({
+        id: 'md1', bookmarkId: 'b1', content: 'Short',
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+      await db.summaries.add({
+        id: 's1', bookmarkId: 'b1', content: 'Old summary',
+        embedding: [0.0], embeddingModel: 'old-model',
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+      await db.questionsAnswers.add({
+        id: 'qa1', bookmarkId: 'b1', question: 'Old Q?', answer: 'Old A',
+        embeddingQuestion: [0.0], embeddingAnswer: [0.0], embeddingBoth: [0.0],
+        embeddingModel: 'old-model',
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+
+      vi.spyOn(api, 'generateEmbeddings')
+        .mockResolvedValueOnce([[0.1]])
+        .mockResolvedValueOnce([[0.1]])
+        .mockResolvedValueOnce([[0.2]])
+        .mockResolvedValueOnce([[0.3]]);
+
+      await healShortMarkdown(['b1']);
+
+      const summaries = await db.summaries.where('bookmarkId').equals('b1').toArray();
+      expect(summaries).toHaveLength(1);
+      expect(summaries[0].content).toBe('Generated summary');
+
+      const qa = await db.questionsAnswers.where('bookmarkId').equals('b1').toArray();
+      expect(qa).toHaveLength(1);
+      expect(qa[0].question).toBe('Q?');
+    });
+
+    it('should skip nonexistent bookmarks', async () => {
+      await healShortMarkdown(['nonexistent-id']);
+
+      expect(processor.fetchBookmarkHtml).not.toHaveBeenCalled();
+    });
+
+    it('should report progress', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1' }));
+      await db.markdown.add({
+        id: 'md1', bookmarkId: 'b1', content: 'Short',
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+
+      const progressCalls: [number, number][] = [];
+      await healShortMarkdown(['b1'], (done, total) => progressCalls.push([done, total]));
+
+      expect(progressCalls).toEqual([[1, 1]]);
+    });
+
+    it('should respect abort signal', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1' }));
+      await db.markdown.add({
+        id: 'md1', bookmarkId: 'b1', content: 'Short',
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+
+      const controller = new AbortController();
+      controller.abort();
+
+      await healShortMarkdown(['b1'], undefined, controller.signal);
+
+      const md = await db.markdown.where('bookmarkId').equals('b1').first();
+      expect(md!.content).toBe('Short');
+    });
+  });
+
   describe('healStaleEmbeddings', () => {
     it('should regenerate embeddings for QA records with stale model', async () => {
       await db.bookmarks.add(createBookmark({ id: 'b1' }));
@@ -459,6 +601,40 @@ describe('Self-Healing Upstream Regeneration', () => {
 
   afterEach(async () => {
     await clearAllTables();
+  });
+
+  describe('regenerateFromContent', () => {
+    it('should clear all data, re-fetch HTML, and reprocess end-to-end', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1' }));
+      await db.markdown.add({
+        id: 'md1', bookmarkId: 'b1', content: 'Old markdown',
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+      await db.summaries.add({
+        id: 's1', bookmarkId: 'b1', content: 'Old summary',
+        embedding: [0.0], embeddingModel: 'old-model',
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+      await db.questionsAnswers.add({
+        id: 'qa1', bookmarkId: 'b1', question: 'Old Q?', answer: 'Old A',
+        embeddingQuestion: [0.0], embeddingAnswer: [0.0], embeddingBoth: [0.0],
+        embeddingModel: 'old-model',
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+
+      await regenerateFromContent(['b1']);
+
+      expect(processor.fetchBookmarkHtml).toHaveBeenCalled();
+      expect(processor.processBookmarkContent).toHaveBeenCalled();
+
+      const md = await db.markdown.where('bookmarkId').equals('b1').first();
+      expect(md).toBeDefined();
+      expect(md!.content).toBe('New markdown content');
+
+      const summaries = await db.summaries.where('bookmarkId').equals('b1').toArray();
+      expect(summaries).toHaveLength(1);
+      expect(summaries[0].content).toBe('New summary');
+    });
   });
 
   describe('regenerateFromSummary', () => {

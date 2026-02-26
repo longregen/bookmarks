@@ -21,15 +21,6 @@ export interface DiagnosticResult {
   count: number;
 }
 
-export interface DiagnosticCounts {
-  no_content: number;
-  no_markdown: number;
-  short_markdown: number;
-  no_summary: number;
-  no_questions: number;
-  stale_embeddings: number;
-}
-
 const SHORT_MARKDOWN_THRESHOLD = 200;
 
 function isEmbeddingModelStale(model: string | undefined, currentModel: string): boolean {
@@ -118,24 +109,6 @@ export async function runDiagnostics(): Promise<DiagnosticResult[]> {
   pushResult(results, 'stale_embeddings', 'Stale Embeddings', 'Bookmarks with embeddings from a different model than currently configured', staleIds);
 
   return results;
-}
-
-export async function getDiagnosticCounts(): Promise<DiagnosticCounts> {
-  const results = await runDiagnostics();
-  const counts: DiagnosticCounts = {
-    no_content: 0,
-    no_markdown: 0,
-    short_markdown: 0,
-    no_summary: 0,
-    no_questions: 0,
-    stale_embeddings: 0,
-  };
-
-  for (const result of results) {
-    counts[result.type] = result.count;
-  }
-
-  return counts;
 }
 
 // Heal functions: fill in ONLY what's missing
@@ -603,14 +576,6 @@ export interface RegenerateOption {
   label: string;
   fn: (bookmarkIds: string[], onProgress?: (done: number, total: number) => void, signal?: AbortSignal) => Promise<void>;
 }
-
-export const REGENERATE_OPTIONS: RegenerateOption[] = [
-  { label: 'Regenerate Content', fn: regenerateFromContent },
-  { label: 'Regenerate Markdown', fn: regenerateFromMarkdown },
-  { label: 'Regenerate Summary', fn: regenerateFromSummary },
-  { label: 'Regenerate Questions', fn: regenerateFromQuestions },
-  { label: 'Regenerate Embeddings', fn: regenerateEmbeddings },
-];
 
 export const REGENERATE_OPTIONS_BY_ISSUE: Record<IssueType, RegenerateOption[]> = {
   no_content: [
