@@ -79,17 +79,7 @@ async function loadStumble(): Promise<void> {
     }
 
     const bookmarkIds = selected.map(b => b.id);
-    const [allQA, allSummaries] = await Promise.all([
-      db.questionsAnswers.where('bookmarkId').anyOf(bookmarkIds).toArray(),
-      db.summaries.where('bookmarkId').anyOf(bookmarkIds).toArray(),
-    ]);
-
-    const qaByBookmark = new Map<string, { question: string; answer: string }>();
-    for (const qa of allQA) {
-      if (!qaByBookmark.has(qa.bookmarkId)) {
-        qaByBookmark.set(qa.bookmarkId, { question: qa.question, answer: qa.answer });
-      }
-    }
+    const allSummaries = await db.summaries.where('bookmarkId').anyOf(bookmarkIds).toArray();
 
     const summaryByBookmark = new Map<string, string>();
     for (const s of allSummaries) {
@@ -114,15 +104,9 @@ async function loadStumble(): Promise<void> {
       const savedAgo = createElement('div', { className: 'saved-ago', textContent: `Saved ${formatDateByAge(bookmark.createdAt)}` });
       card.appendChild(savedAgo);
 
-      const qa = qaByBookmark.get(bookmark.id);
       const summary = summaryByBookmark.get(bookmark.id);
 
-      if (qa) {
-        const preview = createElement('div', { className: 'qa-preview', style: { marginTop: 'var(--space-3)' } });
-        preview.appendChild(createElement('div', { className: 'qa-q', textContent: `Q: ${qa.question}` }));
-        preview.appendChild(createElement('div', { className: 'qa-a', textContent: `A: ${qa.answer}` }));
-        card.appendChild(preview);
-      } else if (summary !== undefined && summary.length > 0) {
+      if (summary !== undefined && summary.length > 0) {
         const truncated = summary.slice(0, 200).trim() + (summary.length > 200 ? '...' : '');
         const preview = createElement('div', { className: 'qa-preview', style: { marginTop: 'var(--space-3)' } });
         preview.appendChild(createElement('div', { className: 'qa-a', textContent: truncated }));
