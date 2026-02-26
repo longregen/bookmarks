@@ -2,6 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { db } from '../src/db/schema';
 import {
   runDiagnostics,
+  findDuplicateBookmarks,
+  pickBestBookmark,
+  healDuplicateBookmarks,
   healNoContent,
   healNoMarkdown,
   healShortMarkdown,
@@ -74,6 +77,7 @@ async function clearAllTables(): Promise<void> {
   await db.markdown.clear();
   await db.questionsAnswers.clear();
   await db.summaries.clear();
+  await db.bookmarkTags.clear();
   await db.jobs.clear();
 }
 
@@ -243,6 +247,215 @@ describe('Self-Healing Diagnostics', () => {
     });
   });
 
+});
+
+describe('Duplicate Bookmark Detection', () => {
+  beforeEach(async () => {
+    await clearAllTables();
+    vi.clearAllMocks();
+  });
+
+  afterEach(async () => {
+    await clearAllTables();
+  });
+
+  describe('findDuplicateBookmarks', () => {
+    it('should return empty map when no duplicates exist', () => {
+      const bookmarks = [
+        createBookmark({ id: 'b1', url: 'https://example.com' }),
+        createBookmark({ id: 'b2', url: 'https://other.com' }),
+      ];
+      const result = findDuplicateBookmarks(bookmarks);
+      expect(result.size).toBe(0);
+    });
+
+    it('should detect bookmarks with the same URL', () => {
+      const bookmarks = [
+        createBookmark({ id: 'b1', url: 'https://example.com' }),
+        createBookmark({ id: 'b2', url: 'https://example.com' }),
+        createBookmark({ id: 'b3', url: 'https://other.com' }),
+      ];
+      const result = findDuplicateBookmarks(bookmarks);
+      expect(result.size).toBe(1);
+      expect(result.get('https://example.com')).toHaveLength(2);
+    });
+
+    it('should detect multiple duplicate groups', () => {
+      const bookmarks = [
+        createBookmark({ id: 'b1', url: 'https://a.com' }),
+        createBookmark({ id: 'b2', url: 'https://a.com' }),
+        createBookmark({ id: 'b3', url: 'https://b.com' }),
+        createBookmark({ id: 'b4', url: 'https://b.com' }),
+        createBookmark({ id: 'b5', url: 'https://b.com' }),
+      ];
+      const result = findDuplicateBookmarks(bookmarks);
+      expect(result.size).toBe(2);
+      expect(result.get('https://a.com')).toHaveLength(2);
+      expect(result.get('https://b.com')).toHaveLength(3);
+    });
+  });
+
+  describe('pickBestBookmark', () => {
+    it('should prefer complete status over others', () => {
+      const bookmarks = [
+        createBookmark({ id: 'b1', status: 'error' }),
+        createBookmark({ id: 'b2', status: 'complete' }),
+      ];
+      expect(pickBestBookmark(bookmarks).id).toBe('b2');
+    });
+
+    it('should prefer non-error status when none are complete', () => {
+      const bookmarks = [
+        createBookmark({ id: 'b1', status: 'error' }),
+        createBookmark({ id: 'b2', status: 'pending' }),
+      ];
+      expect(pickBestBookmark(bookmarks).id).toBe('b2');
+    });
+
+    it('should prefer more HTML content when statuses match', () => {
+      const bookmarks = [
+        createBookmark({ id: 'b1', html: '<p>short</p>' }),
+        createBookmark({ id: 'b2', html: '<html><body><p>much longer content here</p></body></html>' }),
+      ];
+      expect(pickBestBookmark(bookmarks).id).toBe('b2');
+    });
+
+    it('should prefer newer updatedAt when all else is equal', () => {
+      const older = createBookmark({ id: 'b1' });
+      older.updatedAt = new Date('2024-01-01');
+      const newer = createBookmark({ id: 'b2' });
+      newer.updatedAt = new Date('2025-01-01');
+      expect(pickBestBookmark([older, newer]).id).toBe('b2');
+    });
+  });
+
+  describe('runDiagnostics with duplicates', () => {
+    it('should detect duplicate_bookmarks issue', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1', url: 'https://example.com' }));
+      await db.bookmarks.add(createBookmark({ id: 'b2', url: 'https://example.com' }));
+
+      const results = await runDiagnostics();
+      const dupes = results.find(r => r.type === 'duplicate_bookmarks');
+      expect(dupes).toBeDefined();
+      expect(dupes!.count).toBe(2);
+      expect(dupes!.bookmarkIds).toContain('b1');
+      expect(dupes!.bookmarkIds).toContain('b2');
+    });
+
+    it('should not report duplicate_bookmarks when none exist', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1', url: 'https://a.com' }));
+      await db.bookmarks.add(createBookmark({ id: 'b2', url: 'https://b.com' }));
+
+      const results = await runDiagnostics();
+      const dupes = results.find(r => r.type === 'duplicate_bookmarks');
+      expect(dupes).toBeUndefined();
+    });
+  });
+
+  describe('healDuplicateBookmarks', () => {
+    it('should merge duplicates keeping the best bookmark', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1', url: 'https://example.com', html: '' }));
+      await db.bookmarks.add(createBookmark({ id: 'b2', url: 'https://example.com', html: '<html>full content</html>' }));
+
+      await healDuplicateBookmarks(['b1', 'b2']);
+
+      const remaining = await db.bookmarks.toArray();
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0].id).toBe('b2');
+      expect(remaining[0].html).toBe('<html>full content</html>');
+    });
+
+    it('should delete related records of loser bookmarks', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1', url: 'https://example.com', html: '' }));
+      await db.bookmarks.add(createBookmark({ id: 'b2', url: 'https://example.com' }));
+      await db.markdown.add({
+        id: 'md1', bookmarkId: 'b1', content: 'Old markdown',
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+      await db.summaries.add({
+        id: 's1', bookmarkId: 'b1', content: 'Summary',
+        embedding: [0.1], embeddingModel: 'test',
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+
+      await healDuplicateBookmarks(['b1', 'b2']);
+
+      const markdown = await db.markdown.where('bookmarkId').equals('b1').toArray();
+      expect(markdown).toHaveLength(0);
+      const summaries = await db.summaries.where('bookmarkId').equals('b1').toArray();
+      expect(summaries).toHaveLength(0);
+    });
+
+    it('should migrate tags from loser to keeper', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1', url: 'https://example.com', html: '' }));
+      await db.bookmarks.add(createBookmark({ id: 'b2', url: 'https://example.com' }));
+      await db.bookmarkTags.add({ bookmarkId: 'b1', tagName: 'unique-tag', addedAt: new Date() });
+      await db.bookmarkTags.add({ bookmarkId: 'b2', tagName: 'existing-tag', addedAt: new Date() });
+
+      await healDuplicateBookmarks(['b1', 'b2']);
+
+      const keeperTags = await db.bookmarkTags.where('bookmarkId').equals('b2').toArray();
+      const tagNames = keeperTags.map(t => t.tagName);
+      expect(tagNames).toContain('unique-tag');
+      expect(tagNames).toContain('existing-tag');
+    });
+
+    it('should not duplicate shared tags during migration', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1', url: 'https://example.com', html: '' }));
+      await db.bookmarks.add(createBookmark({ id: 'b2', url: 'https://example.com' }));
+      await db.bookmarkTags.add({ bookmarkId: 'b1', tagName: 'shared-tag', addedAt: new Date() });
+      await db.bookmarkTags.add({ bookmarkId: 'b2', tagName: 'shared-tag', addedAt: new Date() });
+
+      await healDuplicateBookmarks(['b1', 'b2']);
+
+      const keeperTags = await db.bookmarkTags.where('bookmarkId').equals('b2').toArray();
+      expect(keeperTags).toHaveLength(1);
+      expect(keeperTags[0].tagName).toBe('shared-tag');
+    });
+
+    it('should handle three-way duplicates', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1', url: 'https://example.com', html: '' }));
+      await db.bookmarks.add(createBookmark({ id: 'b2', url: 'https://example.com', html: '<p>some</p>' }));
+      await db.bookmarks.add(createBookmark({ id: 'b3', url: 'https://example.com', html: '<html><body>longest</body></html>' }));
+
+      await healDuplicateBookmarks(['b1', 'b2', 'b3']);
+
+      const remaining = await db.bookmarks.toArray();
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0].id).toBe('b3');
+    });
+
+    it('should fire progress callbacks', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1', url: 'https://a.com', html: '' }));
+      await db.bookmarks.add(createBookmark({ id: 'b2', url: 'https://a.com' }));
+      await db.bookmarks.add(createBookmark({ id: 'b3', url: 'https://b.com', html: '' }));
+      await db.bookmarks.add(createBookmark({ id: 'b4', url: 'https://b.com' }));
+
+      const progressCalls: [number, number][] = [];
+      await healDuplicateBookmarks(
+        ['b1', 'b2', 'b3', 'b4'],
+        (done, total) => progressCalls.push([done, total]),
+      );
+
+      expect(progressCalls).toEqual([[1, 2], [2, 2]]);
+    });
+
+    it('should respect abort signal', async () => {
+      await db.bookmarks.add(createBookmark({ id: 'b1', url: 'https://a.com', html: '' }));
+      await db.bookmarks.add(createBookmark({ id: 'b2', url: 'https://a.com' }));
+      await db.bookmarks.add(createBookmark({ id: 'b3', url: 'https://b.com', html: '' }));
+      await db.bookmarks.add(createBookmark({ id: 'b4', url: 'https://b.com' }));
+
+      const controller = new AbortController();
+      controller.abort();
+
+      await healDuplicateBookmarks(['b1', 'b2', 'b3', 'b4'], undefined, controller.signal);
+
+      // Nothing should have been deleted since signal was pre-aborted
+      const remaining = await db.bookmarks.toArray();
+      expect(remaining).toHaveLength(4);
+    });
+  });
 });
 
 describe('Self-Healing Heal Operations', () => {
