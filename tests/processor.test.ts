@@ -3,6 +3,7 @@ import { db } from '../src/db/schema';
 import { processBookmarkContent } from '../src/background/processor';
 import * as extract from '../src/lib/extract';
 import * as api from '../src/lib/api';
+import { setPlatformAdapter, type PlatformAdapter, type ApiSettings } from '../src/lib/platform';
 
 vi.mock('../src/lib/extract', () => ({
   extractMarkdownAsync: vi.fn(),
@@ -16,6 +17,29 @@ vi.mock('../src/lib/api', () => ({
 vi.mock('../src/lib/browser-fetch', () => ({
   browserFetch: vi.fn(),
 }));
+
+const TEST_SETTINGS: ApiSettings = {
+  apiBaseUrl: 'https://api.openai.com/v1',
+  apiKey: 'test-key',
+  chatModel: 'gpt-4o-mini',
+  embeddingModel: 'text-embedding-3-small',
+  serverUrl: '',
+  serverEnabled: false,
+  serverSessionToken: '',
+  serverSessionExpiry: '',
+  serverAuthToken: '',
+  serverLastSyncTime: '',
+  serverLastSyncError: '',
+};
+
+const mockAdapter: PlatformAdapter = {
+  getSettings: vi.fn().mockResolvedValue(TEST_SETTINGS),
+  saveSetting: vi.fn(),
+  getTheme: vi.fn().mockResolvedValue('auto' as const),
+  setTheme: vi.fn(),
+};
+
+setPlatformAdapter(mockAdapter);
 
 describe('Bookmark Processor', () => {
   beforeEach(async () => {

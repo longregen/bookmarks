@@ -3,7 +3,7 @@ import { createJob } from './jobs';
 import { encodeEmbedding, decodeEmbedding, isEncodedEmbedding } from './embedding-codec';
 import { getErrorMessage } from './errors';
 
-const EXPORT_VERSION = 2;
+const EXPORT_VERSION = 3;
 
 export interface ExportedBookmark {
   id: string;
@@ -20,6 +20,7 @@ export interface ExportedBookmark {
     embeddingQuestion?: string;
     embeddingAnswer?: string;
     embeddingBoth?: string;
+    embeddingModel?: string;
   }[];
 }
 
@@ -104,6 +105,7 @@ function formatBookmarkForExport(
       embeddingQuestion: qa.embeddingQuestion.length > 0 ? encodeEmbedding(qa.embeddingQuestion) : undefined,
       embeddingAnswer: qa.embeddingAnswer.length > 0 ? encodeEmbedding(qa.embeddingAnswer) : undefined,
       embeddingBoth: qa.embeddingBoth.length > 0 ? encodeEmbedding(qa.embeddingBoth) : undefined,
+      embeddingModel: qa.embeddingModel,
     })),
   };
 }
@@ -188,6 +190,7 @@ async function importQAPairs(
           embeddingQuestion,
           embeddingAnswer,
           embeddingBoth,
+          embeddingModel: qa.embeddingModel,
           createdAt: now,
           updatedAt: now,
         });

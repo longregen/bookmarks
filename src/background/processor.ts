@@ -1,6 +1,7 @@
 import { db, type Bookmark } from '../db/schema';
 import { extractMarkdownAsync } from '../lib/extract';
 import { generateQAPairs, generateEmbeddings } from '../lib/api';
+import { getPlatformAdapter } from '../lib/platform';
 import { browserFetch } from '../lib/browser-fetch';
 import { extractTitleFromHtml } from '../lib/bulk-import';
 import { config } from '../lib/config-registry';
@@ -67,6 +68,7 @@ async function generateQAIfNeeded(bookmark: Bookmark, markdownContent: string): 
   const answers = qaPairs.map(qa => qa.answer);
   const combined = qaPairs.map(qa => `Q: ${qa.question}\nA: ${qa.answer}`);
 
+  const settings = await getPlatformAdapter().getSettings();
   const [questionEmbeddings, answerEmbeddings, combinedEmbeddings] = await Promise.all([
     generateEmbeddings(questions),
     generateEmbeddings(answers),
@@ -82,6 +84,7 @@ async function generateQAIfNeeded(bookmark: Bookmark, markdownContent: string): 
     embeddingQuestion: questionEmbeddings[i],
     embeddingAnswer: answerEmbeddings[i],
     embeddingBoth: combinedEmbeddings[i],
+    embeddingModel: settings.embeddingModel,
     createdAt: new Date(),
     updatedAt: new Date(),
   }));

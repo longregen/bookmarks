@@ -28,6 +28,7 @@ export interface QuestionAnswer {
   embeddingQuestion: number[];
   embeddingAnswer: number[];
   embeddingBoth: number[];
+  embeddingModel?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +38,7 @@ export interface Summary {
   bookmarkId: string;
   content: string;
   embedding: number[];
+  embeddingModel?: string;
   createdAt: Date;
   updatedAt: Date;
 }
