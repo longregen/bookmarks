@@ -16,7 +16,7 @@ concurrency:
 jobs:
   preview:
     runs-on: ubuntu-latest
-    # Only run if Cloudflare secrets are configured
+    # Skip forks (no access to secrets)
     if: github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - name: Checkout
@@ -43,7 +43,7 @@ jobs:
 
       - name: Deploy to Cloudflare Pages
         id: deploy
-        uses: cloudflare/wrangler-action@da0e0cd6f4ef4790ed29a7ddfdd7f10e28efde69 # v3.14.0
+        uses: cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3.14.1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
