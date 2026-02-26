@@ -79,15 +79,24 @@ async function loadStumble(): Promise<void> {
     }
 
     const bookmarkIds = selected.map(b => b.id);
-    const allMarkdown = await db.markdown.where('bookmarkId').anyOf(bookmarkIds).toArray();
-    const markdownByBookmark = new Map<string, string>();
-    for (const md of allMarkdown) {
-      markdownByBookmark.set(md.bookmarkId, md.content);
+    const [allQA, allSummaries] = await Promise.all([
+      db.questionsAnswers.where('bookmarkId').anyOf(bookmarkIds).toArray(),
+      db.summaries.where('bookmarkId').anyOf(bookmarkIds).toArray(),
+    ]);
+
+    const qaByBookmark = new Map<string, { question: string; answer: string }>();
+    for (const qa of allQA) {
+      if (!qaByBookmark.has(qa.bookmarkId)) {
+        qaByBookmark.set(qa.bookmarkId, { question: qa.question, answer: qa.answer });
+      }
+    }
+
+    const summaryByBookmark = new Map<string, string>();
+    for (const s of allSummaries) {
+      summaryByBookmark.set(s.bookmarkId, s.content);
     }
 
     for (const bookmark of selected) {
-      const markdownContent = markdownByBookmark.get(bookmark.id);
-
       const card = createElement('div', { className: 'stumble-card' });
       card.onclick = () => navigateToView(bookmark.id);
 
@@ -105,10 +114,18 @@ async function loadStumble(): Promise<void> {
       const savedAgo = createElement('div', { className: 'saved-ago', textContent: `Saved ${formatDateByAge(bookmark.createdAt)}` });
       card.appendChild(savedAgo);
 
-      if (markdownContent !== undefined && markdownContent.length > 0) {
-        const summary = markdownContent.slice(0, 200).trim() + (markdownContent.length > 200 ? '...' : '');
+      const qa = qaByBookmark.get(bookmark.id);
+      const summary = summaryByBookmark.get(bookmark.id);
+
+      if (qa) {
         const preview = createElement('div', { className: 'qa-preview', style: { marginTop: 'var(--space-3)' } });
-        preview.appendChild(createElement('div', { className: 'qa-a', textContent: summary }));
+        preview.appendChild(createElement('div', { className: 'qa-q', textContent: `Q: ${qa.question}` }));
+        preview.appendChild(createElement('div', { className: 'qa-a', textContent: `A: ${qa.answer}` }));
+        card.appendChild(preview);
+      } else if (summary !== undefined && summary.length > 0) {
+        const truncated = summary.slice(0, 200).trim() + (summary.length > 200 ? '...' : '');
+        const preview = createElement('div', { className: 'qa-preview', style: { marginTop: 'var(--space-3)' } });
+        preview.appendChild(createElement('div', { className: 'qa-a', textContent: truncated }));
         card.appendChild(preview);
       }
 
