@@ -301,8 +301,12 @@ export class ServerSyncManager {
         try {
           await this.sendOfflineChange(client, this.offlineQueue[i]);
           processedIndices.add(i);
-        } catch {
-          // Keep failed changes in queue
+        } catch (error) {
+          if (error instanceof ServerApiError && error.isNotFound()) {
+            // 404 means the resource is already gone — nothing left to do
+            processedIndices.add(i);
+          }
+          // Keep other failed changes in queue for retry
         }
       }
 
