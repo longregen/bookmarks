@@ -2700,6 +2700,14 @@ input[type="number"]:focus {
   font-size: var(--text-base);
 }
 
+.view-error.hidden {
+  display: none;
+}
+
+.view-content.hidden {
+  display: none;
+}
+
 .view-content {
   display: flex;
   flex-direction: column;
