@@ -4,8 +4,12 @@ import { generateSummary, generateEmbeddings, generateQAPairs } from './api';
 import { extractMarkdownAsync } from './extract';
 import { getPlatformAdapter } from './platform';
 import { getErrorMessage } from './errors';
+import { ServerApiClient, ServerApiError } from './server-api';
+import { getSettings } from './settings';
+import { serverSync } from './server-sync';
 
 export type IssueType =
+  | 'duplicate_bookmarks'
   | 'no_content'
   | 'no_markdown'
   | 'short_markdown'
@@ -39,6 +43,42 @@ function pushResult(
   }
 }
 
+export function findDuplicateBookmarks(allBookmarks: Bookmark[]): Map<string, Bookmark[]> {
+  const byUrl = new Map<string, Bookmark[]>();
+  for (const bookmark of allBookmarks) {
+    const group = byUrl.get(bookmark.url);
+    if (group) {
+      group.push(bookmark);
+    } else {
+      byUrl.set(bookmark.url, [bookmark]);
+    }
+  }
+
+  const duplicates = new Map<string, Bookmark[]>();
+  for (const [url, group] of byUrl) {
+    if (group.length > 1) {
+      duplicates.set(url, group);
+    }
+  }
+  return duplicates;
+}
+
+export function pickBestBookmark(group: Bookmark[]): Bookmark {
+  return group.reduce((best, current) => {
+    // Prefer 'complete' status
+    if (current.status === 'complete' && best.status !== 'complete') return current;
+    if (best.status === 'complete' && current.status !== 'complete') return best;
+    // Prefer non-error status
+    if (current.status !== 'error' && best.status === 'error') return current;
+    if (best.status !== 'error' && current.status === 'error') return best;
+    // Prefer more content
+    if (current.html.length > best.html.length) return current;
+    if (best.html.length > current.html.length) return best;
+    // Prefer newer
+    return current.updatedAt > best.updatedAt ? current : best;
+  });
+}
+
 export async function runDiagnostics(): Promise<DiagnosticResult[]> {
   const allBookmarks = await db.bookmarks.toArray();
   const allBookmarkIds = new Set(allBookmarks.map(b => b.id));
@@ -55,6 +95,15 @@ export async function runDiagnostics(): Promise<DiagnosticResult[]> {
 
   const settings = await getPlatformAdapter().getSettings();
   const currentEmbeddingModel = settings.embeddingModel;
+
+  // Detect duplicate bookmarks by URL
+  const duplicateGroups = findDuplicateBookmarks(allBookmarks);
+  const duplicateIds: string[] = [];
+  for (const group of duplicateGroups.values()) {
+    for (const bookmark of group) {
+      duplicateIds.push(bookmark.id);
+    }
+  }
 
   const noContentIds: string[] = [];
   const noMarkdownIds: string[] = [];
@@ -101,6 +150,7 @@ export async function runDiagnostics(): Promise<DiagnosticResult[]> {
   const staleIds = [...staleEmbeddingIds].filter(id => allBookmarkIds.has(id));
 
   const results: DiagnosticResult[] = [];
+  pushResult(results, 'duplicate_bookmarks', 'Duplicate Bookmarks', `${duplicateGroups.size} URLs with multiple bookmark entries (e.g. from sync conflicts)`, duplicateIds);
   pushResult(results, 'no_content', 'Missing Content', 'Bookmarks with no HTML content downloaded', noContentIds);
   pushResult(results, 'no_markdown', 'Missing Markdown', 'Bookmarks with HTML but no extracted markdown', noMarkdownIds);
   pushResult(results, 'short_markdown', 'Short Markdown', `Bookmarks with markdown shorter than ${SHORT_MARKDOWN_THRESHOLD} characters`, shortMarkdownIds);
@@ -112,6 +162,88 @@ export async function runDiagnostics(): Promise<DiagnosticResult[]> {
 }
 
 // Heal functions: fill in ONLY what's missing
+
+async function deleteBookmarkFromServer(loserIds: string[]): Promise<void> {
+  const settings = await getSettings();
+  if (!settings.serverEnabled || !settings.serverUrl || !settings.serverSessionToken) return;
+
+  let client: ServerApiClient | undefined;
+  try {
+    client = new ServerApiClient(settings.serverUrl, settings.serverSessionToken);
+  } catch {
+    return;
+  }
+
+  for (const loserId of loserIds) {
+    try {
+      await client.deleteBookmark(loserId);
+    } catch (error) {
+      if (error instanceof ServerApiError && error.isNotFound()) {
+        // Bookmark never existed on server — nothing to do
+        continue;
+      }
+      // Network or other error — queue for later
+      await serverSync.queueOfflineChange({
+        type: 'delete',
+        bookmarkId: loserId,
+        timestamp: Date.now(),
+      });
+    }
+  }
+}
+
+export async function healDuplicateBookmarks(
+  bookmarkIds: string[],
+  onProgress?: (done: number, total: number) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const bookmarks = await db.bookmarks.where('id').anyOf(bookmarkIds).toArray();
+  const duplicateGroups = findDuplicateBookmarks(bookmarks);
+
+  const groups = [...duplicateGroups.values()];
+  const total = groups.length;
+  let done = 0;
+
+  for (const group of groups) {
+    if (signal?.aborted === true) return;
+
+    try {
+      const keeper = pickBestBookmark(group);
+      const losers = group.filter(b => b.id !== keeper.id);
+      const loserIds = losers.map(b => b.id);
+
+      await db.transaction('rw', [db.bookmarks, db.markdown, db.questionsAnswers, db.summaries, db.bookmarkTags], async () => {
+        // Migrate tags from losers to keeper (skip duplicates via compound key)
+        for (const loserId of loserIds) {
+          const tags = await db.bookmarkTags.where('bookmarkId').equals(loserId).toArray();
+          for (const tag of tags) {
+            const exists = await db.bookmarkTags.get([keeper.id, tag.tagName]);
+            if (!exists) {
+              await db.bookmarkTags.put({ bookmarkId: keeper.id, tagName: tag.tagName, addedAt: tag.addedAt });
+            }
+          }
+        }
+
+        // Delete loser bookmarks and all their related records
+        for (const loserId of loserIds) {
+          await db.markdown.where('bookmarkId').equals(loserId).delete();
+          await db.questionsAnswers.where('bookmarkId').equals(loserId).delete();
+          await db.summaries.where('bookmarkId').equals(loserId).delete();
+          await db.bookmarkTags.where('bookmarkId').equals(loserId).delete();
+          await db.bookmarks.delete(loserId);
+        }
+      });
+
+      // Best-effort server cleanup: delete losers, queue on failure
+      await deleteBookmarkFromServer(loserIds);
+    } catch (error) {
+      console.error(`[SelfHeal] Failed to deduplicate group:`, getErrorMessage(error));
+    }
+
+    done++;
+    onProgress?.(done, total);
+  }
+}
 
 export async function healNoContent(
   bookmarkIds: string[],
@@ -564,6 +696,7 @@ async function generateDownstream(bookmark: Bookmark, markdownContent: string): 
 export type HealFunction = typeof healNoContent;
 
 export const HEAL_FUNCTIONS: Record<IssueType, HealFunction> = {
+  duplicate_bookmarks: healDuplicateBookmarks,
   no_content: healNoContent,
   no_markdown: healNoMarkdown,
   short_markdown: healShortMarkdown,
@@ -578,6 +711,7 @@ export interface RegenerateOption {
 }
 
 export const REGENERATE_OPTIONS_BY_ISSUE: Record<IssueType, RegenerateOption[]> = {
+  duplicate_bookmarks: [],
   no_content: [
     { label: 'Regenerate Content', fn: regenerateFromContent },
   ],
