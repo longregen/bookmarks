@@ -15,9 +15,7 @@
     "jsr:@std/path@0.217": "0.217.0",
     "jsr:@std/path@1": "1.1.2",
     "jsr:@std/path@^1.1.1": "1.1.2",
-    "npm:@types/node@*": "24.2.0",
-    "npm:hono@4": "4.11.7",
-    "npm:wrangler@4": "4.63.0_unenv@2.0.0-rc.24_workerd@1.20260205.0"
+    "npm:@types/node@*": "24.2.0"
   },
   "jsr": {
     "@db/sqlite@0.12.0": {
@@ -643,8 +641,8 @@
     ],
     "packageJson": {
       "dependencies": [
-        "npm:hono@4",
-        "npm:wrangler@4"
+        "npm:hono@^4.12.3",
+        "npm:wrangler@^4.69.0"
       ]
     }
   }

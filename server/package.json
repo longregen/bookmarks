@@ -13,9 +13,9 @@
     "tail": "wrangler tail"
   },
   "dependencies": {
-    "hono": "^4.11.10"
+    "hono": "^4.12.3"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0"
+    "wrangler": "^4.69.0"
   }
 }
