@@ -2,7 +2,7 @@ import { ChromeAdapter } from './adapters/chrome-adapter';
 import { FirefoxAdapter } from './adapters/firefox-adapter';
 import { PageHandle, TestAdapter, waitForSettingsLoad } from './e2e-shared';
 import { startMockServer, getMockPageUrls, MockServer } from './mock-server';
-import { spawn, execSync, ChildProcess } from 'child_process';
+import { spawn, execSync, execFileSync, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -170,7 +170,7 @@ async function startWranglerServer(mockOpenAIUrl: string): Promise<ServerProcess
     try {
       const nixInterp = execSync('nix eval --raw nixpkgs#stdenv.cc.bintools.dynamicLinker 2>/dev/null', { encoding: 'utf8' }); // eslint-disable-line
       if (nixInterp) {
-        execSync(`patchelf --set-interpreter ${nixInterp} ${workerdBin}`, { stdio: 'pipe' }); // eslint-disable-line
+        execFileSync('patchelf', ['--set-interpreter', nixInterp, workerdBin], { stdio: 'pipe' }); // eslint-disable-line
       }
     } catch {
       // Not on NixOS or patchelf not available — skip patching
@@ -183,8 +183,9 @@ async function startWranglerServer(mockOpenAIUrl: string): Promise<ServerProcess
     const migrations = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
     for (const migration of migrations) {
       console.log(`Running D1 migration: ${migration}`);
-      execSync( // eslint-disable-line
-        `${wranglerBin} d1 execute bookmark-rag --local --file=./migrations/${migration} --persist-to ${dataDir} --env dev`,
+      execFileSync( // eslint-disable-line
+        wranglerBin,
+        ['d1', 'execute', 'bookmark-rag', '--local', `--file=./migrations/${migration}`, '--persist-to', dataDir, '--env', 'dev'],
         { cwd: SERVER_DIR, stdio: 'pipe' }
       );
     }
