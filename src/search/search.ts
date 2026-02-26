@@ -275,19 +275,48 @@ interface ServerSearchResult {
 async function performServerSearch(client: ServerApiClient, query: string): Promise<ServerSearchResult[]> {
   const response = await client.semanticSearch({ query, limit: config.SEARCH_TOP_K_RESULTS });
 
-  return response.results.map(result => ({
-    bookmark: {
-      id: result.bookmark.id,
-      title: result.bookmark.title,
-      url: result.bookmark.url,
-      createdAt: new Date(result.bookmark.createdAt),
-    },
-    score: result.score,
-    qa: {
-      question: 'No preview available',
-      answer: 'Open bookmark details to view content',
-    },
-  }));
+  const bookmarkIds = response.results.map(r => r.bookmark.id);
+  const [allQA, allSummaries] = await Promise.all([
+    bookmarkIds.length > 0 ? db.questionsAnswers.where('bookmarkId').anyOf(bookmarkIds).toArray() : Promise.resolve([]),
+    bookmarkIds.length > 0 ? db.summaries.where('bookmarkId').anyOf(bookmarkIds).toArray() : Promise.resolve([]),
+  ]);
+
+  const qaByBookmark = new Map<string, QuestionAnswer>();
+  for (const qa of allQA) {
+    if (!qaByBookmark.has(qa.bookmarkId)) {
+      qaByBookmark.set(qa.bookmarkId, qa);
+    }
+  }
+
+  const summaryByBookmark = new Map<string, string>();
+  for (const s of allSummaries) {
+    summaryByBookmark.set(s.bookmarkId, s.content);
+  }
+
+  return response.results.map(result => {
+    const qa = qaByBookmark.get(result.bookmark.id);
+    const summary = summaryByBookmark.get(result.bookmark.id);
+
+    let bestQA: { question: string; answer: string };
+    if (qa) {
+      bestQA = { question: qa.question, answer: qa.answer };
+    } else if (summary !== undefined && summary.length > 0) {
+      bestQA = { question: 'Summary', answer: summary.slice(0, 200) + (summary.length > 200 ? '...' : '') };
+    } else {
+      bestQA = { question: 'No preview available', answer: 'Open bookmark details to view content' };
+    }
+
+    return {
+      bookmark: {
+        id: result.bookmark.id,
+        title: result.bookmark.title,
+        url: result.bookmark.url,
+        createdAt: new Date(result.bookmark.createdAt),
+      },
+      score: result.score,
+      qa: bestQA,
+    };
+  });
 }
 
 async function renderServerResults(results: ServerSearchResult[], query: string): Promise<void> {
