@@ -13,7 +13,6 @@ import { onThemeChange, applyTheme } from '../shared/theme';
 import { initExtension } from '../ui/init-extension';
 import { initWebWithAuth } from '../web/init-web';
 
-const viewLoading = getElement('viewLoading');
 const viewError = getElement('viewError');
 const viewContent = getElement('viewContent');
 const viewTitle = getElement('viewTitle');
@@ -21,8 +20,6 @@ const viewMeta = getElement('viewMeta');
 const tagEditorContainer = getElement('tagEditorContainer');
 const summarySection = getElement('summarySection');
 const summaryContent = getElement('summaryContent');
-const screenshotSection = getElement('screenshotSection');
-const screenshotFrame = getElement<HTMLIFrameElement>('screenshotFrame');
 const markdownSection = getElement('markdownSection');
 const qaSection = getElement('qaSection');
 const backBtn = getElement<HTMLButtonElement>('backBtn');
@@ -42,7 +39,6 @@ const backUrls: Record<string, string> = {
 };
 
 function showError(message: string): void {
-  viewLoading.classList.add('hidden');
   viewError.textContent = message;
   viewError.classList.remove('hidden');
 }
@@ -251,16 +247,6 @@ async function loadView(): Promise<void> {
     summarySection.classList.remove('hidden');
   }
 
-  if (bookmark.html) {
-    const blob = new Blob([bookmark.html], { type: 'text/html' });
-    const blobUrl = URL.createObjectURL(blob);
-    screenshotFrame.src = blobUrl;
-    screenshotFrame.addEventListener('load', () => {
-      URL.revokeObjectURL(blobUrl);
-    }, { once: true });
-    screenshotSection.classList.remove('hidden');
-  }
-
   if (markdown) {
     const content = createElement('div', { className: 'markdown-content' });
     setSanitizedHTML(content, parseMarkdown(markdown.content));
@@ -282,7 +268,6 @@ async function loadView(): Promise<void> {
     qaSection.appendChild(qaContainer);
   }
 
-  viewLoading.classList.add('hidden');
   viewContent.classList.remove('hidden');
 }
 

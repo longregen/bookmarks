@@ -525,6 +525,12 @@ async function scene06_viewPage(ctx: WalkthroughContext): Promise<void> {
     `!document.getElementById('viewContent')?.classList.contains('hidden')`,
     10000
   );
+
+  // Verify no loading indicator or iframe remain
+  await ctx.page.waitForFunction(
+    `document.getElementById('viewLoading') === null && document.querySelector('iframe') === null`,
+    5000
+  );
   await pause(500);
   await capture(ctx, 'view-page-open');
   await capture(ctx, 'view-page-content', true);
