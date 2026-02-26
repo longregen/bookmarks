@@ -84,6 +84,27 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
   }
 }
 
+export async function generateSummary(markdownContent: string): Promise<string> {
+  const settings = await getPlatformAdapter().getSettings();
+  const truncatedContent = markdownContent.slice(0, config.API_CONTENT_MAX_CHARS);
+
+  const data = await makeApiRequest<ChatCompletionResponse>('/chat/completions', {
+    model: settings.chatModel,
+    messages: [
+      { role: 'system', content: config.SUMMARY_SYSTEM_PROMPT },
+      { role: 'user', content: truncatedContent },
+    ],
+    ...(config.API_CHAT_USE_TEMPERATURE && { temperature: config.API_CHAT_TEMPERATURE }),
+  }, settings);
+
+  const content = data.choices.at(0)?.message.content;
+  if (content === undefined) {
+    throw new Error('Empty response from chat API');
+  }
+
+  return content.trim();
+}
+
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   const settings = await getPlatformAdapter().getSettings();
   debugLog('Starting embedding generation', {

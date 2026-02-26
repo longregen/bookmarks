@@ -28,6 +28,7 @@ export interface QuestionAnswer {
   embeddingQuestion: number[];
   embeddingAnswer: number[];
   embeddingBoth: number[];
+  embeddingModel?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +38,7 @@ export interface Summary {
   bookmarkId: string;
   content: string;
   embedding: number[];
+  embeddingModel?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,7 +67,8 @@ export enum JobType {
   FILE_IMPORT = 'file_import',
   BULK_URL_IMPORT = 'bulk_url_import',
   URL_FETCH = 'url_fetch',
-  SYNC_UPLOAD = 'sync_upload'
+  SYNC_UPLOAD = 'sync_upload',
+  SELF_HEAL = 'self_heal'
 }
 
 export enum JobStatus {

@@ -3,6 +3,7 @@ import { db } from '../src/db/schema';
 import { processBookmarkContent } from '../src/background/processor';
 import * as extract from '../src/lib/extract';
 import * as api from '../src/lib/api';
+import { setPlatformAdapter, type PlatformAdapter, type ApiSettings } from '../src/lib/platform';
 
 vi.mock('../src/lib/extract', () => ({
   extractMarkdownAsync: vi.fn(),
@@ -11,11 +12,35 @@ vi.mock('../src/lib/extract', () => ({
 vi.mock('../src/lib/api', () => ({
   generateQAPairs: vi.fn(),
   generateEmbeddings: vi.fn(),
+  generateSummary: vi.fn(),
 }));
 
 vi.mock('../src/lib/browser-fetch', () => ({
   browserFetch: vi.fn(),
 }));
+
+const TEST_SETTINGS: ApiSettings = {
+  apiBaseUrl: 'https://api.openai.com/v1',
+  apiKey: 'test-key',
+  chatModel: 'gpt-4o-mini',
+  embeddingModel: 'text-embedding-3-small',
+  serverUrl: '',
+  serverEnabled: false,
+  serverSessionToken: '',
+  serverSessionExpiry: '',
+  serverAuthToken: '',
+  serverLastSyncTime: '',
+  serverLastSyncError: '',
+};
+
+const mockAdapter: PlatformAdapter = {
+  getSettings: vi.fn().mockResolvedValue(TEST_SETTINGS),
+  saveSetting: vi.fn(),
+  getTheme: vi.fn().mockResolvedValue('auto' as const),
+  setTheme: vi.fn(),
+};
+
+setPlatformAdapter(mockAdapter);
 
 describe('Bookmark Processor', () => {
   beforeEach(async () => {
@@ -23,7 +48,10 @@ describe('Bookmark Processor', () => {
     await db.jobs.clear();
     await db.markdown.clear();
     await db.questionsAnswers.clear();
+    await db.summaries.clear();
     vi.clearAllMocks();
+
+    vi.spyOn(api, 'generateSummary').mockResolvedValue('Test summary');
   });
 
   afterEach(async () => {
@@ -31,6 +59,7 @@ describe('Bookmark Processor', () => {
     await db.jobs.clear();
     await db.markdown.clear();
     await db.questionsAnswers.clear();
+    await db.summaries.clear();
   });
 
   describe('processBookmarkContent', () => {
@@ -66,7 +95,7 @@ describe('Bookmark Processor', () => {
 
       expect(extractMock).toHaveBeenCalledWith(bookmark.html, bookmark.url);
       expect(qaPairsMock).toHaveBeenCalledWith('Test markdown content');
-      expect(embeddingsMock).toHaveBeenCalledTimes(3);
+      expect(embeddingsMock).toHaveBeenCalledTimes(4);
 
       const markdown = await db.markdown.where('bookmarkId').equals('test-1').first();
       expect(markdown?.content).toBe('Test markdown content');
@@ -200,22 +229,15 @@ describe('Bookmark Processor', () => {
         { question: 'What is this?', answer: 'This is a test' },
       ]);
 
-      const questionEmbedding = [0.1, 0.2, 0.3];
-      const answerEmbedding = [0.4, 0.5, 0.6];
-      const combinedEmbedding = [0.7, 0.8, 0.9];
-
-      vi.spyOn(api, 'generateEmbeddings')
-        .mockResolvedValueOnce([questionEmbedding])
-        .mockResolvedValueOnce([answerEmbedding])
-        .mockResolvedValueOnce([combinedEmbedding]);
+      vi.spyOn(api, 'generateEmbeddings').mockResolvedValue([[0.1, 0.2, 0.3]]);
 
       await processBookmarkContent(bookmark);
 
       const qaPairs = await db.questionsAnswers.where('bookmarkId').equals('test-1').toArray();
       expect(qaPairs).toHaveLength(1);
-      expect(qaPairs[0].embeddingQuestion).toEqual(questionEmbedding);
-      expect(qaPairs[0].embeddingAnswer).toEqual(answerEmbedding);
-      expect(qaPairs[0].embeddingBoth).toEqual(combinedEmbedding);
+      expect(qaPairs[0].embeddingQuestion).toEqual([0.1, 0.2, 0.3]);
+      expect(qaPairs[0].embeddingAnswer).toEqual([0.1, 0.2, 0.3]);
+      expect(qaPairs[0].embeddingBoth).toEqual([0.1, 0.2, 0.3]);
     });
 
     it('should throw on extraction errors', async () => {
@@ -316,10 +338,7 @@ describe('Bookmark Processor', () => {
         { question: 'Q3?', answer: 'A3' },
       ]);
 
-      vi.spyOn(api, 'generateEmbeddings')
-        .mockResolvedValueOnce([[0.1], [0.2], [0.3]])
-        .mockResolvedValueOnce([[0.4], [0.5], [0.6]])
-        .mockResolvedValueOnce([[0.7], [0.8], [0.9]]);
+      vi.spyOn(api, 'generateEmbeddings').mockResolvedValue([[0.1], [0.2], [0.3]]);
 
       await processBookmarkContent(bookmark);
 

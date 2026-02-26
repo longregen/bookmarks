@@ -1,9 +1,9 @@
-import { db, type Bookmark, type Markdown, type QuestionAnswer, JobType, JobStatus, getBookmarkContent } from '../db/schema';
+import { db, type Bookmark, type Markdown, type QuestionAnswer, type Summary, JobType, JobStatus, getBookmarkContent } from '../db/schema';
 import { createJob } from './jobs';
 import { encodeEmbedding, decodeEmbedding, isEncodedEmbedding } from './embedding-codec';
 import { getErrorMessage } from './errors';
 
-const EXPORT_VERSION = 2;
+const EXPORT_VERSION = 3;
 
 export interface ExportedBookmark {
   id: string;
@@ -20,7 +20,13 @@ export interface ExportedBookmark {
     embeddingQuestion?: string;
     embeddingAnswer?: string;
     embeddingBoth?: string;
+    embeddingModel?: string;
   }[];
+  summary?: {
+    content: string;
+    embedding?: string;
+    embeddingModel?: string;
+  };
 }
 
 export interface BookmarkExport {
@@ -37,8 +43,9 @@ export async function exportSingleBookmark(bookmarkId: string): Promise<Bookmark
   }
 
   const { markdown, qaPairs } = await getBookmarkContent(bookmarkId);
+  const summary = await db.summaries.where('bookmarkId').equals(bookmarkId).first();
 
-  const exportedBookmark = formatBookmarkForExport(bookmark, markdown, qaPairs);
+  const exportedBookmark = formatBookmarkForExport(bookmark, markdown, qaPairs, summary);
 
   return {
     version: EXPORT_VERSION,
@@ -53,13 +60,15 @@ export async function exportAllBookmarks(): Promise<BookmarkExport> {
 
   // Batch load all related data to avoid N+1 queries
   const bookmarkIds = bookmarks.map(b => b.id);
-  const [allMarkdown, allQAPairs] = await Promise.all([
+  const [allMarkdown, allQAPairs, allSummaries] = await Promise.all([
     db.markdown.where('bookmarkId').anyOf(bookmarkIds).toArray(),
     db.questionsAnswers.where('bookmarkId').anyOf(bookmarkIds).toArray(),
+    db.summaries.where('bookmarkId').anyOf(bookmarkIds).toArray(),
   ]);
 
   // Build lookup maps for O(1) access
   const markdownByBookmarkId = new Map(allMarkdown.map(m => [m.bookmarkId, m]));
+  const summaryByBookmarkId = new Map(allSummaries.map(s => [s.bookmarkId, s]));
   const qaPairsByBookmarkId = new Map<string, QuestionAnswer[]>();
   for (const qa of allQAPairs) {
     let list = qaPairsByBookmarkId.get(qa.bookmarkId);
@@ -73,7 +82,8 @@ export async function exportAllBookmarks(): Promise<BookmarkExport> {
   const exportedBookmarks: ExportedBookmark[] = bookmarks.map(bookmark => {
     const markdown = markdownByBookmarkId.get(bookmark.id);
     const qaPairs = qaPairsByBookmarkId.get(bookmark.id) ?? [];
-    return formatBookmarkForExport(bookmark, markdown, qaPairs);
+    const summary = summaryByBookmarkId.get(bookmark.id);
+    return formatBookmarkForExport(bookmark, markdown, qaPairs, summary);
   });
 
   return {
@@ -87,7 +97,8 @@ export async function exportAllBookmarks(): Promise<BookmarkExport> {
 function formatBookmarkForExport(
   bookmark: Bookmark,
   markdown: Markdown | undefined,
-  qaPairs: QuestionAnswer[]
+  qaPairs: QuestionAnswer[],
+  summary?: Summary,
 ): ExportedBookmark {
   return {
     id: bookmark.id,
@@ -104,7 +115,13 @@ function formatBookmarkForExport(
       embeddingQuestion: qa.embeddingQuestion.length > 0 ? encodeEmbedding(qa.embeddingQuestion) : undefined,
       embeddingAnswer: qa.embeddingAnswer.length > 0 ? encodeEmbedding(qa.embeddingAnswer) : undefined,
       embeddingBoth: qa.embeddingBoth.length > 0 ? encodeEmbedding(qa.embeddingBoth) : undefined,
+      embeddingModel: qa.embeddingModel,
     })),
+    summary: summary ? {
+      content: summary.content,
+      embedding: summary.embedding.length > 0 ? encodeEmbedding(summary.embedding) : undefined,
+      embeddingModel: summary.embeddingModel,
+    } : undefined,
   };
 }
 
@@ -188,6 +205,7 @@ async function importQAPairs(
           embeddingQuestion,
           embeddingAnswer,
           embeddingBoth,
+          embeddingModel: qa.embeddingModel,
           createdAt: now,
           updatedAt: now,
         });
@@ -198,6 +216,25 @@ async function importQAPairs(
   if (qaPairsToAdd.length > 0) {
     await db.questionsAnswers.bulkAdd(qaPairsToAdd);
   }
+}
+
+async function importSummary(
+  bookmarkId: string,
+  summaryData: NonNullable<ExportedBookmark['summary']>,
+): Promise<void> {
+  const now = new Date();
+  const embedding = decodeEmbeddingField(summaryData.embedding);
+  if (embedding === null) return;
+
+  await db.summaries.add({
+    id: crypto.randomUUID(),
+    bookmarkId,
+    content: summaryData.content,
+    embedding,
+    embeddingModel: summaryData.embeddingModel,
+    createdAt: now,
+    updatedAt: now,
+  });
 }
 
 export interface ImportResult {
@@ -246,12 +283,15 @@ export async function importBookmarks(data: BookmarkExport, fileName?: string): 
 
         const bookmarkId = await importSingleBookmark(exportedBookmark);
 
-        // Parallelize markdown and QA pairs import since they don't depend on each other
+        // Parallelize markdown, QA pairs, and summary import since they don't depend on each other
         const importTasks = [];
         if (exportedBookmark.markdown !== undefined && exportedBookmark.markdown !== '') {
           importTasks.push(importMarkdown(bookmarkId, exportedBookmark.markdown));
         }
         importTasks.push(importQAPairs(bookmarkId, exportedBookmark.questionsAnswers));
+        if (exportedBookmark.summary !== undefined) {
+          importTasks.push(importSummary(bookmarkId, exportedBookmark.summary));
+        }
         await Promise.all(importTasks);
 
         result.imported++;
