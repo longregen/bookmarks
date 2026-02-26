@@ -49,39 +49,43 @@ export class WebAdapter implements TestAdapter {
       this.staticServer = http.createServer((req, res) => {
         const urlPath = (req.url || '/').split('?')[0];
 
-        // Strip the /webapp/ prefix to get the file path within dist-web
+        // Strip the /webapp/ prefix to get the relative file path
         const prefix = '/webapp/';
-        let filePath: string;
+        let relativePath: string;
         if (urlPath.startsWith(prefix)) {
-          filePath = path.join(this.distPath, urlPath.slice(prefix.length));
+          relativePath = urlPath.slice(prefix.length);
         } else {
-          filePath = path.join(this.distPath, urlPath);
+          relativePath = urlPath.startsWith('/') ? urlPath.slice(1) : urlPath;
         }
+
+        // Normalize and reject path traversal attempts
+        const normalized = path.posix.normalize(relativePath);
+        if (normalized.startsWith('..') || normalized.includes('/..') || path.isAbsolute(normalized)) {
+          res.statusCode = 403;
+          res.end('Forbidden');
+          return;
+        }
+
+        // Construct safe file path within distPath
+        const rootDir = path.resolve(this.distPath);
+        let filePath = path.join(rootDir, normalized);
 
         // Default to index.html for directory requests
         if (filePath.endsWith('/') || !path.extname(filePath)) {
           filePath = path.join(filePath, 'index.html');
         }
 
-        // Prevent path traversal: resolved path must stay within distPath
-        const resolvedPath = path.resolve(filePath);
-        if (!resolvedPath.startsWith(path.resolve(this.distPath) + path.sep) && resolvedPath !== path.resolve(this.distPath)) {
-          res.statusCode = 403;
-          res.end('Forbidden');
-          return;
-        }
-
-        if (!fs.existsSync(resolvedPath)) {
+        if (!fs.existsSync(filePath)) {
           res.statusCode = 404;
           res.end('Not found');
           return;
         }
 
-        const ext = path.extname(resolvedPath);
+        const ext = path.extname(filePath);
         const contentType = MIME_TYPES[ext] || 'application/octet-stream';
         res.setHeader('Content-Type', contentType);
         res.statusCode = 200;
-        fs.createReadStream(resolvedPath).pipe(res);
+        fs.createReadStream(filePath).pipe(res);
       });
 
       this.staticServer.listen(0, '127.0.0.1', () => {

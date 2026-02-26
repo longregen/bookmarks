@@ -34,6 +34,11 @@
     "marked": "^17.0.1",
     "turndown": "^7.2.2"
   },
+  "overrides": {
+    "@crxjs/vite-plugin": {
+      "rollup": "2.80.0"
+    }
+  },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.3.0",
     "@esbuild/linux-x64": "^0.27.2",
