@@ -7,7 +7,6 @@ on:
 permissions:
   contents: read
   pull-requests: write
-  deployments: write
 
 concurrency:
   group: pr-preview-${{ github.event.pull_request.number }}
@@ -19,45 +18,68 @@ jobs:
     # Skip forks (no access to secrets)
     if: github.event.pull_request.head.repo.full_name == github.repository
     steps:
+      - name: Check Cloudflare secrets
+        id: check-secrets
+        run: |
+          if [ -n "$CF_TOKEN" ] && [ -n "$CF_ACCOUNT" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Cloudflare secrets not configured, skipping preview deployment"
+          fi
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
       - name: Checkout
+        if: steps.check-secrets.outputs.available == 'true'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Node.js
+        if: steps.check-secrets.outputs.available == 'true'
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
+        if: steps.check-secrets.outputs.available == 'true'
         run: npm ci
 
       - name: Build webapp for preview
+        if: steps.check-secrets.outputs.available == 'true'
         run: npx vite build --config vite.config.web.ts --base /
 
       - name: Add redirects
+        if: steps.check-secrets.outputs.available == 'true'
         run: |
           cat > dist-web/_redirects << 'EOF'
           / /src/library/library.html 302
           EOF
 
-      - name: Ensure Cloudflare Pages project exists
-        run: npx wrangler pages project create bookmark-rag-preview --production-branch=main || true
+      - name: Deploy to Cloudflare Pages
+        if: steps.check-secrets.outputs.available == 'true'
+        id: deploy
+        run: |
+          DEPLOY_OUTPUT=$(npx wrangler pages deploy dist-web \
+            --project-name=bookmark-rag-preview \
+            --branch=pr-${{ github.event.pull_request.number }} 2>&1) || true
+          echo "$DEPLOY_OUTPUT"
+          URL=$(echo "$DEPLOY_OUTPUT" | grep -oP 'https://[^\s]+\.pages\.dev' | head -1)
+          if [ -n "$URL" ]; then
+            echo "url=$URL" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Could not extract deployment URL from wrangler output"
+          fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Deploy to Cloudflare Pages
-        id: deploy
-        uses: cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3.14.1
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist-web --project-name=bookmark-rag-preview --branch=pr-${{ github.event.pull_request.number }}
-
       - name: Comment preview URL on PR
+        if: steps.deploy.outputs.url
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         env:
-          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
         with:
           script: |
             const url = process.env.DEPLOYMENT_URL;
