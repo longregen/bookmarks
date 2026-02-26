@@ -351,6 +351,10 @@ body {
   display: inline-block;
 }
 
+.result-status.loading::before {
+  content: none;
+}
+
 .result-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
