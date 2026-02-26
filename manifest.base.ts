@@ -1,7 +1,7 @@
 export const manifestBase = {
   manifest_version: 3,
   name: 'Bookmark RAG',
-  version: '5.0.2',
+  version: '5.0.3',
   description: 'Capture and semantically search your bookmarks',
 
   host_permissions: ['<all_urls>'],
