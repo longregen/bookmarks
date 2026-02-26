@@ -17,25 +17,17 @@ const SYNC_POLL_INTERVAL = 2000;
 
 let statusPoller: Poller | null = null;
 
-function updateAuthUI(isLoggedIn: boolean, tokenDisplay: string): void {
-  const authSection = getElement('serverAuthSection');
-  const loggedInSection = getElement('serverLoggedInSection');
-  const tokenDisplayEl = getElement('serverTokenDisplay');
-
-  if (isLoggedIn) {
-    authSection.classList.add('hidden');
-    loggedInSection.classList.remove('hidden');
-    tokenDisplayEl.textContent = tokenDisplay;
-  } else {
-    authSection.classList.remove('hidden');
-    loggedInSection.classList.add('hidden');
-    tokenDisplayEl.textContent = '';
-  }
+function showSetupSection(): void {
+  getElement('serverSetupSection').classList.remove('hidden');
+  getElement('serverConnectedSection').classList.add('hidden');
 }
 
-function truncateToken(token: string): string {
-  if (token.length <= 12) return token;
-  return `${token.slice(0, 8)}...${token.slice(-4)}`;
+function showConnectedSection(serverUrl: string, authToken: string): void {
+  getElement('serverSetupSection').classList.add('hidden');
+  getElement('serverConnectedSection').classList.remove('hidden');
+
+  getElement<HTMLInputElement>('serverUrlDisplay').value = serverUrl;
+  getElement<HTMLInputElement>('serverTokenDisplay').value = authToken;
 }
 
 function updateSyncStatus(lastSyncTime: string, lastError: string): void {
@@ -61,6 +53,24 @@ function updateFieldsVisibility(enabled: boolean): void {
     fields.classList.remove('hidden');
   } else {
     fields.classList.add('hidden');
+  }
+}
+
+function updateCheckButtonState(): void {
+  const urlInput = getElement<HTMLInputElement>('serverUrl');
+  const checkBtn = getElement<HTMLButtonElement>('serverCheckBtn');
+  checkBtn.disabled = !urlInput.value.trim();
+}
+
+function updateConnectButtonState(): void {
+  const tokenInput = getElement<HTMLInputElement>('serverToken');
+  const connectBtn = getElement<HTMLButtonElement>('serverConnectBtn');
+  const hasToken = tokenInput.value.trim().length > 0;
+  connectBtn.disabled = !hasToken;
+  if (hasToken) {
+    connectBtn.classList.add('sync-connect-highlight');
+  } else {
+    connectBtn.classList.remove('sync-connect-highlight');
   }
 }
 
@@ -96,8 +106,14 @@ async function loadSettings(): Promise<void> {
   const isLoggedIn =
     Boolean(settings.serverSessionToken) &&
     isSessionValid(settings.serverSessionExpiry);
-  updateAuthUI(isLoggedIn, truncateToken(settings.serverAuthToken));
-  updateSyncStatus(settings.serverLastSyncTime, settings.serverLastSyncError);
+
+  if (isLoggedIn) {
+    showConnectedSection(settings.serverUrl, settings.serverAuthToken);
+    updateSyncStatus(settings.serverLastSyncTime, settings.serverLastSyncError);
+  } else {
+    showSetupSection();
+    updateCheckButtonState();
+  }
 }
 
 async function handleEnableToggle(event: Event): Promise<void> {
@@ -109,27 +125,53 @@ async function handleEnableToggle(event: Event): Promise<void> {
   await notifySyncSettingsChanged();
 }
 
-async function handleUrlSave(): Promise<void> {
+async function handleCheckServer(): Promise<void> {
   const urlInput = getElement<HTMLInputElement>('serverUrl');
-  const statusDiv = getElement('status');
+  const checkBtn = getElement<HTMLButtonElement>('serverCheckBtn');
+  const checkStatus = getElement('serverCheckStatus');
+  const authSection = getElement('serverAuthSection');
 
   const url = urlInput.value.trim();
 
-  if (url && !url.startsWith('https://') && !url.startsWith('http://')) {
-    showStatusMessage(statusDiv, 'Server URL must start with http:// or https://', 'error');
+  if (!url) return;
+
+  if (!url.startsWith('https://') && !url.startsWith('http://')) {
+    checkStatus.textContent = 'URL must start with http:// or https://';
+    checkStatus.className = 'server-check-status error';
+    checkStatus.classList.remove('hidden');
+    authSection.classList.add('hidden');
     return;
   }
 
-  await saveSetting('serverUrl', url);
-  showStatusMessage(statusDiv, 'Server URL saved', 'success');
+  try {
+    await withButtonState(checkBtn, 'Checking...', async () => {
+      const client = new ServerApiClient(url, '');
+      await client.checkHealth();
+    });
+
+    checkStatus.textContent = 'Server is reachable';
+    checkStatus.className = 'server-check-status success';
+    checkStatus.classList.remove('hidden');
+
+    authSection.classList.remove('hidden');
+    updateConnectButtonState();
+  } catch (error) {
+    checkStatus.textContent = `Cannot reach server: ${getErrorMessage(error)}`;
+    checkStatus.className = 'server-check-status error';
+    checkStatus.classList.remove('hidden');
+    authSection.classList.add('hidden');
+  }
 }
 
 function handleGenerateToken(): void {
   const tokenInput = getElement<HTMLInputElement>('serverToken');
   const copyBtn = getElement<HTMLButtonElement>('serverCopyTokenBtn');
+  const warning = getElement('serverTokenWarning');
 
   tokenInput.value = generateToken();
-  copyBtn.style.display = '';
+  copyBtn.classList.remove('hidden');
+  warning.classList.remove('hidden');
+  updateConnectButtonState();
 }
 
 async function handleCopyToken(): Promise<void> {
@@ -176,9 +218,17 @@ async function handleConnect(): Promise<void> {
     const enabledCheckbox = getElement<HTMLInputElement>('serverEnabled');
     enabledCheckbox.checked = true;
 
-    updateAuthUI(true, truncateToken(token));
+    showConnectedSection(serverUrl, token);
+
+    const settings = await getSettings();
+    updateSyncStatus(settings.serverLastSyncTime, settings.serverLastSyncError);
+
+    // Clear setup form
     tokenInput.value = '';
-    getElement<HTMLButtonElement>('serverCopyTokenBtn').style.display = 'none';
+    getElement<HTMLButtonElement>('serverCopyTokenBtn').classList.add('hidden');
+    getElement('serverTokenWarning').classList.add('hidden');
+    getElement('serverAuthSection').classList.add('hidden');
+    getElement('serverCheckStatus').classList.add('hidden');
 
     const message = result.created ? 'Account created and connected!' : 'Connected successfully!';
     showStatusMessage(statusDiv, message, 'success');
@@ -205,7 +255,7 @@ async function handleLogout(): Promise<void> {
     const enabledCheckbox = getElement<HTMLInputElement>('serverEnabled');
     enabledCheckbox.checked = false;
 
-    updateAuthUI(false, '');
+    showSetupSection();
     showStatusMessage(statusDiv, 'Disconnected successfully', 'success');
   } catch (error) {
     showStatusMessage(statusDiv, getErrorMessage(error), 'error', 5000);
@@ -217,7 +267,7 @@ async function handleDeleteAccount(): Promise<void> {
   const statusDiv = getElement('status');
 
   // eslint-disable-next-line no-alert
-  if (!confirm('Are you sure you want to delete all server data? This action cannot be undone.')) {
+  if (!confirm('Are you sure you want to delete all server data? This action cannot be undone.\n\nYou will be disconnected after deletion.')) {
     return;
   }
 
@@ -235,8 +285,8 @@ async function handleDeleteAccount(): Promise<void> {
     const enabledCheckbox = getElement<HTMLInputElement>('serverEnabled');
     enabledCheckbox.checked = false;
 
-    updateAuthUI(false, '');
-    showStatusMessage(statusDiv, 'All server data deleted', 'success');
+    showSetupSection();
+    showStatusMessage(statusDiv, 'All server data deleted and disconnected', 'success');
   } catch (error) {
     showStatusMessage(statusDiv, getErrorMessage(error), 'error', 5000);
   }
@@ -321,57 +371,6 @@ async function handleSyncNow(): Promise<void> {
   }
 }
 
-function isServerConnected(settings: { serverUrl: string; serverSessionToken: string; serverSessionExpiry: string }): boolean {
-  return Boolean(settings.serverUrl) &&
-    Boolean(settings.serverSessionToken) &&
-    isSessionValid(settings.serverSessionExpiry);
-}
-
-async function handleReprocessAll(): Promise<void> {
-  const reembedBtn = getElement<HTMLButtonElement>('serverReembedAllBtn');
-  const statusDiv = getElement('status');
-
-  const settings = await getSettings();
-  const useServer = isServerConnected(settings);
-
-  try {
-    if (useServer) {
-      const result = await withButtonState(reembedBtn, 'Queuing...', async () => {
-        const client = new ServerApiClient(settings.serverUrl, settings.serverSessionToken);
-        return client.reprocessAllBookmarks();
-      });
-      showStatusMessage(statusDiv, `Queued ${result.queued} bookmarks for re-embedding`, 'success');
-    } else {
-      const result = await withButtonState(reembedBtn, 'Queuing...', async () => {
-        if (__IS_WEB__) {
-          const { db } = await import('../../db/schema');
-          const { startProcessingQueue } = await import('../../background/queue');
-          let count = 0;
-          await db.transaction('rw', db.bookmarks, async () => {
-            const bookmarks = await db.bookmarks.where('status').anyOf(['complete', 'error']).toArray();
-            count = bookmarks.length;
-            for (const b of bookmarks) {
-              await db.bookmarks.update(b.id, { status: 'pending' as const, retryCount: 0, errorMessage: undefined, updatedAt: new Date() });
-            }
-          });
-          void startProcessingQueue();
-          return { count };
-        } else {
-          const response: { success?: boolean; count?: number; error?: string } | undefined =
-            await chrome.runtime.sendMessage({ type: 'bookmark:reprocess_all' });
-          if (response?.success !== true) {
-            throw new Error(response?.error ?? 'Reprocessing failed');
-          }
-          return { count: response.count ?? 0 };
-        }
-      });
-      showStatusMessage(statusDiv, `Queued ${result.count} bookmarks for re-embedding`, 'success');
-    }
-  } catch (error) {
-    showStatusMessage(statusDiv, `Re-embed failed: ${getErrorMessage(error)}`, 'error', 5000);
-  }
-}
-
 async function pollSyncStatus(): Promise<void> {
   const settings = await getSettings();
   updateSyncStatus(settings.serverLastSyncTime, settings.serverLastSyncError);
@@ -396,26 +395,28 @@ export function initServerSyncModule(): () => void {
   void loadSettings();
 
   const enabledCheckbox = getElement<HTMLInputElement>('serverEnabled');
-  const saveUrlBtn = getElement<HTMLButtonElement>('serverSaveUrlBtn');
+  const checkBtn = getElement<HTMLButtonElement>('serverCheckBtn');
+  const urlInput = getElement<HTMLInputElement>('serverUrl');
   const generateTokenBtn = getElement<HTMLButtonElement>('serverGenerateTokenBtn');
   const copyTokenBtn = getElement<HTMLButtonElement>('serverCopyTokenBtn');
+  const tokenInput = getElement<HTMLInputElement>('serverToken');
   const connectBtn = getElement<HTMLButtonElement>('serverConnectBtn');
   const logoutBtn = getElement<HTMLButtonElement>('serverLogoutBtn');
   const deleteAccountBtn = getElement<HTMLButtonElement>('serverDeleteAccountBtn');
   const syncNowBtn = getElement<HTMLButtonElement>('serverSyncNowBtn');
   const syncUpBtn = getElement<HTMLButtonElement>('serverSyncUpBtn');
-  const reembedAllBtn = getElement<HTMLButtonElement>('serverReembedAllBtn');
 
   enabledCheckbox.addEventListener('change', (e) => void handleEnableToggle(e));
-  saveUrlBtn.addEventListener('click', () => void handleUrlSave());
+  checkBtn.addEventListener('click', () => void handleCheckServer());
+  urlInput.addEventListener('input', () => updateCheckButtonState());
   generateTokenBtn.addEventListener('click', () => handleGenerateToken());
   copyTokenBtn.addEventListener('click', () => void handleCopyToken());
+  tokenInput.addEventListener('input', () => updateConnectButtonState());
   connectBtn.addEventListener('click', () => void handleConnect());
   logoutBtn.addEventListener('click', () => void handleLogout());
   deleteAccountBtn.addEventListener('click', () => void handleDeleteAccount());
   syncNowBtn.addEventListener('click', () => void handleSyncNow());
   syncUpBtn.addEventListener('click', () => void handleSyncUp());
-  reembedAllBtn.addEventListener('click', () => void handleReprocessAll());
 
   startStatusPolling();
 

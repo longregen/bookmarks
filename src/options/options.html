@@ -274,73 +274,76 @@
               </div>
 
               <div id="serverSyncFields" class="conditional-fields hidden">
-                <div class="form-group">
-                  <label for="serverUrl">Server URL</label>
-                  <input
-                    type="url"
-                    id="serverUrl"
-                    name="serverUrl"
-                    placeholder="https://sync.example.com"
-                  />
-                  <small class="help-text">
-                    The URL of your Localforge sync server
-                  </small>
-                  <button type="button" id="serverSaveUrlBtn" class="btn btn-secondary btn-sm">
-                    Save URL
-                  </button>
-                </div>
 
-                <div id="serverAuthSection" class="form-group">
-                  <label>Authentication</label>
-                  <p class="help-text">Generate a token for a new account, or enter an existing token to connect.</p>
-                  <div class="auth-form">
-                    <div class="form-group">
-                      <label for="serverToken">Token</label>
-                      <div style="display: flex; gap: var(--space-2);">
-                        <input type="password" id="serverToken" placeholder="Enter or generate a token" style="flex: 1; font-family: monospace;" />
-                        <button type="button" id="serverGenerateTokenBtn" class="btn btn-secondary btn-sm">Generate</button>
-                        <button type="button" id="serverCopyTokenBtn" class="btn btn-secondary btn-sm" style="display: none;">Copy</button>
-                      </div>
+                <!-- Step 1: Not connected - enter server URL and check -->
+                <div id="serverSetupSection">
+                  <div class="form-group">
+                    <label for="serverUrl">Server URL</label>
+                    <div class="sync-url-row">
+                      <input
+                        type="url"
+                        id="serverUrl"
+                        name="serverUrl"
+                        placeholder="https://sync.example.com"
+                      />
+                      <button type="button" id="serverCheckBtn" class="btn btn-secondary" disabled>
+                        Check Server Status
+                      </button>
                     </div>
-                    <button type="button" id="serverConnectBtn" class="btn btn-primary">Connect</button>
+                    <small class="help-text">
+                      The URL of your Localforge sync server
+                    </small>
+                    <div id="serverCheckStatus" class="server-check-status hidden"></div>
+                  </div>
+
+                  <!-- Step 2: Server verified - enter or generate token -->
+                  <div id="serverAuthSection" class="form-group hidden">
+                    <label for="serverToken">Token</label>
+                    <p class="help-text">Enter an existing token to connect this device, or generate a new one for a new account.</p>
+                    <div class="sync-token-row">
+                      <input type="text" id="serverToken" placeholder="Enter or generate a token" class="sync-token-input" />
+                      <button type="button" id="serverGenerateTokenBtn" class="btn btn-secondary btn-sm">Generate</button>
+                      <button type="button" id="serverCopyTokenBtn" class="btn btn-secondary btn-sm hidden">Copy</button>
+                    </div>
+                    <small id="serverTokenWarning" class="help-text security-help hidden">
+                      Save this token somewhere safe. You'll need it to connect other devices.
+                    </small>
+                    <button type="button" id="serverConnectBtn" class="btn btn-primary sync-connect-btn" disabled>Connect</button>
                   </div>
                 </div>
 
-                <div id="serverLoggedInSection" class="form-group hidden">
-                  <label>Connected</label>
-                  <p class="logged-in-status">
-                    Token: <strong id="serverTokenDisplay"></strong>
-                  </p>
-                  <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
-                    <button type="button" id="serverSyncUpBtn" class="btn btn-primary">Sync Up</button>
-                    <button type="button" id="serverLogoutBtn" class="btn btn-secondary">Disconnect</button>
-                    <button type="button" id="serverDeleteAccountBtn" class="btn btn-danger">Delete All Server Data</button>
+                <!-- Connected state: read-only info + actions -->
+                <div id="serverConnectedSection" class="hidden">
+                  <div class="form-group">
+                    <label>Server URL</label>
+                    <input type="url" id="serverUrlDisplay" class="sync-readonly-input" readonly />
                   </div>
-                  <small id="serverSyncUpHelp" class="help-text">
-                    Upload all local bookmarks to the server
-                  </small>
+                  <div class="form-group">
+                    <label>Token</label>
+                    <input type="text" id="serverTokenDisplay" class="sync-readonly-input sync-token-input" readonly />
+                  </div>
+
+                  <div id="syncStatusSection" class="sync-status-section">
+                    <div id="serverSyncStatusIndicator" class="sync-status-indicator">
+                      <span id="serverSyncStatusIcon" class="sync-status-icon"></span>
+                      <span id="serverSyncStatusText" class="sync-status-text">Not synced yet</span>
+                    </div>
+                    <div class="sync-connected-actions">
+                      <button type="button" id="serverSyncNowBtn" class="btn btn-secondary btn-sm">
+                        Sync Now
+                      </button>
+                      <button type="button" id="serverSyncUpBtn" class="btn btn-secondary btn-sm">
+                        Upload All
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="sync-disconnect-row">
+                    <button type="button" id="serverLogoutBtn" class="btn btn-secondary btn-sm">Disconnect</button>
+                    <button type="button" id="serverDeleteAccountBtn" class="btn btn-danger btn-sm">Delete All Server Data</button>
+                  </div>
                 </div>
 
-                <div id="syncStatusSection" class="sync-status-section">
-                  <h4>Sync Status</h4>
-                  <div id="serverSyncStatusIndicator" class="sync-status-indicator">
-                    <span id="serverSyncStatusIcon" class="sync-status-icon"></span>
-                    <span id="serverSyncStatusText" class="sync-status-text">Not synced yet</span>
-                  </div>
-                  <button type="button" id="serverSyncNowBtn" class="btn btn-secondary">
-                    Sync Now
-                  </button>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label>Reprocessing</label>
-                <small class="help-text">
-                  Re-embed all bookmarks using the current embedding model
-                </small>
-                <button type="button" id="serverReembedAllBtn" class="btn btn-secondary">
-                  Re-embed All
-                </button>
               </div>
             </div>
           </div>

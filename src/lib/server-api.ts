@@ -253,6 +253,20 @@ export class ServerApiClient {
     return this.sessionToken;
   }
 
+  async checkHealth(): Promise<{ status: string; timestamp: string }> {
+    const url = `${this.serverUrl}/health`;
+    let response: Response;
+    try {
+      response = await fetch(url);
+    } catch (error) {
+      throw new ServerApiError(`Network error: ${getErrorMessage(error)}`, 0, 'NETWORK_ERROR');
+    }
+    if (!response.ok) {
+      throw new ServerApiError(`Server returned ${response.status}`, response.status);
+    }
+    return (await response.json()) as { status: string; timestamp: string };
+  }
+
   async authenticate(token: string): Promise<AuthResponse> {
     const response = await this.request<AuthResponse>('POST', '/api/v1/auth/token', {
       body: { token },
