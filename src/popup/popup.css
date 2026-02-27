@@ -151,6 +151,15 @@ main {
   background: var(--btn-primary-hover);
 }
 
+.btn-save {
+  background: #059669;
+  color: #ffffff;
+}
+
+.btn-save:hover:not(:disabled) {
+  background: #047857;
+}
+
 .btn-success {
   background: var(--success-bg);
   color: var(--success-text);
