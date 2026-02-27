@@ -95,6 +95,9 @@
   --btn-danger-bg: #ef4444;
   --btn-danger-text: #ffffff;
   --btn-danger-hover: #dc2626;
+  --btn-save-bg: #059669;
+  --btn-save-text: #ffffff;
+  --btn-save-hover: #047857;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -161,6 +164,9 @@
     --btn-danger-bg: #dc2626;
     --btn-danger-text: #ffffff;
     --btn-danger-hover: #ef4444;
+    --btn-save-bg: #10b981;
+    --btn-save-text: #ffffff;
+    --btn-save-hover: #059669;
 
       --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4);
@@ -224,6 +230,9 @@
   --btn-danger-bg: #ff0000;
   --btn-danger-text: #ffffff;
   --btn-danger-hover: #cc0000;
+  --btn-save-bg: #00ff00;
+  --btn-save-text: #000000;
+  --btn-save-hover: #00cc00;
 
   --shadow-sm: 0 1px 2px rgba(0, 255, 0, 0.1);
   --shadow-md: 0 2px 4px rgba(0, 255, 0, 0.15);
@@ -288,6 +297,9 @@
   --btn-danger-bg: #dc2626;
   --btn-danger-text: #ffffff;
   --btn-danger-hover: #ef4444;
+  --btn-save-bg: #10b981;
+  --btn-save-text: #ffffff;
+  --btn-save-hover: #059669;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4);
@@ -350,6 +362,9 @@
   --btn-danger-bg: #ef4444;
   --btn-danger-text: #ffffff;
   --btn-danger-hover: #dc2626;
+  --btn-save-bg: #059669;
+  --btn-save-text: #ffffff;
+  --btn-save-hover: #047857;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -412,6 +427,9 @@
   --btn-danger-bg: #a00000;
   --btn-danger-text: #ffffff;
   --btn-danger-hover: #800000;
+  --btn-save-bg: #2d5a2d;
+  --btn-save-text: #ffffff;
+  --btn-save-hover: #1e3f1e;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.06);
