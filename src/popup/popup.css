@@ -12,6 +12,9 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   line-height: var(--leading-normal);
+  --btn-primary-bg: #059669;
+  --btn-primary-text: #ffffff;
+  --btn-primary-hover: #047857;
 }
 
 .container {
@@ -149,15 +152,6 @@ main {
 
 .btn-primary:hover:not(:disabled) {
   background: var(--btn-primary-hover);
-}
-
-.btn-save {
-  background: var(--btn-save-bg, #059669);
-  color: var(--btn-save-text, #ffffff);
-}
-
-.btn-save:hover:not(:disabled) {
-  background: var(--btn-save-hover, #047857);
 }
 
 .btn-success {
