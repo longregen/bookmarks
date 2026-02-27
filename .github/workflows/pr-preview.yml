@@ -1,36 +1,20 @@
 name: PR Preview
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-
-permissions:
-  contents: read
-  pull-requests: write
-
-concurrency:
-  group: pr-preview-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  workflow_call:
 
 jobs:
-  preview:
+  deploy:
     runs-on: ubuntu-latest
     if: github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      pull-requests: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Setup Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+      - name: Download webapp artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build webapp
-        run: npx vite build --config vite.config.web.ts --base /
+          name: webapp
+          path: dist-web/
 
       - name: Add redirects
         run: |
@@ -49,12 +33,13 @@ jobs:
         with:
           script: |
             const url = `https://pr-${context.issue.number}.bookmark-rag-preview.pages.dev`;
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const body = [
               '### Preview Deployment',
               '',
               `**URL:** ${url}`,
               '',
-              `Built from ${context.sha.substring(0, 7)}`,
+              `Built from ${context.sha.substring(0, 7)} | [E2E Screenshots](${runUrl}#artifacts)`,
             ].join('\n');
 
             const { data: comments } = await github.rest.issues.listComments({

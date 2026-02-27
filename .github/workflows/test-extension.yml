@@ -1,6 +1,7 @@
 name: Test Browser Extension
 permissions:
   contents: read
+  pull-requests: write
 
 on:
   push:
@@ -431,6 +432,12 @@ jobs:
           path: screenshots/walkthrough/chrome-wrangler/
           retention-days: 7
           if-no-files-found: ignore
+
+  preview:
+    needs: [build, test-e2e-chrome, test-e2e-firefox, test-e2e-web, test-e2e-server-sync-deno, test-e2e-server-sync-worker]
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/pr-preview.yml
+    secrets: inherit
 
   test-server:
     runs-on: ubuntu-latest
