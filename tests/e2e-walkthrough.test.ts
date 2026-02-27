@@ -704,6 +704,21 @@ async function scene11_themeShowcase(ctx: WalkthroughContext): Promise<void> {
 async function scene12_serverSync(ctx: WalkthroughContext): Promise<void> {
   if (!ctx.syncServerUrl) {
     console.log('\n📽️  Scene 12: Server Sync (SKIPPED - no server)\n');
+
+    // Verify offline-first: sync section starts disabled on clean extension install
+    await ctx.page.goto(ctx.adapter.getPageUrl('options'));
+    await ctx.page.waitForSelector('.settings-section');
+    await ctx.page.click('a[data-section="server-sync"]');
+    await pause(300);
+
+    const syncFieldsHidden = await ctx.page.evaluate<boolean>(
+      `document.getElementById('serverSyncFields')?.classList.contains('hidden') ?? false`
+    );
+    if (!syncFieldsHidden) {
+      throw new Error('Offline-first violation: server sync fields should be hidden on clean install');
+    }
+    console.log('  Verified: sync fields hidden on clean install (offline-first)');
+
     return;
   }
 
