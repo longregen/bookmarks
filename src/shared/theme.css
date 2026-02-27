@@ -164,9 +164,6 @@
     --btn-danger-bg: #dc2626;
     --btn-danger-text: #ffffff;
     --btn-danger-hover: #ef4444;
-    --btn-save-bg: #10b981;
-    --btn-save-text: #ffffff;
-    --btn-save-hover: #059669;
 
       --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4);
@@ -297,9 +294,6 @@
   --btn-danger-bg: #dc2626;
   --btn-danger-text: #ffffff;
   --btn-danger-hover: #ef4444;
-  --btn-save-bg: #10b981;
-  --btn-save-text: #ffffff;
-  --btn-save-hover: #059669;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4);
@@ -362,9 +356,6 @@
   --btn-danger-bg: #ef4444;
   --btn-danger-text: #ffffff;
   --btn-danger-hover: #dc2626;
-  --btn-save-bg: #059669;
-  --btn-save-text: #ffffff;
-  --btn-save-hover: #047857;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
