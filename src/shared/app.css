@@ -2063,28 +2063,15 @@ input:focus {
   animation: pulse 1s infinite;
 }
 
-.sync-status-section {
-  margin-top: var(--space-6);
-  padding-top: var(--space-6);
-  border-top: 1px solid var(--border-primary);
-}
-
-.sync-status-section h4 {
-  font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
-  margin-bottom: var(--space-4);
-}
-
 .sync-status-indicator {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   background: var(--bg-tertiary);
   border-radius: var(--radius-lg);
   margin-bottom: var(--space-4);
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
 }
 
 .sync-status-icon {
@@ -2148,22 +2135,43 @@ input:focus {
 }
 
 .sync-readonly-input {
-  width: 100%;
+  flex: 1;
   background: var(--bg-tertiary);
   color: var(--text-secondary);
   cursor: default;
 }
 
-.sync-connected-actions {
+.sync-info-row {
   display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.sync-info-row label {
+  flex-shrink: 0;
+  width: 50px;
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+
+.sync-status-row {
+  display: flex;
+  align-items: center;
   gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.sync-status-row .sync-status-indicator {
+  flex: 1;
+  margin-bottom: 0;
 }
 
 .sync-disconnect-row {
   display: flex;
   gap: var(--space-2);
-  margin-top: var(--space-6);
-  padding-top: var(--space-6);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
   border-top: 1px solid var(--border-primary);
 }
 

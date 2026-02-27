@@ -311,28 +311,22 @@
 
                 <!-- Connected state: read-only info + actions -->
                 <div id="serverConnectedSection" class="hidden">
-                  <div class="form-group">
+                  <div class="sync-info-row">
                     <label>Server</label>
                     <input type="url" id="serverUrlDisplay" class="sync-readonly-input" readonly />
                   </div>
-                  <div class="form-group">
+                  <div class="sync-info-row">
                     <label>Token</label>
                     <input type="text" id="serverTokenDisplay" class="sync-readonly-input sync-token-input" readonly />
                   </div>
 
-                  <div id="syncStatusSection" class="sync-status-section">
+                  <div class="sync-status-row">
                     <div id="serverSyncStatusIndicator" class="sync-status-indicator">
                       <span id="serverSyncStatusIcon" class="sync-status-icon"></span>
                       <span id="serverSyncStatusText" class="sync-status-text">Not synced yet</span>
                     </div>
-                    <div class="sync-connected-actions">
-                      <button type="button" id="serverSyncNowBtn" class="btn btn-secondary btn-sm">
-                        Sync Now
-                      </button>
-                      <button type="button" id="serverSyncUpBtn" class="btn btn-secondary btn-sm">
-                        Upload All
-                      </button>
-                    </div>
+                    <button type="button" id="serverSyncNowBtn" class="btn btn-secondary btn-sm">Sync Now</button>
+                    <button type="button" id="serverSyncUpBtn" class="btn btn-secondary btn-sm">Upload All</button>
                   </div>
 
                   <div class="sync-disconnect-row">
