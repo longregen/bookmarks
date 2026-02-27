@@ -1,36 +1,120 @@
 name: PR Preview
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-
-permissions:
-  contents: read
-  pull-requests: write
-
-concurrency:
-  group: pr-preview-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  workflow_call:
 
 jobs:
-  preview:
+  deploy:
     runs-on: ubuntu-latest
     if: github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      pull-requests: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Setup Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+      - name: Download webapp artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          node-version: '20'
-          cache: 'npm'
+          name: webapp
+          path: dist-web/
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Download Deno E2E screenshots
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        continue-on-error: true
+        with:
+          name: screenshots-server-sync-deno
+          path: dist-web/screenshots/deno/
 
-      - name: Build webapp
-        run: npx vite build --config vite.config.web.ts --base /
+      - name: Download Worker E2E screenshots
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        continue-on-error: true
+        with:
+          name: screenshots-server-sync-worker
+          path: dist-web/screenshots/worker/
+
+      - name: Generate screenshots gallery
+        run: |
+          cd dist-web/screenshots
+
+          # Collect all groups that have screenshots
+          groups=""
+          for dir in */; do
+            [ -d "$dir" ] || continue
+            count=$(find "$dir" -name '*.png' 2>/dev/null | wc -l)
+            [ "$count" -gt 0 ] && groups="$groups $dir"
+          done
+
+          if [ -z "$groups" ]; then
+            echo "<html><body><h1>No screenshots available</h1></body></html>" > index.html
+            exit 0
+          fi
+
+          cat > index.html << 'HEADER'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>E2E Screenshots</title>
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: system-ui, -apple-system, sans-serif; background: #0d1117; color: #c9d1d9; padding: 2rem; }
+            h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+            .subtitle { color: #8b949e; margin-bottom: 2rem; }
+            nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+            nav a { color: #58a6ff; background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 0.4rem 0.8rem; text-decoration: none; font-size: 0.85rem; }
+            nav a:hover { border-color: #58a6ff; }
+            .group { margin-bottom: 3rem; }
+            .group h2 { font-size: 1.1rem; color: #58a6ff; margin-bottom: 1rem; border-bottom: 1px solid #21262d; padding-bottom: 0.5rem; }
+            .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 1rem; }
+            .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; overflow: hidden; }
+            .card img { width: 100%; display: block; cursor: pointer; }
+            .card img:hover { opacity: 0.9; }
+            .card .label { padding: 0.5rem 0.75rem; font-size: 0.8rem; color: #8b949e; font-family: monospace; }
+            dialog { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 0; max-width: 95vw; max-height: 95vh; }
+            dialog::backdrop { background: rgba(0,0,0,0.8); }
+            dialog img { max-width: 95vw; max-height: 90vh; display: block; }
+            dialog .close { position: absolute; top: 0.5rem; right: 0.5rem; background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 4px; padding: 0.25rem 0.5rem; cursor: pointer; font-size: 0.8rem; }
+          </style>
+          </head>
+          <body>
+          <h1>E2E Screenshots</h1>
+          <p class="subtitle">Captured during walkthrough tests</p>
+          <nav>
+          HEADER
+
+          # Navigation links
+          for dir in $groups; do
+            name="${dir%/}"
+            echo "<a href=\"#${name}\">${name}</a>" >> index.html
+          done
+          echo "</nav>" >> index.html
+
+          # Screenshot sections
+          for dir in $groups; do
+            name="${dir%/}"
+            echo "<div class=\"group\" id=\"${name}\"><h2>${name}</h2><div class=\"grid\">" >> index.html
+            for img in $(find "$dir" -name '*.png' | sort); do
+              filename=$(basename "$img")
+              label="${filename%.png}"
+              echo "<div class=\"card\"><img src=\"${img}\" alt=\"${label}\" loading=\"lazy\" onclick=\"showFull(this.src)\"><div class=\"label\">${label}</div></div>" >> index.html
+            done
+            echo "</div></div>" >> index.html
+          done
+
+          cat >> index.html << 'FOOTER'
+          <dialog id="lightbox"><button class="close" onclick="this.closest('dialog').close()">✕</button><img></dialog>
+          <script>
+          function showFull(src) {
+            const d = document.getElementById('lightbox');
+            d.querySelector('img').src = src;
+            d.showModal();
+          }
+          document.getElementById('lightbox').addEventListener('click', function(e) {
+            if (e.target === this) this.close();
+          });
+          </script>
+          </body>
+          </html>
+          FOOTER
 
       - name: Add redirects
         run: |
@@ -54,7 +138,7 @@ jobs:
               '',
               `**URL:** ${url}`,
               '',
-              `Built from ${context.sha.substring(0, 7)}`,
+              `Built from ${context.sha.substring(0, 7)} | [E2E Screenshots](${url}/screenshots/)`,
             ].join('\n');
 
             const { data: comments } = await github.rest.issues.listComments({
