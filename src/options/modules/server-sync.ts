@@ -292,43 +292,6 @@ async function handleDeleteAccount(): Promise<void> {
   }
 }
 
-async function handleSyncUp(): Promise<void> {
-  const syncUpBtn = getElement<HTMLButtonElement>('serverSyncUpBtn');
-  const statusDiv = getElement('status');
-
-  const settings = await getSettings();
-
-  if (!settings.serverSessionToken || !isSessionValid(settings.serverSessionExpiry)) {
-    showStatusMessage(statusDiv, 'Please connect first', 'error');
-    return;
-  }
-
-  try {
-    await withButtonState(syncUpBtn, 'Uploading...', async () => {
-      if (__IS_WEB__) {
-        const { serverSync } = await import('../../lib/server-sync');
-        const result = await serverSync.uploadAllBookmarks();
-        if (!result.success) {
-          throw new Error(result.message);
-        }
-      } else {
-        const response: { success?: boolean; message?: string; error?: string } | undefined =
-          await chrome.runtime.sendMessage({ type: 'sync:upload_all' });
-        if (response?.success !== true) {
-          throw new Error(response?.message ?? response?.error ?? 'Upload failed');
-        }
-      }
-    });
-
-    showStatusMessage(statusDiv, 'All bookmarks uploaded to server!', 'success');
-
-    const updatedSettings = await getSettings();
-    updateSyncStatus(updatedSettings.serverLastSyncTime, updatedSettings.serverLastSyncError);
-  } catch (error) {
-    showStatusMessage(statusDiv, `Upload failed: ${getErrorMessage(error)}`, 'error', 5000);
-  }
-}
-
 async function handleSyncNow(): Promise<void> {
   const syncNowBtn = getElement<HTMLButtonElement>('serverSyncNowBtn');
   const statusDiv = getElement('status');
@@ -404,7 +367,6 @@ export function initServerSyncModule(): () => void {
   const logoutBtn = getElement<HTMLButtonElement>('serverLogoutBtn');
   const deleteAccountBtn = getElement<HTMLButtonElement>('serverDeleteAccountBtn');
   const syncNowBtn = getElement<HTMLButtonElement>('serverSyncNowBtn');
-  const syncUpBtn = getElement<HTMLButtonElement>('serverSyncUpBtn');
 
   enabledCheckbox.addEventListener('change', (e) => void handleEnableToggle(e));
   checkBtn.addEventListener('click', () => void handleCheckServer());
@@ -416,7 +378,6 @@ export function initServerSyncModule(): () => void {
   logoutBtn.addEventListener('click', () => void handleLogout());
   deleteAccountBtn.addEventListener('click', () => void handleDeleteAccount());
   syncNowBtn.addEventListener('click', () => void handleSyncNow());
-  syncUpBtn.addEventListener('click', () => void handleSyncUp());
 
   startStatusPolling();
 
