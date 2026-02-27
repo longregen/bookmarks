@@ -704,6 +704,21 @@ async function scene11_themeShowcase(ctx: WalkthroughContext): Promise<void> {
 async function scene12_serverSync(ctx: WalkthroughContext): Promise<void> {
   if (!ctx.syncServerUrl) {
     console.log('\n📽️  Scene 12: Server Sync (SKIPPED - no server)\n');
+
+    // Verify offline-first: sync section starts disabled on clean extension install
+    await ctx.page.goto(ctx.adapter.getPageUrl('options'));
+    await ctx.page.waitForSelector('.settings-section');
+    await ctx.page.click('a[data-section="server-sync"]');
+    await pause(300);
+
+    const syncFieldsHidden = await ctx.page.evaluate<boolean>(
+      `document.getElementById('serverSyncFields')?.classList.contains('hidden') ?? false`
+    );
+    if (!syncFieldsHidden) {
+      throw new Error('Offline-first violation: server sync fields should be hidden on clean install');
+    }
+    console.log('  Verified: sync fields hidden on clean install (offline-first)');
+
     return;
   }
 
@@ -723,11 +738,24 @@ async function scene12_serverSync(ctx: WalkthroughContext): Promise<void> {
   await capture(ctx, 'server-sync-enabled');
 
   await ctx.page.type('#serverUrl', ctx.syncServerUrl);
-  await ctx.page.click('#serverSaveUrlBtn');
+  await ctx.page.click('#serverCheckBtn');
+  await ctx.page.waitForFunction(
+    `(() => {
+      const status = document.getElementById('serverCheckStatus');
+      return status && !status.classList.contains('hidden');
+    })()`,
+    10000
+  );
   await pause(500);
   await capture(ctx, 'server-sync-url-configured');
 
   try {
+    // Wait for auth section to appear after successful health check
+    await ctx.page.waitForFunction(
+      `!document.getElementById('serverAuthSection')?.classList.contains('hidden')`,
+      5000
+    );
+
     // Generate a token
     await ctx.page.click('#serverGenerateTokenBtn');
     await pause(300);
@@ -740,8 +768,8 @@ async function scene12_serverSync(ctx: WalkthroughContext): Promise<void> {
 
     await ctx.page.waitForFunction(
       `(() => {
-        const loggedInSection = document.getElementById('serverLoggedInSection');
-        return loggedInSection && !loggedInSection.classList.contains('hidden');
+        const connectedSection = document.getElementById('serverConnectedSection');
+        return connectedSection && !connectedSection.classList.contains('hidden');
       })()`,
       10000
     );
@@ -762,21 +790,6 @@ async function scene12_serverSync(ctx: WalkthroughContext): Promise<void> {
     );
     await pause(300);
     await capture(ctx, 'server-sync-completed');
-
-    // Sync Up: upload all local bookmarks to server
-    await ctx.page.click('#serverSyncUpBtn');
-    await pause(50);
-    await capture(ctx, 'server-sync-uploading');
-
-    await ctx.page.waitForFunction(
-      `(() => {
-        const btn = document.getElementById('serverSyncUpBtn');
-        return btn && !btn.disabled && btn.textContent?.trim() === 'Sync Up';
-      })()`,
-      30000
-    );
-    await pause(300);
-    await capture(ctx, 'server-sync-uploaded');
   } catch (error) {
     console.error('  Token auth error:', error);
   }

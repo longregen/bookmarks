@@ -36,7 +36,7 @@
               !(builtins.elem baseName [ "node_modules" "dist-chrome" "dist-firefox" "dist-web" "coverage" ".git" "screenshots" ]);
           };
 
-          npmDepsHash = "sha256-zoZ4yd6aP5ru5IUF0FsciLKZgJ0zPEEtwgkKWcWc5EQ=";
+          npmDepsHash = "sha256-pIu1foY4j4wGVnrUNUdNDjdp7NkDJQqNBwsMaXvZsSc=";
 
           nativeBuildInputs = with pkgs; [ nodejs_22 zip ];
 
