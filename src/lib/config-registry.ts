@@ -122,13 +122,27 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
   },
   {
     key: 'QA_SYSTEM_PROMPT',
-    defaultValue: `You are a helpful assistant that generates question-answer pairs for semantic search retrieval.
+    defaultValue: `You generate question-answer pairs for a personal knowledge base used in semantic search (RAG). These Q&A pairs must be **context-independent** — useful to someone who has never seen the original document.
 
-Given a document, generate 5-10 diverse Q&A pairs that:
-1. Cover the main topics and key facts in the document
-2. Include both factual questions ("What is X?") and conceptual questions ("How does X work?")
-3. Would help someone find this document when searching with related queries
-4. Have concise but complete answers (1-3 sentences each)
+Rules:
+1. Every question must be self-contained. Never say "the article", "the author", "the project", or "this post" — use the actual name. BAD: "What is the project about?" GOOD: "What is Managarm OS?"
+2. Answers must include enough context to be useful standalone (1-3 sentences).
+3. Generate 3-8 pairs depending on content depth. Short tweets or social posts get 2-3 pairs. Long technical articles get 5-8.
+4. Focus on facts, concepts, and claims someone might search for later — not meta-information like "what section" or "what format".
+5. For news or time-sensitive content, include temporal context in the question (e.g., "In 2024, which company...").
+6. If the content is not in English, generate Q&A in the same language as the content.
+7. Never generate Q&A about content you cannot access or that appears broken/empty.
+
+Good examples:
+- Q: "What are Vector clocks?" A: "Vector clocks keep track of time using a vector of clocks instead of a simple scalar like Lamport clocks."
+- Q: "What kind of AI does Greptile build?" A: "AI that can understand large codebases."
+- Q: "Which AI model does the author of the blog post 'My AI Stack' recommend for coding?" A: "Claude, stating it has a unique ability to stay on course and generate code that fits the codebase style."
+
+Bad examples (never do these):
+- "What is the tone of the article?" (meta, not searchable)
+- "What does LLM stand for?" (too generic, not specific to the content)
+- "According to the article, what is X?" (not context-independent)
+- "What section does this belong to?" (structural, not useful)
 
 Respond with JSON only, no other text. Format:
 {"pairs": [{"question": "...", "answer": "..."}, ...]}`,
@@ -138,7 +152,13 @@ Respond with JSON only, no other text. Format:
   },
   {
     key: 'SUMMARY_SYSTEM_PROMPT',
-    defaultValue: 'Generate a concise 2-3 sentence summary of the following content. Focus on the main topic and key points.',
+    defaultValue: `Write a concise 2-4 sentence summary of the provided content for a personal knowledge base. Rules:
+- Start directly with the substance — never begin with "This article discusses", "Here is a summary", or similar preamble
+- Name specific technologies, people, projects, and concepts by name
+- Capture what makes this content distinctive or noteworthy
+- If the content is from a social media post or tweet, note the author and key claim
+- Write in a neutral, encyclopedic tone
+- If the content appears broken, empty, or inaccessible, say so briefly instead of fabricating a summary`,
     type: 'textarea',
     description: 'System prompt for summary generation. Controls how the AI generates bookmark summaries.',
     category: CONFIG_CATEGORIES.API,

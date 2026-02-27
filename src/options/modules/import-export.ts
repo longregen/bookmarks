@@ -7,7 +7,7 @@ import { getErrorMessage } from '../../lib/errors';
 const exportBtn = getElement<HTMLButtonElement>('exportBtn');
 const importFile = getElement<HTMLInputElement>('importFile');
 const importBtn = getElement<HTMLButtonElement>('importBtn');
-const importFileName = getElement<HTMLSpanElement>('importFileName');
+const importFileName = getElement('importFileName');
 const importStatus = getElement<HTMLDivElement>('importStatus');
 const statusDiv = getElement<HTMLDivElement>('status');
 

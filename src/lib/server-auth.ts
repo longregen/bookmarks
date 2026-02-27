@@ -29,7 +29,7 @@ export async function authenticate(
       created: response.created,
     };
   } catch (error) {
-    throw new Error(`Authentication failed: ${getErrorMessage(error)}`);
+    throw new Error(`Authentication failed: ${getErrorMessage(error)}`, { cause: error });
   }
 }
 
