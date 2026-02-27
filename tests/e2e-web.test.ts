@@ -380,6 +380,15 @@ async function scene07_settings(
 
   await page.click('a[data-section="server-sync"]');
   await pause(500);
+
+  // Wait for loadSettings to complete and reveal the correct section
+  await page.waitForFunction(
+    `(() => {
+      const connected = document.getElementById('serverConnectedSection');
+      return connected && !connected.classList.contains('hidden');
+    })()`,
+    5000
+  );
   await capture(page, counter, 'settings-server-sync');
 
   const syncFieldsExist = await page.$('#serverSyncFields');
@@ -387,6 +396,21 @@ async function scene07_settings(
     throw new Error('Server sync fields not found');
   }
   console.log('  Server sync section visible');
+
+  // When connected, only the connected section should be visible, not the setup section
+  const setupHidden = await page.evaluate<boolean>(
+    `document.getElementById('serverSetupSection')?.classList.contains('hidden') ?? false`
+  );
+  if (!setupHidden) {
+    throw new Error('Setup section should be hidden when connected');
+  }
+  const connectedVisible = await page.evaluate<boolean>(
+    `!document.getElementById('serverConnectedSection')?.classList.contains('hidden')`
+  );
+  if (!connectedVisible) {
+    throw new Error('Connected section should be visible when connected');
+  }
+  console.log('  Connected state: only connected section visible (setup hidden)');
 
   await page.click('a[data-section="bulk-import"]');
   await pause(500);
