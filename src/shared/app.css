@@ -282,9 +282,6 @@ body {
   margin-bottom: var(--space-6);
 }
 
-.search-hero.hidden {
-  display: none;
-}
 
 .search-hero-title {
   font-size: var(--text-xl);
@@ -327,9 +324,6 @@ body {
   margin-bottom: var(--space-4);
 }
 
-.result-header.hidden {
-  display: none;
-}
 
 .result-status {
   display: flex;
@@ -883,9 +877,6 @@ h3 {
   font-weight: var(--font-medium);
 }
 
-.status.hidden {
-  display: none;
-}
 
 .status.success {
   background: var(--success-bg);
@@ -1024,9 +1015,6 @@ input:focus {
   font-weight: var(--font-medium);
 }
 
-.test-connection-status.hidden {
-  display: none;
-}
 
 .test-connection-status.success {
   background: var(--success-bg);
@@ -1103,9 +1091,6 @@ input:focus {
   margin-top: var(--space-6);
 }
 
-.import-status.hidden {
-  display: none;
-}
 
 .import-result {
   padding: var(--space-4);
@@ -1319,9 +1304,6 @@ input:focus {
   border: 1px solid var(--border-primary);
 }
 
-.bulk-import-progress.hidden {
-  display: none;
-}
 
 .progress-bar-container {
   width: 100%;
@@ -1359,9 +1341,6 @@ input:focus {
   border: 1px solid var(--border-primary);
 }
 
-.self-heal-progress.hidden {
-  display: none;
-}
 
 .self-heal-card {
   background: var(--bg-tertiary);
@@ -1974,7 +1953,7 @@ input:focus {
   border-top: 1px solid var(--border-primary);
 }
 
-.conditional-fields.hidden {
+.hidden {
   display: none;
 }
 
@@ -1998,9 +1977,6 @@ input:focus {
   line-height: var(--leading-normal);
 }
 
-.security-warning.hidden {
-  display: none;
-}
 
 .security-warning strong {
   font-weight: 600;
@@ -2021,9 +1997,6 @@ input:focus {
   font-size: var(--text-base);
 }
 
-.connection-status.hidden {
-  display: none;
-}
 
 .connection-status .status-indicator {
   width: 10px;
@@ -2192,9 +2165,6 @@ input:focus {
   background: var(--error-bg);
 }
 
-.server-check-status.hidden {
-  display: none;
-}
 
 input[type="number"] {
   width: 100%;
@@ -2265,9 +2235,6 @@ input[type="number"]:focus {
   font-weight: var(--font-medium);
 }
 
-.config-status.hidden {
-  display: none;
-}
 
 .config-status.success {
   background: var(--success-bg);
@@ -2356,9 +2323,6 @@ input[type="number"]:focus {
   border-radius: var(--radius-md);
 }
 
-.modified-count-wrapper.hidden {
-  display: none;
-}
 
 .btn-sm {
   padding: var(--space-2) var(--space-3);
@@ -2679,9 +2643,6 @@ input[type="number"]:focus {
   border-radius: var(--radius-lg);
 }
 
-.add-url-section.hidden {
-  display: none;
-}
 
 .add-url-box {
   display: flex;
@@ -2704,9 +2665,6 @@ input[type="number"]:focus {
   font-size: var(--text-sm);
 }
 
-.add-url-status.hidden {
-  display: none;
-}
 
 .add-url-status.success {
   background: var(--success-bg);
@@ -2807,13 +2765,6 @@ input[type="number"]:focus {
   font-size: var(--text-base);
 }
 
-.view-error.hidden {
-  display: none;
-}
-
-.view-content.hidden {
-  display: none;
-}
 
 .view-content {
   display: flex;
