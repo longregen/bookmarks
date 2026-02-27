@@ -278,7 +278,6 @@
                 <!-- Step 1: Not connected - enter server URL and check -->
                 <div id="serverSetupSection">
                   <div class="form-group">
-                    <label for="serverUrl">Server URL</label>
                     <div class="sync-url-row">
                       <input
                         type="url"
@@ -290,24 +289,22 @@
                         Check Server Status
                       </button>
                     </div>
-                    <small class="help-text">
-                      The URL of your Localforge sync server
-                    </small>
                     <div id="serverCheckStatus" class="server-check-status hidden"></div>
                   </div>
 
                   <!-- Step 2: Server verified - enter or generate token -->
-                  <div id="serverAuthSection" class="form-group hidden">
-                    <label for="serverToken">Token</label>
-                    <p class="help-text">Enter an existing token to connect this device, or generate a new one for a new account.</p>
-                    <div class="sync-token-row">
-                      <input type="text" id="serverToken" placeholder="Enter or generate a token" class="sync-token-input" />
-                      <button type="button" id="serverGenerateTokenBtn" class="btn btn-secondary btn-sm">Generate</button>
-                      <button type="button" id="serverCopyTokenBtn" class="btn btn-secondary btn-sm hidden">Copy</button>
+                  <div id="serverAuthSection" class="hidden">
+                    <div class="form-group">
+                      <small class="help-text">Enter an existing token to connect this device, or generate a new one for a new account.</small>
+                      <div class="sync-token-row">
+                        <input type="text" id="serverToken" placeholder="Paste token or generate one" class="sync-token-input" />
+                        <button type="button" id="serverGenerateTokenBtn" class="btn btn-secondary btn-sm">Generate New</button>
+                        <button type="button" id="serverCopyTokenBtn" class="btn btn-secondary btn-sm hidden">Copy</button>
+                      </div>
+                      <small id="serverTokenWarning" class="help-text security-help hidden">
+                        Save this token somewhere safe. You'll need it to connect other devices.
+                      </small>
                     </div>
-                    <small id="serverTokenWarning" class="help-text security-help hidden">
-                      Save this token somewhere safe. You'll need it to connect other devices.
-                    </small>
                     <button type="button" id="serverConnectBtn" class="btn btn-primary sync-connect-btn" disabled>Connect</button>
                   </div>
                 </div>
@@ -315,7 +312,7 @@
                 <!-- Connected state: read-only info + actions -->
                 <div id="serverConnectedSection" class="hidden">
                   <div class="form-group">
-                    <label>Server URL</label>
+                    <label>Server</label>
                     <input type="url" id="serverUrlDisplay" class="sync-readonly-input" readonly />
                   </div>
                   <div class="form-group">
