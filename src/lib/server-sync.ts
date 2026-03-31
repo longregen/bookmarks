@@ -200,20 +200,37 @@ export class ServerSyncManager {
 
     const now = new Date();
 
-    await db.transaction('rw', [db.bookmarks, db.markdown, db.questionsAnswers, db.bookmarkTags], async () => {
+    await db.transaction('rw', [db.bookmarks, db.markdown, db.questionsAnswers, db.summaries, db.bookmarkTags], async () => {
       for (const bookmarkId of deletions) {
         await db.bookmarks.delete(bookmarkId);
         await db.markdown.where('bookmarkId').equals(bookmarkId).delete();
         await db.questionsAnswers.where('bookmarkId').equals(bookmarkId).delete();
+        await db.summaries.where('bookmarkId').equals(bookmarkId).delete();
         await db.bookmarkTags.where('bookmarkId').equals(bookmarkId).delete();
       }
 
       for (const serverBookmark of upserts) {
+        // Deduplicate: if a local bookmark exists with the same URL but a different ID,
+        // re-key its derived records to the server ID to preserve processed content
+        let preservedHtml = '';
+        if (serverBookmark.url !== '') {
+          const localDupe = await db.bookmarks.where('url').equals(serverBookmark.url).first();
+          if (localDupe && localDupe.id !== serverBookmark.id) {
+            preservedHtml = localDupe.html;
+            await db.markdown.where('bookmarkId').equals(localDupe.id).modify({ bookmarkId: serverBookmark.id });
+            await db.questionsAnswers.where('bookmarkId').equals(localDupe.id).modify({ bookmarkId: serverBookmark.id });
+            await db.summaries.where('bookmarkId').equals(localDupe.id).modify({ bookmarkId: serverBookmark.id });
+            await db.bookmarkTags.where('bookmarkId').equals(localDupe.id).delete();
+            await db.bookmarks.delete(localDupe.id);
+          }
+        }
+
+        const serverHtml = serverBookmark.html ?? '';
         const bookmark: Bookmark = {
           id: serverBookmark.id,
           url: serverBookmark.url,
           title: serverBookmark.title,
-          html: serverBookmark.html ?? '',
+          html: serverHtml !== '' ? serverHtml : preservedHtml,
           status: serverBookmark.status as Bookmark['status'],
           errorMessage: serverBookmark.errorMessage ?? undefined,
           createdAt: new Date(serverBookmark.createdAt),

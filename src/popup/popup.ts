@@ -161,6 +161,10 @@ searchInput.focus();
 void initExtension();
 onThemeChange((theme) => applyTheme(theme));
 
+if (__IS_FIREFOX__) {
+  saveBtn.click();
+}
+
 async function checkEndpointConfiguration(): Promise<void> {
   try {
     const settings = await getSettings();

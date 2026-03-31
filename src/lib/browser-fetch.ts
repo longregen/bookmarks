@@ -58,12 +58,13 @@ async function directFetch(url: string, timeoutMs: number): Promise<CapturedPage
 }
 
 export async function browserFetch(url: string, timeoutMs: number = config.FETCH_TIMEOUT_MS): Promise<CapturedPage> {
-  const localhost = isLocalhostUrl(url);
-
-  if (__IS_WEB__) {
+  if (__IS_WEB__ || __IS_FIREFOX__) {
+    // Firefox Android renders tabs visibly, draining battery and creating clutter.
+    // Direct fetch avoids tab creation entirely; works for most content.
     return directFetch(url, timeoutMs);
   }
 
+  const localhost = isLocalhostUrl(url);
   if (localhost) {
     try {
       return await renderPage(url, timeoutMs);
