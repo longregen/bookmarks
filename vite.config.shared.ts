@@ -108,8 +108,9 @@ export const sharedOutput: OutputOptions = {
     if (id.includes('/src/web/init-web')) {
       return 'lib';
     }
-    if (id.includes('/src/options/modules/')) {
-      return 'options-modules';
-    }
+    // Options modules have top-level getElement() calls (side effects) that fail
+    // when the chunk is imported by non-options pages. Let the bundler keep them
+    // entry-point-specific rather than forcing a shared chunk.
+    // if (id.includes('/src/options/modules/')) return 'options-modules';
   },
 };

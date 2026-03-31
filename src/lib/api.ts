@@ -80,7 +80,7 @@ export async function generateQAPairs(markdownContent: string): Promise<QAPair[]
     const parsed = JSON.parse(content) as { pairs?: QAPair[] };
     return parsed.pairs ?? [];
   } catch (error) {
-    throw new Error(`Failed to parse Q&A pairs from API response: ${getErrorMessage(error)}`);
+    throw new Error(`Failed to parse Q&A pairs from API response: ${getErrorMessage(error)}`, { cause: error });
   }
 }
 

@@ -10,7 +10,7 @@ const startBulkImportBtn = getElement<HTMLButtonElement>('startBulkImport');
 const statusDiv = getElement<HTMLDivElement>('status');
 const bulkImportProgress = getElement<HTMLDivElement>('bulkImportProgress');
 const bulkImportProgressBar = getElement<HTMLDivElement>('bulkImportProgressBar');
-const bulkImportStatus = getElement<HTMLSpanElement>('bulkImportStatus');
+const bulkImportStatus = getElement('bulkImportStatus');
 
 let validationTimeout: number | null = null;
 let progressPollInterval: number | null = null;
