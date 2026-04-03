@@ -1,6 +1,14 @@
 import { defineConfig } from 'vitest/config';
+import path from 'path';
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@hono/hono/cors': path.resolve(__dirname, 'server/node_modules/hono/dist/middleware/cors/index.js'),
+      '@hono/hono/logger': path.resolve(__dirname, 'server/node_modules/hono/dist/middleware/logger/index.js'),
+      '@hono/hono': path.resolve(__dirname, 'server/node_modules/hono/dist/index.js'),
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',
