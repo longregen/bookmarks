@@ -253,12 +253,13 @@ export async function healNoContent(
   const total = bookmarkIds.length;
   for (let i = 0; i < total; i++) {
     if (signal?.aborted === true) return;
-    const bookmark = await db.bookmarks.get(bookmarkIds[i]);
-    if (!bookmark) continue;
 
     try {
-      const updated = await fetchBookmarkHtml(bookmark);
-      await processBookmarkContent(updated);
+      const bookmark = await db.bookmarks.get(bookmarkIds[i]);
+      if (bookmark) {
+        const updated = await fetchBookmarkHtml(bookmark);
+        await processBookmarkContent(updated);
+      }
     } catch (error) {
       console.error(`[SelfHeal] Failed to heal content for ${bookmarkIds[i]}:`, getErrorMessage(error));
     }
@@ -275,23 +276,24 @@ export async function healNoMarkdown(
   const total = bookmarkIds.length;
   for (let i = 0; i < total; i++) {
     if (signal?.aborted === true) return;
-    const bookmark = await db.bookmarks.get(bookmarkIds[i]);
-    if (bookmark === undefined || bookmark.html === '') continue;
 
     try {
-      const existingMd = await db.markdown.where('bookmarkId').equals(bookmark.id).first();
-      if (existingMd) continue;
+      const bookmark = await db.bookmarks.get(bookmarkIds[i]);
+      if (bookmark !== undefined && bookmark.html !== '') {
+        const existingMd = await db.markdown.where('bookmarkId').equals(bookmark.id).first();
+        if (!existingMd) {
+          const extracted = await extractMarkdownAsync(bookmark.html, bookmark.url);
+          await db.markdown.add({
+            id: crypto.randomUUID(),
+            bookmarkId: bookmark.id,
+            content: extracted.content,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
 
-      const extracted = await extractMarkdownAsync(bookmark.html, bookmark.url);
-      await db.markdown.add({
-        id: crypto.randomUUID(),
-        bookmarkId: bookmark.id,
-        content: extracted.content,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      await generateDownstream(bookmark, extracted.content);
+          await generateDownstream(bookmark, extracted.content);
+        }
+      }
     } catch (error) {
       console.error(`[SelfHeal] Failed to heal markdown for ${bookmarkIds[i]}:`, getErrorMessage(error));
     }
@@ -308,24 +310,25 @@ export async function healShortMarkdown(
   const total = bookmarkIds.length;
   for (let i = 0; i < total; i++) {
     if (signal?.aborted === true) return;
-    const bookmark = await db.bookmarks.get(bookmarkIds[i]);
-    if (!bookmark) continue;
 
     try {
-      const updated = await fetchBookmarkHtml({ ...bookmark, html: '' });
-      await db.markdown.where('bookmarkId').equals(bookmark.id).delete();
-      const extracted = await extractMarkdownAsync(updated.html, updated.url);
-      await db.markdown.add({
-        id: crypto.randomUUID(),
-        bookmarkId: bookmark.id,
-        content: extracted.content,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+      const bookmark = await db.bookmarks.get(bookmarkIds[i]);
+      if (bookmark) {
+        const updated = await fetchBookmarkHtml({ ...bookmark, html: '' });
+        await db.markdown.where('bookmarkId').equals(bookmark.id).delete();
+        const extracted = await extractMarkdownAsync(updated.html, updated.url);
+        await db.markdown.add({
+          id: crypto.randomUUID(),
+          bookmarkId: bookmark.id,
+          content: extracted.content,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
 
-      await db.summaries.where('bookmarkId').equals(bookmark.id).delete();
-      await db.questionsAnswers.where('bookmarkId').equals(bookmark.id).delete();
-      await generateDownstream(bookmark, extracted.content);
+        await db.summaries.where('bookmarkId').equals(bookmark.id).delete();
+        await db.questionsAnswers.where('bookmarkId').equals(bookmark.id).delete();
+        await generateDownstream(bookmark, extracted.content);
+      }
     } catch (error) {
       console.error(`[SelfHeal] Failed to heal short markdown for ${bookmarkIds[i]}:`, getErrorMessage(error));
     }
@@ -346,24 +349,24 @@ export async function healNoSummary(
 
     try {
       const existing = await db.summaries.where('bookmarkId').equals(bookmarkId).first();
-      if (existing) continue;
+      if (!existing) {
+        const md = await db.markdown.where('bookmarkId').equals(bookmarkId).first();
+        if (md) {
+          const summary = await generateSummary(md.content);
+          const settings = await getPlatformAdapter().getSettings();
+          const [embedding] = await generateEmbeddings([summary]);
 
-      const md = await db.markdown.where('bookmarkId').equals(bookmarkId).first();
-      if (!md) continue;
-
-      const summary = await generateSummary(md.content);
-      const settings = await getPlatformAdapter().getSettings();
-      const [embedding] = await generateEmbeddings([summary]);
-
-      await db.summaries.add({
-        id: crypto.randomUUID(),
-        bookmarkId,
-        content: summary,
-        embedding,
-        embeddingModel: settings.embeddingModel,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+          await db.summaries.add({
+            id: crypto.randomUUID(),
+            bookmarkId,
+            content: summary,
+            embedding,
+            embeddingModel: settings.embeddingModel,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
+      }
     } catch (error) {
       console.error(`[SelfHeal] Failed to heal summary for ${bookmarkId}:`, getErrorMessage(error));
     }
@@ -384,38 +387,38 @@ export async function healNoQuestions(
 
     try {
       const existingQA = await db.questionsAnswers.where('bookmarkId').equals(bookmarkId).first();
-      if (existingQA) continue;
+      if (!existingQA) {
+        const md = await db.markdown.where('bookmarkId').equals(bookmarkId).first();
+        if (md) {
+          const qaPairs = await generateQAPairs(md.content);
+          if (qaPairs.length > 0) {
+            const questions = qaPairs.map(qa => qa.question);
+            const answers = qaPairs.map(qa => qa.answer);
+            const combined = qaPairs.map(qa => `Q: ${qa.question}\nA: ${qa.answer}`);
 
-      const md = await db.markdown.where('bookmarkId').equals(bookmarkId).first();
-      if (!md) continue;
+            const settings = await getPlatformAdapter().getSettings();
+            const [questionEmbeddings, answerEmbeddings, combinedEmbeddings] = await Promise.all([
+              generateEmbeddings(questions),
+              generateEmbeddings(answers),
+              generateEmbeddings(combined),
+            ]);
 
-      const qaPairs = await generateQAPairs(md.content);
-      if (qaPairs.length === 0) continue;
-
-      const questions = qaPairs.map(qa => qa.question);
-      const answers = qaPairs.map(qa => qa.answer);
-      const combined = qaPairs.map(qa => `Q: ${qa.question}\nA: ${qa.answer}`);
-
-      const settings = await getPlatformAdapter().getSettings();
-      const [questionEmbeddings, answerEmbeddings, combinedEmbeddings] = await Promise.all([
-        generateEmbeddings(questions),
-        generateEmbeddings(answers),
-        generateEmbeddings(combined),
-      ]);
-
-      const qaRecords = qaPairs.map((qa, idx) => ({
-        id: crypto.randomUUID(),
-        bookmarkId,
-        question: qa.question,
-        answer: qa.answer,
-        embeddingQuestion: questionEmbeddings[idx],
-        embeddingAnswer: answerEmbeddings[idx],
-        embeddingBoth: combinedEmbeddings[idx],
-        embeddingModel: settings.embeddingModel,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }));
-      await db.questionsAnswers.bulkAdd(qaRecords);
+            const qaRecords = qaPairs.map((qa, idx) => ({
+              id: crypto.randomUUID(),
+              bookmarkId,
+              question: qa.question,
+              answer: qa.answer,
+              embeddingQuestion: questionEmbeddings[idx],
+              embeddingAnswer: answerEmbeddings[idx],
+              embeddingBoth: combinedEmbeddings[idx],
+              embeddingModel: settings.embeddingModel,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            }));
+            await db.questionsAnswers.bulkAdd(qaRecords);
+          }
+        }
+      }
     } catch (error) {
       console.error(`[SelfHeal] Failed to heal questions for ${bookmarkId}:`, getErrorMessage(error));
     }
@@ -498,10 +501,10 @@ export async function regenerateFromContent(
       await db.questionsAnswers.where('bookmarkId').equals(bookmarkId).delete();
 
       const bookmark = await db.bookmarks.get(bookmarkId);
-      if (!bookmark) continue;
-
-      const updated = await fetchBookmarkHtml(bookmark);
-      await processBookmarkContent(updated);
+      if (bookmark) {
+        const updated = await fetchBookmarkHtml(bookmark);
+        await processBookmarkContent(updated);
+      }
     } catch (error) {
       console.error(`[SelfHeal] Failed to regenerate from content for ${bookmarkId}:`, getErrorMessage(error));
     }
@@ -526,9 +529,9 @@ export async function regenerateFromMarkdown(
       await db.questionsAnswers.where('bookmarkId').equals(bookmarkId).delete();
 
       const bookmark = await db.bookmarks.get(bookmarkId);
-      if (bookmark === undefined || bookmark.html === '') continue;
-
-      await processBookmarkContent(bookmark);
+      if (bookmark !== undefined && bookmark.html !== '') {
+        await processBookmarkContent(bookmark);
+      }
     } catch (error) {
       console.error(`[SelfHeal] Failed to regenerate from markdown for ${bookmarkId}:`, getErrorMessage(error));
     }
@@ -551,21 +554,21 @@ export async function regenerateFromSummary(
       await db.summaries.where('bookmarkId').equals(bookmarkId).delete();
 
       const md = await db.markdown.where('bookmarkId').equals(bookmarkId).first();
-      if (!md) continue;
+      if (md) {
+        const summary = await generateSummary(md.content);
+        const settings = await getPlatformAdapter().getSettings();
+        const [embedding] = await generateEmbeddings([summary]);
 
-      const summary = await generateSummary(md.content);
-      const settings = await getPlatformAdapter().getSettings();
-      const [embedding] = await generateEmbeddings([summary]);
-
-      await db.summaries.add({
-        id: crypto.randomUUID(),
-        bookmarkId,
-        content: summary,
-        embedding,
-        embeddingModel: settings.embeddingModel,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+        await db.summaries.add({
+          id: crypto.randomUUID(),
+          bookmarkId,
+          content: summary,
+          embedding,
+          embeddingModel: settings.embeddingModel,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
     } catch (error) {
       console.error(`[SelfHeal] Failed to regenerate summary for ${bookmarkId}:`, getErrorMessage(error));
     }
@@ -588,35 +591,35 @@ export async function regenerateFromQuestions(
       await db.questionsAnswers.where('bookmarkId').equals(bookmarkId).delete();
 
       const md = await db.markdown.where('bookmarkId').equals(bookmarkId).first();
-      if (!md) continue;
+      if (md) {
+        const qaPairs = await generateQAPairs(md.content);
+        if (qaPairs.length > 0) {
+          const questions = qaPairs.map(qa => qa.question);
+          const answers = qaPairs.map(qa => qa.answer);
+          const combined = qaPairs.map(qa => `Q: ${qa.question}\nA: ${qa.answer}`);
 
-      const qaPairs = await generateQAPairs(md.content);
-      if (qaPairs.length === 0) continue;
+          const settings = await getPlatformAdapter().getSettings();
+          const [questionEmbeddings, answerEmbeddings, combinedEmbeddings] = await Promise.all([
+            generateEmbeddings(questions),
+            generateEmbeddings(answers),
+            generateEmbeddings(combined),
+          ]);
 
-      const questions = qaPairs.map(qa => qa.question);
-      const answers = qaPairs.map(qa => qa.answer);
-      const combined = qaPairs.map(qa => `Q: ${qa.question}\nA: ${qa.answer}`);
-
-      const settings = await getPlatformAdapter().getSettings();
-      const [questionEmbeddings, answerEmbeddings, combinedEmbeddings] = await Promise.all([
-        generateEmbeddings(questions),
-        generateEmbeddings(answers),
-        generateEmbeddings(combined),
-      ]);
-
-      const qaRecords = qaPairs.map((qa, idx) => ({
-        id: crypto.randomUUID(),
-        bookmarkId,
-        question: qa.question,
-        answer: qa.answer,
-        embeddingQuestion: questionEmbeddings[idx],
-        embeddingAnswer: answerEmbeddings[idx],
-        embeddingBoth: combinedEmbeddings[idx],
-        embeddingModel: settings.embeddingModel,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }));
-      await db.questionsAnswers.bulkAdd(qaRecords);
+          const qaRecords = qaPairs.map((qa, idx) => ({
+            id: crypto.randomUUID(),
+            bookmarkId,
+            question: qa.question,
+            answer: qa.answer,
+            embeddingQuestion: questionEmbeddings[idx],
+            embeddingAnswer: answerEmbeddings[idx],
+            embeddingBoth: combinedEmbeddings[idx],
+            embeddingModel: settings.embeddingModel,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }));
+          await db.questionsAnswers.bulkAdd(qaRecords);
+        }
+      }
     } catch (error) {
       console.error(`[SelfHeal] Failed to regenerate questions for ${bookmarkId}:`, getErrorMessage(error));
     }
