@@ -100,6 +100,11 @@ export class ServerSyncManager {
 
     try {
       const client = await ServerApiClient.fromSettings();
+
+      // Upload local bookmarks to server first so nothing is lost
+      await this.uploadLocalBookmarks(client);
+
+      // Download all bookmarks from server (now includes both clients' data)
       const allBookmarks: ServerBookmark[] = [];
       let offset = 0;
       let syncTimestamp = '';
@@ -112,8 +117,8 @@ export class ServerSyncManager {
         offset = allBookmarks.length;
       }
 
-      await this.clearLocalCache();
-      await this.storeBookmarks(allBookmarks);
+      // Merge server bookmarks into local DB (upsert, don't clear)
+      await this.mergeServerBookmarks(allBookmarks);
 
       const syncTime = new Date(syncTimestamp).getTime();
       await saveSetting('serverLastSyncTime', syncTimestamp);
@@ -368,39 +373,83 @@ export class ServerSyncManager {
     };
   }
 
-  private async clearLocalCache(): Promise<void> {
-    await db.transaction('rw', [db.bookmarks, db.markdown, db.questionsAnswers, db.bookmarkTags], async () => {
-      await db.bookmarks.clear();
-      await db.markdown.clear();
-      await db.questionsAnswers.clear();
-      await db.bookmarkTags.clear();
-    });
-  }
+  private async uploadLocalBookmarks(client: ServerApiClient): Promise<void> {
+    const allBookmarks = await db.bookmarks.toArray();
+    if (allBookmarks.length === 0) return;
 
-  private async storeBookmarks(bookmarks: ServerBookmark[]): Promise<void> {
-    const now = new Date();
-    const bookmarkRecords: Bookmark[] = [];
-    const tagRecords: BookmarkTag[] = [];
-
-    for (const serverBookmark of bookmarks) {
-      bookmarkRecords.push({
-        id: serverBookmark.id,
-        url: serverBookmark.url,
-        title: serverBookmark.title,
-        html: serverBookmark.html ?? '',
-        status: serverBookmark.status as Bookmark['status'],
-        errorMessage: serverBookmark.errorMessage ?? undefined,
-        createdAt: new Date(serverBookmark.createdAt),
-        updatedAt: new Date(serverBookmark.updatedAt),
-      });
-
-      for (const tagName of serverBookmark.tags) {
-        tagRecords.push({ bookmarkId: serverBookmark.id, tagName, addedAt: now });
-      }
+    const allTags = await db.bookmarkTags.toArray();
+    const tagsByBookmark = new Map<string, string[]>();
+    for (const tag of allTags) {
+      const tags = tagsByBookmark.get(tag.bookmarkId) ?? [];
+      tags.push(tag.tagName);
+      tagsByBookmark.set(tag.bookmarkId, tags);
     }
 
-    await db.transaction('rw', [db.bookmarks, db.bookmarkTags], async () => {
+    const allMarkdown = await db.markdown.toArray();
+    const markdownByBookmark = new Map<string, string>();
+    for (const md of allMarkdown) {
+      markdownByBookmark.set(md.bookmarkId, md.content);
+    }
+
+    const uploadBookmarks: FullSyncUploadRequest['bookmarks'] = allBookmarks.map(b => ({
+      id: b.id,
+      url: b.url,
+      title: b.title,
+      html: b.html,
+      markdown: markdownByBookmark.get(b.id),
+      createdAt: b.createdAt.toISOString(),
+      updatedAt: b.updatedAt.toISOString(),
+      tags: tagsByBookmark.get(b.id) ?? [],
+    }));
+
+    await client.uploadFullSync({ bookmarks: uploadBookmarks });
+  }
+
+  private async mergeServerBookmarks(serverBookmarks: ServerBookmark[]): Promise<void> {
+    const now = new Date();
+    await db.transaction('rw', [db.bookmarks, db.markdown, db.questionsAnswers, db.summaries, db.bookmarkTags], async () => {
+      // Remove local bookmarks whose URLs are on the server with a different ID
+      // (the server version is canonical after upload)
+      for (const serverBookmark of serverBookmarks) {
+        if (serverBookmark.url !== '') {
+          const localDupe = await db.bookmarks.where('url').equals(serverBookmark.url).first();
+          if (localDupe && localDupe.id !== serverBookmark.id) {
+            // Re-key derived records to the server ID to preserve processed content
+            await db.markdown.where('bookmarkId').equals(localDupe.id).modify({ bookmarkId: serverBookmark.id });
+            await db.questionsAnswers.where('bookmarkId').equals(localDupe.id).modify({ bookmarkId: serverBookmark.id });
+            await db.summaries.where('bookmarkId').equals(localDupe.id).modify({ bookmarkId: serverBookmark.id });
+            await db.bookmarkTags.where('bookmarkId').equals(localDupe.id).delete();
+            await db.bookmarks.delete(localDupe.id);
+          }
+        }
+      }
+
+      // Upsert all server bookmarks
+      const bookmarkRecords: Bookmark[] = [];
+      const tagRecords: BookmarkTag[] = [];
+
+      for (const serverBookmark of serverBookmarks) {
+        bookmarkRecords.push({
+          id: serverBookmark.id,
+          url: serverBookmark.url,
+          title: serverBookmark.title,
+          html: serverBookmark.html ?? '',
+          status: serverBookmark.status as Bookmark['status'],
+          errorMessage: serverBookmark.errorMessage ?? undefined,
+          createdAt: new Date(serverBookmark.createdAt),
+          updatedAt: new Date(serverBookmark.updatedAt),
+        });
+
+        for (const tagName of serverBookmark.tags) {
+          tagRecords.push({ bookmarkId: serverBookmark.id, tagName, addedAt: now });
+        }
+      }
+
       await db.bookmarks.bulkPut(bookmarkRecords);
+      // Clear and re-add tags for server bookmarks only
+      for (const serverBookmark of serverBookmarks) {
+        await db.bookmarkTags.where('bookmarkId').equals(serverBookmark.id).delete();
+      }
       await db.bookmarkTags.bulkPut(tagRecords);
     });
   }
@@ -435,6 +484,8 @@ export class ServerSyncManager {
     });
 
     try {
+      const client = await ServerApiClient.fromSettings();
+
       const allBookmarks = await db.bookmarks.toArray();
       if (allBookmarks.length === 0) {
         await db.jobs.update(job.id, { status: JobStatus.COMPLETED });
@@ -466,10 +517,23 @@ export class ServerSyncManager {
         tags: tagsByBookmark.get(b.id) ?? [],
       }));
 
-      const client = await ServerApiClient.fromSettings();
       const result = await client.uploadFullSync({ bookmarks: uploadBookmarks });
 
-      await saveSetting('serverLastSyncTime', result.syncToken);
+      // After uploading, download all server bookmarks to merge data from other
+      // clients and set the sync cursor to cover all existing server data.
+      const serverBookmarks: ServerBookmark[] = [];
+      let offset = 0;
+      let syncTimestamp = '';
+      for (;;) {
+        const response = await client.downloadFullSync({ offset });
+        serverBookmarks.push(...response.bookmarks);
+        syncTimestamp = response.syncTimestamp;
+        if (!response.hasMore) break;
+        offset = serverBookmarks.length;
+      }
+      await this.mergeServerBookmarks(serverBookmarks);
+
+      await saveSetting('serverLastSyncTime', syncTimestamp);
       await saveSetting('serverLastSyncError', '');
       await db.jobs.update(job.id, { status: JobStatus.COMPLETED });
 
