@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import BetterSqlite3 from 'better-sqlite3';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
+import initSqlJs, { type Database as SqlJsDatabase } from 'sql.js';
 import { db } from '../src/db/schema';
 import type { FullSyncUploadRequest } from '../src/lib/server-api';
 import type { Database, PreparedStatement, BindValue } from '../server/src/adapters/database/interface.ts';
@@ -10,9 +10,11 @@ import { createApp } from '../server/src/app.ts';
 
 import schemaSQL from '../server/src/db/schema.sql?raw';
 
-// Implement the Database interface using better-sqlite3 (synchronous API wrapped as async)
-class NodeSqliteDatabase implements Database {
-  constructor(private sqlite: BetterSqlite3.Database) {}
+let SQL: Awaited<ReturnType<typeof initSqlJs>>;
+
+// Implement the Database interface using sql.js (pure JS/WASM, no native compilation)
+class SqlJsAdapter implements Database {
+  constructor(private sqlite: SqlJsDatabase) {}
 
   prepare<T extends object = Record<string, unknown>>(sql: string): PreparedStatement<T> {
     const sqlite = this.sqlite;
@@ -25,17 +27,38 @@ class NodeSqliteDatabase implements Database {
       },
       async first(): Promise<T | null> {
         const prepared = sqlite.prepare(sql);
-        const row = prepared.get(...boundParams.map(normalizeParam)) as T | undefined;
-        return row ?? null;
+        try {
+          prepared.bind(boundParams.map(normalizeParam) as never);
+          if (prepared.step()) {
+            return prepared.getAsObject() as T;
+          }
+          return null;
+        } finally {
+          prepared.free();
+        }
       },
       async all(): Promise<T[]> {
         const prepared = sqlite.prepare(sql);
-        return prepared.all(...boundParams.map(normalizeParam)) as T[];
+        try {
+          prepared.bind(boundParams.map(normalizeParam) as never);
+          const rows: T[] = [];
+          while (prepared.step()) {
+            rows.push(prepared.getAsObject() as T);
+          }
+          return rows;
+        } finally {
+          prepared.free();
+        }
       },
       async run(): Promise<{ changes: number }> {
         const prepared = sqlite.prepare(sql);
-        const info = prepared.run(...boundParams.map(normalizeParam));
-        return { changes: info.changes };
+        try {
+          prepared.bind(boundParams.map(normalizeParam) as never);
+          prepared.step();
+          return { changes: sqlite.getRowsModified() };
+        } finally {
+          prepared.free();
+        }
       },
     };
     return stmt;
@@ -55,7 +78,18 @@ class NodeSqliteDatabase implements Database {
 function normalizeParam(v: BindValue): unknown {
   if (v === null) return null;
   if (typeof v === 'bigint') return Number(v);
+  if (v instanceof Uint8Array) return v;
   return v;
+}
+
+function countBookmarks(sqlite: SqlJsDatabase): { cnt: number } {
+  const stmt = sqlite.prepare('SELECT COUNT(*) as cnt FROM bookmarks');
+  try {
+    stmt.step();
+    return stmt.getAsObject() as { cnt: number };
+  } finally {
+    stmt.free();
+  }
 }
 
 class NoopQueue implements Queue {
@@ -69,11 +103,19 @@ class StaticEnv implements Env {
 }
 
 // Create a real Hono server backed by in-memory SQLite
-function createTestServer() {
-  const sqlite = new BetterSqlite3(':memory:');
-  sqlite.exec(schemaSQL);
+// sql.js is built without FTS5 - strip FTS tables and triggers that depend on it.
+// Sync tests don't use search functionality.
+function stripFtsFromSchema(sql: string): string {
+  return sql
+    .replace(/CREATE VIRTUAL TABLE[\s\S]*?USING fts5\([\s\S]*?\);/gi, '')
+    .replace(/CREATE TRIGGER[\s\S]*?bookmarks_fts[\s\S]*?END;/gi, '');
+}
 
-  const database = new NodeSqliteDatabase(sqlite);
+function createTestServer() {
+  const sqlite = new SQL.Database();
+  sqlite.exec(stripFtsFromSchema(schemaSQL));
+
+  const database = new SqlJsAdapter(sqlite);
   const deps: AppDependencies = { db: database, queue: new NoopQueue(), env: new StaticEnv() };
   const app = createApp(deps);
 
@@ -189,6 +231,10 @@ async function addLocalBookmarks(count: number, prefix: string) {
 describe('Multi-client sync with real server', () => {
   let server: ReturnType<typeof createTestServer>;
 
+  beforeAll(async () => {
+    SQL = await initSqlJs();
+  });
+
   beforeEach(async () => {
     await clearAllTables();
     vi.clearAllMocks();
@@ -211,7 +257,7 @@ describe('Multi-client sync with real server', () => {
     expect(result.success).toBe(true);
 
     // Server should have all 5 bookmarks
-    const serverRows = server.sqlite.prepare('SELECT COUNT(*) as cnt FROM bookmarks').get() as { cnt: number };
+    const serverRows = countBookmarks(server.sqlite);
     expect(serverRows.cnt).toBe(5);
 
     // Local DB should still have all 5
@@ -241,7 +287,7 @@ describe('Multi-client sync with real server', () => {
     expect(localBookmarks.length).toBe(5);
 
     // Server should also have all 5
-    const serverRows = server.sqlite.prepare('SELECT COUNT(*) as cnt FROM bookmarks').get() as { cnt: number };
+    const serverRows = countBookmarks(server.sqlite);
     expect(serverRows.cnt).toBe(5);
   });
 
@@ -251,7 +297,7 @@ describe('Multi-client sync with real server', () => {
     const clientA = new ServerSyncManager();
     await clientA.fullSync();
 
-    const serverAfterA = server.sqlite.prepare('SELECT COUNT(*) as cnt FROM bookmarks').get() as { cnt: number };
+    const serverAfterA = countBookmarks(server.sqlite);
     expect(serverAfterA.cnt).toBe(3);
 
     // Switch to Client B: clear local DB, reset sync cursor
@@ -263,7 +309,7 @@ describe('Multi-client sync with real server', () => {
     await clientB.fullSync();
 
     // Server should have all 5
-    const serverAfterB = server.sqlite.prepare('SELECT COUNT(*) as cnt FROM bookmarks').get() as { cnt: number };
+    const serverAfterB = countBookmarks(server.sqlite);
     expect(serverAfterB.cnt).toBe(5);
 
     // Client B local should have all 5
@@ -337,7 +383,7 @@ describe('Multi-client sync with real server', () => {
     expect((await db.bookmarks.toArray()).length).toBe(5);
 
     // Server should have them
-    const serverRows = server.sqlite.prepare('SELECT COUNT(*) as cnt FROM bookmarks').get() as { cnt: number };
+    const serverRows = countBookmarks(server.sqlite);
     expect(serverRows.cnt).toBe(5);
   });
 
