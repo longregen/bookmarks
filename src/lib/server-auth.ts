@@ -1,5 +1,8 @@
 import { ServerApiClient } from './server-api';
 import { getErrorMessage } from './errors';
+import { saveSetting } from './settings';
+
+const LOGOUT_TIMEOUT_MS = 5000;
 
 export interface AuthResult {
   sessionToken: string;
@@ -33,21 +36,33 @@ export async function authenticate(
   }
 }
 
+async function clearLocalSession(): Promise<void> {
+  await saveSetting('serverSessionToken', '');
+  await saveSetting('serverSessionExpiry', '');
+  await saveSetting('serverAuthToken', '');
+  await saveSetting('serverEnabled', false);
+  await saveSetting('serverLastSyncError', '');
+}
+
 export async function logout(
   serverUrl: string,
   sessionToken: string
 ): Promise<void> {
-  if (!sessionToken) {
-    return;
+  if (sessionToken) {
+    const client = new ServerApiClient(serverUrl, sessionToken);
+    try {
+      await Promise.race([
+        client.logout(),
+        new Promise<void>((_, reject) => {
+          setTimeout(() => reject(new Error('Logout request timed out')), LOGOUT_TIMEOUT_MS);
+        }),
+      ]);
+    } catch (error) {
+      console.warn('Server logout failed:', getErrorMessage(error));
+    }
   }
 
-  const client = new ServerApiClient(serverUrl, sessionToken);
-
-  try {
-    await client.logout();
-  } catch (error) {
-    console.warn('Server logout failed:', getErrorMessage(error));
-  }
+  await clearLocalSession();
 }
 
 export async function deleteAccount(
