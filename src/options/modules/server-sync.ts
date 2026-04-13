@@ -248,8 +248,6 @@ async function handleLogout(): Promise<void> {
       await logout(settings.serverUrl, settings.serverSessionToken);
     });
 
-    await saveSetting('serverAuthToken', '');
-    await saveSetting('serverEnabled', false);
     await notifySyncSettingsChanged();
 
     const enabledCheckbox = getElement<HTMLInputElement>('serverEnabled');
