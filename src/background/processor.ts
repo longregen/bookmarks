@@ -8,6 +8,14 @@ import { config } from '../lib/config-registry';
 
 export async function fetchBookmarkHtml(bookmark: Bookmark): Promise<Bookmark> {
   if (bookmark.html) {
+    if (bookmark.status === 'fetching') {
+      await db.bookmarks.update(bookmark.id, {
+        status: 'downloaded',
+        retryCount: 0,
+        updatedAt: new Date(),
+      });
+      return { ...bookmark, status: 'downloaded', retryCount: 0 };
+    }
     return bookmark;
   }
 

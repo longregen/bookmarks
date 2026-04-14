@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { db } from '../src/db/schema';
-import { processBookmarkContent } from '../src/background/processor';
+import { fetchBookmarkHtml, processBookmarkContent } from '../src/background/processor';
 import * as extract from '../src/lib/extract';
 import * as api from '../src/lib/api';
+import * as browserFetchModule from '../src/lib/browser-fetch';
 import { setPlatformAdapter, type PlatformAdapter, type ApiSettings } from '../src/lib/platform';
 
 vi.mock('../src/lib/extract', () => ({
@@ -347,6 +348,58 @@ describe('Bookmark Processor', () => {
       qaPairs.sort((a, b) => a.question.localeCompare(b.question));
       expect(qaPairs.map(qa => qa.question)).toEqual(['Q1?', 'Q2?', 'Q3?']);
       expect(qaPairs.map(qa => qa.answer)).toEqual(['A1', 'A2', 'A3']);
+    });
+
+    it('should transition fetching bookmark with pre-existing html to downloaded', async () => {
+      // Regression: fetchBookmarkHtml used to early-return without updating status
+      // when html already existed, leaving status='fetching' forever and causing
+      // the queue loop to re-process the same bookmark in an infinite loop.
+      const bookmark = {
+        id: 'test-1',
+        url: 'https://example.com',
+        title: 'Test Page',
+        html: '<html><body>Pre-existing content</body></html>',
+        status: 'fetching' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await db.bookmarks.add(bookmark);
+
+      const browserFetchMock = vi.spyOn(browserFetchModule, 'browserFetch');
+
+      const result = await fetchBookmarkHtml(bookmark);
+
+      expect(browserFetchMock).not.toHaveBeenCalled();
+      expect(result.status).toBe('downloaded');
+
+      const updated = await db.bookmarks.get('test-1');
+      expect(updated?.status).toBe('downloaded');
+      expect(updated?.retryCount).toBe(0);
+    });
+
+    it('should no-op when html exists and status is already past fetching', async () => {
+      const bookmark = {
+        id: 'test-1',
+        url: 'https://example.com',
+        title: 'Test Page',
+        html: '<html><body>content</body></html>',
+        status: 'processing' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await db.bookmarks.add(bookmark);
+
+      const browserFetchMock = vi.spyOn(browserFetchModule, 'browserFetch');
+
+      const result = await fetchBookmarkHtml(bookmark);
+
+      expect(browserFetchMock).not.toHaveBeenCalled();
+      expect(result.status).toBe('processing');
+
+      const updated = await db.bookmarks.get('test-1');
+      expect(updated?.status).toBe('processing');
     });
 
     it('should save markdown with correct metadata', async () => {
