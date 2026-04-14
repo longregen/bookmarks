@@ -6,6 +6,8 @@ declare const __IS_FIREFOX__: boolean;
 
 declare const __IS_WEB__: boolean;
 
+declare const __APP_VERSION__: string;
+
 declare namespace chrome {
   export namespace offscreen {
     export type Reason = 'DOM_SCRAPING' | 'CLIPBOARD' | 'AUDIO_PLAYBACK' | 'IFRAME_SCRIPTING' | 'WEB_RTC' | 'BLOBS' | 'DOM_PARSER' | 'WORKERS' | 'BATTERY_STATUS' | 'MATCH_MEDIA' | 'GEOLOCATION';
