@@ -308,6 +308,9 @@ describe('Tier + sync + eviction end-to-end', () => {
         uploadFullSync: vi.fn().mockResolvedValue({
           created: 1, updated: 0, conflicts: [], syncToken: '2026-04-14T09:00:00.000Z',
         }),
+        downloadFullSync: vi.fn().mockResolvedValue({
+          bookmarks: [], hasMore: false, syncTimestamp: '2026-04-14T09:00:00.000Z',
+        }),
       });
 
       const result = await syncManager.uploadAllBookmarks();
@@ -327,6 +330,9 @@ describe('Tier + sync + eviction end-to-end', () => {
       mockFromSettings.mockResolvedValue({
         uploadFullSync: vi.fn().mockResolvedValue({
           created: 1, updated: 0, conflicts: [], syncToken: '2026-04-14T09:00:00.000Z',
+        }),
+        downloadFullSync: vi.fn().mockResolvedValue({
+          bookmarks: [], hasMore: false, syncTimestamp: '2026-04-14T09:00:00.000Z',
         }),
       });
 
