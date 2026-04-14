@@ -36,7 +36,7 @@
               !(builtins.elem baseName [ "node_modules" "dist-chrome" "dist-firefox" "dist-web" "coverage" ".git" "screenshots" ]);
           };
 
-          npmDepsHash = "sha256-oQWwr53e9SAv7p49a6FaOxmqm1ev+3m6U5Rl6y1GbLY=";
+          npmDepsHash = "sha256-8vzAwcf07RZrGe/oN4J6Q1bRVch7fY+g6r1QMjRx8gc=";
 
           nativeBuildInputs = with pkgs; [ nodejs_22 zip ];
 
@@ -62,7 +62,10 @@
 
           # Don't run tests during package build
           doCheck = false;
-          
+
+          # CRXJS resolves "localhost" during build; allow loopback DNS in macOS sandbox
+          __darwinAllowLocalNetworking = true;
+
           # buildNpmPackage defaults
           dontNpmBuild = true;
         };

@@ -9,6 +9,7 @@ import { downloadExport, downloadMarkdown, downloadHtml, copyMarkdown, type Expo
 import { retryBookmark, deleteBookmarkWithData } from '../lib/jobs';
 import { ServerApiClient } from '../lib/server-api';
 import { serverSync } from '../lib/server-sync';
+import { getContentTier } from '../lib/content-tier';
 import { onThemeChange, applyTheme } from '../shared/theme';
 import { initExtension } from '../ui/init-extension';
 import { initWebWithAuth } from '../web/init-web';
@@ -198,7 +199,9 @@ async function loadView(): Promise<void> {
 
   let { markdown, qaPairs } = await getBookmarkContent(bookmarkId);
 
-  if (!markdown && __IS_WEB__) {
+  const tier = await getContentTier();
+  const needLazyFetch = (!markdown || (qaPairs.length === 0 && tier !== 'full'));
+  if (needLazyFetch && (__IS_WEB__ || tier !== 'full')) {
     try {
       await serverSync.fetchBookmarkContent(bookmarkId);
       ({ markdown, qaPairs } = await getBookmarkContent(bookmarkId));

@@ -651,13 +651,13 @@ async function scene09_jobs(ctx: WalkthroughContext): Promise<void> {
   console.log('\n📽️  Scene 9: Jobs Dashboard\n');
 
   await ctx.page.goto(ctx.adapter.getPageUrl('jobs'));
-  await ctx.page.waitForSelector('#jobsList');
-  // Capture immediately to catch the "Loading jobs..." state before data arrives
+  await ctx.page.waitForSelector('#pipelineColumns');
+  // Capture immediately to catch the "Loading…" state before data arrives
   await pause(50);
   await capture(ctx, 'jobs-dashboard-initial');
 
   await ctx.page.waitForFunction(
-    `document.querySelectorAll('.job-item').length > 0 || document.querySelector('#jobsList')?.textContent?.includes('No jobs')`,
+    `document.querySelectorAll('#pipelineColumns .pipeline-column').length > 0`,
     10000
   );
   await pause(300);
@@ -668,11 +668,11 @@ async function scene10_status(ctx: WalkthroughContext): Promise<void> {
   console.log('\n📽️  Scene 10: Status Dashboard\n');
 
   await ctx.page.goto(ctx.adapter.getPageUrl('status'));
-  await ctx.page.waitForSelector('#statsGrid');
+  await ctx.page.waitForSelector('.dashboard-grid');
   await pause(500);
 
   await ctx.page.waitForFunction(
-    `document.querySelectorAll('.stat-card').length >= 5`,
+    `document.querySelectorAll('.dashboard-card').length >= 5`,
     10000
   );
   await capture(ctx, 'status-dashboard-loaded');

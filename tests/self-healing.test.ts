@@ -102,6 +102,10 @@ const TEST_SETTINGS: ApiSettings = {
   serverAuthToken: '',
   serverLastSyncTime: '',
   serverLastSyncError: '',
+  contentTier: 'full',
+  markdownCacheCapMB: 50,
+  markdownCacheBytes: 0,
+  contentTierMigrationAt: '',
 };
 
 const mockAdapter: PlatformAdapter = {

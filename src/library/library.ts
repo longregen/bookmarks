@@ -15,6 +15,7 @@ import { getErrorMessage } from '../lib/errors';
 
 let selectedTag = 'All';
 let sortBy = 'newest';
+let statusFilter: string[] = [];
 
 function getStatusModifier(status: string): string {
   const statusMap: Record<string, string> = {
@@ -114,6 +115,11 @@ async function loadBookmarks(): Promise<void> {
     const tagRecords = await db.bookmarkTags.where('tagName').equals(selectedTag).toArray();
     const taggedIds = tagRecords.map(t => t.bookmarkId);
     bookmarks = await db.bookmarks.where('id').anyOf(taggedIds).toArray();
+  }
+
+  if (statusFilter.length > 0) {
+    const set = new Set(statusFilter);
+    bookmarks = bookmarks.filter(b => set.has(b.status));
   }
 
   if (sortBy === 'newest') bookmarks.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -225,6 +231,10 @@ onThemeChange((theme) => applyTheme(theme));
 
 const urlParams = new URLSearchParams(window.location.search);
 const bookmarkIdParam = urlParams.get('bookmarkId');
+const statusParam = urlParams.get('status');
+if (statusParam !== null && statusParam !== '') {
+  statusFilter = statusParam.split(',').map(s => s.trim()).filter(Boolean);
+}
 
 if (bookmarkIdParam !== null && bookmarkIdParam !== '') {
   navigateToView(bookmarkIdParam);

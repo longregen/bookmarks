@@ -17,7 +17,7 @@ export type SyncIndicatorStyle = 'full' | 'compact';
 
 const POLL_INTERVAL = 5000;
 
-async function getSyncStatus(): Promise<SyncStatusState> {
+export async function getSyncStatus(): Promise<SyncStatusState> {
   const settings = await getSettings();
   const syncStatus = await serverSync.getSyncStatus();
 
@@ -34,6 +34,15 @@ async function getSyncStatus(): Promise<SyncStatusState> {
     isSyncing: syncStatus.isSyncing,
     pendingChanges: syncStatus.pendingChanges,
   };
+}
+
+export function deriveSyncPresentation(state: SyncStatusState): {
+  symbol: string;
+  className: string;
+  text: string;
+} {
+  const { symbol, className } = getStatusIcon(state);
+  return { symbol, className, text: getStatusText(state) };
 }
 
 function getStatusIcon(state: SyncStatusState): { symbol: string; className: string } {

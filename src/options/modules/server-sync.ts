@@ -12,6 +12,8 @@ import {
 import { getErrorMessage } from '../../lib/errors';
 import { formatDateByAge } from '../../lib/date-format';
 import { ServerApiClient } from '../../lib/server-api';
+import { enterTier, getMarkdownCacheStats, planTierTransition, type TierTransitionPlan } from '../../lib/content-tier';
+import type { ContentTier } from '../../lib/platform';
 
 const SYNC_POLL_INTERVAL = 2000;
 
@@ -335,6 +337,156 @@ async function handleSyncNow(): Promise<void> {
 async function pollSyncStatus(): Promise<void> {
   const settings = await getSettings();
   updateSyncStatus(settings.serverLastSyncTime, settings.serverLastSyncError);
+  await refreshCacheUsage();
+}
+
+let pendingTierPlan: TierTransitionPlan | null = null;
+
+async function loadTierSettings(): Promise<void> {
+  const settings = await getSettings();
+  const select = getElement<HTMLSelectElement>('contentTierSelect');
+  select.value = settings.contentTier;
+  const capInput = getElement<HTMLInputElement>('markdownCacheCapInput');
+  capInput.value = String(settings.markdownCacheCapMB);
+  updateCacheRowVisibility(settings.contentTier);
+  await refreshCacheUsage();
+}
+
+function updateCacheRowVisibility(tier: ContentTier): void {
+  const row = getElement('markdownCacheRow');
+  row.classList.toggle('hidden', tier === 'full' || tier === 'titles');
+}
+
+async function refreshCacheUsage(): Promise<void> {
+  const usage = getElement('markdownCacheUsage');
+  try {
+    const stats = await getMarkdownCacheStats();
+    const usedMB = (stats.bytes / 1024 / 1024).toFixed(1);
+    const capMB = (stats.capBytes / 1024 / 1024).toFixed(0);
+    const lastEvict = stats.lastEviction
+      ? ` · last evicted ${formatDateByAge(new Date(stats.lastEviction.at))} (${stats.lastEviction.rowsFreed} rows)`
+      : '';
+    usage.textContent = `Using ${usedMB} MB of ${capMB} MB · ${stats.rowCount} rows${lastEvict}`;
+  } catch {
+    usage.textContent = '';
+  }
+}
+
+function describePlan(plan: TierTransitionPlan): string {
+  if (plan.from === plan.to) return 'No change.';
+  if (plan.blockedByPendingQueue) {
+    return 'Sync queue has pending changes. Run a sync before changing tiers.';
+  }
+  const parts: string[] = [];
+  if (plan.markdownRowsToDelete > 0) {
+    const mb = (plan.markdownBytesToDelete / 1024 / 1024).toFixed(1);
+    parts.push(`${plan.markdownRowsToDelete} markdown documents (~${mb} MB)`);
+  }
+  if (plan.qaRowsToDelete > 0) parts.push(`${plan.qaRowsToDelete} Q&A rows`);
+  if (plan.summaryRowsToDelete > 0) parts.push(`${plan.summaryRowsToDelete} summaries`);
+
+  const tierLabel = (t: ContentTier): string => {
+    if (t === 'full') return 'Full';
+    if (t === 'summaries') return 'Summaries';
+    return 'Titles only';
+  };
+
+  if (parts.length === 0) return `Switching to ${tierLabel(plan.to)}.`;
+  const preserveNote = plan.embeddingsPreserved > 0
+    ? ` Embeddings preserved for ${plan.embeddingsPreserved} rows.`
+    : '';
+  return `Switching to ${tierLabel(plan.to)} will remove ${parts.join(', ')} from this device.${preserveNote} Content stays on your sync server and is fetched on demand.`;
+}
+
+async function handleTierSelectChange(): Promise<void> {
+  const select = getElement<HTMLSelectElement>('contentTierSelect');
+  const confirmPanel = getElement('tierConfirmPanel');
+  const confirmSummary = getElement('tierConfirmSummary');
+  const target = select.value as ContentTier;
+
+  const plan = await planTierTransition(target);
+  pendingTierPlan = plan;
+
+  if (plan.from === plan.to) {
+    confirmPanel.classList.add('hidden');
+    updateCacheRowVisibility(target);
+    return;
+  }
+
+  const isUpgrade = tierRank(plan.to) < tierRank(plan.from);
+  if (isUpgrade) {
+    confirmPanel.classList.add('hidden');
+    await applyTierChange();
+    return;
+  }
+
+  confirmSummary.textContent = describePlan(plan);
+  getElement<HTMLButtonElement>('tierConfirmBtn').disabled = plan.blockedByPendingQueue;
+  confirmPanel.classList.remove('hidden');
+}
+
+function tierRank(t: ContentTier): number {
+  if (t === 'full') return 0;
+  if (t === 'summaries') return 1;
+  return 2;
+}
+
+async function applyTierChange(): Promise<void> {
+  if (!pendingTierPlan) return;
+  const target = pendingTierPlan.to;
+  const confirmPanel = getElement('tierConfirmPanel');
+  const progress = getElement('tierProgress');
+  const progressBar = getElement('tierProgressBar');
+  const progressStatus = getElement('tierProgressStatus');
+  const statusDiv = getElement('status');
+
+  confirmPanel.classList.add('hidden');
+  progress.classList.remove('hidden');
+  progressStatus.textContent = 'Applying…';
+
+  try {
+    await enterTier(target, {
+      onProgress: (pct) => {
+        progressBar.style.width = `${pct}%`;
+      },
+    });
+    await notifySyncSettingsChanged();
+    showStatusMessage(statusDiv, `Storage mode set to ${target}.`, 'success');
+    updateCacheRowVisibility(target);
+    await refreshCacheUsage();
+  } catch (error) {
+    showStatusMessage(statusDiv, `Failed to change tier: ${getErrorMessage(error)}`, 'error', 5000);
+    const select = getElement<HTMLSelectElement>('contentTierSelect');
+    const settings = await getSettings();
+    select.value = settings.contentTier;
+  } finally {
+    progress.classList.add('hidden');
+    progressBar.style.width = '0%';
+    pendingTierPlan = null;
+  }
+}
+
+async function cancelTierChange(): Promise<void> {
+  const confirmPanel = getElement('tierConfirmPanel');
+  confirmPanel.classList.add('hidden');
+  pendingTierPlan = null;
+  const settings = await getSettings();
+  getElement<HTMLSelectElement>('contentTierSelect').value = settings.contentTier;
+}
+
+async function handleCacheCapInput(): Promise<void> {
+  const input = getElement<HTMLInputElement>('markdownCacheCapInput');
+  const raw = Number(input.value);
+  const mb = Number.isFinite(raw) ? Math.max(5, Math.min(5000, Math.round(raw))) : 50;
+  if (mb !== raw) input.value = String(mb);
+  await saveSetting('markdownCacheCapMB', mb);
+  try {
+    const { maybeEvictMarkdownLRU } = await import('../../lib/content-tier');
+    await maybeEvictMarkdownLRU();
+  } catch {
+    // best-effort
+  }
+  await refreshCacheUsage();
 }
 
 function startStatusPolling(): void {
@@ -354,6 +506,7 @@ function stopStatusPolling(): void {
 
 export function initServerSyncModule(): () => void {
   void loadSettings();
+  void loadTierSettings();
 
   const enabledCheckbox = getElement<HTMLInputElement>('serverEnabled');
   const checkBtn = getElement<HTMLButtonElement>('serverCheckBtn');
@@ -365,6 +518,10 @@ export function initServerSyncModule(): () => void {
   const logoutBtn = getElement<HTMLButtonElement>('serverLogoutBtn');
   const deleteAccountBtn = getElement<HTMLButtonElement>('serverDeleteAccountBtn');
   const syncNowBtn = getElement<HTMLButtonElement>('serverSyncNowBtn');
+  const tierSelect = getElement<HTMLSelectElement>('contentTierSelect');
+  const cacheCapInput = getElement<HTMLInputElement>('markdownCacheCapInput');
+  const tierConfirmBtn = getElement<HTMLButtonElement>('tierConfirmBtn');
+  const tierCancelBtn = getElement<HTMLButtonElement>('tierCancelBtn');
 
   enabledCheckbox.addEventListener('change', (e) => void handleEnableToggle(e));
   checkBtn.addEventListener('click', () => void handleCheckServer());
@@ -376,6 +533,10 @@ export function initServerSyncModule(): () => void {
   logoutBtn.addEventListener('click', () => void handleLogout());
   deleteAccountBtn.addEventListener('click', () => void handleDeleteAccount());
   syncNowBtn.addEventListener('click', () => void handleSyncNow());
+  tierSelect.addEventListener('change', () => void handleTierSelectChange());
+  cacheCapInput.addEventListener('change', () => void handleCacheCapInput());
+  tierConfirmBtn.addEventListener('click', () => void applyTierChange());
+  tierCancelBtn.addEventListener('click', () => void cancelTierChange());
 
   startStatusPolling();
 

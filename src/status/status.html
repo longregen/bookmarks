@@ -17,6 +17,7 @@
       <a href="../options/options.html" class="app-header__nav-link">Settings</a>
     </nav>
     <div class="app-header__brand">
+      <div id="syncIndicator"></div>
       <div id="healthIndicator"></div>
       <h1 class="app-header__title">Bookmarks by Localforge</h1>
     </div>
@@ -31,14 +32,69 @@
         <div class="option-panel">
           <div class="option-panel__header">
             <h2>Status</h2>
-            <p class="section-description">Database statistics for your bookmarks.</p>
+            <p class="section-description">Live snapshot of sync, pipeline, and local storage.</p>
           </div>
           <div class="option-panel__content">
-            <div id="statsGrid" class="stats-grid">
-              <div class="stat-card">
-                <div class="stat-card__value">...</div>
-                <div class="stat-card__label">Loading</div>
-              </div>
+            <div class="dashboard-grid">
+              <section id="cardSyncState" class="dashboard-card">
+                <header class="dashboard-card__header">
+                  <h3>Sync state</h3>
+                </header>
+                <div class="dashboard-card__body" id="syncStateBody">Loading…</div>
+                <footer class="dashboard-card__footer">
+                  <button type="button" id="syncNowBtn" class="btn btn-secondary btn-sm">Sync now</button>
+                  <a href="../options/options.html#server-sync" class="btn btn-secondary btn-sm">Open settings</a>
+                </footer>
+              </section>
+
+              <section id="cardOfflineQueue" class="dashboard-card">
+                <header class="dashboard-card__header">
+                  <h3>Offline queue</h3>
+                </header>
+                <div class="dashboard-card__body" id="offlineQueueBody">Loading…</div>
+                <footer class="dashboard-card__footer">
+                  <button type="button" id="queueRetryBtn" class="btn btn-secondary btn-sm">Retry now</button>
+                  <button type="button" id="queueClearBtn" class="btn btn-secondary btn-sm">Clear queue</button>
+                </footer>
+              </section>
+
+              <section id="cardPipeline" class="dashboard-card dashboard-card--wide">
+                <header class="dashboard-card__header">
+                  <h3>Pipeline</h3>
+                </header>
+                <div class="dashboard-card__body" id="pipelineBody">Loading…</div>
+                <footer class="dashboard-card__footer">
+                  <button type="button" id="retryAllBtn" class="btn btn-secondary btn-sm">Retry all failed</button>
+                  <a href="../jobs/jobs.html" class="btn btn-secondary btn-sm">Open jobs</a>
+                </footer>
+              </section>
+
+              <section id="cardActivity" class="dashboard-card dashboard-card--wide">
+                <header class="dashboard-card__header">
+                  <h3>Recent sync activity</h3>
+                </header>
+                <div class="dashboard-card__body" id="activityBody">Loading…</div>
+              </section>
+
+              <section id="cardStorageTiers" class="dashboard-card">
+                <header class="dashboard-card__header">
+                  <h3>Storage tiers</h3>
+                </header>
+                <div class="dashboard-card__body" id="tiersBody">Loading…</div>
+                <footer class="dashboard-card__footer">
+                  <a href="../options/options.html#content-tier" class="btn btn-secondary btn-sm">Change tier</a>
+                </footer>
+              </section>
+
+              <section id="cardInventory" class="dashboard-card">
+                <header class="dashboard-card__header">
+                  <h3>Content inventory</h3>
+                </header>
+                <div class="dashboard-card__body" id="inventoryBody">Loading…</div>
+                <footer class="dashboard-card__footer">
+                  <button type="button" id="inventoryRefreshBtn" class="btn btn-secondary btn-sm">Refresh</button>
+                </footer>
+              </section>
             </div>
           </div>
         </div>

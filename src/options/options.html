@@ -328,6 +328,39 @@
                     <button type="button" id="serverSyncNowBtn" class="btn btn-secondary btn-sm">Sync Now</button>
                   </div>
 
+                  <div id="content-tier" class="content-tier-card">
+                    <h3 class="content-tier-title">Storage mode</h3>
+                    <p class="section-description">
+                      Choose how much bookmark content to keep on this device. The server always keeps everything.
+                    </p>
+                    <div class="form-group">
+                      <label for="contentTierSelect">Tier</label>
+                      <select id="contentTierSelect" class="form-select">
+                        <option value="full">Full — keep markdown, Q&amp;A and embeddings locally</option>
+                        <option value="summaries">Summaries — drop markdown + Q&amp;A text, keep summaries + embeddings; fetch on demand</option>
+                        <option value="titles">Titles only — drop embeddings, search via server</option>
+                      </select>
+                    </div>
+                    <div id="markdownCacheRow" class="form-group hidden">
+                      <label for="markdownCacheCapInput">Markdown cache limit (MB)</label>
+                      <input type="number" id="markdownCacheCapInput" class="form-input" min="5" max="5000" step="5" />
+                      <div id="markdownCacheUsage" class="content-tier-usage"></div>
+                    </div>
+                    <div id="tierConfirmPanel" class="tier-confirm-panel hidden">
+                      <div id="tierConfirmSummary" class="tier-confirm-summary"></div>
+                      <div class="button-group">
+                        <button type="button" id="tierConfirmBtn" class="btn btn-primary btn-sm">Confirm change</button>
+                        <button type="button" id="tierCancelBtn" class="btn btn-secondary btn-sm">Cancel</button>
+                      </div>
+                    </div>
+                    <div id="tierProgress" class="tier-progress hidden">
+                      <div class="progress-bar-container">
+                        <div id="tierProgressBar" class="progress-bar"></div>
+                      </div>
+                      <span id="tierProgressStatus" class="progress-status">Applying…</span>
+                    </div>
+                  </div>
+
                   <div class="sync-disconnect-row">
                     <button type="button" id="serverLogoutBtn" class="btn btn-secondary btn-sm">Disconnect</button>
                     <button type="button" id="serverDeleteAccountBtn" class="btn btn-danger btn-sm">Delete All Server Data</button>

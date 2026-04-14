@@ -5,8 +5,9 @@ type BookmarkEvent = `bookmark:${'created' | 'content_fetched' | 'processing_sta
 type TagEvent = `tag:${'added' | 'removed'}`;
 type JobEvent = `job:${'created' | 'progress_changed' | 'completed' | 'failed'}`;
 type SyncEvent = `sync:${'started' | 'completed' | 'failed'}`;
+type TierEvent = `tier:${'changed' | 'evicted'}`;
 
-export type EventType = BookmarkEvent | TagEvent | JobEvent | SyncEvent;
+export type EventType = BookmarkEvent | TagEvent | JobEvent | SyncEvent | TierEvent;
 
 // Typed payloads for each event
 export interface EventPayloads {
@@ -26,6 +27,8 @@ export interface EventPayloads {
   'sync:started': { manual: boolean };
   'sync:completed': { action: 'uploaded' | 'downloaded' | 'no-change'; bookmarkCount?: number };
   'sync:failed': { error: string };
+  'tier:changed': { from: string; to: string };
+  'tier:evicted': { rowsFreed: number; bytesFreed: number };
 }
 
 export interface EventData {
@@ -138,5 +141,11 @@ export const events = {
       broadcastEvent('sync:completed', { action, bookmarkCount }),
     failed: (error: string) =>
       broadcastEvent('sync:failed', { error }),
+  },
+  tier: {
+    changed: (from: string, to: string) =>
+      broadcastEvent('tier:changed', { from, to }),
+    evicted: (rowsFreed: number, bytesFreed: number) =>
+      broadcastEvent('tier:evicted', { rowsFreed, bytesFreed }),
   },
 } as const;

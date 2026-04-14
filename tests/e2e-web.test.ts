@@ -293,11 +293,11 @@ async function scene05_status(
   console.log('\nScene 5: Status Dashboard\n');
 
   await page.goto(adapter.getPageUrl('status'));
-  await page.waitForSelector('#statsGrid', 10000);
+  await page.waitForSelector('.dashboard-grid', 10000);
   await pause(500);
 
   await page.waitForFunction(
-    `document.querySelectorAll('.stat-card').length >= 5`,
+    `document.querySelectorAll('.dashboard-card').length >= 5`,
     10000
   );
   await capture(page, counter, 'status-dashboard-loaded');

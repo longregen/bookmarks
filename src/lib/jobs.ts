@@ -271,3 +271,39 @@ export async function retryBookmark(bookmarkId: string): Promise<void> {
     await updateJobStatus(jobItem.jobId);
   }
 }
+
+export async function retryAllFailedBookmarks(): Promise<number> {
+  const failures = await db.bookmarks.where('status').equals('error').toArray();
+  if (failures.length === 0) return 0;
+
+  const now = new Date();
+  const bookmarkIds = failures.map(b => b.id);
+  const affectedJobIds = new Set<string>();
+
+  await db.transaction('rw', [db.bookmarks, db.jobItems], async () => {
+    await Promise.all(failures.map(b => db.bookmarks.update(b.id, {
+      status: 'fetching' as const,
+      errorMessage: undefined,
+      retryCount: 0,
+      updatedAt: now,
+    })));
+
+    const items = await db.jobItems.where('bookmarkId').anyOf(bookmarkIds).toArray();
+    const toReset = items.filter(it => it.status === JobItemStatus.ERROR);
+    await Promise.all(toReset.map(it => {
+      affectedJobIds.add(it.jobId);
+      return db.jobItems.update(it.id, {
+        status: JobItemStatus.PENDING,
+        retryCount: 0,
+        errorMessage: undefined,
+        updatedAt: now,
+      });
+    }));
+  });
+
+  for (const jobId of affectedJobIds) {
+    await updateJobStatus(jobId);
+  }
+
+  return failures.length;
+}

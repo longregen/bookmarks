@@ -2,6 +2,7 @@ import { db, type Bookmark, type Markdown, type BookmarkTag, JobType, JobStatus 
 import { getSettings, saveSetting } from './settings';
 import { events } from './events';
 import { getErrorMessage } from './errors';
+import { applyCacheBytesDelta, estimateMarkdownBytes, maybeEvictMarkdownLRU } from './content-tier';
 import {
   ServerApiClient,
   ServerApiError,
@@ -463,6 +464,11 @@ export class ServerSyncManager {
       const client = await ServerApiClient.fromSettings();
       const fullBookmark = await client.getBookmarkFull(bookmarkId);
       await this.cacheBookmarkContent(fullBookmark);
+      try {
+        await maybeEvictMarkdownLRU();
+      } catch {
+        // eviction is best-effort
+      }
       return fullBookmark;
     } catch (error) {
       if (error instanceof ServerApiError && error.isNotFound()) {
@@ -476,6 +482,20 @@ export class ServerSyncManager {
   async uploadAllBookmarks(): Promise<{ success: boolean; jobId: string; message: string }> {
     if (!(await this.isServerEnabled())) {
       return { success: false, jobId: '', message: 'Server sync not enabled' };
+    }
+
+    const settings = await getSettings();
+    const neverSynced = settings.serverLastSyncTime === '';
+    if (settings.contentTier !== 'full' && !neverSynced) {
+      // Once the user has synced at least once, the server is the source of
+      // truth; a tiered-down client uploading would regress server state.
+      // First-time uploads ARE allowed in any tier so a fresh install that
+      // pre-selected summaries/titles can still push its seed content.
+      return {
+        success: false,
+        jobId: '',
+        message: 'Upload is only available in Full content tier. Switch back to Full to re-upload.',
+      };
     }
 
     const job = await createJob({
@@ -552,6 +572,13 @@ export class ServerSyncManager {
 
   private async cacheBookmarkContent(fullBookmark: ServerBookmarkFull): Promise<void> {
     const now = new Date();
+    const settings = await getSettings();
+    const tier = settings.contentTier;
+    const keepMarkdown = tier !== 'titles';
+    const keepQaText = tier === 'full';
+
+    let bytesAdded = 0;
+
     await db.transaction('rw', [db.bookmarks, db.markdown, db.questionsAnswers], async () => {
       const existing = await db.bookmarks.get(fullBookmark.id);
       if (existing) {
@@ -559,18 +586,24 @@ export class ServerSyncManager {
         await db.bookmarks.put(existing);
       }
 
-      if (fullBookmark.markdown !== null && fullBookmark.markdown !== '') {
+      if (keepMarkdown && fullBookmark.markdown !== null && fullBookmark.markdown !== '') {
+        const content = fullBookmark.markdown;
+        const sizeBytes = estimateMarkdownBytes(content);
+        const prev = await db.markdown.where('bookmarkId').equals(fullBookmark.id).first();
+        bytesAdded = sizeBytes - (prev?.sizeBytes ?? 0);
         const markdown: Markdown = {
-          id: `${fullBookmark.id}-md`,
+          id: prev?.id ?? `${fullBookmark.id}-md`,
           bookmarkId: fullBookmark.id,
-          content: fullBookmark.markdown,
-          createdAt: new Date(fullBookmark.createdAt),
+          content,
+          createdAt: prev?.createdAt ?? new Date(fullBookmark.createdAt),
           updatedAt: new Date(fullBookmark.updatedAt),
+          lastAccessedAt: now,
+          sizeBytes,
         };
         await db.markdown.put(markdown);
       }
 
-      if (fullBookmark.qaPairs.length > 0) {
+      if (keepQaText && fullBookmark.qaPairs.length > 0) {
         await db.questionsAnswers.where('bookmarkId').equals(fullBookmark.id).delete();
 
         await db.questionsAnswers.bulkPut(fullBookmark.qaPairs.map(qa => ({
@@ -586,6 +619,39 @@ export class ServerSyncManager {
         })));
       }
     });
+
+    if (bytesAdded !== 0) {
+      await applyCacheBytesDelta(bytesAdded);
+    }
+  }
+
+  async getOfflineQueueSummary(): Promise<{
+    total: number;
+    byType: { create: number; update: number; delete: number };
+    oldestTimestamp: number | null;
+    recent: { bookmarkId: string; type: OfflineChangeType; timestamp: number }[];
+  }> {
+    await this.ensureQueueLoaded();
+    const byType = { create: 0, update: 0, delete: 0 };
+    let oldest: number | null = null;
+    for (const c of this.offlineQueue) {
+      byType[c.type]++;
+      if (oldest === null || c.timestamp < oldest) oldest = c.timestamp;
+    }
+    const recent = this.offlineQueue
+      .slice()
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .slice(0, 5)
+      .map(c => ({ bookmarkId: c.bookmarkId, type: c.type, timestamp: c.timestamp }));
+    return { total: this.offlineQueue.length, byType, oldestTimestamp: oldest, recent };
+  }
+
+  async clearOfflineQueue(): Promise<number> {
+    await this.ensureQueueLoaded();
+    const count = this.offlineQueue.length;
+    this.offlineQueue = [];
+    await this.saveOfflineQueue();
+    return count;
   }
 
 }

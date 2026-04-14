@@ -7,6 +7,7 @@ import { extensionAdapter } from '../lib/adapters/extension';
 import { getSettings } from '../lib/settings';
 import { getErrorMessage } from '../lib/errors';
 import { serverSync } from '../lib/server-sync';
+import { initSyncActivityLog } from '../lib/sync-activity-log';
 import { ServerApiClient } from '../lib/server-api';
 import { ensureOffscreenDocument } from '../lib/offscreen';
 import type {
@@ -65,6 +66,7 @@ async function initializeExtension(): Promise<void> {
   initialized = true;
 
   console.log('Initializing extension...');
+  initSyncActivityLog();
 
   try {
     await resumeIncompleteJobs();

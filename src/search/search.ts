@@ -253,12 +253,12 @@ function showCenteredMode(): void {
   resultHeader.classList.add('hidden');
 }
 
-async function isServerSearchEnabled(): Promise<{ enabled: boolean; client?: ServerApiClient }> {
+async function isServerSearchEnabled(): Promise<{ enabled: boolean; client?: ServerApiClient; forceServer?: boolean }> {
   try {
     const settings = await getSettings();
     if (settings.serverEnabled && settings.serverSessionToken && settings.serverUrl) {
       const client = new ServerApiClient(settings.serverUrl, settings.serverSessionToken);
-      return { enabled: true, client };
+      return { enabled: true, client, forceServer: settings.contentTier === 'titles' };
     }
   } catch {
     // Settings unavailable
@@ -363,25 +363,26 @@ async function performSearch(): Promise<void> {
   searchBtn.disabled = true;
 
   try {
-    const { enabled: serverEnabled, client } = await isServerSearchEnabled();
+    const { enabled: serverEnabled, client, forceServer } = await isServerSearchEnabled();
+    const forceServerMode = forceServer === true;
 
     if (serverEnabled && client) {
       try {
         const serverResults = await performServerSearch(client, query);
 
-        if (__IS_WEB__ || serverResults.length > 0) {
+        if (__IS_WEB__ || forceServerMode || serverResults.length > 0) {
           await renderServerResults(serverResults, query);
           return;
         }
       } catch (serverError) {
-        if (__IS_WEB__) {
+        if (__IS_WEB__ || forceServerMode) {
           throw serverError;
         }
         console.warn('Server search failed, falling back to local:', getErrorMessage(serverError));
       }
     }
 
-    if (__IS_WEB__) {
+    if (__IS_WEB__ || forceServerMode) {
       resultStatus.classList.remove('loading');
       resultStatus.textContent = 'Not connected to server';
       const errorDiv = createElement('div', { className: 'error-message' });
