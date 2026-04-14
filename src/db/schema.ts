@@ -18,6 +18,8 @@ export interface Markdown {
   content: string;
   createdAt: Date;
   updatedAt: Date;
+  lastAccessedAt?: Date;
+  sizeBytes?: number;
 }
 
 export interface QuestionAnswer {
@@ -118,6 +120,33 @@ export interface Job {
   createdAt: Date;
 }
 
+function toDate(raw: unknown): Date | null {
+  if (raw instanceof Date) return raw;
+  if (typeof raw === 'string' || typeof raw === 'number') {
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
+export async function applyMarkdownV8Upgrade(tx: { table: (name: string) => { toCollection: () => { modify: (fn: (md: Markdown) => void) => Promise<unknown> } } }): Promise<void> {
+  await tx.table('markdown').toCollection().modify((md: Markdown) => {
+    // Coerce into a real Date — pre-v2 rows and some JSON-import paths stored
+    // dates as ISO strings, and a non-Date value breaks orderBy on the new
+    // lastAccessedAt index. The interface says these are always Date; this
+    // migration is where we enforce that invariant on existing data.
+    if (!(md.lastAccessedAt instanceof Date)) {
+      md.lastAccessedAt = toDate(md.lastAccessedAt)
+        ?? toDate(md.updatedAt)
+        ?? toDate(md.createdAt)
+        ?? new Date(0);
+    }
+    if (typeof md.sizeBytes !== 'number') {
+      md.sizeBytes = md.content.length * 2;
+    }
+  });
+}
+
 export class BookmarkDatabase extends Dexie {
   bookmarks!: Table<Bookmark>;
   markdown!: Table<Markdown>;
@@ -129,8 +158,8 @@ export class BookmarkDatabase extends Dexie {
   bookmarkTags!: Table<BookmarkTag>;
   searchHistory!: Table<SearchHistory>;
 
-  constructor() {
-    super('BookmarkRAG');
+  constructor(name = 'BookmarkRAG') {
+    super(name);
 
     this.version(1).stores({
       bookmarks: 'id, url, status, createdAt, updatedAt',
@@ -200,6 +229,18 @@ export class BookmarkDatabase extends Dexie {
       bookmarkTags: '[bookmarkId+tagName], bookmarkId, tagName, addedAt',
       searchHistory: 'id, query, createdAt',
     });
+
+    this.version(8).stores({
+      bookmarks: 'id, url, status, createdAt, updatedAt, [status+updatedAt]',
+      markdown: 'id, bookmarkId, createdAt, updatedAt, lastAccessedAt',
+      questionsAnswers: 'id, bookmarkId, createdAt, updatedAt',
+      summaries: 'id, bookmarkId, createdAt, updatedAt',
+      settings: 'key, createdAt, updatedAt',
+      jobs: 'id, parentJobId, status, type, createdAt',
+      jobItems: 'id, jobId, bookmarkId, status, createdAt, updatedAt, [jobId+status]',
+      bookmarkTags: '[bookmarkId+tagName], bookmarkId, tagName, addedAt',
+      searchHistory: 'id, query, createdAt',
+    }).upgrade(applyMarkdownV8Upgrade);
   }
 }
 
@@ -213,6 +254,9 @@ export async function getBookmarkContent(bookmarkId: string): Promise<{
     db.markdown.where('bookmarkId').equals(bookmarkId).first(),
     db.questionsAnswers.where('bookmarkId').equals(bookmarkId).toArray(),
   ]);
+  if (markdown) {
+    void import('../lib/content-tier').then(m => m.touchMarkdown(bookmarkId)).catch(() => { /* best-effort */ });
+  }
   return { markdown, qaPairs };
 }
 

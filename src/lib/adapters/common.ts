@@ -1,5 +1,5 @@
 import { db } from '../../db/schema';
-import type { ApiSettings } from '../platform';
+import type { ApiSettings, ContentTier } from '../platform';
 import { config } from '../config-registry';
 
 export const DEFAULTS: ApiSettings = {
@@ -14,6 +14,10 @@ export const DEFAULTS: ApiSettings = {
   serverAuthToken: '',
   serverLastSyncTime: '',
   serverLastSyncError: '',
+  contentTier: 'full',
+  markdownCacheCapMB: 50,
+  markdownCacheBytes: 0,
+  contentTierMigrationAt: '',
 };
 
 export async function getSettingsFromDb(): Promise<ApiSettings> {
@@ -32,7 +36,15 @@ export async function getSettingsFromDb(): Promise<ApiSettings> {
     serverAuthToken: (map.serverAuthToken as string | undefined) ?? DEFAULTS.serverAuthToken,
     serverLastSyncTime: (map.serverLastSyncTime as string | undefined) ?? DEFAULTS.serverLastSyncTime,
     serverLastSyncError: (map.serverLastSyncError as string | undefined) ?? DEFAULTS.serverLastSyncError,
+    contentTier: normalizeContentTier(map.contentTier),
+    markdownCacheCapMB: (map.markdownCacheCapMB as number | undefined) ?? DEFAULTS.markdownCacheCapMB,
+    markdownCacheBytes: (map.markdownCacheBytes as number | undefined) ?? DEFAULTS.markdownCacheBytes,
+    contentTierMigrationAt: (map.contentTierMigrationAt as string | undefined) ?? DEFAULTS.contentTierMigrationAt,
   };
+}
+
+function normalizeContentTier(raw: unknown): ContentTier {
+  return raw === 'summaries' || raw === 'titles' ? raw : 'full';
 }
 
 export async function saveSettingToDb(key: keyof ApiSettings, value: string | boolean | number): Promise<void> {

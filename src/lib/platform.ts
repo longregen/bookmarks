@@ -1,3 +1,5 @@
+export type ContentTier = 'full' | 'summaries' | 'titles';
+
 export interface ApiSettings {
   apiBaseUrl: string;
   apiKey: string;
@@ -10,6 +12,10 @@ export interface ApiSettings {
   serverAuthToken: string;
   serverLastSyncTime: string;
   serverLastSyncError: string;
+  contentTier: ContentTier;
+  markdownCacheCapMB: number;
+  markdownCacheBytes: number;
+  contentTierMigrationAt: string;
 }
 
 export type Theme = 'auto' | 'light' | 'dark' | 'terminal' | 'tufte';

@@ -1,466 +1,377 @@
 import '../shared/app.css';
 import {
-  getRecentJobs,
   deleteJob,
   getBatchJobStats,
-  getBatchJobItems,
+  getRecentJobs,
+  retryAllFailedBookmarks,
+  retryBookmark,
   retryFailedJobItems,
+  deleteBookmarkWithData,
   type Job,
-  type JobItem,
-  type JobStats,
-  JobItemStatus,
 } from '../lib/jobs';
-import { db, JobType, JobStatus, type Bookmark } from '../db/schema';
+import { JobStatus, JobType } from '../db/schema';
 import { createElement, getElement } from '../ui/dom';
 import { formatDateByAge } from '../lib/date-format';
-import { getHostname } from '../lib/url-validator';
+import { onThemeChange, applyTheme } from '../shared/theme';
+import { initExtension } from '../ui/init-extension';
+import { initWebWithAuth } from '../web/init-web';
+import { createHealthIndicator } from '../ui/health-indicator';
+import { addEventListener as addBookmarkEventListener } from '../lib/events';
+import { getPipelineStages, getFailureList, type FailureRow, type PipelineStage } from '../lib/pipeline-stats';
 
-const jobTypeFilter = getElement<HTMLSelectElement>('jobTypeFilter');
-const jobStatusFilter = getElement<HTMLSelectElement>('jobStatusFilter');
-const refreshJobsBtn = getElement<HTMLButtonElement>('refreshJobsBtn');
-const jobsList = getElement<HTMLDivElement>('jobsList');
+if (__IS_WEB__) {
+  void initWebWithAuth();
+} else {
+  void initExtension();
+}
+onThemeChange((theme) => applyTheme(theme));
 
-const expandedJobs = new Set<string>();
-let refreshIntervalId: number | undefined;
+const POLL_INTERVAL_MS = 3000;
+const ACTIVE_JOB_TYPES = new Set<JobType>([JobType.FILE_IMPORT, JobType.BULK_URL_IMPORT, JobType.SELF_HEAL]);
+const RECENT_FINISH_WINDOW_MS = 60_000;
 
-interface PreloadedJobData {
-  stats: Map<string, JobStats>;
-  jobItems: Map<string, JobItem[]>;
-  bookmarks: Map<string, Bookmark | undefined>;
+let pollIntervalId: number | null = null;
+let autoRefreshEnabled = true;
+let refreshPending = false;
+let refreshTimer: number | null = null;
+
+let healthCleanup: (() => void) | null = null;
+const disposers: (() => void)[] = [];
+
+const pipelineColumns = getElement('pipelineColumns');
+const failuresList = getElement('failuresList');
+const failuresCount = getElement('failuresCount');
+const activeJobsList = getElement('activeJobsList');
+const lastUpdatedLabel = getElement('jobsLastUpdated');
+const autoRefreshToggle = getElement<HTMLInputElement>('autoRefreshToggle');
+const refreshBtn = getElement<HTMLButtonElement>('refreshJobsBtn');
+const retryAllBtn = getElement<HTMLButtonElement>('retryAllBtn');
+
+window.addEventListener('beforeunload', () => {
+  stopPolling();
+  healthCleanup?.();
+  for (const d of disposers) d();
+});
+
+const healthContainer = document.getElementById('healthIndicator');
+if (healthContainer) {
+  healthCleanup = createHealthIndicator(healthContainer);
 }
 
-async function loadJobs(): Promise<void> {
-  try {
-    jobsList.textContent = '';
-    jobsList.appendChild(createElement('div', { className: 'loading', textContent: 'Loading jobs...' }));
-
-    const jobs = await getRecentJobs({ limit: 100 });
-
-    const typeFilter = jobTypeFilter.value;
-    const statusFilter = jobStatusFilter.value;
-
-    let filteredJobs = jobs;
-
-    if (typeFilter) {
-      filteredJobs = filteredJobs.filter(job => job.type === typeFilter as JobType);
-    }
-
-    if (statusFilter) {
-      filteredJobs = filteredJobs.filter(job => job.status === statusFilter as JobStatus);
-    }
-
-    if (filteredJobs.length === 0) {
-      jobsList.textContent = '';
-      jobsList.appendChild(createElement('div', { className: 'empty', textContent: 'No jobs found' }));
-      return;
-    }
-
-    // Batch load all job stats and items to avoid N+1 queries
-    const jobIds = filteredJobs.map(job => job.id);
-    const [statsMap, jobItemsMap] = await Promise.all([
-      getBatchJobStats(jobIds),
-      getBatchJobItems(jobIds)
-    ]);
-
-    // Collect all bookmark IDs from job items that need bookmarks loaded
-    const allBookmarkIds = new Set<string>();
-    for (const job of filteredJobs) {
-      if (job.type === JobType.BULK_URL_IMPORT) {
-        const items = jobItemsMap.get(job.id) ?? [];
-        for (const item of items) {
-          allBookmarkIds.add(item.bookmarkId);
-        }
-      }
-    }
-
-    // Batch load all bookmarks
-    const bookmarkIds = Array.from(allBookmarkIds);
-    const bookmarksArray = bookmarkIds.length > 0
-      ? await db.bookmarks.bulkGet(bookmarkIds)
-      : [];
-    const bookmarksMap = new Map<string, Bookmark | undefined>();
-    bookmarkIds.forEach((id, idx) => {
-      bookmarksMap.set(id, bookmarksArray[idx]);
-    });
-
-    const preloadedData: PreloadedJobData = {
-      stats: statsMap,
-      jobItems: jobItemsMap,
-      bookmarks: bookmarksMap
-    };
-
-    jobsList.textContent = '';
-    for (const job of filteredJobs) {
-      const jobEl = renderJobItemElement(job, preloadedData);
-      jobsList.appendChild(jobEl);
-    }
-  } catch (error) {
-    console.error('Error loading jobs:', error);
-    jobsList.textContent = '';
-    jobsList.appendChild(createElement('div', { className: 'empty', textContent: 'Error loading jobs' }));
-  }
-}
-
-function renderJobItemElement(job: Job, data: PreloadedJobData): HTMLElement {
-  const typeLabel = formatJobType(job.type);
-  const statusClass = job.status.toLowerCase();
-  const statusLabel = job.status.replace('_', ' ').toUpperCase();
-  const timestamp = formatDateByAge(job.createdAt);
-
-  const jobItem = createElement('div', {
-    className: `job-item ${expandedJobs.has(job.id) ? 'expanded' : ''}`,
-    attributes: { 'data-job-id': job.id }
-  });
-
-  const header = createElement('div', { className: 'job-header' });
-  const jobInfo = createElement('div', { className: 'job-info' });
-  jobInfo.appendChild(createElement('div', { className: 'job-type', textContent: typeLabel }));
-  jobInfo.appendChild(createElement('div', { className: 'job-timestamp', textContent: timestamp }));
-  header.appendChild(jobInfo);
-  header.appendChild(createElement('div', { className: `job-status-badge ${statusClass}`, textContent: statusLabel }));
-
-  // Add click handler to toggle expansion
-  header.style.cursor = 'pointer';
-  header.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).closest('.job-actions')) return;
-    if (expandedJobs.has(job.id)) {
-      expandedJobs.delete(job.id);
-    } else {
-      expandedJobs.add(job.id);
-    }
-    void loadJobs();
-  });
-
-  jobItem.appendChild(header);
-
-  // Get job stats from preloaded data
-  const stats = data.stats.get(job.id) ?? { total: 0, pending: 0, inProgress: 0, complete: 0, error: 0 };
-  const jobItems = data.jobItems.get(job.id) ?? [];
-
-  // Show progress bar and stats for bulk imports
-  if (job.type === JobType.BULK_URL_IMPORT && stats.total > 0) {
-    let downloadedCount = 0;
-    let fetchingCount = 0;
-    let processingCount = 0;
-
-    // Use preloaded bookmarks data
-    for (const item of jobItems) {
-      const bookmark = data.bookmarks.get(item.bookmarkId);
-      if (bookmark?.status === 'downloaded') downloadedCount++;
-      else if (bookmark?.status === 'fetching') fetchingCount++;
-      else if (bookmark?.status === 'processing') processingCount++;
-    }
-
-    const progressContainer = createElement('div', { className: 'job-progress-container' });
-
-    // Progress bar with multiple segments
-    const progressBar = createElement('div', { className: 'job-progress-bar' });
-    const completedPercent = Math.round((stats.complete / stats.total) * 100);
-    const errorPercent = Math.round((stats.error / stats.total) * 100);
-    const downloadedPercent = Math.round((downloadedCount / stats.total) * 100);
-
-    const completedFill = createElement('div', {
-      className: 'job-progress-fill completed',
-      style: { width: `${completedPercent}%` }
-    });
-    const downloadedFill = createElement('div', {
-      className: 'job-progress-fill downloaded',
-      style: { width: `${downloadedPercent}%` }
-    });
-    const errorFill = createElement('div', {
-      className: 'job-progress-fill error',
-      style: { width: `${errorPercent}%` }
-    });
-
-    progressBar.appendChild(completedFill);
-    progressBar.appendChild(downloadedFill);
-    progressBar.appendChild(errorFill);
-    progressContainer.appendChild(progressBar);
-
-    // Stats summary with granular breakdown
-    const statsDiv = createElement('div', { className: 'job-stats' });
-    const inProgressCount = fetchingCount + processingCount;
-    statsDiv.appendChild(createElement('span', { className: 'stat complete', textContent: `${stats.complete} complete` }));
-    statsDiv.appendChild(createElement('span', { className: 'stat downloaded', textContent: `${downloadedCount} downloaded` }));
-    statsDiv.appendChild(createElement('span', { className: 'stat pending', textContent: `${inProgressCount} in progress` }));
-    statsDiv.appendChild(createElement('span', { className: 'stat error', textContent: `${stats.error} failed` }));
-    progressContainer.appendChild(statsDiv);
-
-    jobItem.appendChild(progressContainer);
-  }
-
-  const metadataDiv = createElement('div', { className: 'job-metadata' });
-  appendMetadataElements(metadataDiv, job, stats);
-  jobItem.appendChild(metadataDiv);
-
-  if (job.status === JobStatus.FAILED && job.metadata.errorMessage !== undefined && job.metadata.errorMessage !== '') {
-    const errorDiv = createElement('div', { className: 'job-error' });
-    errorDiv.appendChild(createElement('strong', { textContent: 'Error: ' }));
-    errorDiv.appendChild(document.createTextNode(job.metadata.errorMessage));
-    jobItem.appendChild(errorDiv);
-  }
-
-  // Actions
-  const actionsDiv = createElement('div', { className: 'job-actions' });
-
-  // Retry Failed button (only show if there are failed items)
-  if (stats.error > 0) {
-    const retryBtn = createElement('button', {
-      className: 'btn btn-sm btn-primary',
-      textContent: `Retry ${stats.error} Failed`,
-      attributes: { type: 'button' }
-    });
-    retryBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      retryBtn.disabled = true;
-      retryBtn.textContent = 'Retrying...';
-      try {
-        await retryFailedJobItems(job.id);
-        if (!__IS_WEB__) {
-          await chrome.runtime.sendMessage({
-            type: 'bookmark:retry',
-            data: { trigger: 'user_manual' }
-          });
-        }
-        void loadJobs();
-      } catch (error) {
-        console.error('Failed to retry:', error);
-        retryBtn.disabled = false;
-        retryBtn.textContent = `Retry ${stats.error} Failed`;
-      }
-    });
-    actionsDiv.appendChild(retryBtn);
-  }
-
-  const dismissBtn = createElement('button', {
-    className: 'btn btn-sm btn-secondary',
-    textContent: 'Remove',
-    attributes: { type: 'button' }
-  });
-  dismissBtn.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    await deleteJob(job.id);
-    expandedJobs.delete(job.id);
-    void loadJobs();
-  });
-  actionsDiv.appendChild(dismissBtn);
-  jobItem.appendChild(actionsDiv);
-
-  // Show items list when expanded (use preloaded data)
-  if (expandedJobs.has(job.id) && stats.total > 0) {
-    const itemsContainer = createElement('div', { className: 'job-items-container' });
-
-    // Sort: errors first, then in-progress, then pending, then complete
-    const statusOrder: Record<JobItemStatus, number> = {
-      [JobItemStatus.ERROR]: 0,
-      [JobItemStatus.IN_PROGRESS]: 1,
-      [JobItemStatus.PENDING]: 2,
-      [JobItemStatus.COMPLETE]: 3,
-    };
-    const sortedItems = [...jobItems].sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
-
-    for (const item of sortedItems) {
-      const bookmark = data.bookmarks.get(item.bookmarkId);
-      const itemEl = renderJobItemRow(item, bookmark);
-      itemsContainer.appendChild(itemEl);
-    }
-
-    jobItem.appendChild(itemsContainer);
-  }
-
-  return jobItem;
-}
-
-function getEffectiveStatus(item: JobItem, bookmark: Bookmark | undefined): { class: string; label: string } {
-  if (!bookmark) {
-    return { class: getStatusClass(item.status), label: formatItemStatus(item.status) };
-  }
-
-  // Show more granular bookmark status when job item is pending
-  if (item.status === JobItemStatus.PENDING) {
-    if (bookmark.status === 'downloaded') {
-      return { class: 'downloaded', label: 'Downloaded' };
-    }
-    if (bookmark.status === 'fetching') {
-      return { class: 'fetching', label: 'Fetching' };
-    }
-  }
-
-  // For other states, use job item status
-  return { class: getStatusClass(item.status), label: formatItemStatus(item.status) };
-}
-
-function renderJobItemRow(item: JobItem, bookmark: Bookmark | undefined): HTMLElement {
-  const effectiveStatus = getEffectiveStatus(item, bookmark);
-  const row = createElement('div', { className: `job-item-row status-${item.status}` });
-
-  // Status indicator
-  const statusDot = createElement('span', {
-    className: `status-indicator ${effectiveStatus.class}`,
-  });
-  row.appendChild(statusDot);
-
-  // Bookmark info
-  const infoDiv = createElement('div', { className: 'job-item-info' });
-  if (bookmark) {
-    const titleLink = createElement('a', {
-      className: 'job-item-title',
-      href: bookmark.url,
-      target: '_blank',
-      textContent: bookmark.title || bookmark.url,
-    });
-    titleLink.addEventListener('click', (e) => e.stopPropagation());
-    infoDiv.appendChild(titleLink);
-
-    const urlSpan = createElement('span', {
-      className: 'job-item-url',
-      textContent: getHostname(bookmark.url),
-    });
-    infoDiv.appendChild(urlSpan);
+autoRefreshToggle.addEventListener('change', () => {
+  autoRefreshEnabled = autoRefreshToggle.checked;
+  if (autoRefreshEnabled) {
+    scheduleRefresh();
+    startPolling();
   } else {
-    infoDiv.appendChild(createElement('span', {
-      className: 'job-item-title',
-      textContent: 'Bookmark not found',
+    stopPolling();
+  }
+});
+
+refreshBtn.addEventListener('click', () => scheduleRefresh());
+retryAllBtn.addEventListener('click', () => void handleRetryAll());
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopPolling();
+  } else {
+    scheduleRefresh();
+    if (autoRefreshEnabled) startPolling();
+  }
+});
+
+disposers.push(addBookmarkEventListener((event) => {
+  if (event.type.startsWith('bookmark:') || event.type.startsWith('job:')) {
+    scheduleRefresh();
+  }
+}));
+
+function scheduleRefresh(): void {
+  if (refreshPending) return;
+  refreshPending = true;
+  if (refreshTimer !== null) {
+    window.clearTimeout(refreshTimer);
+  }
+  refreshTimer = window.setTimeout(() => {
+    refreshTimer = null;
+    refreshPending = false;
+    void refresh();
+  }, 150);
+}
+
+function startPolling(): void {
+  if (pollIntervalId !== null) return;
+  pollIntervalId = window.setInterval(() => scheduleRefresh(), POLL_INTERVAL_MS);
+}
+
+function stopPolling(): void {
+  if (pollIntervalId !== null) {
+    window.clearInterval(pollIntervalId);
+    pollIntervalId = null;
+  }
+  if (refreshTimer !== null) {
+    window.clearTimeout(refreshTimer);
+    refreshTimer = null;
+    refreshPending = false;
+  }
+}
+
+async function refresh(): Promise<void> {
+  try {
+    const [stages, failures, activeJobs] = await Promise.all([
+      getPipelineStages({ recentLimit: 4 }),
+      getFailureList(100),
+      getActiveJobs(),
+    ]);
+    renderPipeline(stages);
+    renderFailures(failures);
+    await renderActiveJobs(activeJobs);
+    lastUpdatedLabel.textContent = `Updated ${formatDateByAge(new Date())}`;
+  } catch (error) {
+    console.error('jobs refresh error', error);
+  }
+}
+
+function renderPipeline(stages: PipelineStage[]): void {
+  pipelineColumns.replaceChildren();
+  const grid = document.createDocumentFragment();
+  for (const stage of stages) {
+    const column = createElement('div', { className: `pipeline-column pipeline-column--${stage.key}` });
+    const header = createElement('a', {
+      className: 'pipeline-column__header',
+      href: `../library/library.html?status=${encodeURIComponent(stage.statuses.join(','))}`,
+    });
+    header.appendChild(createElement('div', { className: 'pipeline-column__label', textContent: stage.label }));
+    header.appendChild(createElement('div', { className: 'pipeline-column__count', textContent: String(stage.count) }));
+    column.appendChild(header);
+    if (stage.recent.length > 0) {
+      const list = createElement('ul', { className: 'pipeline-column__recent' });
+      for (const r of stage.recent) {
+        list.appendChild(createElement('li', {
+          className: 'pipeline-column__item',
+          textContent: r.title || r.url,
+        }));
+      }
+      column.appendChild(list);
+    }
+    grid.appendChild(column);
+  }
+  pipelineColumns.appendChild(grid);
+}
+
+function renderFailures(failures: FailureRow[]): void {
+  failuresCount.textContent = `(${failures.length})`;
+  failuresList.replaceChildren();
+  if (failures.length === 0) {
+    failuresList.appendChild(createElement('div', { className: 'empty-state', textContent: 'No failures.' }));
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  for (const failure of failures) {
+    fragment.appendChild(buildFailureRow(failure));
+  }
+  failuresList.appendChild(fragment);
+}
+
+function buildFailureRow(failure: FailureRow): HTMLElement {
+  const row = createElement('div', { className: 'failure-row' });
+  const top = createElement('div', { className: 'failure-row__top' });
+  top.appendChild(createElement('div', {
+    className: 'failure-row__title',
+    textContent: failure.title || failure.url,
+    title: failure.url,
+  }));
+  top.appendChild(createElement('div', {
+    className: 'failure-row__host',
+    textContent: failure.hostname,
+  }));
+  row.appendChild(top);
+
+  if (failure.errorMessage) {
+    row.appendChild(createElement('div', {
+      className: 'failure-row__error',
+      textContent: `error: ${failure.errorMessage}${failure.retryCount > 0 ? ` (retries: ${failure.retryCount})` : ''}`,
     }));
   }
-  row.appendChild(infoDiv);
 
-  // Status badge
-  const statusBadge = createElement('span', {
-    className: `job-item-status ${effectiveStatus.class}`,
-    textContent: effectiveStatus.label,
+  const actions = createElement('div', { className: 'failure-row__actions' });
+  const retryBtn = createElement('button', { className: 'btn btn-secondary btn-sm', textContent: 'Retry' });
+  retryBtn.addEventListener('click', () => void handleRetryOne(failure.id, retryBtn));
+  actions.appendChild(retryBtn);
+
+  const viewBtn = createElement('a', {
+    className: 'btn btn-secondary btn-sm',
+    href: `../view/view.html?id=${encodeURIComponent(failure.id)}`,
+    textContent: 'View',
   });
-  row.appendChild(statusBadge);
+  actions.appendChild(viewBtn);
 
-  // Error message if present
-  if (item.status === JobItemStatus.ERROR && item.errorMessage !== undefined && item.errorMessage !== '') {
-    const errorDiv = createElement('div', {
-      className: 'job-item-error',
-      textContent: item.errorMessage,
-    });
-    row.appendChild(errorDiv);
-  }
+  const deleteBtn = createElement('button', { className: 'btn btn-danger btn-sm', textContent: 'Delete' });
+  deleteBtn.addEventListener('click', () => void handleDeleteOne(failure.id, deleteBtn));
+  actions.appendChild(deleteBtn);
 
-  // Retry count
-  if (item.retryCount > 0) {
-    const retrySpan = createElement('span', {
-      className: 'job-item-retry',
-      textContent: `(${item.retryCount} retries)`,
-    });
-    row.appendChild(retrySpan);
-  }
-
+  row.appendChild(actions);
   return row;
 }
 
-function getStatusClass(status: JobItemStatus): string {
-  const classes: Record<JobItemStatus, string> = {
-    [JobItemStatus.PENDING]: 'pending',
-    [JobItemStatus.IN_PROGRESS]: 'in-progress',
-    [JobItemStatus.COMPLETE]: 'complete',
-    [JobItemStatus.ERROR]: 'error',
-  };
-  return classes[status];
-}
-
-function formatItemStatus(status: JobItemStatus): string {
-  const labels: Record<JobItemStatus, string> = {
-    [JobItemStatus.PENDING]: 'Pending',
-    [JobItemStatus.IN_PROGRESS]: 'Processing',
-    [JobItemStatus.COMPLETE]: 'Complete',
-    [JobItemStatus.ERROR]: 'Failed',
-  };
-  return labels[status];
-}
-
-function createMetadataItem(label: string, value: string | number): HTMLElement {
-  const item = createElement('div', { className: 'job-metadata-item' });
-  item.appendChild(createElement('strong', { textContent: `${label}: ` }));
-  item.appendChild(document.createTextNode(String(value)));
-  return item;
-}
-
-function appendMetadataElements(container: HTMLElement, job: Job, stats: { total: number; complete: number; error: number }): void {
-  let hasMetadata = false;
-
-  if (job.metadata.url !== undefined && job.metadata.url !== '') {
-    container.appendChild(createMetadataItem('URL', job.metadata.url));
-    hasMetadata = true;
-  }
-
-  if (job.type === JobType.FILE_IMPORT) {
-    if (job.metadata.fileName !== undefined && job.metadata.fileName !== '') {
-      container.appendChild(createMetadataItem('File', job.metadata.fileName));
-      hasMetadata = true;
+async function getActiveJobs(): Promise<Job[]> {
+  const recent = await getRecentJobs({ limit: 50 });
+  const now = Date.now();
+  return recent.filter(job => {
+    if (!ACTIVE_JOB_TYPES.has(job.type)) return false;
+    if (job.status === JobStatus.PENDING || job.status === JobStatus.IN_PROGRESS) return true;
+    if (
+      (job.status === JobStatus.COMPLETED || job.status === JobStatus.FAILED)
+      && now - job.createdAt.getTime() < RECENT_FINISH_WINDOW_MS
+    ) {
+      return true;
     }
-    if (job.metadata.importedCount !== undefined) {
-      container.appendChild(createMetadataItem('Imported', job.metadata.importedCount));
-      hasMetadata = true;
-    }
-    if (job.metadata.skippedCount !== undefined) {
-      container.appendChild(createMetadataItem('Skipped', job.metadata.skippedCount));
-      hasMetadata = true;
-    }
-  }
-
-  if (job.type === JobType.BULK_URL_IMPORT) {
-    if (job.metadata.totalUrls !== undefined) {
-      container.appendChild(createMetadataItem('Total URLs', job.metadata.totalUrls));
-      hasMetadata = true;
-    }
-    // Show success/failure counts from actual job items
-    if (stats.total > 0) {
-      container.appendChild(createMetadataItem('Completed', stats.complete));
-      container.appendChild(createMetadataItem('Failed', stats.error));
-      hasMetadata = true;
-    }
-  }
-
-  if (!hasMetadata) {
-    container.appendChild(createElement('div', { className: 'job-metadata-item', textContent: 'No additional information' }));
-  }
-}
-
-function formatJobType(type: JobType): string {
-  const labels: Record<JobType, string> = {
-    [JobType.FILE_IMPORT]: 'File Import',
-    [JobType.BULK_URL_IMPORT]: 'Bulk URL Import',
-    [JobType.URL_FETCH]: 'URL Fetch',
-    [JobType.SYNC_UPLOAD]: 'Sync Upload',
-    [JobType.SELF_HEAL]: 'Self-Heal',
-  };
-  return labels[type] || type;
-}
-
-jobTypeFilter.addEventListener('change', () => void loadJobs());
-jobStatusFilter.addEventListener('change', () => void loadJobs());
-refreshJobsBtn.addEventListener('click', () => void loadJobs());
-
-function init(): void {
-  const urlParams = new URLSearchParams(window.location.search);
-  const statusParam = urlParams.get('status');
-  const typeParam = urlParams.get('type');
-
-  if (statusParam !== null && statusParam !== '') {
-    jobStatusFilter.value = statusParam;
-  }
-  if (typeParam !== null && typeParam !== '') {
-    jobTypeFilter.value = typeParam;
-  }
-
-  void loadJobs();
-
-  // Auto-refresh every 5 seconds for active jobs
-  refreshIntervalId = window.setInterval(() => {
-    void loadJobs();
-  }, 5000);
-
-  // Clear interval on page unload to prevent memory leak
-  window.addEventListener('beforeunload', () => {
-    if (refreshIntervalId !== undefined) {
-      clearInterval(refreshIntervalId);
-    }
+    return false;
   });
 }
 
-init();
+async function renderActiveJobs(jobs: Job[]): Promise<void> {
+  activeJobsList.replaceChildren();
+  if (jobs.length === 0) {
+    activeJobsList.appendChild(createElement('div', { className: 'empty-state', textContent: 'No active jobs.' }));
+    return;
+  }
+
+  const stats = await getBatchJobStats(jobs.map(j => j.id));
+  const fragment = document.createDocumentFragment();
+  for (const job of jobs) {
+    fragment.appendChild(buildActiveJobRow(job, stats.get(job.id)));
+  }
+  activeJobsList.appendChild(fragment);
+}
+
+function formatJobTypeLabel(type: JobType): string {
+  switch (type) {
+    case JobType.FILE_IMPORT: return 'File Import';
+    case JobType.BULK_URL_IMPORT: return 'Bulk URL Import';
+    case JobType.SELF_HEAL: return 'Self-Heal';
+    case JobType.URL_FETCH: return 'URL Fetch';
+    case JobType.SYNC_UPLOAD: return 'Sync Upload';
+  }
+}
+
+function buildActiveJobRow(job: Job, stats: { total: number; complete: number; error: number; inProgress: number; pending: number } | undefined): HTMLElement {
+  const row = createElement('div', { className: `active-job-row active-job-row--${job.status}` });
+  const head = createElement('div', { className: 'active-job-row__head' });
+  const fileName = job.metadata.fileName ?? '';
+  const label = fileName !== '' ? `${formatJobTypeLabel(job.type)} · ${fileName}` : formatJobTypeLabel(job.type);
+  head.appendChild(createElement('div', { className: 'active-job-row__label', textContent: label }));
+  head.appendChild(createElement('div', { className: 'active-job-row__time', textContent: formatDateByAge(job.createdAt) }));
+  row.appendChild(head);
+
+  const total = stats?.total ?? 0;
+  const done = (stats?.complete ?? 0) + (stats?.error ?? 0);
+  let pct: number;
+  if (total > 0) pct = (done / total) * 100;
+  else if (job.status === JobStatus.COMPLETED) pct = 100;
+  else pct = 0;
+
+  const progressContainer = createElement('div', { className: 'progress-bar-container' });
+  progressContainer.appendChild(createElement('div', {
+    className: 'progress-bar',
+    style: { width: `${Math.min(100, pct)}%` },
+  }));
+  row.appendChild(progressContainer);
+
+  const metaParts: string[] = [];
+  metaParts.push(`${done}/${total || '?'}`);
+  if (stats && stats.error > 0) metaParts.push(`${stats.error} errors`);
+  metaParts.push(job.status);
+  row.appendChild(createElement('div', { className: 'active-job-row__meta', textContent: metaParts.join(' · ') }));
+
+  const actions = createElement('div', { className: 'active-job-row__actions' });
+  if (stats && stats.error > 0) {
+    const retryBtn = createElement('button', {
+      className: 'btn btn-secondary btn-sm',
+      textContent: `Retry ${stats.error} failed`,
+    });
+    retryBtn.addEventListener('click', () => void handleRetryJob(job.id, retryBtn));
+    actions.appendChild(retryBtn);
+  }
+  if (job.status === JobStatus.COMPLETED || job.status === JobStatus.FAILED || job.status === JobStatus.CANCELLED) {
+    const removeBtn = createElement('button', {
+      className: 'btn btn-secondary btn-sm',
+      textContent: 'Remove',
+    });
+    removeBtn.addEventListener('click', () => void handleRemoveJob(job.id, removeBtn));
+    actions.appendChild(removeBtn);
+  }
+  if (actions.childElementCount > 0) {
+    row.appendChild(actions);
+  }
+  return row;
+}
+
+async function handleRetryOne(bookmarkId: string, btn: HTMLButtonElement): Promise<void> {
+  btn.disabled = true;
+  try {
+    await retryBookmark(bookmarkId);
+    await kickQueue();
+    scheduleRefresh();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function handleDeleteOne(bookmarkId: string, btn: HTMLButtonElement): Promise<void> {
+  // eslint-disable-next-line no-alert
+  if (!confirm('Delete this bookmark and its data?')) return;
+  btn.disabled = true;
+  try {
+    await deleteBookmarkWithData(bookmarkId);
+    scheduleRefresh();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function handleRetryAll(): Promise<void> {
+  // eslint-disable-next-line no-alert
+  if (!confirm('Retry all failed bookmarks?')) return;
+  retryAllBtn.disabled = true;
+  try {
+    const count = await retryAllFailedBookmarks();
+    if (count > 0) await kickQueue();
+    scheduleRefresh();
+  } finally {
+    retryAllBtn.disabled = false;
+  }
+}
+
+async function handleRetryJob(jobId: string, btn: HTMLButtonElement): Promise<void> {
+  btn.disabled = true;
+  try {
+    await retryFailedJobItems(jobId);
+    await kickQueue();
+    scheduleRefresh();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function handleRemoveJob(jobId: string, btn: HTMLButtonElement): Promise<void> {
+  btn.disabled = true;
+  try {
+    await deleteJob(jobId);
+    scheduleRefresh();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function kickQueue(): Promise<void> {
+  if (__IS_WEB__) return;
+  try {
+    await chrome.runtime.sendMessage({ type: 'bookmark:retry', data: { trigger: 'user_manual' } });
+  } catch { /* service worker may not be running */ }
+}
+
+// Initial load + polling
+scheduleRefresh();
+startPolling();

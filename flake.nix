@@ -62,7 +62,10 @@
 
           # Don't run tests during package build
           doCheck = false;
-          
+
+          # CRXJS resolves "localhost" during build; allow loopback DNS in macOS sandbox
+          __darwinAllowLocalNetworking = true;
+
           # buildNpmPackage defaults
           dontNpmBuild = true;
         };

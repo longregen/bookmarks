@@ -14,6 +14,7 @@ import {
   updateJobStatus,
   retryFailedJobItems,
   retryBookmark,
+  retryAllFailedBookmarks,
 } from '../src/lib/jobs';
 
 describe('Jobs Library', () => {
@@ -493,6 +494,71 @@ describe('Jobs Library', () => {
 
         const updatedBookmark = await db.bookmarks.get('b1');
         expect(updatedBookmark?.status).toBe('fetching');
+      });
+    });
+
+    describe('retryAllFailedBookmarks', () => {
+      beforeEach(async () => {
+        await db.bookmarks.clear();
+        await db.jobItems.clear();
+      });
+
+      it('resets all failed bookmarks to fetching and their job items to pending', async () => {
+        const job = await createJob({ type: JobType.BULK_URL_IMPORT, status: JobStatus.IN_PROGRESS });
+        const now = new Date();
+
+        for (const id of ['b1', 'b2']) {
+          await db.bookmarks.add({
+            id,
+            url: `https://example.com/${id}`,
+            title: id,
+            html: '',
+            status: 'error',
+            errorMessage: 'boom',
+            retryCount: 2,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+        await db.bookmarks.add({
+          id: 'b3',
+          url: 'https://example.com/3',
+          title: 'b3',
+          html: '',
+          status: 'complete',
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        await createJobItems(job.id, ['b1', 'b2', 'b3']);
+        const items = await db.jobItems.where('jobId').equals(job.id).toArray();
+        for (const it of items) {
+          if (it.bookmarkId !== 'b3') {
+            await updateJobItem(it.id, { status: JobItemStatus.ERROR, errorMessage: 'boom' });
+          }
+        }
+
+        const count = await retryAllFailedBookmarks();
+        expect(count).toBe(2);
+
+        const b1 = await db.bookmarks.get('b1');
+        const b2 = await db.bookmarks.get('b2');
+        const b3 = await db.bookmarks.get('b3');
+        expect(b1?.status).toBe('fetching');
+        expect(b2?.status).toBe('fetching');
+        expect(b3?.status).toBe('complete');
+
+        const resetItems = await db.jobItems.where('jobId').equals(job.id).toArray();
+        for (const it of resetItems) {
+          if (it.bookmarkId !== 'b3') {
+            expect(it.status).toBe(JobItemStatus.PENDING);
+            expect(it.retryCount).toBe(0);
+          }
+        }
+      });
+
+      it('returns 0 when no failures exist', async () => {
+        expect(await retryAllFailedBookmarks()).toBe(0);
       });
     });
   });

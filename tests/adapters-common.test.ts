@@ -169,6 +169,60 @@ describe('Adapters Common', () => {
     });
   });
 
+  describe('content-tier settings normalization', () => {
+    it('legacy DB without contentTier defaults to "full" (safe upgrade path)', async () => {
+      // A user who had v5.2.x installed will have settings rows for serverEnabled
+      // and the older keys, but not contentTier — the new code must not crash and
+      // must not silently switch the user out of full-content mode.
+      const now = new Date();
+      await db.settings.add({ key: 'apiKey',        value: 'sk-legacy', createdAt: now, updatedAt: now });
+      await db.settings.add({ key: 'serverEnabled', value: true,        createdAt: now, updatedAt: now });
+      await db.settings.add({ key: 'serverUrl',     value: 'https://sync.example.com', createdAt: now, updatedAt: now });
+
+      const settings = await getSettingsFromDb();
+
+      expect(settings.contentTier).toBe('full');
+      expect(settings.markdownCacheCapMB).toBe(50);
+      expect(settings.markdownCacheBytes).toBe(0);
+      expect(settings.contentTierMigrationAt).toBe('');
+    });
+
+    it('coerces an unknown contentTier value back to "full"', async () => {
+      // Defends against corrupted settings rows or downgrade-then-upgrade scenarios
+      // where a future tier name might have been written.
+      const now = new Date();
+      await db.settings.add({ key: 'contentTier', value: 'bogus-tier', createdAt: now, updatedAt: now });
+
+      const settings = await getSettingsFromDb();
+      expect(settings.contentTier).toBe('full');
+    });
+
+    it('preserves valid summaries / titles tier values', async () => {
+      const now = new Date();
+      await db.settings.add({ key: 'contentTier',         value: 'summaries', createdAt: now, updatedAt: now });
+      await db.settings.add({ key: 'markdownCacheCapMB',  value: 250,         createdAt: now, updatedAt: now });
+      await db.settings.add({ key: 'markdownCacheBytes',  value: 12_345_678,  createdAt: now, updatedAt: now });
+      await db.settings.add({ key: 'contentTierMigrationAt', value: '2026-04-14T08:00:00.000Z', createdAt: now, updatedAt: now });
+
+      const settings = await getSettingsFromDb();
+      expect(settings.contentTier).toBe('summaries');
+      expect(settings.markdownCacheCapMB).toBe(250);
+      expect(settings.markdownCacheBytes).toBe(12_345_678);
+      expect(settings.contentTierMigrationAt).toBe('2026-04-14T08:00:00.000Z');
+
+      await db.settings.put({ key: 'contentTier', value: 'titles', createdAt: now, updatedAt: now });
+      expect((await getSettingsFromDb()).contentTier).toBe('titles');
+    });
+
+    it('round-trips contentTier through saveSettingToDb', async () => {
+      await saveSettingToDb('contentTier', 'summaries');
+      await saveSettingToDb('markdownCacheCapMB', 100);
+      const settings = await getSettingsFromDb();
+      expect(settings.contentTier).toBe('summaries');
+      expect(settings.markdownCacheCapMB).toBe(100);
+    });
+  });
+
   describe('Integration: getSettingsFromDb and saveSettingToDb', () => {
     it('should round-trip settings correctly', async () => {
       await saveSettingToDb('apiKey', 'test-key');

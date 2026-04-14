@@ -95,6 +95,7 @@ export async function runDiagnostics(): Promise<DiagnosticResult[]> {
 
   const settings = await getPlatformAdapter().getSettings();
   const currentEmbeddingModel = settings.embeddingModel;
+  const tier = settings.contentTier;
 
   // Detect duplicate bookmarks by URL
   const duplicateGroups = findDuplicateBookmarks(allBookmarks);
@@ -152,10 +153,14 @@ export async function runDiagnostics(): Promise<DiagnosticResult[]> {
   const results: DiagnosticResult[] = [];
   pushResult(results, 'duplicate_bookmarks', 'Duplicate Bookmarks', `${duplicateGroups.size} URLs with multiple bookmark entries (e.g. from sync conflicts)`, duplicateIds);
   pushResult(results, 'no_content', 'Missing Content', 'Bookmarks with no HTML content downloaded', noContentIds);
-  pushResult(results, 'no_markdown', 'Missing Markdown', 'Bookmarks with HTML but no extracted markdown', noMarkdownIds);
-  pushResult(results, 'short_markdown', 'Short Markdown', `Bookmarks with markdown shorter than ${SHORT_MARKDOWN_THRESHOLD} characters`, shortMarkdownIds);
-  pushResult(results, 'no_summary', 'Missing Summary', 'Bookmarks with markdown but no AI-generated summary', noSummaryIds);
-  pushResult(results, 'no_questions', 'Missing Questions', 'Bookmarks with markdown but no AI-generated Q&A pairs', noQuestionsIds);
+  if (tier === 'full') {
+    pushResult(results, 'no_markdown', 'Missing Markdown', 'Bookmarks with HTML but no extracted markdown', noMarkdownIds);
+    pushResult(results, 'short_markdown', 'Short Markdown', `Bookmarks with markdown shorter than ${SHORT_MARKDOWN_THRESHOLD} characters`, shortMarkdownIds);
+    pushResult(results, 'no_questions', 'Missing Questions', 'Bookmarks with markdown but no AI-generated Q&A pairs', noQuestionsIds);
+  }
+  if (tier !== 'titles') {
+    pushResult(results, 'no_summary', 'Missing Summary', 'Bookmarks with markdown but no AI-generated summary', noSummaryIds);
+  }
   pushResult(results, 'stale_embeddings', 'Stale Embeddings', 'Bookmarks with embeddings from a different model than currently configured', staleIds);
 
   return results;
