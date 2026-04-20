@@ -1,4 +1,5 @@
 import type { OutputOptions, InputOption } from 'rollup';
+import pkg from './package.json' with { type: 'json' };
 
 /**
  * Shared Vite configuration for both Chrome and Firefox builds.
@@ -8,12 +9,14 @@ import type { OutputOptions, InputOption } from 'rollup';
  * - __IS_CHROME__: true when building for Chrome, false otherwise
  * - __IS_FIREFOX__: true when building for Firefox, false otherwise
  * - __IS_WEB__: true when building for web, false otherwise
+ * - __APP_VERSION__: The current version string from package.json.
  *
  * Use these flags to conditionally compile browser-specific code:
  *   if (__IS_CHROME__) { ... } // Dead code eliminated in Firefox builds
  */
 export const sharedDefine = {
   __DEBUG_EMBEDDINGS__: JSON.stringify(false),
+  __APP_VERSION__: JSON.stringify(pkg.version),
 };
 
 type Platform = 'chrome' | 'firefox' | 'web';

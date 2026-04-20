@@ -36,7 +36,7 @@
               !(builtins.elem baseName [ "node_modules" "dist-chrome" "dist-firefox" "dist-web" "coverage" ".git" "screenshots" ]);
           };
 
-          npmDepsHash = "sha256-8vzAwcf07RZrGe/oN4J6Q1bRVch7fY+g6r1QMjRx8gc=";
+          npmDepsHash = "sha256-UduF5V46Athhd3gh/8KpX2OZazBAyD0YalgvtJJB3Hk=";
 
           nativeBuildInputs = with pkgs; [ nodejs_22 zip ];
 
@@ -295,6 +295,93 @@
           };
           default = buildExtension "firefox";
         };
+
+        checks = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux (
+          let
+            e2eSrc = pkgs.lib.cleanSourceWith {
+              src = ./.;
+              filter = path: type:
+                let baseName = builtins.baseNameOf path; in
+                !(builtins.elem baseName [ "node_modules" "dist-chrome" "dist-firefox" "dist-web" "coverage" ".git" "screenshots" ]);
+            };
+            sharedHash = "sha256-UduF5V46Athhd3gh/8KpX2OZazBAyD0YalgvtJJB3Hk=";
+          in {
+            e2e-chrome = pkgs.buildNpmPackage {
+              pname = "bookmark-rag-e2e-chrome";
+              inherit version;
+              src = e2eSrc;
+              npmDepsHash = sharedHash;
+
+              nativeBuildInputs = with pkgs; [ nodejs_22 xvfb-run chromium dbus ];
+
+              dontNpmBuild = true;
+              doCheck = false;
+
+              buildPhase = ''
+                runHook preBuild
+                export HOME=$TMPDIR
+                export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
+                export BROWSER_PATH=${pkgs.chromium}/bin/chromium
+                export OPENAI_API_KEY=not-needed-for-tests
+                export SKIP_FIREFOX=1
+                export SKIP_DENO=1
+                export SKIP_WRANGLER=1
+
+                npm run build:chrome
+
+                xvfb-run --auto-servernum \
+                  --server-args='-screen 0 1920x1080x24' \
+                  npx tsx tests/e2e-walkthrough.test.ts
+                runHook postBuild
+              '';
+
+              installPhase = ''
+                runHook preInstall
+                mkdir -p $out
+                if [ -d screenshots ]; then cp -r screenshots $out/; fi
+                echo "e2e-chrome passed" > $out/result
+                runHook postInstall
+              '';
+            };
+
+            e2e-firefox = pkgs.buildNpmPackage {
+              pname = "bookmark-rag-e2e-firefox";
+              inherit version;
+              src = e2eSrc;
+              npmDepsHash = sharedHash;
+
+              nativeBuildInputs = with pkgs; [ nodejs_22 xvfb-run firefox geckodriver zip dbus ];
+
+              dontNpmBuild = true;
+              doCheck = false;
+
+              buildPhase = ''
+                runHook preBuild
+                export HOME=$TMPDIR
+                export FIREFOX_PATH=${pkgs.firefox}/bin/firefox
+                export OPENAI_API_KEY=not-needed-for-tests
+                export SKIP_CHROME=1
+                export SKIP_DENO=1
+                export SKIP_WRANGLER=1
+
+                npm run build:firefox
+
+                xvfb-run --auto-servernum \
+                  --server-args='-screen 0 1920x1080x24' \
+                  npx tsx tests/e2e-walkthrough.test.ts
+                runHook postBuild
+              '';
+
+              installPhase = ''
+                runHook preInstall
+                mkdir -p $out
+                if [ -d screenshots ]; then cp -r screenshots $out/; fi
+                echo "e2e-firefox passed" > $out/result
+                runHook postInstall
+              '';
+            };
+          }
+        );
 
         apps = {
           test = {

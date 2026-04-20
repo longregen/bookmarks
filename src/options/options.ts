@@ -5,6 +5,7 @@ import { initServerSyncModule } from './modules/server-sync';
 import { initSelfHealingModule } from './modules/self-healing';
 import { initThemeModule } from './modules/theme';
 import { initNavigationModule } from './modules/navigation';
+import { getElement } from '../ui/dom';
 import './modules/import-export';
 
 const cleanupFunctions: (() => void)[] = [];
@@ -13,6 +14,8 @@ function initializeModules(): void {
   initThemeModule();
   initNavigationModule();
   initSettingsModule();
+
+  getElement('appVersion').textContent = __APP_VERSION__;
 
   const bulkImportCleanup = initBulkImportModule();
   cleanupFunctions.push(bulkImportCleanup);

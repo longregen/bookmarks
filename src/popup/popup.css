@@ -12,14 +12,11 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   line-height: var(--leading-normal);
+  --btn-primary-bg: #059669;
+  --btn-primary-text: #ffffff;
+  --btn-primary-hover: #047857;
 }
 
-@media (max-width: 420px) {
-  body {
-    width: 100%;
-    min-width: 0;
-  }
-}
 
 .container {
   display: flex;
