@@ -36,7 +36,7 @@
               !(builtins.elem baseName [ "node_modules" "dist-chrome" "dist-firefox" "dist-web" "coverage" ".git" "screenshots" ]);
           };
 
-          npmDepsHash = "sha256-UduF5V46Athhd3gh/8KpX2OZazBAyD0YalgvtJJB3Hk=";
+          npmDepsHash = "sha256-r7W5K/zUFnBjXiySw3vY8I0S8qb9SXLfaETbZ8FFlYs=";
 
           nativeBuildInputs = with pkgs; [ nodejs_22 zip ];
 
@@ -304,7 +304,7 @@
                 let baseName = builtins.baseNameOf path; in
                 !(builtins.elem baseName [ "node_modules" "dist-chrome" "dist-firefox" "dist-web" "coverage" ".git" "screenshots" ]);
             };
-            sharedHash = "sha256-UduF5V46Athhd3gh/8KpX2OZazBAyD0YalgvtJJB3Hk=";
+            sharedHash = "sha256-r7W5K/zUFnBjXiySw3vY8I0S8qb9SXLfaETbZ8FFlYs=";
           in {
             e2e-chrome = pkgs.buildNpmPackage {
               pname = "bookmark-rag-e2e-chrome";

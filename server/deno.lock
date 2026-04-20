@@ -13,7 +13,6 @@
     "jsr:@std/path@1": "1.1.4",
     "jsr:@std/path@^1.1.4": "1.1.4",
     "npm:@types/node@*": "24.2.0",
-    "npm:hono@^4.12.3": "4.12.3",
     "npm:wrangler@^4.69.0": "4.69.0_unenv@2.0.0-rc.24_workerd@1.20260305.0"
   },
   "jsr": {
@@ -634,7 +633,7 @@
     ],
     "packageJson": {
       "dependencies": [
-        "npm:hono@^4.12.3",
+        "npm:hono@^4.12.14",
         "npm:wrangler@^4.69.0"
       ]
     }
