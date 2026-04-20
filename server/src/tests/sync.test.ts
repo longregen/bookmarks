@@ -237,7 +237,7 @@ Deno.test('POST /api/v1/sync/full - creates new bookmarks', async () => {
   const { deps, db, queue } = createMockDeps();
   const { sessionId } = setupAuthenticatedMock(db);
 
-  db.setQueryHandler('SELECT id, url, updated_at FROM bookmarks WHERE user_id', () => []);
+  db.setQueryHandler('SELECT id, url, updated_at, html, status FROM bookmarks WHERE user_id', () => []);
   db.setQueryHandler('INSERT INTO bookmarks', () => null);
   db.setQueryHandler('INSERT INTO bookmark_tags', () => null);
   db.setQueryHandler('INSERT INTO sync_log', () => null);
@@ -279,8 +279,8 @@ Deno.test('POST /api/v1/sync/full - handles URL conflicts', async () => {
   const { deps, db } = createMockDeps();
   const { sessionId } = setupAuthenticatedMock(db);
 
-  db.setQueryHandler('SELECT id, url, updated_at FROM bookmarks WHERE user_id', () => [
-    { id: 'server-bookmark', url: 'https://example.com', updated_at: '2024-01-02T00:00:00.000Z' },
+  db.setQueryHandler('SELECT id, url, updated_at, html, status FROM bookmarks WHERE user_id', () => [
+    { id: 'server-bookmark', url: 'https://example.com', updated_at: '2024-01-02T00:00:00.000Z', html: '', status: 'pending' },
   ]);
 
   const app = createApp(deps);

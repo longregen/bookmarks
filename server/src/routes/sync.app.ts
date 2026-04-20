@@ -3,7 +3,7 @@ import type { AppDependencies, AppVariables } from '../app.ts';
 import { createAuthMiddleware, getAuth } from '../middleware/auth.app.ts';
 import type { Bookmark, FullSyncBookmark, FullSyncRequest, FullSyncResponse, FullSyncDownloadResponse } from '../types/index.ts';
 import { getBookmarkTagsBatch, rowToBookmark } from '../utils/bookmark-helpers.ts';
-import { generateId, now, logSync } from '../utils/common.ts';
+import { generateId, now, logSync, preserveHtml } from '../utils/common.ts';
 
 function isValidUrl(url: string): boolean {
   try {
@@ -191,16 +191,16 @@ export function createSyncRoutes(deps: AppDependencies): Hono<{ Variables: AppVa
 
     // Batch fetch existing bookmarks by URL
     const urls = validBookmarks.map(b => b.url);
-    const existingByUrl = new Map<string, { id: string; updated_at: string }>();
+    const existingByUrl = new Map<string, { id: string; updated_at: string; html: string | null; status: string }>();
 
     if (urls.length > 0) {
       const placeholders = urls.map(() => '?').join(', ');
-      const existingRows = await deps.db.prepare<{ id: string; url: string; updated_at: string }>(
-        `SELECT id, url, updated_at FROM bookmarks WHERE user_id = ? AND url IN (${placeholders})`
+      const existingRows = await deps.db.prepare<{ id: string; url: string; updated_at: string; html: string | null; status: string }>(
+        `SELECT id, url, updated_at, html, status FROM bookmarks WHERE user_id = ? AND url IN (${placeholders})`
       ).bind(auth.userId, ...urls).all();
 
       for (const row of existingRows) {
-        existingByUrl.set(row.url, { id: row.id, updated_at: row.updated_at });
+        existingByUrl.set(row.url, { id: row.id, updated_at: row.updated_at, html: row.html, status: row.status });
       }
     }
 
@@ -214,9 +214,11 @@ export function createSyncRoutes(deps: AppDependencies): Hono<{ Variables: AppVa
         if (serverTime > clientTime) {
           conflicts.push({ localId: clientBookmark.id, serverId: existing.id, resolution: 'server' });
         } else {
+          const { value: html, changed: htmlChanged } = preserveHtml(clientBookmark.html, existing.html);
+          const nextStatus = htmlChanged ? 'pending' : existing.status;
           await deps.db.prepare(`
-            UPDATE bookmarks SET title = ?, html = ?, markdown = ?, status = 'pending', updated_at = ? WHERE id = ?
-          `).bind(clientBookmark.title, clientBookmark.html, clientBookmark.markdown || null, timestamp, existing.id).run();
+            UPDATE bookmarks SET title = ?, html = ?, markdown = ?, status = ?, updated_at = ? WHERE id = ?
+          `).bind(clientBookmark.title, html, clientBookmark.markdown || null, nextStatus, timestamp, existing.id).run();
 
           await deps.db.prepare('DELETE FROM bookmark_tags WHERE bookmark_id = ?').bind(existing.id).run();
           for (const tag of clientBookmark.tags) {
@@ -226,7 +228,9 @@ export function createSyncRoutes(deps: AppDependencies): Hono<{ Variables: AppVa
           }
 
           await logSync(deps, auth.userId, 'bookmark', existing.id, 'update');
-          await deps.queue.send({ bookmarkId: existing.id, userId: auth.userId, action: 'process' });
+          if (htmlChanged) {
+            await deps.queue.send({ bookmarkId: existing.id, userId: auth.userId, action: 'process' });
+          }
           conflicts.push({ localId: clientBookmark.id, serverId: existing.id, resolution: 'local' });
           updated++;
         }

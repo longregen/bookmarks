@@ -3,7 +3,7 @@ import type { AppDependencies, AppVariables } from '../app.ts';
 import { createAuthMiddleware, getAuth } from '../middleware/auth.app.ts';
 import type { CreateBookmarkRequest, BookmarkListResponse, Bookmark } from '../types/index.ts';
 import { getBookmarkTags, getBookmarkTagsBatch, rowToBookmark } from '../utils/bookmark-helpers.ts';
-import { generateId, now, logSync } from '../utils/common.ts';
+import { generateId, now, logSync, preserveHtml } from '../utils/common.ts';
 
 export function createBookmarkRoutes(deps: AppDependencies): Hono<{ Variables: AppVariables }> {
   const bookmarks = new Hono<{ Variables: AppVariables }>();
@@ -20,16 +20,20 @@ export function createBookmarkRoutes(deps: AppDependencies): Hono<{ Variables: A
     }
 
     const title = body.title || body.url;
-    const html = body.html ?? '';
+    const incomingHtml = body.html ?? '';
     const id = generateId();
     const timestamp = now();
 
-    const existing = await deps.db.prepare<{ id: string }>('SELECT id FROM bookmarks WHERE user_id = ? AND url = ? AND deleted_at IS NULL').bind(auth.userId, body.url).first();
+    const existing = await deps.db.prepare<{ id: string; html: string | null; status: string }>('SELECT id, html, status FROM bookmarks WHERE user_id = ? AND url = ? AND deleted_at IS NULL').bind(auth.userId, body.url).first();
 
     if (existing) {
-      await deps.db.prepare('UPDATE bookmarks SET title = ?, html = ?, status = \'pending\', updated_at = ? WHERE id = ?').bind(title, html, timestamp, existing.id).run();
+      const { value: html, changed: htmlChanged } = preserveHtml(incomingHtml, existing.html);
+      const nextStatus = htmlChanged ? 'pending' : existing.status;
+      await deps.db.prepare('UPDATE bookmarks SET title = ?, html = ?, status = ?, updated_at = ? WHERE id = ?').bind(title, html, nextStatus, timestamp, existing.id).run();
       await logSync(deps, auth.userId, 'bookmark', existing.id, 'update');
-      await deps.queue.send({ bookmarkId: existing.id, userId: auth.userId, action: 'process' });
+      if (htmlChanged) {
+        await deps.queue.send({ bookmarkId: existing.id, userId: auth.userId, action: 'process' });
+      }
 
       const bookmark: Bookmark = {
         id: existing.id,
@@ -38,7 +42,7 @@ export function createBookmarkRoutes(deps: AppDependencies): Hono<{ Variables: A
         title,
         html,
         markdown: null,
-        status: 'pending',
+        status: nextStatus as Bookmark['status'],
         errorMessage: null,
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -47,6 +51,8 @@ export function createBookmarkRoutes(deps: AppDependencies): Hono<{ Variables: A
       };
       return c.json(bookmark);
     }
+
+    const html = incomingHtml;
 
     await deps.db.prepare('INSERT INTO bookmarks (id, user_id, url, title, html, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, \'pending\', ?, ?)').bind(id, auth.userId, body.url, title, html, timestamp, timestamp).run();
     await logSync(deps, auth.userId, 'bookmark', id, 'create');
@@ -157,9 +163,17 @@ export function createBookmarkRoutes(deps: AppDependencies): Hono<{ Variables: A
     const timestamp = now();
     const updates: string[] = [];
     const values: (string | number | null | Uint8Array)[] = [];
+    let htmlChanged = false;
 
     if (body.title !== undefined) { updates.push('title = ?'); values.push(body.title); }
-    if (body.html !== undefined) { updates.push('html = ?'); values.push(body.html); updates.push('status = \'pending\''); }
+    if (body.html !== undefined) {
+      const { value, changed } = preserveHtml(body.html, existing.html as string | null);
+      htmlChanged = changed;
+      if (changed) {
+        updates.push('html = ?'); values.push(value);
+        updates.push('status = \'pending\'');
+      }
+    }
     if (body.markdown !== undefined) { updates.push('markdown = ?'); values.push(body.markdown); }
 
     if (updates.length > 0) {
@@ -181,7 +195,7 @@ export function createBookmarkRoutes(deps: AppDependencies): Hono<{ Variables: A
 
     await logSync(deps, auth.userId, 'bookmark', id, 'update');
 
-    if (body.html !== undefined) {
+    if (htmlChanged) {
       await deps.queue.send({ bookmarkId: id, userId: auth.userId, action: 'process' });
     }
 

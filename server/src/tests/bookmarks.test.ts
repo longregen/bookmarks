@@ -81,7 +81,7 @@ Deno.test('POST /api/v1/bookmarks - updates existing bookmark with same URL', as
   const { sessionId } = setupAuthenticatedMock(db);
 
   const existingId = 'existing-bookmark-id';
-  db.setQueryHandler('SELECT id FROM bookmarks WHERE user_id', () => ({ id: existingId }));
+  db.setQueryHandler('SELECT id, html, status FROM bookmarks WHERE user_id', () => ({ id: existingId, html: '', status: 'pending' }));
   db.setQueryHandler('UPDATE bookmarks SET title', () => null);
   db.setQueryHandler('INSERT INTO sync_log', () => null);
   db.setQueryHandler('SELECT tag_name FROM bookmark_tags', () => []);
