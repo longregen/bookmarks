@@ -18,6 +18,7 @@ export const DEFAULTS: ApiSettings = {
   markdownCacheCapMB: 50,
   markdownCacheBytes: 0,
   contentTierMigrationAt: '',
+  loadExternalResources: true,
 };
 
 export async function getSettingsFromDb(): Promise<ApiSettings> {
@@ -40,6 +41,7 @@ export async function getSettingsFromDb(): Promise<ApiSettings> {
     markdownCacheCapMB: (map.markdownCacheCapMB as number | undefined) ?? DEFAULTS.markdownCacheCapMB,
     markdownCacheBytes: (map.markdownCacheBytes as number | undefined) ?? DEFAULTS.markdownCacheBytes,
     contentTierMigrationAt: (map.contentTierMigrationAt as string | undefined) ?? DEFAULTS.contentTierMigrationAt,
+    loadExternalResources: (map.loadExternalResources as boolean | undefined) ?? DEFAULTS.loadExternalResources,
   };
 }
 

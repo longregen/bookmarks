@@ -4,6 +4,7 @@ import { initBulkImportModule } from './modules/bulk-import';
 import { initServerSyncModule } from './modules/server-sync';
 import { initSelfHealingModule } from './modules/self-healing';
 import { initThemeModule } from './modules/theme';
+import { initContentDisplayModule } from './modules/content-display';
 import { initNavigationModule } from './modules/navigation';
 import { getElement } from '../ui/dom';
 import './modules/import-export';
@@ -14,6 +15,7 @@ function initializeModules(): void {
   initThemeModule();
   initNavigationModule();
   initSettingsModule();
+  initContentDisplayModule();
 
   getElement('appVersion').textContent = __APP_VERSION__;
 

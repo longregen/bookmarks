@@ -503,6 +503,27 @@ body {
 
 .markdown-content {
   line-height: var(--leading-relaxed);
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.markdown-content img,
+.markdown-content video,
+.markdown-content iframe,
+.markdown-content svg,
+.markdown-content picture,
+.markdown-content embed,
+.markdown-content object {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.markdown-content table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .markdown-content h1 {
@@ -541,7 +562,14 @@ body {
   padding: var(--space-4);
   border-radius: var(--radius-md);
   overflow-x: auto;
+  max-width: 100%;
   margin-bottom: var(--space-4);
+}
+
+.markdown-content pre code {
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 .markdown-content a {
