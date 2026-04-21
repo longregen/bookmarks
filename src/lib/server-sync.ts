@@ -41,6 +41,30 @@ interface OfflineChange {
 
 const OFFLINE_QUEUE_KEY = 'serverSync:offlineQueue';
 
+const UPLOAD_BATCH_MAX_BYTES = 4 * 1024 * 1024;
+const UPLOAD_BATCH_MAX_COUNT = 500;
+
+function chunkUploadBookmarks(
+  bookmarks: FullSyncUploadRequest['bookmarks'],
+): FullSyncUploadRequest['bookmarks'][] {
+  const batches: FullSyncUploadRequest['bookmarks'][] = [];
+  let current: FullSyncUploadRequest['bookmarks'] = [];
+  let currentBytes = 0;
+
+  for (const b of bookmarks) {
+    const size = JSON.stringify(b).length;
+    if (current.length > 0 && (currentBytes + size > UPLOAD_BATCH_MAX_BYTES || current.length >= UPLOAD_BATCH_MAX_COUNT)) {
+      batches.push(current);
+      current = [];
+      currentBytes = 0;
+    }
+    current.push(b);
+    currentBytes += size;
+  }
+  if (current.length > 0) batches.push(current);
+  return batches;
+}
+
 export class ServerSyncManager {
   private isSyncing = false;
   private isProcessingQueue = false;
@@ -403,7 +427,9 @@ export class ServerSyncManager {
       tags: tagsByBookmark.get(b.id) ?? [],
     }));
 
-    await client.uploadFullSync({ bookmarks: uploadBookmarks });
+    for (const batch of chunkUploadBookmarks(uploadBookmarks)) {
+      await client.uploadFullSync({ bookmarks: batch });
+    }
   }
 
   private async mergeServerBookmarks(serverBookmarks: ServerBookmark[]): Promise<void> {
@@ -537,7 +563,13 @@ export class ServerSyncManager {
         tags: tagsByBookmark.get(b.id) ?? [],
       }));
 
-      const result = await client.uploadFullSync({ bookmarks: uploadBookmarks });
+      const batches = chunkUploadBookmarks(uploadBookmarks);
+      const result = { created: 0, updated: 0 };
+      for (const batch of batches) {
+        const batchResult = await client.uploadFullSync({ bookmarks: batch });
+        result.created += batchResult.created;
+        result.updated += batchResult.updated;
+      }
 
       // After uploading, download all server bookmarks to merge data from other
       // clients and set the sync cursor to cover all existing server data.
