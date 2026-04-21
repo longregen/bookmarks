@@ -3,6 +3,7 @@ import { db, getBookmarkContent } from '../db/schema';
 import { createElement, getElement, setSanitizedHTML } from '../ui/dom';
 import { formatDateByAge } from '../lib/date-format';
 import { parseMarkdown } from '../lib/markdown';
+import { getSettings } from '../lib/settings';
 import { createTagEditor } from '../ui/tag-editor';
 import { exportSingleBookmark } from '../lib/export';
 import { downloadExport, downloadMarkdown, downloadHtml, copyMarkdown, type ExportFormat } from '../ui/export-download';
@@ -251,8 +252,11 @@ async function loadView(): Promise<void> {
   }
 
   if (markdown) {
+    const settings = await getSettings();
     const content = createElement('div', { className: 'markdown-content' });
-    setSanitizedHTML(content, parseMarkdown(markdown.content));
+    setSanitizedHTML(content, parseMarkdown(markdown.content, {
+      loadExternalResources: settings.loadExternalResources,
+    }));
     markdownSection.appendChild(content);
   }
 

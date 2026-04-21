@@ -16,6 +16,7 @@ export interface ApiSettings {
   markdownCacheCapMB: number;
   markdownCacheBytes: number;
   contentTierMigrationAt: string;
+  loadExternalResources: boolean;
 }
 
 export type Theme = 'auto' | 'light' | 'dark' | 'terminal' | 'tufte';

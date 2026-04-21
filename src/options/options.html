@@ -28,6 +28,9 @@
         <a href="#appearance" class="nav-item active" data-section="appearance">
           <span class="nav-label">Appearance</span>
         </a>
+        <a href="#content-display" class="nav-item" data-section="content-display">
+          <span class="nav-label">Content Display</span>
+        </a>
         <a href="#api-config" class="nav-item" data-section="api-config">
           <span class="nav-label">API Configuration</span>
         </a>
@@ -98,6 +101,31 @@
                     <span class="theme-name">Tufte</span>
                   </label>
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="content-display" class="settings-section">
+          <div class="option-panel">
+            <div class="option-panel__header">
+              <h2>Content Display</h2>
+              <p class="section-description">
+                Control how bookmark content is rendered when viewing a saved page.
+              </p>
+            </div>
+            <div class="option-panel__content">
+              <div class="form-group">
+                <label class="toggle-label">
+                  <input type="checkbox" id="loadExternalResources" name="loadExternalResources" />
+                  <span class="toggle-text">Load external resources</span>
+                </label>
+                <small class="help-text">
+                  When enabled, images, videos, iframes and other media referenced by
+                  saved markdown are loaded from their original sources. Disable this
+                  for a text-only view that does not make network requests to third
+                  parties.
+                </small>
               </div>
             </div>
           </div>

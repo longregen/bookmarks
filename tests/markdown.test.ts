@@ -227,6 +227,39 @@ More *safe* content.`;
       expect(html).not.toContain('<script');
     });
 
+    describe('loadExternalResources option', () => {
+      it('strips external image src by default is true', () => {
+        const markdown = '![Alt text](https://example.com/image.png)';
+        const html = parseMarkdown(markdown);
+        expect(html).toContain('src="https://example.com/image.png"');
+      });
+
+      it('strips external image src when loadExternalResources is false', () => {
+        const markdown = '![Alt text](https://example.com/image.png)';
+        const html = parseMarkdown(markdown, { loadExternalResources: false });
+        expect(html).not.toContain('src="https://example.com/image.png"');
+        expect(html).toContain('data-external-stripped="https://example.com/image.png"');
+      });
+
+      it('keeps data: image URIs when loadExternalResources is false', () => {
+        const markdown = '<img src="data:image/png;base64,iVBORw0KGgo=" alt="inline">';
+        const html = parseMarkdown(markdown, { loadExternalResources: false });
+        expect(html).toContain('data:image/png');
+      });
+
+      it('strips protocol-relative URLs when loadExternalResources is false', () => {
+        const markdown = '<img src="//example.com/image.png" alt="x">';
+        const html = parseMarkdown(markdown, { loadExternalResources: false });
+        expect(html).not.toContain('src="//example.com/image.png"');
+      });
+
+      it('leaves subsequent calls unaffected after toggling', () => {
+        parseMarkdown('![x](https://a.com/i.png)', { loadExternalResources: false });
+        const html = parseMarkdown('![x](https://a.com/i.png)', { loadExternalResources: true });
+        expect(html).toContain('src="https://a.com/i.png"');
+      });
+    });
+
     it('should handle complex documents', () => {
       const markdown = `
 # Main Title
