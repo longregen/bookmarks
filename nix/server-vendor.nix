@@ -12,7 +12,7 @@ stdenv.mkDerivation {
 
   nativeBuildInputs = [ deno cacert ];
 
-  outputHash = "sha256-2OqJwkTXBfuz92yaA0gE9CmpTGmqNkk9CATrX48kYBU=";
+  outputHash = "sha256-gmtZISznq1mwUQjgLpo5AgysWOouMys7hO2hZooQJlw=";
   outputHashAlgo = "sha256";
   outputHashMode = "recursive";
 
